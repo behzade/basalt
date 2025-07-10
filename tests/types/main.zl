@@ -1,8 +1,0 @@
-let user = struct {
-  name: string,
-  age: int,
-};
-
-interface Greeter {
-  greet(name: string) -> string;
-}

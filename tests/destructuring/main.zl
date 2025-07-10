@@ -1,6 +1,0 @@
-let user = {
-    name: "Zerolang",
-    age: 1,
-};
-
-let { name, age } = user;

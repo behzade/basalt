@@ -1,1 +1,0 @@
-let result = do_something_that_might_fail()?;
