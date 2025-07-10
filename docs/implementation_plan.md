@@ -72,6 +72,7 @@ We have a functional lexer that can tokenize Zerolang source code. The parser is
     -   `ArrayLiteral`
     -   `HashLiteral`
     -   `IndexExpression`
+    -   `ErrorPropagation`
 
 -   **Parser Functions (`compiler/parser/parser.go`):**
     -   `New` (parser constructor)
@@ -99,16 +100,19 @@ We have a functional lexer that can tokenize Zerolang source code. The parser is
     -   `parseArrayLiteral`
     -   `parseHashLiteral`
     -   `parseIndexExpression`
+    -   `parseErrorPropagation`
     -   Precedence table and helper functions (`peekPrecedence`, `curPrecedence`)
     -   Prefix and Infix parse function registration
 
 ## What Remains
 
+### Parser
+-   Destructuring Assignments
+-   Type Declarations (Structural Typing)
+
 ## Future Tasks
 
-1.  **Error Handling Improvements:**
-    -   More robust error reporting and recovery.
-2.  **Testing:**
+1.  **Testing:**
     -   Write comprehensive unit tests for all new parser features.
     -   Update existing test files (`tests/`) to cover new language constructs.
 

@@ -52,6 +52,7 @@ p.registerPrefix(token.LBRACE, p.parseHashLiteral)
 	p.registerInfix(token.GT, p.parseInfixExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 p.registerInfix(token.LBRACKET, p.parseIndexExpression)
+p.registerInfix(token.QUESTION, p.parseErrorPropagation)
 
 	// Read two tokens, so curToken and peekToken are both set
 	p.nextToken()
@@ -94,6 +95,7 @@ const (
 	PREFIX      // -X or !X
 	CALL        // myFunction(X)
 	INDEX       // array[index]
+	ERROR_PROPAGATION // ?
 )
 
 var precedences = map[token.TokenType]int{
@@ -107,6 +109,7 @@ var precedences = map[token.TokenType]int{
 	token.ASTERISK: PRODUCT,
 	token.LPAREN:   CALL,
 	token.LBRACKET: INDEX,
+token.QUESTION: ERROR_PROPAGATION,
 }
 
 func (p *Parser) peekPrecedence() int {
@@ -459,6 +462,11 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	return exp
 }
 
+func (p *Parser) parseErrorPropagation(left ast.Expression) ast.Expression {
+	exp := &ast.ErrorPropagation{Token: p.curToken, Left: left}
+	return exp
+}
+
 func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
 	p.errors = append(p.errors, msg)
@@ -478,6 +486,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		return nil
 	}
 
+	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
 
 	if p.peekTokenIs(token.SEMICOLON) {

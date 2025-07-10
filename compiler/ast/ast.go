@@ -186,6 +186,23 @@ func (ie *IndexExpression) String() string {
 	return out.String()
 }
 
+// ErrorPropagation represents an error propagation expression (e.g., `foo()?`).
+type ErrorPropagation struct {
+	Token token.Token // The '?' token
+	Left  Expression
+}
+
+func (ep *ErrorPropagation) expressionNode()      {}
+func (ep *ErrorPropagation) TokenLiteral() string { return ep.Token.Literal }
+func (ep *ErrorPropagation) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(ep.Left.String())
+	out.WriteString(ep.TokenLiteral())
+
+	return out.String()
+}
+
 // PrefixExpression represents a prefix expression.
 type PrefixExpression struct {
 	Token    token.Token // The operator token, e.g. !

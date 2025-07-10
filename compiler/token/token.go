@@ -50,6 +50,7 @@ const (
 	IF       = "IF"
 	ELSE     = "ELSE"
 	RETURN   = "RETURN"
+	QUESTION = "?"
 )
 
 var keywords = map[string]TokenType{

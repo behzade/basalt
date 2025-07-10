@@ -8,7 +8,7 @@ import (
 )
 
 func TestParsingStringLiteralExpression(t *testing.T) {
-	input := `"hello world";`
+	input := `"hello world"`;
 
 	l := lexer.New(input)
 	p := New(l)
@@ -145,6 +145,34 @@ func TestParsingIndexExpressions(t *testing.T) {
 
 	if indexExp.Index.String() != "(1 + 1)" {
 		t.Errorf("Expected Index to be '(1 + 1)'. Got %s", indexExp.Index.String())
+	}
+}
+
+func TestParsingErrorPropagation(t *testing.T) {
+	input := `foo()?`
+
+	l := lexer.New(input)
+	p := New(l)
+
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("Expected ExpressionStatement. Got %T", program.Statements[0])
+	}
+
+	ep, ok := stmt.Expression.(*ast.ErrorPropagation)
+	if !ok {
+		t.Fatalf("Expected ErrorPropagation. Got %T", stmt.Expression)
+	}
+
+	if ep.Left.String() != "foo()" {
+		t.Errorf("Expected Left to be 'foo()'. Got %s", ep.Left.String())
+	}
+
+	if ep.TokenLiteral() != "?" {
+		t.Errorf("Expected TokenLiteral to be '?'. Got %s", ep.TokenLiteral())
 	}
 }
 
