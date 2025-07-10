@@ -112,6 +112,28 @@ We have a functional lexer that can tokenize Zerolang source code. The parser is
 
 ## Future Tasks
 
+### LLVM Backend
+-   **Phase 1: LLVM Setup and Basic IR Generation**
+    -   **Research Go LLVM Bindings:** Completed (`tinygo.org/x/go-llvm` selected).
+    -   **Environment Setup:** Ongoing (Devbox integration, CGO flag configuration, `run_compiler.sh` script created).
+    -   **Basic LLVM Context and Module:** Completed (Initial `codegen` package).
+    -   **Integer Literal IR Generation:** Completed.
+    -   **Basic Arithmetic IR Generation:** Ongoing (Initial implementation, debugging type issues).
+
+-   **Phase 2: Expanding IR Generation and Execution**
+    -   Variable Declaration and Assignment.
+    -   Function Definition and Calls.
+    -   Control Flow (If Expressions).
+    -   String and Array Literals.
+    -   Execution Engine Integration.
+
+-   **Phase 3: Advanced Features and Testing**
+    -   Hash Literals and Index Expressions.
+    -   Error Propagation (`?` operator).
+    -   End-to-End Testing with LLVM.
+    -   `print` Functionality Test.
+    -   Refinement and Optimization.
+
 1.  **Testing:**
     -   Write comprehensive unit tests for all new parser features.
     -   Update existing test files (`tests/`) to cover new language constructs.
