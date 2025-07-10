@@ -32,18 +32,14 @@ func (c *CodeGen) GenerateCode(program *ast.Program) {
 	mainBlock := c.context.AddBasicBlock(mainFunc, "entry")
 	c.builder.SetInsertPointAtEnd(mainBlock)
 
-	hasExplicitReturn := false
 	for _, stmt := range program.Statements {
-		if _, ok := stmt.(*ast.ReturnStatement); ok {
-			hasExplicitReturn = true
-		}
 		c.genStatement(stmt)
 	}
 
-	// If no explicit return statement was encountered, and the last instruction is not a terminator,
-	// add a default return 0.
-	// This handles cases where the program ends with an expression statement or no statements.
-	if !hasExplicitReturn && (c.builder.GetInsertBlock().LastInstruction().IsNil() || c.builder.GetInsertBlock().LastInstruction().Opcode() == llvm.Ret) {
+	// Ensure the main function always has a return instruction.
+	// If the last instruction in the current block is not a terminator, add a default return 0.
+	lastInst := c.builder.GetInsertBlock().LastInstruction()
+	if lastInst.IsNil() || !(lastInst.Opcode() == llvm.Ret || lastInst.Opcode() == llvm.Br || lastInst.Opcode() == llvm.Switch || lastInst.Opcode() == llvm.IndirectBr || lastInst.Opcode() == llvm.Invoke || lastInst.Opcode() == llvm.Unreachable) {
 		c.builder.CreateRet(llvm.ConstInt(c.context.Int32Type(), 0, false))
 	}
 }
@@ -138,7 +134,8 @@ func (c *CodeGen) genIfExpression(expr *ast.IfExpression) llvm.Value {
 	// Generate code for the consequence block
 	consequenceVal := c.genBlockStatement(expr.Consequence)
 	// If the then block doesn't have a terminator, branch to merge
-	if c.builder.GetInsertBlock().LastInstruction().IsNil() || c.builder.GetInsertBlock().LastInstruction().Opcode() != llvm.Ret {
+	lastInst := c.builder.GetInsertBlock().LastInstruction()
+	if lastInst.IsNil() || !(lastInst.Opcode() == llvm.Ret || lastInst.Opcode() == llvm.Br || lastInst.Opcode() == llvm.Switch || lastInst.Opcode() == llvm.IndirectBr || lastInst.Opcode() == llvm.Invoke || lastInst.Opcode() == llvm.Unreachable) {
 		c.builder.CreateBr(mergeBlock)
 	}
 
@@ -150,7 +147,8 @@ func (c *CodeGen) genIfExpression(expr *ast.IfExpression) llvm.Value {
 		alternativeVal = c.genBlockStatement(expr.Alternative)
 	}
 	// If the else block doesn't have a terminator, branch to merge
-	if c.builder.GetInsertBlock().LastInstruction().IsNil() || c.builder.GetInsertBlock().LastInstruction().Opcode() != llvm.Ret {
+	lastInst = c.builder.GetInsertBlock().LastInstruction()
+	if lastInst.IsNil() || !(lastInst.Opcode() == llvm.Ret || lastInst.Opcode() == llvm.Br || lastInst.Opcode() == llvm.Switch || lastInst.Opcode() == llvm.IndirectBr || lastInst.Opcode() == llvm.Invoke || lastInst.Opcode() == llvm.Unreachable) {
 		c.builder.CreateBr(mergeBlock)
 	}
 

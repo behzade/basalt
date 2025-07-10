@@ -5,10 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"tinygo.org/x/go-llvm"
-
 	"github.com/behzade/zerolang/compiler/codegen"
 	"github.com/behzade/zerolang/compiler/lexer"
+	ll "github.com/behzade/zerolang/compiler/llvm"
 	"github.com/behzade/zerolang/compiler/parser"
 )
 
@@ -42,25 +41,5 @@ func main() {
 
 	cg.Dump()
 
-	err = llvm.InitializeNativeTarget()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize native target: %s\n", err)
-		os.Exit(1)
-	}
-
-	err = llvm.InitializeNativeAsmPrinter()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize native asm printer: %s\n", err)
-		os.Exit(1)
-	}
-
-	executionEngine, err := llvm.NewExecutionEngine(cg.Module())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create JIT compiler: %s\n", err)
-		os.Exit(1)
-	}
-	defer executionEngine.Dispose()
-
-	funcResult := executionEngine.RunFunction(cg.Module().NamedFunction("main"), []llvm.GenericValue{})
-	fmt.Printf("Result: %d\n", funcResult.Int(false))
+	ll.InitializeAndExecuteLLVM(cg.Module())
 }
