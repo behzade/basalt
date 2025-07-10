@@ -1,25 +1,30 @@
 package ast
 
-import "github.com/behzade/basalt/token"
+import (
+	"bytes"
 
-// All nodes in our AST must implement the Node interface.
+	"github.com/behzade/basalt/token"
+)
+
+// Node is the base interface for all AST nodes.
 type Node interface {
-	TokenLiteral() string // Used for debugging and testing
+	TokenLiteral() string
+	String() string // For debugging and printing the AST
 }
 
-// A Statement is a Node that doesn't produce a value.
+// Statement is a node that doesn't produce a value.
 type Statement interface {
 	Node
 	statementNode()
 }
 
-// An Expression is a Node that produces a value.
+// Expression is a node that produces a value.
 type Expression interface {
 	Node
 	expressionNode()
 }
 
-// Program is the root node of every AST our parser produces.
+// Program is the root node of every AST.
 type Program struct {
 	Statements []Statement
 }
@@ -31,7 +36,15 @@ func (p *Program) TokenLiteral() string {
 	return ""
 }
 
-// LetStatement represents a 'let' statement, e.g., `let x = 5;`
+func (p *Program) String() string {
+	var out bytes.Buffer
+	for _, s := range p.Statements {
+		out.WriteString(s.String())
+	}
+	return out.String()
+}
+
+// LetStatement represents `let <name> = <value>;`
 type LetStatement struct {
 	Token token.Token // the token.LET token
 	Name  *Identifier
@@ -40,8 +53,19 @@ type LetStatement struct {
 
 func (ls *LetStatement) statementNode()       {}
 func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }
+func (ls *LetStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString(ls.TokenLiteral() + " ")
+	out.WriteString(ls.Name.String())
+	out.WriteString(" = ")
+	if ls.Value != nil {
+		out.WriteString(ls.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
 
-// ReturnStatement represents a 'return' statement, e.g., `return 5;`
+// ReturnStatement represents `return <value>;`
 type ReturnStatement struct {
 	Token       token.Token // the 'return' token
 	ReturnValue Expression
@@ -49,8 +73,32 @@ type ReturnStatement struct {
 
 func (rs *ReturnStatement) statementNode()       {}
 func (rs *ReturnStatement) TokenLiteral() string { return rs.Token.Literal }
+func (rs *ReturnStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString(rs.TokenLiteral() + " ")
+	if rs.ReturnValue != nil {
+		out.WriteString(rs.ReturnValue.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
 
-// Identifier represents a variable name, e.g., `x` in `let x = 5;`
+// ExpressionStatement represents a statement containing a single expression.
+type ExpressionStatement struct {
+	Token      token.Token // the first token of the expression
+	Expression Expression
+}
+
+func (es *ExpressionStatement) statementNode()       {}
+func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *ExpressionStatement) String() string {
+	if es.Expression != nil {
+		return es.Expression.String()
+	}
+	return ""
+}
+
+// Identifier represents a variable name.
 type Identifier struct {
 	Token token.Token // the token.IDENT token
 	Value string
@@ -58,3 +106,14 @@ type Identifier struct {
 
 func (i *Identifier) expressionNode()      {}
 func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
+func (i *Identifier) String() string       { return i.Value }
+
+// IntegerLiteral represents an integer value.
+type IntegerLiteral struct {
+	Token token.Token // the token.INT token
+	Value int64
+}
+
+func (il *IntegerLiteral) expressionNode()      {}
+func (il *IntegerLiteral) TokenLiteral() string { return il.Token.Literal }
+func (il *IntegerLiteral) String() string       { return il.Token.Literal }
