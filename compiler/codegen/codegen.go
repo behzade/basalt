@@ -87,7 +87,7 @@ func (c *CodeGen) genInfixExpression(expr *ast.InfixExpression) llvm.Value {
 	switch expr.Operator {
 	case "+":
 		return c.builder.CreateAdd(left, right, "addtmp")
-	case "-":	
+	case "-":
 		return c.builder.CreateSub(left, right, "subtmp")
 	case "*":
 		return c.builder.CreateMul(left, right, "multmp")
@@ -107,59 +107,88 @@ func (c *CodeGen) genInfixExpression(expr *ast.InfixExpression) llvm.Value {
 	}
 }
 
+// isTerminated checks if a basic block already has a terminator instruction.
+func isTerminated(block llvm.BasicBlock) bool {
+	lastInst := block.LastInstruction()
+	if lastInst.IsNil() {
+		return false
+	}
+	op := lastInst.Opcode()
+	// An instruction is a terminator if it's one of Ret, Br, Switch, IndirectBr, Invoke, Unreachable
+	return op == llvm.Ret || op == llvm.Br || op == llvm.Switch || op == llvm.IndirectBr || op == llvm.Invoke || op == llvm.Unreachable
+}
+
 func (c *CodeGen) genIfExpression(expr *ast.IfExpression) llvm.Value {
-	// Generate condition
 	cond := c.genExpression(expr.Condition)
 
-	// Convert condition to boolean (i1)
 	if cond.Type().IntTypeWidth() != 1 {
-		// If the condition is not already an i1, compare it to 0
-		// This assumes non-zero is true, zero is false
 		cond = c.builder.CreateICmp(llvm.IntNE, cond, llvm.ConstInt(cond.Type(), 0, false), "condtmp")
 	}
 
-	// Get current function
 	currentFunc := c.builder.GetInsertBlock().Parent()
 
-	// Create basic blocks for then, else, and merge
+	// Create basic blocks
 	thenBlock := c.context.AddBasicBlock(currentFunc, "then")
 	elseBlock := c.context.AddBasicBlock(currentFunc, "else")
 	mergeBlock := c.context.AddBasicBlock(currentFunc, "ifcont")
 
-	// Create conditional branch
 	c.builder.CreateCondBr(cond, thenBlock, elseBlock)
 
-	// Emit then block
+	// --- THEN Block ---
 	c.builder.SetInsertPointAtEnd(thenBlock)
-	// Generate code for the consequence block
 	consequenceVal := c.genBlockStatement(expr.Consequence)
-	// If the then block doesn't have a terminator, branch to merge
-	lastInst := c.builder.GetInsertBlock().LastInstruction()
-	if lastInst.IsNil() || !(lastInst.Opcode() == llvm.Ret || lastInst.Opcode() == llvm.Br || lastInst.Opcode() == llvm.Switch || lastInst.Opcode() == llvm.IndirectBr || lastInst.Opcode() == llvm.Invoke || lastInst.Opcode() == llvm.Unreachable) {
+	thenTerminated := isTerminated(c.builder.GetInsertBlock())
+	if !thenTerminated {
 		c.builder.CreateBr(mergeBlock)
 	}
+	thenFinalBlock := c.builder.GetInsertBlock()
 
-	// Emit else block
-	c.builder.SetInsertPointAtEnd(elseBlock)
+	// --- ELSE Block ---
 	var alternativeVal llvm.Value
+	elseTerminated := false
+	var elseFinalBlock llvm.BasicBlock
+
 	if expr.Alternative != nil {
-		// Generate code for the alternative block
+		c.builder.SetInsertPointAtEnd(elseBlock)
 		alternativeVal = c.genBlockStatement(expr.Alternative)
-	}
-	// If the else block doesn't have a terminator, branch to merge
-	lastInst = c.builder.GetInsertBlock().LastInstruction()
-	if lastInst.IsNil() || !(lastInst.Opcode() == llvm.Ret || lastInst.Opcode() == llvm.Br || lastInst.Opcode() == llvm.Switch || lastInst.Opcode() == llvm.IndirectBr || lastInst.Opcode() == llvm.Invoke || lastInst.Opcode() == llvm.Unreachable) {
+		elseTerminated = isTerminated(c.builder.GetInsertBlock())
+		if !elseTerminated {
+			c.builder.CreateBr(mergeBlock)
+		}
+		elseFinalBlock = c.builder.GetInsertBlock()
+	} else {
+		// If no `else` is provided, the else block just jumps to the merge.
+		c.builder.SetInsertPointAtEnd(elseBlock)
 		c.builder.CreateBr(mergeBlock)
+		elseFinalBlock = elseBlock
 	}
 
-	// Emit merge block
 	c.builder.SetInsertPointAtEnd(mergeBlock)
 
-	// Create PHI node to merge results from then and else blocks
-	phi := c.builder.CreatePHI(c.context.Int64Type(), "iftmp") // Assuming expressions return i64 for now
-	phi.AddIncoming([]llvm.Value{consequenceVal, alternativeVal}, []llvm.BasicBlock{thenBlock, elseBlock})
+	// --- MERGE Block ---
+	// If both branches were terminated, the merge block is unreachable.
+	// Terminate it with `unreachable` to create valid IR.
+	if thenTerminated && elseTerminated {
+		c.builder.CreateUnreachable()
+		return llvm.Value{}
+	}
 
-	return phi
+	// If the if-expression can return a value (i.e., has an `else` part)
+	// and at least one branch continues to the merge block, create a PHI node.
+	if expr.Alternative != nil {
+		phi := c.builder.CreatePHI(c.context.Int64Type(), "iftmp")
+
+		if !thenTerminated {
+			phi.AddIncoming([]llvm.Value{consequenceVal}, []llvm.BasicBlock{thenFinalBlock})
+		}
+		if !elseTerminated {
+			phi.AddIncoming([]llvm.Value{alternativeVal}, []llvm.BasicBlock{elseFinalBlock})
+		}
+		return phi
+	}
+
+	// If it's an `if` without an `else`, it produces no value.
+	return llvm.Value{}
 }
 
 func (c *CodeGen) genBlockStatement(block *ast.BlockStatement) llvm.Value {
