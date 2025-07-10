@@ -118,14 +118,15 @@ We have a functional lexer that can tokenize Zerolang source code. The parser is
     -   **Environment Setup:** Ongoing (Devbox integration, CGO flag configuration, `run_compiler.sh` script created).
     -   **Basic LLVM Context and Module:** Completed (Initial `codegen` package).
     -   **Integer Literal IR Generation:** Completed.
-    -   **Basic Arithmetic IR Generation:** Ongoing (Initial implementation, debugging type issues).
+    -   **Basic Arithmetic IR Generation:** Completed.
+-   **Return Statement IR Generation:** Completed.
 
 -   **Phase 2: Expanding IR Generation and Execution**
     -   Variable Declaration and Assignment.
     -   Function Definition and Calls.
-    -   Control Flow (If Expressions).
+    -   **Control Flow (If Expressions):** Ongoing (Debugging termination issues).
     -   String and Array Literals.
-    -   Execution Engine Integration.
+    -   **Execution Engine Integration:** Ongoing (Debugging segmentation faults).
 
 -   **Phase 3: Advanced Features and Testing**
     -   Hash Literals and Index Expressions.

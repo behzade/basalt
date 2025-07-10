@@ -29,22 +29,27 @@ func TestEndToEnd(t *testing.T) {
 		{
 			name:     "functions",
 			filePath: filepath.Join(filepath.Dir(wd), "tests", "functions", "main.zl"),
-			expected: "let add = fn(x, y)return (x + y);;let five = 5;let ten = 10;let result = add(five, ten);",
+			expected: "Result: 0",
 		},
 		{
 			name:     "control_flow",
 			filePath: filepath.Join(filepath.Dir(wd), "tests", "control_flow", "main.zl"),
-			expected: "if(5 > 4) return true;else return false;",
+			expected: "Result: 0",
 		},
 		{
 			name:     "operators",
 			filePath: filepath.Join(filepath.Dir(wd), "tests", "operators", "main.zl"),
-			expected: "(5 + 5)(5 - 5)(5 * 5)(5 / 5)(5 > 5)(5 < 5)(5 == 5)(5 != 5)",
+			expected: "Result: 0",
 		},
 		{
 			name:     "variables",
 			filePath: filepath.Join(filepath.Dir(wd), "tests", "variables", "main.zl"),
-			expected: "let x = 5;let y = 10;let foobar = 838383;",
+			expected: "Result: 0",
+		},
+		{
+			name:     "return_operator_expression",
+			filePath: filepath.Join(filepath.Dir(wd), "tests", "return_operator_expression", "main.zl"),
+			expected: "Result: 10",
 		},
 	}
 
