@@ -195,6 +195,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) (value.Value, error) {
 		return c.compileCallExpression(e)
 	case *ast.IfExpression:
 		return c.compileIfExpression(e)
+	case *ast.ForExpression:
+		return c.compileForExpression(e)
 	case *ast.FunctionLiteral:
 		return c.compileFunctionLiteral(e)
 	case *ast.ArrayLiteral:
@@ -376,6 +378,51 @@ func (c *Compiler) compileIfExpression(expr *ast.IfExpression) (value.Value, err
 	return phi, nil
 }
 
+// compileForExpression compiles a for loop expression
+func (c *Compiler) compileForExpression(expr *ast.ForExpression) (value.Value, error) {
+	// Generate unique block names
+	blockId := c.blockCounter
+	c.blockCounter++
+
+	// Step 1: Create the three essential basic blocks
+	condBlock := c.currentFunc.NewBlock(fmt.Sprintf("loop.cond.%d", blockId))
+	bodyBlock := c.currentFunc.NewBlock(fmt.Sprintf("loop.body.%d", blockId))
+	exitBlock := c.currentFunc.NewBlock(fmt.Sprintf("loop.exit.%d", blockId))
+
+	// Enter the loop: jump from current block to condition block
+	c.currentBlock.NewBr(condBlock)
+
+	// Step 2: Compile the condition check
+	c.currentBlock = condBlock
+	condition, err := c.compileExpression(expr.Condition)
+	if err != nil {
+		return nil, err
+	}
+
+	// Condition must be boolean (i1)
+	if condition.Type() != types.I1 {
+		return nil, fmt.Errorf("for loop condition must be boolean, got %s", condition.Type())
+	}
+
+	// Create conditional branch: if true go to body, if false go to exit
+	c.currentBlock.NewCondBr(condition, bodyBlock, exitBlock)
+
+	// Step 3: Compile the loop body and create the loop
+	c.currentBlock = bodyBlock
+	_, err = c.compileBlockStatement(expr.Consequence)
+	if err != nil {
+		return nil, err
+	}
+	// Jump back to condition block to create the loop
+	c.currentBlock.NewBr(condBlock)
+
+	// Step 4: Continue execution after the loop
+	c.currentBlock = exitBlock
+
+	// For loops don't produce a meaningful value, return a default
+	return constant.NewInt(types.I64, 0), nil
+}
+
 // compileBlockStatement compiles a block statement and returns the value of the last expression
 func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value, error) {
 	var lastValue value.Value = constant.NewInt(types.I64, 0) // Default value
@@ -489,6 +536,20 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 		return c.currentBlock.NewICmp(enum.IPredSLT, left, right), nil
 	case ">":
 		return c.currentBlock.NewICmp(enum.IPredSGT, left, right), nil
+	case "=":
+		// Assignment operator - left should be an identifier
+		if ident, ok := expr.Left.(*ast.Identifier); ok {
+			// Look up the variable in symbol table
+			ptr, exists := c.symbolTable[ident.Value]
+			if !exists {
+				return nil, fmt.Errorf("undefined variable: %s", ident.Value)
+			}
+			// Store the right-hand side value into the variable
+			c.currentBlock.NewStore(right, ptr)
+			// Return the assigned value
+			return right, nil
+		}
+		return nil, fmt.Errorf("assignment target must be an identifier")
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", expr.Operator)
 	}
