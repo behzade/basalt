@@ -737,5 +737,62 @@ func checkParserErrors(t *testing.T, p *Parser) {
 	for _, msg := range errors {
 		t.Errorf("parser error: %q", msg)
 	}
-	t.FailNow()
+}
+
+func TestImportStatements(t *testing.T) {
+	tests := []struct {
+		input         string
+		expectedPath  []string
+		expectedAlias string
+	}{
+		{"import std::io;", []string{"std", "io"}, ""},
+		{"import std::net::http;", []string{"std", "net", "http"}, ""},
+		{"import std::io as console;", []string{"std", "io"}, "console"},
+		{"import filesystem::utils as fs;", []string{"filesystem", "utils"}, "fs"},
+		{"import single;", []string{"single"}, ""},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements does not contain 1 statement. got=%d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ImportStatement)
+		if !ok {
+			t.Fatalf("program.Statements[0] is not *ast.ImportStatement. got=%T", program.Statements[0])
+		}
+
+		if stmt.TokenLiteral() != "import" {
+			t.Errorf("stmt.TokenLiteral() not 'import'. got=%q", stmt.TokenLiteral())
+		}
+
+		// Test path segments
+		if len(stmt.Path.Segments) != len(tt.expectedPath) {
+			t.Fatalf("stmt.Path.Segments length not %d. got=%d", len(tt.expectedPath), len(stmt.Path.Segments))
+		}
+
+		for i, expectedSegment := range tt.expectedPath {
+			if stmt.Path.Segments[i].Value != expectedSegment {
+				t.Errorf("stmt.Path.Segments[%d].Value not '%s'. got=%s", i, expectedSegment, stmt.Path.Segments[i].Value)
+			}
+		}
+
+		// Test alias
+		if tt.expectedAlias == "" {
+			if stmt.Alias != nil {
+				t.Errorf("stmt.Alias expected to be nil. got=%s", stmt.Alias.Value)
+			}
+		} else {
+			if stmt.Alias == nil {
+				t.Errorf("stmt.Alias expected to be '%s'. got=nil", tt.expectedAlias)
+			} else if stmt.Alias.Value != tt.expectedAlias {
+				t.Errorf("stmt.Alias.Value not '%s'. got=%s", tt.expectedAlias, stmt.Alias.Value)
+			}
+		}
+	}
 }

@@ -34,12 +34,13 @@ const (
 	NOT_EQ   = "!="
 
 	// Delimiters
-	COMMA     = ","
-	SEMICOLON = ";"
-	LPAREN    = "("
-	RPAREN    = ")"
-	LBRACE    = "{"
-	RBRACE    = "}"
+	COMMA      = ","
+	SEMICOLON  = ";"
+	COLONCOLON = "::"
+	LPAREN     = "("
+	RPAREN     = ")"
+	LBRACE     = "{"
+	RBRACE     = "}"
 
 	// Keywords
 	FUNCTION  = "FUNCTION"
@@ -52,6 +53,8 @@ const (
 	RETURN    = "RETURN"
 	STRUCT    = "STRUCT"
 	INTERFACE = "INTERFACE"
+	IMPORT    = "IMPORT"
+	AS        = "AS"
 )
 
 // keywords maps keyword strings to their TokenType.
@@ -66,6 +69,8 @@ var keywords = map[string]TokenType{
 	"return":    RETURN,
 	"struct":    STRUCT,
 	"interface": INTERFACE,
+	"import":    IMPORT,
+	"as":        AS,
 }
 
 // LookupIdent checks the keywords table to see if an identifier is a keyword.

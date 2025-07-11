@@ -32,8 +32,6 @@ var precedences = map[token.TokenType]int{
 	token.LPAREN:   CALL,
 }
 
-
-
 type (
 	prefixParseFn func() ast.Expression
 	infixParseFn  func(ast.Expression) ast.Expression
@@ -124,6 +122,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseLetStatement()
 	case token.RETURN:
 		return p.parseReturnStatement()
+	case token.IMPORT:
+		return p.parseImportStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -419,4 +419,59 @@ func (p *Parser) curPrecedence() int {
 		return p
 	}
 	return LOWEST
+}
+
+// parseImportStatement parses import statements like "import std::io;" or "import std::fs as filesystem;"
+func (p *Parser) parseImportStatement() *ast.ImportStatement {
+	stmt := &ast.ImportStatement{Token: p.curToken}
+
+	// Move to the first identifier of the path
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	// Parse the module path (e.g., std::io::fs)
+	path := &ast.PathExpression{
+		Token:    p.curToken,
+		Segments: []*ast.Identifier{},
+	}
+
+	// Add the first identifier
+	path.Segments = append(path.Segments, &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	})
+
+	// Parse additional path segments separated by ::
+	for p.peekTokenIs(token.COLONCOLON) {
+		p.nextToken() // consume ::
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		path.Segments = append(path.Segments, &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		})
+	}
+
+	stmt.Path = path
+
+	// Check for optional alias
+	if p.peekTokenIs(token.AS) {
+		p.nextToken() // consume 'as'
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		stmt.Alias = &ast.Identifier{
+			Token: p.curToken,
+			Value: p.curToken.Literal,
+		}
+	}
+
+	// Expect semicolon
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
 }

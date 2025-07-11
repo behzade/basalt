@@ -252,3 +252,43 @@ func (bs *BlockStatement) String() string {
 	out.WriteString("}")
 	return out.String()
 }
+
+// PathExpression represents a module path like std::io::fs
+type PathExpression struct {
+	Token    token.Token   // The first identifier token
+	Segments []*Identifier // The path segments (e.g., ["std", "io", "fs"])
+}
+
+func (pe *PathExpression) expressionNode()      {}
+func (pe *PathExpression) TokenLiteral() string { return pe.Token.Literal }
+func (pe *PathExpression) String() string {
+	var out bytes.Buffer
+	for i, segment := range pe.Segments {
+		if i > 0 {
+			out.WriteString("::")
+		}
+		out.WriteString(segment.String())
+	}
+	return out.String()
+}
+
+// ImportStatement represents `import <path>` or `import <path> as <alias>;`
+type ImportStatement struct {
+	Token token.Token     // The 'import' token
+	Path  *PathExpression // The module path (e.g., std::io)
+	Alias *Identifier     // Optional alias (can be nil)
+}
+
+func (is *ImportStatement) statementNode()       {}
+func (is *ImportStatement) TokenLiteral() string { return is.Token.Literal }
+func (is *ImportStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString(is.TokenLiteral() + " ")
+	out.WriteString(is.Path.String())
+	if is.Alias != nil {
+		out.WriteString(" as ")
+		out.WriteString(is.Alias.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
