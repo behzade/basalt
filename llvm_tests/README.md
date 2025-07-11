@@ -92,6 +92,38 @@ Array Tests:
 50
 ```
 
+### 06_structs.bst
+Tests struct operations:
+- Struct definition and type registration
+- Struct instantiation with field values
+- Field access and member operations
+- Multiple field types (int64, string, bool)
+- Struct fields in arithmetic expressions
+- Complex expressions with struct fields
+- Multiple struct instances and types
+
+**Expected Output:**
+```
+Struct Tests:
+10
+20
+John Doe
+30
+true
+15
+35
+48
+true
+test
+true
+14
+10
+4
+6
+true
+false
+```
+
 ## Running Tests
 
 To run all tests and verify the LLVM backend is working correctly:
@@ -112,8 +144,11 @@ go run main.go llvm_tests/04_strings.bst --compile test4 && ./test4
 # Test arrays
 go run main.go llvm_tests/05_arrays.bst --compile test5 && ./test5
 
+# Test structs
+go run main.go llvm_tests/06_structs.bst --compile test6 && ./test6
+
 # Clean up
-rm test1 test2 test3 test4 test5
+rm test1 test2 test3 test4 test5 test6
 ```
 
 ## Features Validated
@@ -128,7 +163,8 @@ These tests validate the following LLVM backend features:
 6. **External Functions**: C runtime integration for I/O
 7. **String Operations**: String literals, concatenation, and comparisons
 8. **Array Operations**: Array literals, indexing, and length method calls
-9. **Build Pipeline**: IR generation → llc → clang → executable
+9. **Struct Operations**: Struct definitions, instantiation, and field access
+10. **Build Pipeline**: IR generation → llc → clang → executable
 
 ## Implementation Status
 
@@ -140,6 +176,7 @@ These tests validate the following LLVM backend features:
 - Function calls and recursion
 - String literals, concatenation, and comparisons
 - Array literals, indexing, and length method calls
+- Struct definitions, instantiation, and field access
 - Print statements via C runtime
 - Complete compilation pipeline
 
