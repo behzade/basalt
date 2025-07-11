@@ -56,6 +56,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		function := Eval(node.Function, env)
 		args := evalArguments(node.Arguments, env)
 		return applyFunction(function, args)
+	case *ast.IfExpression:
+		return evalIfExpression(node, env)
 	case *ast.BlockStatement:
 		return evalBlockStatement(node, env)
 	}
@@ -92,6 +94,39 @@ func evalBlockStatement(block *ast.BlockStatement, env *object.Environment) obje
 	}
 
 	return result
+}
+
+func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {
+	condition := Eval(ie.Condition, env)
+
+	if isTruthy(condition) {
+		return Eval(ie.Consequence, env)
+	} else if ie.Alternative != nil {
+		return Eval(ie.Alternative, env)
+	} else {
+		return NONE
+	}
+}
+
+func isTruthy(obj object.Object) bool {
+	switch obj {
+	case NONE:
+		return false
+	case FALSE:
+		return false
+	default:
+		// For wrapped values (Some), check the inner value
+		if some, ok := obj.(*object.Some); ok {
+			switch some.Value {
+			case FALSE:
+				return false
+			default:
+				// All other values (including integers, even 0) are truthy
+				return true
+			}
+		}
+		return true
+	}
 }
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {

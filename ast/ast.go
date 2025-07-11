@@ -212,6 +212,29 @@ func (ce *CallExpression) String() string {
 	return out.String()
 }
 
+// IfExpression represents an if-else conditional expression.
+type IfExpression struct {
+	Token       token.Token     // The 'if' token
+	Condition   Expression      // The condition to evaluate
+	Consequence *BlockStatement // The block to execute if condition is true
+	Alternative *BlockStatement // The block to execute if condition is false (can be nil)
+}
+
+func (ie *IfExpression) expressionNode()      {}
+func (ie *IfExpression) TokenLiteral() string { return ie.Token.Literal }
+func (ie *IfExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("if")
+	out.WriteString(ie.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(ie.Consequence.String())
+	if ie.Alternative != nil {
+		out.WriteString("else ")
+		out.WriteString(ie.Alternative.String())
+	}
+	return out.String()
+}
+
 // BlockStatement represents a block of statements, e.g., the body of a function or an if-else block.
 type BlockStatement struct {
 	Token      token.Token // The '{' token
@@ -229,4 +252,3 @@ func (bs *BlockStatement) String() string {
 	out.WriteString("}")
 	return out.String()
 }
-
