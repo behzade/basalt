@@ -537,7 +537,7 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 	case ">":
 		return c.currentBlock.NewICmp(enum.IPredSGT, left, right), nil
 	case "=":
-		// Assignment operator - left should be an identifier
+		// Assignment operator - left should be an identifier or member access
 		if ident, ok := expr.Left.(*ast.Identifier); ok {
 			// Look up the variable in symbol table
 			ptr, exists := c.symbolTable[ident.Value]
@@ -548,8 +548,11 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 			c.currentBlock.NewStore(right, ptr)
 			// Return the assigned value
 			return right, nil
+		} else if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
+			// Handle struct field assignment
+			return c.compileStructFieldAssignment(memberAccess, right)
 		}
-		return nil, fmt.Errorf("assignment target must be an identifier")
+		return nil, fmt.Errorf("assignment target must be an identifier or struct field")
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", expr.Operator)
 	}
@@ -1059,4 +1062,50 @@ func (c *Compiler) compileStructInstanceExpression(expr *ast.StructInstanceExpre
 	}
 
 	return structPtr, nil
+}
+
+// compileStructFieldAssignment compiles assignment to a struct field (e.g., obj.field = value)
+func (c *Compiler) compileStructFieldAssignment(memberAccess *ast.MemberAccessExpression, value value.Value) (value.Value, error) {
+	// Compile the object being accessed
+	objectValue, err := c.compileExpression(memberAccess.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	memberName := memberAccess.Right.Value
+
+	// Check if this is struct field access
+	if structPtr, ok := objectValue.Type().(*types.PointerType); ok {
+		if structType, ok := structPtr.ElemType.(*types.StructType); ok {
+			// Find the struct info for this type
+			for _, structInfo := range c.typeRegistry {
+				if structInfo.LLVMType == structType {
+					// Check if the field exists
+					fieldIndex, exists := structInfo.FieldIndex[memberName]
+					if !exists {
+						return nil, fmt.Errorf("field '%s' not found in struct", memberName)
+					}
+
+					// Get pointer to the field using GEP
+					zero := constant.NewInt(types.I32, 0)
+					fieldIdx := constant.NewInt(types.I32, int64(fieldIndex))
+					fieldPtr := c.currentBlock.NewGetElementPtr(structType, objectValue, zero, fieldIdx)
+
+					// Type check - ensure the value type matches the field type
+					expectedType := structInfo.FieldTypes[memberName]
+					if !value.Type().Equal(expectedType) {
+						return nil, fmt.Errorf("cannot assign %s to field '%s' of type %s", value.Type(), memberName, expectedType)
+					}
+
+					// Store the value into the field
+					c.currentBlock.NewStore(value, fieldPtr)
+
+					// Return the assigned value
+					return value, nil
+				}
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("cannot assign to field '%s' on non-struct type", memberName)
 }
