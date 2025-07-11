@@ -1,0 +1,138 @@
+-- TEST: Return statement simple
+-- INPUT
+return 10;
+-- EXPECT-EVAL
+10
+===
+-- TEST: Return statement with expression
+-- INPUT
+return 2 * 5;
+-- EXPECT-EVAL
+10
+===
+-- TEST: Return statement early exit
+-- INPUT
+9; return 2 * 5; 9;
+-- EXPECT-EVAL
+10
+===
+-- TEST: Let statement simple
+-- INPUT
+let a = 5; a;
+-- EXPECT-EVAL
+5
+===
+-- TEST: Let statement with expression
+-- INPUT
+let a = 5 * 5; a;
+-- EXPECT-EVAL
+25
+===
+-- TEST: Let statement chained
+-- INPUT
+let a = 5; let b = a; b;
+-- EXPECT-EVAL
+5
+===
+-- TEST: Let statement complex
+-- INPUT
+let a = 5; let b = a; let c = a + b + 5; c;
+-- EXPECT-EVAL
+15
+===
+-- TEST: If expression simple
+-- INPUT
+if 10 > 1 { 10 }
+-- EXPECT-EVAL
+10
+===
+-- TEST: If expression false condition
+-- INPUT
+if 1 > 10 { 10 }
+-- EXPECT-EVAL
+null
+===
+-- TEST: If else expression - else branch
+-- INPUT
+if 1 > 10 { 10 } else { 20 }
+-- EXPECT-EVAL
+20
+===
+-- TEST: If else expression - if branch
+-- INPUT
+if 1 < 10 { 10 } else { 20 }
+-- EXPECT-EVAL
+10
+===
+-- TEST: If else expression - false condition
+-- INPUT
+if false { 10 } else { 20 }
+-- EXPECT-EVAL
+20
+===
+-- TEST: If expression - true condition
+-- INPUT
+if true { 10 }
+-- EXPECT-EVAL
+10
+===
+-- TEST: If expression - truthy zero
+-- INPUT
+if 0 { 10 } else { 20 }
+-- EXPECT-EVAL
+10
+===
+-- TEST: If expression - truthy one
+-- INPUT
+if 1 { 10 }
+-- EXPECT-EVAL
+10
+===
+-- TEST: If else expression - true condition
+-- INPUT
+if true { 10 } else { 20 }
+-- EXPECT-EVAL
+10
+===
+-- TEST: If expression - false condition returns null
+-- INPUT
+if false { 10 }
+-- EXPECT-EVAL
+null
+===
+-- TEST: Identifier expression parsing
+-- INPUT
+foobar;
+-- EXPECT-AST
+foobar
+===
+-- TEST: Import statement parsing - simple
+-- INPUT
+import std::io;
+-- EXPECT-AST
+import std::io;
+===
+-- TEST: Import statement parsing - nested
+-- INPUT
+import std::net::http;
+-- EXPECT-AST
+import std::net::http;
+===
+-- TEST: Import statement parsing - with alias
+-- INPUT
+import std::io as console;
+-- EXPECT-AST
+import std::io as console;
+===
+-- TEST: Import statement parsing - filesystem alias
+-- INPUT
+import filesystem::utils as fs;
+-- EXPECT-AST
+import filesystem::utils as fs;
+===
+-- TEST: Import statement parsing - single module
+-- INPUT
+import single;
+-- EXPECT-AST
+import single;
+=== 

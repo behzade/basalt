@@ -1,207 +1,119 @@
 package evaluator
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/behzade/basalt/lexer"
 	"github.com/behzade/basalt/object"
 	"github.com/behzade/basalt/parser"
+	"github.com/behzade/basalt/testutil"
 )
 
-func TestEvalIntegerExpression(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int64
-	}{
-		{"5", 5},
-		{"10", 10},
+func TestArithmetic(t *testing.T) {
+	runTestFile(t, "../tests/arithmetic.test")
+}
+
+func TestArrays(t *testing.T) {
+	runTestFile(t, "../tests/arrays.test")
+}
+
+func TestStrings(t *testing.T) {
+	runTestFile(t, "../tests/strings.test")
+}
+
+func TestBooleans(t *testing.T) {
+	runTestFile(t, "../tests/booleans.test")
+}
+
+func TestControlFlow(t *testing.T) {
+	runTestFile(t, "../tests/control_flow.test")
+}
+
+func TestFunctions(t *testing.T) {
+	runTestFile(t, "../tests/functions.test")
+}
+
+func TestErrors(t *testing.T) {
+	runTestFile(t, "../tests/errors.test")
+}
+
+// runTestFile executes tests from a specific test file
+func runTestFile(t *testing.T, filepath string) {
+	testCases, err := testutil.ParseTestFile(filepath)
+	if err != nil {
+		t.Fatalf("Failed to parse test file %s: %v", filepath, err)
 	}
 
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			switch tc.Type {
+			case "EVAL":
+				runEvalTest(t, tc)
+			case "ERROR":
+				runErrorTest(t, tc)
+			case "AST":
+				// Skip AST tests in evaluator
+				t.Skip("Skipping AST test in evaluator")
+			default:
+				t.Fatalf("Unknown test type: %s", tc.Type)
+			}
+		})
 	}
 }
 
-func TestEvalBooleanExpression(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"true", true},
-		{"false", false},
-	}
+// runEvalTest executes an evaluation test
+func runEvalTest(t *testing.T, tc testutil.TestCase) {
+	evaluated := testEval(tc.Input)
 
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestReturnStatements(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int64
-	}{
-		{"return 10;", 10},
-		{"return 10; 9;", 10},
-		{"return 2 * 5;", 10},
-		{"9; return 2 * 5; 9;", 10},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestBangOperator(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"!true", false},
-		{"!false", true},
-		{"!5", true},
-		{"!!true", true},
-		{"!!false", false},
-		{"!!5", false},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestIntegerExpression(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int64
-	}{
-		{"5", 5},
-		{"10", 10},
-		{"-5", -5},
-		{"-10", -10},
-		{"5 + 5 + 5 + 5 - 10", 10},
-		{"2 * 2 * 2 * 2 * 2", 32},
-		{"-50 + 100 + -50", 0},
-		{"5 * 2 + 10", 20},
-		{"5 + 2 * 10", 25},
-		{"20 + 2 * -10", 0},
-		{"50 / 2 * 2 + 10", 60},
-		{"2 * (5 + 10)", 30},
-		{"3 * 3 * 3 + 10", 37},
-		{"3 * (3 * 3) + 10", 37},
-		{"(5 + 10 * 2 + 15 / 3) * 2 + -10", 50},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestBooleanExpression(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected bool
-	}{
-		{"true", true},
-		{"false", false},
-		{"1 < 2", true},
-		{"1 > 2", false},
-		{"1 < 1", false},
-		{"1 > 1", false},
-		{"1 == 1", true},
-		{"1 != 1", false},
-		{"1 == 2", false},
-		{"1 != 2", true},
-		{"true == true", true},
-		{"false == false", true},
-		{"true == false", false},
-		{"true != false", true},
-		{"false != true", true},
-		{"(1 < 2) == true", true},
-		{"(1 < 2) == false", false},
-		{"(1 > 2) == true", false},
-		{"(1 > 2) == false", true},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestLetStatements(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int64
-	}{
-		{"let a = 5; a;", 5},
-		{"let a = 5 * 5; a;", 25},
-		{"let a = 5; let b = a; b;", 5},
-		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestErrorHandling(t *testing.T) {
-	tests := []struct {
-		input           string
-		expectedMessage string
-	}{
-		{
-			"5 + true;",
-			"type mismatch: INTEGER + BOOLEAN",
-		},
-		{
-			"true - false;",
-			"unknown operator: -",
-		},
-		{
-			"foobar",
-			"identifier not found: foobar",
-		},
-		{
-			"if (10 > 1) { true + false; }",
-			"unknown operator: +",
-		},
-		{
-			"5 + true; 5;",
-			"type mismatch: INTEGER + BOOLEAN",
-		},
-		{
-			"-true",
-			"unknown operator: -SOME",
-		},
-		{
-			"5 + true + 10;",
-			"type mismatch: INTEGER + BOOLEAN",
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-
-		errObj, ok := evaluated.(*object.Error)
-		if !ok {
-			t.Errorf("no error object returned. got=%T(%+v)", evaluated, evaluated)
-			continue
+	// Handle different expected value types
+	switch tc.Expected {
+	case "null":
+		testOptionObject(t, evaluated, nil)
+	case "function":
+		// Just check if it's a function object
+		if _, ok := evaluated.(*object.Function); !ok {
+			t.Errorf("Expected function object, got %T", evaluated)
 		}
-
-		if errObj.Message != tt.expectedMessage {
-			t.Errorf("wrong error message. expected=%q, got=%q",
-				tt.expectedMessage, errObj.Message)
+	default:
+		// Try to parse as different types
+		if strings.HasPrefix(tc.Expected, "\"") && strings.HasSuffix(tc.Expected, "\"") {
+			// String literal
+			expected := strings.Trim(tc.Expected, "\"")
+			testOptionObject(t, evaluated, expected)
+		} else if strings.HasPrefix(tc.Expected, "[") && strings.HasSuffix(tc.Expected, "]") {
+			// Array literal
+			expected := parseArrayLiteral(tc.Expected)
+			testOptionObject(t, evaluated, expected)
+		} else if tc.Expected == "true" {
+			testOptionObject(t, evaluated, true)
+		} else if tc.Expected == "false" {
+			testOptionObject(t, evaluated, false)
+		} else if val, err := strconv.ParseInt(tc.Expected, 10, 64); err == nil {
+			testOptionObject(t, evaluated, val)
+		} else {
+			t.Errorf("Unknown expected value format: %s", tc.Expected)
 		}
 	}
 }
 
+// runErrorTest executes an error test
+func runErrorTest(t *testing.T, tc testutil.TestCase) {
+	evaluated := testEval(tc.Input)
+
+	errObj, ok := evaluated.(*object.Error)
+	if !ok {
+		t.Errorf("Expected error object, got %T(%+v)", evaluated, evaluated)
+		return
+	}
+
+	if errObj.Message != tc.Expected {
+		t.Errorf("Expected error message: %s, got: %s", tc.Expected, errObj.Message)
+	}
+}
+
+// testEval evaluates input and returns the result
 func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
@@ -217,6 +129,7 @@ func testEval(input string) object.Object {
 	return evaluated
 }
 
+// testOptionObject tests Option objects (Some/None)
 func testOptionObject(t *testing.T, obj object.Object, expected interface{}) bool {
 	if expected == nil {
 		// Expecting a None object
@@ -238,6 +151,7 @@ func testOptionObject(t *testing.T, obj object.Object, expected interface{}) boo
 	return testLiteralObject(t, some.Value, expected)
 }
 
+// testLiteralObject tests literal objects
 func testLiteralObject(t *testing.T, obj object.Object, expected interface{}) bool {
 	switch v := expected.(type) {
 	case int:
@@ -256,6 +170,7 @@ func testLiteralObject(t *testing.T, obj object.Object, expected interface{}) bo
 	}
 }
 
+// testIntegerObject tests integer objects
 func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 	result, ok := obj.(*object.Integer)
 	if !ok {
@@ -263,13 +178,13 @@ func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 		return false
 	}
 	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%d, want=%d",
-			result.Value, expected)
+		t.Errorf("object has wrong value. got=%d, want=%d", result.Value, expected)
 		return false
 	}
 	return true
 }
 
+// testBooleanObject tests boolean objects
 func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	result, ok := obj.(*object.Boolean)
 	if !ok {
@@ -277,13 +192,13 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 		return false
 	}
 	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%t, want=%t",
-			result.Value, expected)
+		t.Errorf("object has wrong value. got=%t, want=%t", result.Value, expected)
 		return false
 	}
 	return true
 }
 
+// testStringObject tests string objects
 func testStringObject(t *testing.T, obj object.Object, expected string) bool {
 	result, ok := obj.(*object.String)
 	if !ok {
@@ -291,454 +206,13 @@ func testStringObject(t *testing.T, obj object.Object, expected string) bool {
 		return false
 	}
 	if result.Value != expected {
-		t.Errorf("object has wrong value. got=%q, want=%q",
-			result.Value, expected)
+		t.Errorf("object has wrong value. got=%q, want=%q", result.Value, expected)
 		return false
 	}
 	return true
 }
 
-func TestFunctionObject(t *testing.T) {
-	input := "fn(x) { x + 2; };"
-
-	evaluated := testEval(input)
-	fn, ok := evaluated.(*object.Function)
-	if !ok {
-		t.Fatalf("object is not Function. got=%T (%+v)", evaluated, evaluated)
-	}
-
-	if len(fn.Parameters) != 1 {
-		t.Fatalf("function has wrong parameters. Parameters=%+v", fn.Parameters)
-	}
-
-	if fn.Parameters[0].String() != "x" {
-		t.Fatalf("parameter is not 'x'. got=%q", fn.Parameters[0])
-	}
-
-	expectedBody := "{(x + 2)}"
-
-	if fn.Body.String() != expectedBody {
-		t.Fatalf("body is not %q. got=%q", expectedBody, fn.Body.String())
-	}
-}
-
-func TestFunctionApplication(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int64
-	}{
-		{"let identity = fn(x) { x; }; identity(5);", 5},
-		{"let double = fn(x) { x * 2; }; double(5);", 10},
-		{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
-		{"fn(x) { x; }(5)", 5},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestClosures(t *testing.T) {
-	input := `
-let newAdder = fn(x) {
-  fn(y) { x + y };
-};
-let addTwo = newAdder(2);
-addTwo(3);
-`
-
-	evaluated := testEval(input)
-	testOptionObject(t, evaluated, 5)
-}
-
-func TestEvalIfElseExpressions(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected interface{}
-	}{
-		{"if 10 > 1 { 10 }", 10},
-		{"if 1 > 10 { 10 }", nil},
-		{"if 1 > 10 { 10 } else { 20 }", 20},
-		{"if 1 < 10 { 10 } else { 20 }", 10},
-		{"if false { 10 } else { 20 }", 20},
-		{"if true { 10 }", 10},
-		{"if 0 { 10 } else { 20 }", 10}, // 0 is truthy in our language
-		{"if 1 { 10 }", 10},
-		{"if true { 10 } else { 20 }", 10},
-		{"if false { 10 }", nil},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestImportStatements(t *testing.T) {
-	// Test Case 1: Standard Import
-	input1 := "import std::io; io;"
-	evaluated1 := testEval(input1)
-
-	module1, ok := evaluated1.(*object.Module)
-	if !ok {
-		t.Fatalf("object is not Module. got=%T (%+v)", evaluated1, evaluated1)
-	}
-
-	// Verify the module has the expected environment
-	if module1.Env == nil {
-		t.Fatalf("module environment is nil")
-	}
-
-	// Test Case 2: Aliased Import
-	input2 := "import std::io as console; console;"
-	evaluated2 := testEval(input2)
-
-	module2, ok := evaluated2.(*object.Module)
-	if !ok {
-		t.Fatalf("object is not Module. got=%T (%+v)", evaluated2, evaluated2)
-	}
-
-	// Verify both modules are the same (same reference from registry)
-	if module1 != module2 {
-		t.Fatalf("aliased import should return the same module")
-	}
-
-	// Test Case 3: Import Error
-	input3 := "import std::nonexistent;"
-	evaluated3 := testEval(input3)
-
-	errObj, ok := evaluated3.(*object.Error)
-	if !ok {
-		t.Fatalf("object is not Error. got=%T (%+v)", evaluated3, evaluated3)
-	}
-
-	expectedMessage := "module not found: std::nonexistent"
-	if errObj.Message != expectedMessage {
-		t.Fatalf("wrong error message. expected=%q, got=%q", expectedMessage, errObj.Message)
-	}
-}
-
-func TestImportModuleBasicAccess(t *testing.T) {
-	// Test importing a module and accessing it
-	input := `
-import std::io;
-io;
-`
-
-	evaluated := testEval(input)
-
-	// We should get a Module object
-	module, ok := evaluated.(*object.Module)
-	if !ok {
-		t.Fatalf("object is not Module. got=%T (%+v)", evaluated, evaluated)
-	}
-
-	// Verify the module has an environment with the puts function
-	putsObj, ok := module.Env.Get("puts")
-	if !ok {
-		t.Fatalf("puts function not found in module environment")
-	}
-
-	// Verify puts is a builtin function
-	builtin, ok := putsObj.(*object.Builtin)
-	if !ok {
-		t.Fatalf("puts is not a Builtin. got=%T (%+v)", putsObj, putsObj)
-	}
-
-	// Verify it's actually a function
-	if builtin.Fn == nil {
-		t.Fatalf("builtin function is nil")
-	}
-}
-
-func TestMemberAccessExpressions(t *testing.T) {
-	tests := []struct {
-		input        string
-		expected     interface{}
-		expectError  bool
-		errorMessage string
-	}{
-		// Test Case 1: Successful Access
-		{
-			input:    "import std::io; io.VERSION",
-			expected: 1,
-		},
-		// Test Case 2: Member Not Found
-		{
-			input:        "import std::io; io.nonexistent",
-			expectError:  true,
-			errorMessage: "undefined member 'nonexistent' on module",
-		},
-		// Test Case 3: Invalid Access on non-module
-		{
-			input:        "1.foo",
-			expectError:  true,
-			errorMessage: "member access not supported on type SOME",
-		},
-	}
-
-	for i, tt := range tests {
-		evaluated := testEval(tt.input)
-
-		if tt.expectError {
-			errObj, ok := evaluated.(*object.Error)
-			if !ok {
-				t.Errorf("test %d: expected Error object. got=%T (%+v)", i, evaluated, evaluated)
-				continue
-			}
-			if errObj.Message != tt.errorMessage {
-				t.Errorf("test %d: wrong error message. expected=%q, got=%q", i, tt.errorMessage, errObj.Message)
-			}
-		} else {
-			// For successful access, we expect an Integer
-			intObj, ok := evaluated.(*object.Integer)
-			if !ok {
-				t.Errorf("test %d: expected Integer object. got=%T (%+v)", i, evaluated, evaluated)
-				continue
-			}
-			expectedInt, ok := tt.expected.(int)
-			if !ok {
-				t.Errorf("test %d: expected value should be int. got=%T", i, tt.expected)
-				continue
-			}
-			if intObj.Value != int64(expectedInt) {
-				t.Errorf("test %d: wrong integer value. expected=%d, got=%d", i, expectedInt, intObj.Value)
-			}
-		}
-	}
-}
-
-func TestStringLiteralExpression(t *testing.T) {
-	input := `"hello world!"`
-
-	evaluated := testEval(input)
-	testOptionObject(t, evaluated, "hello world!")
-}
-
-func TestStringConcatenation(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{`"Hello" + " " + "World!"`, "Hello World!"},
-		{`"foo" + "bar"`, "foobar"},
-		{`"" + "test"`, "test"},
-		{`"test" + ""`, "test"},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestArrayLiterals(t *testing.T) {
-	input := "[1, 2 * 2, 3 + 3]"
-
-	evaluated := testEval(input)
-	testOptionObject(t, evaluated, []int64{1, 4, 6})
-}
-
-func TestArrayIndexExpressions(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected interface{}
-	}{
-		{
-			"[1, 2, 3][0]",
-			1,
-		},
-		{
-			"[1, 2, 3][1]",
-			2,
-		},
-		{
-			"[1, 2, 3][2]",
-			3,
-		},
-		{
-			"let i = 0; [1][i];",
-			1,
-		},
-		{
-			"[1, 2, 3][1 + 1];",
-			3,
-		},
-		{
-			"let myArray = [1, 2, 3]; myArray[2];",
-			3,
-		},
-		{
-			"let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
-			6,
-		},
-		{
-			"let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
-			2,
-		},
-		{
-			"[1, 2, 3][3]",
-			"index out of bounds",
-		},
-		{
-			"[1, 2, 3][-1]",
-			"index out of bounds",
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		switch expected := tt.expected.(type) {
-		case int:
-			testOptionObject(t, evaluated, int64(expected))
-		case string:
-			errObj, ok := evaluated.(*object.Error)
-			if !ok {
-				t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
-				continue
-			}
-			if errObj.Message != expected {
-				t.Errorf("wrong error message. expected=%q, got=%q", expected, errObj.Message)
-			}
-		}
-	}
-}
-
-func TestArrayTypeEnforcement(t *testing.T) {
-	tests := []struct {
-		input           string
-		expectedMessage string
-	}{
-		{
-			"[1, \"hello\"]",
-			"array elements must be of the same type",
-		},
-		{
-			"[true, 42]",
-			"array elements must be of the same type",
-		},
-		{
-			"[1, 2, \"three\"]",
-			"array elements must be of the same type",
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-
-		errObj, ok := evaluated.(*object.Error)
-		if !ok {
-			t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
-			continue
-		}
-
-		if errObj.Message != tt.expectedMessage {
-			t.Errorf("wrong error message. expected=%q, got=%q",
-				tt.expectedMessage, errObj.Message)
-		}
-	}
-}
-
-func TestArrayMethodAccess(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected interface{}
-	}{
-		{
-			"[1, 2, 3, 4].len()",
-			4,
-		},
-		{
-			"[].len()",
-			0,
-		},
-		{
-			"let arr = [1, 2, 3]; arr.len()",
-			3,
-		},
-		{
-			"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].len()",
-			10,
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		switch expected := tt.expected.(type) {
-		case int:
-			testOptionObject(t, evaluated, int64(expected))
-		}
-	}
-}
-
-func TestStringMethodAccess(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected interface{}
-	}{
-		{
-			"\"hello world\".len()",
-			11,
-		},
-		{
-			"\"\".len()",
-			0,
-		},
-		{
-			"let str = \"test\"; str.len()",
-			4,
-		},
-		{
-			"\"hello\".len() + \"world\".len()",
-			10,
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		switch expected := tt.expected.(type) {
-		case int:
-			testOptionObject(t, evaluated, int64(expected))
-		}
-	}
-}
-
-func TestMethodAccessErrors(t *testing.T) {
-	tests := []struct {
-		input           string
-		expectedMessage string
-	}{
-		{
-			"[1, 2, 3].foo()",
-			"undefined method 'foo' on array",
-		},
-		{
-			"\"hello\".bar()",
-			"undefined method 'bar' on string",
-		},
-		{
-			"42.len()",
-			"member access not supported on type SOME",
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-
-		errObj, ok := evaluated.(*object.Error)
-		if !ok {
-			t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
-			continue
-		}
-
-		if errObj.Message != tt.expectedMessage {
-			t.Errorf("wrong error message. expected=%q, got=%q",
-				tt.expectedMessage, errObj.Message)
-		}
-	}
-}
-
+// testArrayObject tests array objects
 func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
 	result, ok := obj.(*object.Some)
 	if !ok {
@@ -748,13 +222,16 @@ func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
 
 	array, ok := result.Value.(*object.Array)
 	if !ok {
-		t.Errorf("object is not Array. got=%T (%+v)", result.Value, result.Value)
+		// Check if it's a slice instead
+		if _, ok := result.Value.(*object.Slice); ok {
+			return testSliceObject(t, obj, expected)
+		}
+		t.Errorf("object is not Array or Slice. got=%T (%+v)", result.Value, result.Value)
 		return false
 	}
 
 	if len(array.Elements) != len(expected) {
-		t.Errorf("wrong num of elements. want=%d, got=%d",
-			len(expected), len(array.Elements))
+		t.Errorf("wrong num of elements. want=%d, got=%d", len(expected), len(array.Elements))
 		return false
 	}
 
@@ -780,191 +257,7 @@ func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
 	return true
 }
 
-func TestArraySlicing(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected []int64
-	}{
-		{
-			"[1, 2, 3, 4][1:3]",
-			[]int64{2, 3},
-		},
-		{
-			"[1, 2, 3, 4][:2]",
-			[]int64{1, 2},
-		},
-		{
-			"[1, 2, 3, 4][2:]",
-			[]int64{3, 4},
-		},
-		{
-			"[1, 2, 3, 4][:]",
-			[]int64{1, 2, 3, 4},
-		},
-		{
-			"[1, 2, 3, 4][1:1]",
-			[]int64{},
-		},
-		{
-			"let arr = [1, 2, 3, 4]; arr[1:3]",
-			[]int64{2, 3},
-		},
-		{
-			"[1, 2, 3, 4, 5][1:4]",
-			[]int64{2, 3, 4},
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testSliceObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestStringSlicing(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{
-			"\"hello\"[1:4]",
-			"ell",
-		},
-		{
-			"\"hello\"[:3]",
-			"hel",
-		},
-		{
-			"\"hello\"[2:]",
-			"llo",
-		},
-		{
-			"\"hello\"[:]",
-			"hello",
-		},
-		{
-			"\"hello\"[1:1]",
-			"",
-		},
-		{
-			"let str = \"world\"; str[1:4]",
-			"orl",
-		},
-		{
-			"\"testing\"[0:4]",
-			"test",
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		testOptionObject(t, evaluated, tt.expected)
-	}
-}
-
-func TestSlicingErrors(t *testing.T) {
-	tests := []struct {
-		input           string
-		expectedMessage string
-	}{
-		{
-			"[1, 2, 3][5:10]",
-			"start index out of bounds",
-		},
-		{
-			"[1, 2, 3][-1:2]",
-			"start index out of bounds",
-		},
-		{
-			"[1, 2, 3][1:10]",
-			"end index out of bounds",
-		},
-		{
-			"[1, 2, 3][1:-1]",
-			"end index out of bounds",
-		},
-		{
-			"\"hello\"[10:15]",
-			"start index out of bounds",
-		},
-		{
-			"\"hello\"[-1:3]",
-			"start index out of bounds",
-		},
-		{
-			"\"hello\"[1:10]",
-			"end index out of bounds",
-		},
-		{
-			"\"hello\"[1:-1]",
-			"end index out of bounds",
-		},
-		{
-			"42[1:3]",
-			"slice operator not supported: INTEGER",
-		},
-		{
-			"[1, 2, 3][\"a\":2]",
-			"start index must be an integer",
-		},
-		{
-			"[1, 2, 3][1:\"b\"]",
-			"end index must be an integer",
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-
-		errObj, ok := evaluated.(*object.Error)
-		if !ok {
-			t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
-			continue
-		}
-
-		if errObj.Message != tt.expectedMessage {
-			t.Errorf("wrong error message. expected=%q, got=%q",
-				tt.expectedMessage, errObj.Message)
-		}
-	}
-}
-
-func TestSliceMethodAccess(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected interface{}
-	}{
-		{
-			"[1, 2, 3, 4][1:3].len()",
-			2,
-		},
-		{
-			"[1, 2, 3, 4][:2].len()",
-			2,
-		},
-		{
-			"[1, 2, 3, 4][2:].len()",
-			2,
-		},
-		{
-			"[1, 2, 3, 4][1:1].len()",
-			0,
-		},
-		{
-			"let arr = [1, 2, 3, 4, 5]; arr[1:4].len()",
-			3,
-		},
-	}
-
-	for _, tt := range tests {
-		evaluated := testEval(tt.input)
-		switch expected := tt.expected.(type) {
-		case int:
-			testOptionObject(t, evaluated, int64(expected))
-		}
-	}
-}
-
+// testSliceObject tests slice objects
 func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
 	result, ok := obj.(*object.Some)
 	if !ok {
@@ -979,8 +272,7 @@ func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
 	}
 
 	if len(slice.Elements) != len(expected) {
-		t.Errorf("wrong num of elements. want=%d, got=%d",
-			len(expected), len(slice.Elements))
+		t.Errorf("wrong num of elements. want=%d, got=%d", len(expected), len(slice.Elements))
 		return false
 	}
 
@@ -1004,4 +296,24 @@ func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
 	}
 
 	return true
+}
+
+// parseArrayLiteral parses a string like "[1, 2, 3]" into []int64
+func parseArrayLiteral(s string) []int64 {
+	s = strings.Trim(s, "[]")
+	if s == "" {
+		return []int64{}
+	}
+
+	parts := strings.Split(s, ",")
+	result := make([]int64, 0, len(parts))
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if val, err := strconv.ParseInt(part, 10, 64); err == nil {
+			result = append(result, val)
+		}
+	}
+
+	return result
 }

@@ -178,9 +178,11 @@ func (ie *IndexExpression) String() string {
 	if ie.Start != nil {
 		out.WriteString(ie.Start.String())
 	}
-	if ie.End != nil {
+	if ie.IsSlice {
 		out.WriteString(":")
-		out.WriteString(ie.End.String())
+		if ie.End != nil {
+			out.WriteString(ie.End.String())
+		}
 	}
 	out.WriteString("])")
 	return out.String()

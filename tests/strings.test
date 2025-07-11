@@ -1,0 +1,126 @@
+-- TEST: String literal
+-- INPUT
+"hello world!"
+-- EXPECT-EVAL
+"hello world!"
+===
+-- TEST: Empty string
+-- INPUT
+""
+-- EXPECT-EVAL
+""
+===
+-- TEST: String concatenation
+-- INPUT
+"Hello" + " " + "World!"
+-- EXPECT-EVAL
+"Hello World!"
+===
+-- TEST: String concatenation simple
+-- INPUT
+"foo" + "bar"
+-- EXPECT-EVAL
+"foobar"
+===
+-- TEST: String concatenation with empty
+-- INPUT
+"" + "test"
+-- EXPECT-EVAL
+"test"
+===
+-- TEST: String concatenation with empty 2
+-- INPUT
+"test" + ""
+-- EXPECT-EVAL
+"test"
+===
+-- TEST: String method - length
+-- INPUT
+"hello world".len()
+-- EXPECT-EVAL
+11
+===
+-- TEST: String method - empty length
+-- INPUT
+"".len()
+-- EXPECT-EVAL
+0
+===
+-- TEST: String method - variable length
+-- INPUT
+let str = "test"; str.len()
+-- EXPECT-EVAL
+4
+===
+-- TEST: String method - length expression
+-- INPUT
+"hello".len() + "world".len()
+-- EXPECT-EVAL
+10
+===
+-- TEST: String slicing - middle
+-- INPUT
+"hello"[1:4]
+-- EXPECT-EVAL
+"ell"
+===
+-- TEST: String slicing - from start
+-- INPUT
+"hello"[:3]
+-- EXPECT-EVAL
+"hel"
+===
+-- TEST: String slicing - to end
+-- INPUT
+"hello"[2:]
+-- EXPECT-EVAL
+"llo"
+===
+-- TEST: String slicing - full
+-- INPUT
+"hello"[:]
+-- EXPECT-EVAL
+"hello"
+===
+-- TEST: String slicing - empty
+-- INPUT
+"hello"[1:1]
+-- EXPECT-EVAL
+""
+===
+-- TEST: String slicing - variable
+-- INPUT
+let str = "world"; str[1:4]
+-- EXPECT-EVAL
+"orl"
+===
+-- TEST: String method error - undefined method
+-- INPUT
+"hello".bar()
+-- EXPECT-ERROR
+undefined method 'bar' on string
+===
+-- TEST: String slicing error - start out of bounds
+-- INPUT
+"hello"[10:15]
+-- EXPECT-ERROR
+start index out of bounds
+===
+-- TEST: String slicing error - negative start
+-- INPUT
+"hello"[-1:3]
+-- EXPECT-ERROR
+start index out of bounds
+===
+-- TEST: String slicing error - end out of bounds
+-- INPUT
+"hello"[1:10]
+-- EXPECT-ERROR
+end index out of bounds
+===
+-- TEST: String slicing error - negative end
+-- INPUT
+"hello"[1:-1]
+-- EXPECT-ERROR
+end index out of bounds
+=== 

@@ -1,0 +1,185 @@
+-- TEST: Integer literal
+-- INPUT
+5
+-- EXPECT-EVAL
+5
+===
+-- TEST: Negative integer
+-- INPUT
+-5
+-- EXPECT-EVAL
+-5
+===
+-- TEST: Integer addition
+-- INPUT
+5 + 5 + 5 + 5 - 10
+-- EXPECT-EVAL
+10
+===
+-- TEST: Integer multiplication
+-- INPUT
+2 * 2 * 2 * 2 * 2
+-- EXPECT-EVAL
+32
+===
+-- TEST: Mixed arithmetic operations
+-- INPUT
+-50 + 100 + -50
+-- EXPECT-EVAL
+0
+===
+-- TEST: Operator precedence - multiplication first
+-- INPUT
+5 * 2 + 10
+-- EXPECT-EVAL
+20
+===
+-- TEST: Operator precedence - addition second
+-- INPUT
+5 + 2 * 10
+-- EXPECT-EVAL
+25
+===
+-- TEST: Operator precedence - with negation
+-- INPUT
+20 + 2 * -10
+-- EXPECT-EVAL
+0
+===
+-- TEST: Division and multiplication
+-- INPUT
+50 / 2 * 2 + 10
+-- EXPECT-EVAL
+60
+===
+-- TEST: Parentheses override precedence
+-- INPUT
+2 * (5 + 10)
+-- EXPECT-EVAL
+30
+===
+-- TEST: Exponentiation precedence
+-- INPUT
+3 * 3 * 3 + 10
+-- EXPECT-EVAL
+37
+===
+-- TEST: Parentheses with exponentiation
+-- INPUT
+3 * (3 * 3) + 10
+-- EXPECT-EVAL
+37
+===
+-- TEST: Complex arithmetic expression
+-- INPUT
+(5 + 10 * 2 + 15 / 3) * 2 + -10
+-- EXPECT-EVAL
+50
+===
+-- TEST: Integer literal parsing
+-- INPUT
+5;
+-- EXPECT-AST
+5
+===
+-- TEST: Negation parsing
+-- INPUT
+-15;
+-- EXPECT-AST
+(-15)
+===
+-- TEST: Addition parsing
+-- INPUT
+5 + 5;
+-- EXPECT-AST
+(5 + 5)
+===
+-- TEST: Subtraction parsing
+-- INPUT
+5 - 5;
+-- EXPECT-AST
+(5 - 5)
+===
+-- TEST: Multiplication parsing
+-- INPUT
+5 * 5;
+-- EXPECT-AST
+(5 * 5)
+===
+-- TEST: Division parsing
+-- INPUT
+5 / 5;
+-- EXPECT-AST
+(5 / 5)
+===
+-- TEST: Operator precedence - negation and multiplication
+-- INPUT
+-a * b
+-- EXPECT-AST
+((-a) * b)
+===
+-- TEST: Operator precedence - left associative addition
+-- INPUT
+a + b + c
+-- EXPECT-AST
+((a + b) + c)
+===
+-- TEST: Operator precedence - left associative subtraction
+-- INPUT
+a + b - c
+-- EXPECT-AST
+((a + b) - c)
+===
+-- TEST: Operator precedence - left associative multiplication
+-- INPUT
+a * b * c
+-- EXPECT-AST
+((a * b) * c)
+===
+-- TEST: Operator precedence - left associative division
+-- INPUT
+a * b / c
+-- EXPECT-AST
+((a * b) / c)
+===
+-- TEST: Operator precedence - multiplication over addition
+-- INPUT
+a + b / c
+-- EXPECT-AST
+(a + (b / c))
+===
+-- TEST: Operator precedence - complex expression
+-- INPUT
+a + b * c + d / e - f
+-- EXPECT-AST
+(((a + (b * c)) + (d / e)) - f)
+===
+-- TEST: Operator precedence - multiple statements
+-- INPUT
+3 + 4; -5 * 5
+-- EXPECT-AST
+(3 + 4)((-5) * 5)
+===
+-- TEST: Operator precedence - parentheses override
+-- INPUT
+1 + (2 + 3) + 4
+-- EXPECT-AST
+((1 + (2 + 3)) + 4)
+===
+-- TEST: Operator precedence - parentheses multiplication
+-- INPUT
+(5 + 5) * 2
+-- EXPECT-AST
+((5 + 5) * 2)
+===
+-- TEST: Operator precedence - parentheses division
+-- INPUT
+2 / (5 + 5)
+-- EXPECT-AST
+(2 / (5 + 5))
+===
+-- TEST: Operator precedence - parentheses negation
+-- INPUT
+-(5 + 5)
+-- EXPECT-AST
+(-(5 + 5)) 

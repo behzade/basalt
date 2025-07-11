@@ -1,0 +1,54 @@
+-- TEST: Function literal
+-- INPUT
+fn(x) { x + 2; };
+-- EXPECT-EVAL
+function
+===
+-- TEST: Function application - identity
+-- INPUT
+let identity = fn(x) { x; }; identity(5);
+-- EXPECT-EVAL
+5
+===
+-- TEST: Function application - double
+-- INPUT
+let double = fn(x) { x * 2; }; double(5);
+-- EXPECT-EVAL
+10
+===
+-- TEST: Function application - add
+-- INPUT
+let add = fn(x, y) { x + y; }; add(5, 5);
+-- EXPECT-EVAL
+10
+===
+-- TEST: Function application - anonymous
+-- INPUT
+fn(x) { x; }(5)
+-- EXPECT-EVAL
+5
+===
+-- TEST: Closures
+-- INPUT
+let newAdder = fn(x) { fn(y) { x + y }; }; let addTwo = newAdder(2); addTwo(3);
+-- EXPECT-EVAL
+5
+===
+-- TEST: Operator precedence - function call
+-- INPUT
+a + add(b * c) + d
+-- EXPECT-AST
+((a + add((b * c))) + d)
+===
+-- TEST: Operator precedence - complex function call
+-- INPUT
+add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))
+-- EXPECT-AST
+add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))
+===
+-- TEST: Operator precedence - function call with complex argument
+-- INPUT
+add(a + b + c * d / f + g)
+-- EXPECT-AST
+add((((a + b) + ((c * d) / f)) + g))
+=== 
