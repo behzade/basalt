@@ -1,7 +1,0 @@
-import std::io;
-
-// Test accessing VERSION constant
-io.VERSION
-
-// This would also work with puts function
-// io.puts("Hello, Modules!") 
