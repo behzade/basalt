@@ -5,6 +5,7 @@ import (
 
 	"github.com/behzade/basalt/ast"
 	"github.com/behzade/basalt/object"
+	"github.com/behzade/basalt/stdlib"
 )
 
 var (
@@ -45,6 +46,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		// so we return NONE. The final value of a program will be the last
 		// expression statement, like `a;`
 		return NONE
+	case *ast.ImportStatement:
+		return evalImportStatement(node, env)
 
 	// Expressions
 	case *ast.IntegerLiteral:
@@ -304,14 +307,16 @@ func evalArguments(exps []ast.Expression, env *object.Environment) []object.Obje
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	function, ok := fn.(*object.Function)
-	if !ok {
+	switch fn := fn.(type) {
+	case *object.Function:
+		extendedEnv := extendFunctionEnv(fn, args)
+		evaluated := Eval(fn.Body, extendedEnv)
+		return unwrapReturnValue(evaluated)
+	case *object.Builtin:
+		return fn.Fn(args...)
+	default:
 		return &object.Error{Message: fmt.Sprintf("not a function: %s", fn.Type())}
 	}
-
-	extendedEnv := extendFunctionEnv(function, args)
-	evaluated := Eval(function.Body, extendedEnv)
-	return unwrapReturnValue(evaluated)
 }
 
 func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Environment {
@@ -329,4 +334,36 @@ func unwrapReturnValue(obj object.Object) object.Object {
 		return returnValue.Value
 	}
 	return obj
+}
+
+func evalImportStatement(importStmt *ast.ImportStatement, env *object.Environment) object.Object {
+	// Convert the path expression to a string key (e.g., "std::io")
+	modulePath := importStmt.Path.String()
+
+	// Look up the module in the standard library registry
+	module, ok := stdlib.Registry[modulePath]
+	if !ok {
+		return &object.Error{Message: fmt.Sprintf("module not found: %s", modulePath)}
+	}
+
+	// Determine the variable name for the import
+	var variableName string
+	if importStmt.Alias != nil {
+		// Use the alias if provided
+		variableName = importStmt.Alias.Value
+	} else {
+		// Use the last part of the module path (e.g., "io" from "std::io")
+		pathSegments := importStmt.Path.Segments
+		if len(pathSegments) > 0 {
+			variableName = pathSegments[len(pathSegments)-1].Value
+		} else {
+			return &object.Error{Message: "invalid module path"}
+		}
+	}
+
+	// Bind the module object to the variable name in the current environment
+	env.Set(variableName, module)
+
+	// The import statement itself evaluates to NONE
+	return NONE
 }

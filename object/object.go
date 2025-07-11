@@ -17,6 +17,8 @@ const (
 	NONE_OBJ         = "NONE"
 	FUNCTION_OBJ     = "FUNCTION"
 	ERROR_OBJ        = "ERROR"
+	MODULE_OBJ       = "MODULE"
+	BUILTIN_OBJ      = "BUILTIN"
 )
 
 // Object is the base interface for all types in the language.
@@ -103,6 +105,24 @@ func (f *Function) Inspect() string {
 	out.WriteString("\n}")
 	return out.String()
 }
+
+// Builtin represents a built-in function.
+type BuiltinFunction func(args ...Object) Object
+
+type Builtin struct {
+	Fn BuiltinFunction
+}
+
+func (b *Builtin) Type() ObjectType { return BUILTIN_OBJ }
+func (b *Builtin) Inspect() string  { return "builtin function" }
+
+// Module represents a loaded module containing exported functions and values.
+type Module struct {
+	Env *Environment
+}
+
+func (m *Module) Type() ObjectType { return MODULE_OBJ }
+func (m *Module) Inspect() string  { return "<module>" }
 
 // --- Environment ---
 

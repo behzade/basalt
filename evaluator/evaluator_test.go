@@ -360,3 +360,80 @@ func TestEvalIfElseExpressions(t *testing.T) {
 		testOptionObject(t, evaluated, tt.expected)
 	}
 }
+
+func TestImportStatements(t *testing.T) {
+	// Test Case 1: Standard Import
+	input1 := "import std::io; io;"
+	evaluated1 := testEval(input1)
+
+	module1, ok := evaluated1.(*object.Module)
+	if !ok {
+		t.Fatalf("object is not Module. got=%T (%+v)", evaluated1, evaluated1)
+	}
+
+	// Verify the module has the expected environment
+	if module1.Env == nil {
+		t.Fatalf("module environment is nil")
+	}
+
+	// Test Case 2: Aliased Import
+	input2 := "import std::io as console; console;"
+	evaluated2 := testEval(input2)
+
+	module2, ok := evaluated2.(*object.Module)
+	if !ok {
+		t.Fatalf("object is not Module. got=%T (%+v)", evaluated2, evaluated2)
+	}
+
+	// Verify both modules are the same (same reference from registry)
+	if module1 != module2 {
+		t.Fatalf("aliased import should return the same module")
+	}
+
+	// Test Case 3: Import Error
+	input3 := "import std::nonexistent;"
+	evaluated3 := testEval(input3)
+
+	errObj, ok := evaluated3.(*object.Error)
+	if !ok {
+		t.Fatalf("object is not Error. got=%T (%+v)", evaluated3, evaluated3)
+	}
+
+	expectedMessage := "module not found: std::nonexistent"
+	if errObj.Message != expectedMessage {
+		t.Fatalf("wrong error message. expected=%q, got=%q", expectedMessage, errObj.Message)
+	}
+}
+
+func TestImportModuleBasicAccess(t *testing.T) {
+	// Test importing a module and accessing it
+	input := `
+import std::io;
+io;
+`
+
+	evaluated := testEval(input)
+
+	// We should get a Module object
+	module, ok := evaluated.(*object.Module)
+	if !ok {
+		t.Fatalf("object is not Module. got=%T (%+v)", evaluated, evaluated)
+	}
+
+	// Verify the module has an environment with the puts function
+	putsObj, ok := module.Env.Get("puts")
+	if !ok {
+		t.Fatalf("puts function not found in module environment")
+	}
+
+	// Verify puts is a builtin function
+	builtin, ok := putsObj.(*object.Builtin)
+	if !ok {
+		t.Fatalf("puts is not a Builtin. got=%T (%+v)", putsObj, putsObj)
+	}
+
+	// Verify it's actually a function
+	if builtin.Fn == nil {
+		t.Fatalf("builtin function is nil")
+	}
+}
