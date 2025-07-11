@@ -217,13 +217,18 @@ func (si *StructInstance) Inspect() string {
 
 // --- Environment ---
 
+type binding struct {
+	Value   Object
+	Mutable bool
+}
+
 type Environment struct {
-	store map[string]Object
+	store map[string]binding
 	outer *Environment
 }
 
 func NewEnvironment() *Environment {
-	s := make(map[string]Object)
+	s := make(map[string]binding)
 	return &Environment{store: s, outer: nil}
 }
 
@@ -234,14 +239,32 @@ func NewEnclosedEnvironment(outer *Environment) *Environment {
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
-	obj, ok := e.store[name]
+	binding, ok := e.store[name]
 	if !ok && e.outer != nil {
-		obj, ok = e.outer.Get(name)
+		return e.outer.Get(name)
 	}
-	return obj, ok
+	return binding.Value, ok
 }
 
-func (e *Environment) Set(name string, val Object) Object {
-	e.store[name] = val
+func (e *Environment) Set(name string, val Object, mutable bool) Object {
+	e.store[name] = binding{Value: val, Mutable: mutable}
+	return val
+}
+
+func (e *Environment) Reassign(name string, val Object) Object {
+	b, ok := e.store[name]
+	if !ok && e.outer != nil {
+		return e.outer.Reassign(name, val)
+	}
+
+	if !ok {
+		return &Error{Message: fmt.Sprintf("identifier not found: %s", name)}
+	}
+
+	if !b.Mutable {
+		return &Error{Message: fmt.Sprintf("cannot reassign immutable variable: %s", name)}
+	}
+
+	e.store[name] = binding{Value: val, Mutable: b.Mutable}
 	return val
 }

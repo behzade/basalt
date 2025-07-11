@@ -2,7 +2,6 @@ package stdlib
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/behzade/basalt/object"
 )
@@ -16,26 +15,20 @@ var Registry = map[string]*object.Module{
 func createIOModule() *object.Module {
 	env := object.NewEnvironment()
 
-	// Create the puts built-in function
+	// Create the puts builtin function
 	putsBuiltin := &object.Builtin{
 		Fn: func(args ...object.Object) object.Object {
-			var out strings.Builder
-			for i, arg := range args {
-				if i > 0 {
-					out.WriteString(" ")
-				}
-				out.WriteString(arg.Inspect())
+			for _, arg := range args {
+				fmt.Println(arg.Inspect())
 			}
-			fmt.Println(out.String())
 			return &object.None{}
 		},
 	}
 
-	// Add puts to the module's environment
-	env.Set("puts", putsBuiltin)
+	env.Set("puts", putsBuiltin, false) // builtin functions are immutable
 
-	// Add VERSION constant for testing member access
-	env.Set("VERSION", &object.Integer{Value: 1})
+	// Add a VERSION constant
+	env.Set("VERSION", &object.Integer{Value: 1}, false) // constants are immutable
 
 	// Create and return the module
 	return &object.Module{Env: env}

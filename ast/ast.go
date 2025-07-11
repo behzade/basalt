@@ -45,11 +45,12 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-// LetStatement represents `let <name> = <value>;`
+// LetStatement represents `let <name> = <value>;` or `let mut <name> = <value>;`
 type LetStatement struct {
-	Token token.Token // the token.LET token
-	Name  *Identifier
-	Value Expression
+	Token   token.Token // the token.LET token
+	Name    *Identifier
+	Value   Expression
+	Mutable bool // Add this field
 }
 
 func (ls *LetStatement) statementNode()       {}
@@ -57,6 +58,9 @@ func (ls *LetStatement) TokenLiteral() string { return ls.Token.Literal }
 func (ls *LetStatement) String() string {
 	var out bytes.Buffer
 	out.WriteString(ls.TokenLiteral() + " ")
+	if ls.Mutable {
+		out.WriteString("mut ")
+	}
 	out.WriteString(ls.Name.String())
 	out.WriteString(" = ")
 	if ls.Value != nil {

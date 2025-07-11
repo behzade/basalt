@@ -45,7 +45,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-		env.Set(node.Name.Value, val)
+		env.Set(node.Name.Value, val, node.Mutable)
 		// A let statement itself doesn't yield a value in an expression context,
 		// so we return NONE. The final value of a program will be the last
 		// expression statement, like `a;`
@@ -116,6 +116,11 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
+		// Handle assignment operator specially
+		if node.Operator == "=" {
+			return evalAssignmentExpression(node.Left, node.Right, env)
+		}
+
 		left := Eval(node.Left, env)
 		if isError(left) {
 			return left
@@ -414,6 +419,29 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 	return &object.Error{Message: fmt.Sprintf("type mismatch: %s %s %s", left.Type(), operator, right.Type())}
 }
 
+func evalAssignmentExpression(left ast.Expression, right ast.Expression, env *object.Environment) object.Object {
+	// The left side must be an identifier
+	identifier, ok := left.(*ast.Identifier)
+	if !ok {
+		return &object.Error{Message: "left side of assignment must be an identifier"}
+	}
+
+	// Evaluate the right side
+	value := Eval(right, env)
+	if isError(value) {
+		return value
+	}
+
+	// Use the Reassign method to update the variable
+	result := env.Reassign(identifier.Value, value)
+	if isError(result) {
+		return result
+	}
+
+	// Return the assigned value (already wrapped in Some if needed)
+	return value
+}
+
 func evalStringInfixExpression(operator string, left, right *object.String) object.Object {
 	leftVal := left.Value
 	rightVal := right.Value
@@ -525,7 +553,7 @@ func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Enviro
 	env := object.NewEnclosedEnvironment(fn.Env)
 
 	for paramIdx, param := range fn.Parameters {
-		env.Set(param.Value, args[paramIdx])
+		env.Set(param.Value, args[paramIdx], false) // function parameters are immutable by default
 	}
 
 	return env
@@ -564,7 +592,7 @@ func evalImportStatement(importStmt *ast.ImportStatement, env *object.Environmen
 	}
 
 	// Bind the module object to the variable name in the current environment
-	env.Set(variableName, module)
+	env.Set(variableName, module, false) // imported modules are immutable
 
 	// The import statement itself evaluates to NONE
 	return NONE

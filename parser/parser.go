@@ -12,6 +12,7 @@ import (
 const (
 	_ int = iota
 	LOWEST
+	ASSIGNMENT      // =
 	EQUALS          // ==
 	LESSGREATER     // > or <
 	SUM             // +
@@ -24,6 +25,7 @@ const (
 )
 
 var precedences = map[token.TokenType]int{
+	token.ASSIGN:   ASSIGNMENT,
 	token.EQ:       EQUALS,
 	token.NOT_EQ:   EQUALS,
 	token.LT:       LESSGREATER,
@@ -90,6 +92,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 	p.registerInfix(token.DOT, p.parseMemberAccessExpression)
 	p.registerInfix(token.LBRACE, p.parseStructInstanceExpression)
+	p.registerInfix(token.ASSIGN, p.parseInfixExpression)
 
 	// Read two tokens, so curToken and peekToken are both set.
 	p.nextToken()
@@ -144,6 +147,12 @@ func (p *Parser) parseStatement() ast.Statement {
 
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken}
+
+	// Check if the next token is MUT
+	if p.peekTokenIs(token.MUT) {
+		stmt.Mutable = true
+		p.nextToken() // consume the MUT token
+	}
 
 	if !p.expectPeek(token.IDENT) {
 		return nil

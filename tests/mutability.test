@@ -1,0 +1,116 @@
+-- TEST: Immutable variable declaration
+-- INPUT
+let x = 5;
+x
+-- EXPECT-EVAL
+5
+===
+-- TEST: Mutable variable declaration
+-- INPUT
+let mut y = 10;
+y
+-- EXPECT-EVAL
+10
+===
+-- TEST: Mutable variable reassignment
+-- INPUT
+let mut x = 5;
+x = 10;
+x
+-- EXPECT-EVAL
+10
+===
+-- TEST: Assignment expression returns assigned value
+-- INPUT
+let mut x = 5;
+x = 20
+-- EXPECT-EVAL
+20
+===
+-- TEST: Multiple mutable assignments
+-- INPUT
+let mut x = 1;
+let mut y = 2;
+x = 10;
+y = 20;
+x + y
+-- EXPECT-EVAL
+30
+===
+-- TEST: Immutable variable reassignment error
+-- INPUT
+let x = 5;
+x = 10
+-- EXPECT-ERROR
+cannot reassign immutable variable: x
+===
+-- TEST: Assignment to undefined variable error
+-- INPUT
+x = 10
+-- EXPECT-ERROR
+identifier not found: x
+===
+-- TEST: Assignment to non-identifier error
+-- INPUT
+5 = 10
+-- EXPECT-ERROR
+left side of assignment must be an identifier
+===
+-- TEST: Immutable let statement AST
+-- INPUT
+let x = 5;
+-- EXPECT-AST
+let x = 5;
+===
+-- TEST: Mutable let statement AST
+-- INPUT
+let mut x = 5;
+-- EXPECT-AST
+let mut x = 5;
+===
+-- TEST: Assignment expression AST
+-- INPUT
+x = 5;
+-- EXPECT-AST
+(x = 5)
+===
+-- TEST: Complex mutable variable usage
+-- INPUT
+let mut counter = 0;
+counter = counter + 1;
+counter = counter * 2;
+counter
+-- EXPECT-EVAL
+2
+===
+-- TEST: Mutable variable in function scope
+-- INPUT
+let mut x = 5;
+let f = fn() { x = 10; x };
+f()
+-- EXPECT-EVAL
+10
+===
+-- TEST: Function parameters are immutable
+-- INPUT
+let f = fn(x) { x = 10; x };
+f(5)
+-- EXPECT-ERROR
+cannot reassign immutable variable: x
+===
+-- TEST: Mutable variable with string
+-- INPUT
+let mut name = "Alice";
+name = "Bob";
+name
+-- EXPECT-EVAL
+"Bob"
+===
+-- TEST: Mutable variable with boolean
+-- INPUT
+let mut flag = true;
+flag = false;
+flag
+-- EXPECT-EVAL
+false
+=== 
