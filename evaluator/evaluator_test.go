@@ -99,6 +99,8 @@ func runEvalTest(t *testing.T, tc testutil.TestCase) {
 			testOptionObject(t, evaluated, false)
 		} else if val, err := strconv.ParseInt(tc.Expected, 10, 64); err == nil {
 			testOptionObject(t, evaluated, val)
+		} else if val, err := strconv.ParseFloat(tc.Expected, 64); err == nil {
+			testOptionObject(t, evaluated, val)
 		} else {
 			t.Errorf("Unknown expected value format: %s", tc.Expected)
 		}
@@ -171,6 +173,8 @@ func testLiteralObject(t *testing.T, obj object.Object, expected interface{}) bo
 		return testIntegerObject(t, obj, int64(v))
 	case int64:
 		return testIntegerObject(t, obj, v)
+	case float64:
+		return testFloatObject(t, obj, v)
 	case bool:
 		return testBooleanObject(t, obj, v)
 	case string:
@@ -195,6 +199,30 @@ func testIntegerObject(t *testing.T, obj object.Object, expected int64) bool {
 		return false
 	}
 	return true
+}
+
+// testFloatObject tests float objects
+func testFloatObject(t *testing.T, obj object.Object, expected float64) bool {
+	result, ok := obj.(*object.Float)
+	if !ok {
+		t.Errorf("object is not Float. got=%T (%+v)", obj, obj)
+		return false
+	}
+	// Use tolerance-based comparison for floating-point values
+	const tolerance = 1e-9
+	if abs(result.Value-expected) > tolerance {
+		t.Errorf("object has wrong value. got=%f, want=%f", result.Value, expected)
+		return false
+	}
+	return true
+}
+
+// abs returns the absolute value of a float64
+func abs(x float64) float64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 // testBooleanObject tests boolean objects

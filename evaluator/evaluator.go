@@ -56,6 +56,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	// Expressions
 	case *ast.IntegerLiteral:
 		return &object.Some{Value: &object.Integer{Value: node.Value}}
+	case *ast.FloatLiteral:
+		return &object.Some{Value: &object.Float{Value: node.Value}}
 	case *ast.Boolean:
 		return &object.Some{Value: nativeBoolToBooleanObject(node.Value)}
 	case *ast.StringLiteral:
@@ -358,18 +360,37 @@ func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
 		if integer, ok := some.Value.(*object.Integer); ok {
 			return &object.Some{Value: &object.Integer{Value: -integer.Value}}
 		}
+		if float, ok := some.Value.(*object.Float); ok {
+			return &object.Some{Value: &object.Float{Value: -float.Value}}
+		}
 	}
-	// Return error for non-integer values
+	// Return error for non-numeric values
 	return &object.Error{Message: fmt.Sprintf("unknown operator: -%s", right.Type())}
 }
 
 func evalInfixExpression(operator string, left, right object.Object) object.Object {
-	// Handle integer infix expressions
 	if leftSome, ok := left.(*object.Some); ok {
 		if rightSome, ok := right.(*object.Some); ok {
+			// Handle integer/integer operations
 			if leftInt, ok := leftSome.Value.(*object.Integer); ok {
 				if rightInt, ok := rightSome.Value.(*object.Integer); ok {
 					return evalIntegerInfixExpression(operator, leftInt, rightInt)
+				}
+				// Handle mixed-mode: integer/float (promote integer to float)
+				if rightFloat, ok := rightSome.Value.(*object.Float); ok {
+					leftAsFloat := &object.Float{Value: float64(leftInt.Value)}
+					return evalFloatInfixExpression(operator, leftAsFloat, rightFloat)
+				}
+			}
+			// Handle float/float operations
+			if leftFloat, ok := leftSome.Value.(*object.Float); ok {
+				if rightFloat, ok := rightSome.Value.(*object.Float); ok {
+					return evalFloatInfixExpression(operator, leftFloat, rightFloat)
+				}
+				// Handle mixed-mode: float/integer (promote integer to float)
+				if rightInt, ok := rightSome.Value.(*object.Integer); ok {
+					rightAsFloat := &object.Float{Value: float64(rightInt.Value)}
+					return evalFloatInfixExpression(operator, leftFloat, rightAsFloat)
 				}
 			}
 			// Handle string infix expressions
@@ -422,6 +443,32 @@ func evalIntegerInfixExpression(operator string, left, right *object.Integer) ob
 		return &object.Some{Value: &object.Integer{Value: leftVal * rightVal}}
 	case "/":
 		return &object.Some{Value: &object.Integer{Value: leftVal / rightVal}}
+	case "<":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal < rightVal)}
+	case ">":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal > rightVal)}
+	case "==":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+	case "!=":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+	default:
+		return &object.Error{Message: fmt.Sprintf("unknown operator: %s", operator)}
+	}
+}
+
+func evalFloatInfixExpression(operator string, left, right *object.Float) object.Object {
+	leftVal := left.Value
+	rightVal := right.Value
+
+	switch operator {
+	case "+":
+		return &object.Some{Value: &object.Float{Value: leftVal + rightVal}}
+	case "-":
+		return &object.Some{Value: &object.Float{Value: leftVal - rightVal}}
+	case "*":
+		return &object.Some{Value: &object.Float{Value: leftVal * rightVal}}
+	case "/":
+		return &object.Some{Value: &object.Float{Value: leftVal / rightVal}}
 	case "<":
 		return &object.Some{Value: nativeBoolToBooleanObject(leftVal < rightVal)}
 	case ">":

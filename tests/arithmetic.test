@@ -182,4 +182,161 @@ a + b * c + d / e - f
 -- INPUT
 -(5 + 5)
 -- EXPECT-AST
-(-(5 + 5)) 
+(-(5 + 5))
+===
+-- TEST: Float literal
+-- INPUT
+3.14
+-- EXPECT-EVAL
+3.140000
+===
+-- TEST: Float literal with zero
+-- INPUT
+0.5
+-- EXPECT-EVAL
+0.500000
+===
+-- TEST: Negative float
+-- INPUT
+-3.14
+-- EXPECT-EVAL
+-3.140000
+===
+-- TEST: Float addition
+-- INPUT
+3.14 + 2.86
+-- EXPECT-EVAL
+6.000000
+===
+-- TEST: Float subtraction
+-- INPUT
+5.5 - 2.5
+-- EXPECT-EVAL
+3.000000
+===
+-- TEST: Float multiplication
+-- INPUT
+2.5 * 4.0
+-- EXPECT-EVAL
+10.000000
+===
+-- TEST: Float division
+-- INPUT
+7.5 / 2.5
+-- EXPECT-EVAL
+3.000000
+===
+-- TEST: Mixed-mode arithmetic - integer plus float
+-- INPUT
+5 + 3.14
+-- EXPECT-EVAL
+8.140000
+===
+-- TEST: Mixed-mode arithmetic - float plus integer
+-- INPUT
+3.14 + 5
+-- EXPECT-EVAL
+8.140000
+===
+-- TEST: Mixed-mode arithmetic - integer minus float
+-- INPUT
+10 - 3.14
+-- EXPECT-EVAL
+6.860000
+===
+-- TEST: Mixed-mode arithmetic - float minus integer
+-- INPUT
+3.14 - 1
+-- EXPECT-EVAL
+2.140000
+===
+-- TEST: Mixed-mode arithmetic - integer times float
+-- INPUT
+3 * 2.5
+-- EXPECT-EVAL
+7.500000
+===
+-- TEST: Mixed-mode arithmetic - float times integer
+-- INPUT
+2.5 * 3
+-- EXPECT-EVAL
+7.500000
+===
+-- TEST: Mixed-mode arithmetic - integer divided by float
+-- INPUT
+10 / 2.5
+-- EXPECT-EVAL
+4.000000
+===
+-- TEST: Mixed-mode arithmetic - float divided by integer
+-- INPUT
+7.5 / 3
+-- EXPECT-EVAL
+2.500000
+===
+-- TEST: Float comparison - less than
+-- INPUT
+3.14 < 5.0
+-- EXPECT-EVAL
+true
+===
+-- TEST: Float comparison - greater than
+-- INPUT
+5.0 > 3.14
+-- EXPECT-EVAL
+true
+===
+-- TEST: Float comparison - equal
+-- INPUT
+3.14 == 3.14
+-- EXPECT-EVAL
+true
+===
+-- TEST: Float comparison - not equal
+-- INPUT
+3.14 != 2.71
+-- EXPECT-EVAL
+true
+===
+-- TEST: Mixed-mode comparison - integer less than float
+-- INPUT
+3 < 3.14
+-- EXPECT-EVAL
+true
+===
+-- TEST: Mixed-mode comparison - float greater than integer
+-- INPUT
+3.14 > 3
+-- EXPECT-EVAL
+true
+===
+-- TEST: Complex float arithmetic
+-- INPUT
+(3.14 + 2.86) * 2.0 - 1.5
+-- EXPECT-EVAL
+10.500000
+===
+-- TEST: Float literal parsing
+-- INPUT
+3.14;
+-- EXPECT-AST
+3.14
+===
+-- TEST: Negative float parsing
+-- INPUT
+-3.14;
+-- EXPECT-AST
+(-3.14)
+===
+-- TEST: Float addition parsing
+-- INPUT
+3.14 + 2.86;
+-- EXPECT-AST
+(3.14 + 2.86)
+===
+-- TEST: Mixed-mode parsing
+-- INPUT
+5 + 3.14;
+-- EXPECT-AST
+(5 + 3.14)
+=== 
