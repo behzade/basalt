@@ -3,7 +3,7 @@ package object
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/behzade/basalt/ast"
 )
 
@@ -16,6 +16,7 @@ const (
 	SOME_OBJ         = "SOME"
 	NONE_OBJ         = "NONE"
 	FUNCTION_OBJ     = "FUNCTION"
+	ERROR_OBJ        = "ERROR"
 )
 
 // Object is the base interface for all types in the language.
@@ -71,6 +72,14 @@ type None struct{}
 func (n *None) Type() ObjectType { return NONE_OBJ }
 func (n *None) Inspect() string  { return "None" }
 func (n *None) option()          {} // Implements the Option interface
+
+// Error represents a runtime error.
+type Error struct {
+	Message string
+}
+
+func (e *Error) Type() ObjectType { return ERROR_OBJ }
+func (e *Error) Inspect() string  { return e.Message }
 
 // Function represents a function value.
 type Function struct {
