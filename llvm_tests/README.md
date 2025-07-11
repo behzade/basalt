@@ -63,6 +63,35 @@ true
 false
 ```
 
+### 05_arrays.bst
+Tests array operations:
+- Array literal creation and element access
+- Array length method calls
+- Empty array handling
+- Variable and expression indexing
+- Arrays in arithmetic operations
+- Nested array operations
+
+**Expected Output:**
+```
+Array Tests:
+1
+3
+5
+5
+0
+2
+6
+5
+2
+3
+4
+42
+1
+6
+50
+```
+
 ## Running Tests
 
 To run all tests and verify the LLVM backend is working correctly:
@@ -80,8 +109,11 @@ go run main.go llvm_tests/03_functions.bst --compile test3 && ./test3
 # Test strings
 go run main.go llvm_tests/04_strings.bst --compile test4 && ./test4
 
+# Test arrays
+go run main.go llvm_tests/05_arrays.bst --compile test5 && ./test5
+
 # Clean up
-rm test1 test2 test3 test4
+rm test1 test2 test3 test4 test5
 ```
 
 ## Features Validated
@@ -95,7 +127,8 @@ These tests validate the following LLVM backend features:
 5. **Function Compilation**: Function definitions, calls, and recursion
 6. **External Functions**: C runtime integration for I/O
 7. **String Operations**: String literals, concatenation, and comparisons
-8. **Build Pipeline**: IR generation → llc → clang → executable
+8. **Array Operations**: Array literals, indexing, and length method calls
+9. **Build Pipeline**: IR generation → llc → clang → executable
 
 ## Implementation Status
 
@@ -106,6 +139,7 @@ These tests validate the following LLVM backend features:
 - User-defined functions
 - Function calls and recursion
 - String literals, concatenation, and comparisons
+- Array literals, indexing, and length method calls
 - Print statements via C runtime
 - Complete compilation pipeline
 

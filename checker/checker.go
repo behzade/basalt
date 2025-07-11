@@ -338,6 +338,20 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 		return memberType
 	}
 
+	// Handle array member access
+	if _, ok := leftType.(*ArrayType); ok {
+		memberName := node.Right.Value
+		if memberName == "len" {
+			// arr.len is a function that returns the length of the array
+			return &FunctionType{
+				Parameters: []Type{}, // No parameters
+				ReturnType: &IntegerType{},
+			}
+		}
+		c.addError(fmt.Sprintf("undefined member '%s' on array", memberName))
+		return &NoneType{}
+	}
+
 	c.addError(fmt.Sprintf("member access not supported on type %s", leftType.String()))
 	return &NoneType{}
 }
@@ -470,8 +484,9 @@ func (c *Checker) checkIdentifier(node *ast.Identifier) Type {
 
 func (c *Checker) checkArrayLiteral(node *ast.ArrayLiteral) Type {
 	if len(node.Elements) == 0 {
-		c.addError("cannot infer type of empty array")
-		return &NoneType{}
+		// For empty arrays, we'll assume they're integer arrays for now
+		// In a more sophisticated implementation, we'd need type inference or annotations
+		return &ArrayType{ElementType: &IntegerType{}}
 	}
 
 	elementType := c.Check(node.Elements[0])

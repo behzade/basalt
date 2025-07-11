@@ -66,6 +66,13 @@ func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
 	c.declareExternalFunction("basalt_string_concat", types.I8Ptr, types.I8Ptr, types.I8Ptr)
 	c.declareExternalFunction("basalt_string_equals", types.I32, types.I8Ptr, types.I8Ptr)
 
+	// Declare array runtime functions
+	arrayPtrType := types.NewPointer(types.I8) // BasaltArray* represented as i8*
+	c.declareExternalFunction("basalt_array_new", arrayPtrType, types.I64)
+	c.declareExternalFunction("basalt_array_push", types.Void, arrayPtrType, types.I64)
+	c.declareExternalFunction("basalt_array_get", types.I64, arrayPtrType, types.I64)
+	c.declareExternalFunction("basalt_array_len", types.I64, arrayPtrType)
+
 	// Create main function
 	mainFunc := c.module.NewFunc("main", types.I32)
 	c.currentFunc = mainFunc
@@ -175,6 +182,12 @@ func (c *Compiler) compileExpression(expr ast.Expression) (value.Value, error) {
 		return c.compileIfExpression(e)
 	case *ast.FunctionLiteral:
 		return c.compileFunctionLiteral(e)
+	case *ast.ArrayLiteral:
+		return c.compileArrayLiteral(e)
+	case *ast.IndexExpression:
+		return c.compileIndexExpression(e)
+	case *ast.MemberAccessExpression:
+		return c.compileMemberAccessExpression(e)
 	default:
 		return nil, fmt.Errorf("unsupported expression type: %T", expr)
 	}
@@ -484,6 +497,26 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 		}
 	}
 
+	// Handle member access expressions like arr.len()
+	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
+		if memberAccess.Right.Value == "len" {
+			// This is a .len() call
+			arrayValue, err := c.compileExpression(memberAccess.Left)
+			if err != nil {
+				return nil, err
+			}
+
+			// Verify no arguments are passed to len()
+			if len(expr.Arguments) != 0 {
+				return nil, fmt.Errorf("len() expects no arguments, got %d", len(expr.Arguments))
+			}
+
+			// Call basalt_array_len
+			arrayLenFunc := c.externalFuncs["basalt_array_len"]
+			return c.currentBlock.NewCall(arrayLenFunc, arrayValue), nil
+		}
+	}
+
 	return nil, fmt.Errorf("undefined function: %v", expr.Function)
 }
 
@@ -731,4 +764,83 @@ func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.Function
 	c.symbolTable = savedSymbolTable
 
 	return nil
+}
+
+// compileArrayLiteral compiles an array literal [1, 2, 3]
+func (c *Compiler) compileArrayLiteral(expr *ast.ArrayLiteral) (value.Value, error) {
+	// Create a new array with initial capacity equal to the number of elements
+	// For empty arrays, use a default capacity of 0
+	initialCapacity := constant.NewInt(types.I64, int64(len(expr.Elements)))
+	arrayNewFunc := c.externalFuncs["basalt_array_new"]
+	arrayPtr := c.currentBlock.NewCall(arrayNewFunc, initialCapacity)
+
+	// Push each element to the array
+	arrayPushFunc := c.externalFuncs["basalt_array_push"]
+	for _, element := range expr.Elements {
+		elementValue, err := c.compileExpression(element)
+		if err != nil {
+			return nil, err
+		}
+
+		// For now, only support integer elements
+		if elementValue.Type() != types.I64 {
+			return nil, fmt.Errorf("array elements must be integers, got %s", elementValue.Type())
+		}
+
+		c.currentBlock.NewCall(arrayPushFunc, arrayPtr, elementValue)
+	}
+
+	return arrayPtr, nil
+}
+
+// compileIndexExpression compiles array indexing arr[index]
+func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) (value.Value, error) {
+	// Compile the array expression
+	arrayValue, err := c.compileExpression(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// For now, only support simple indexing (not slicing)
+	if expr.IsSlice {
+		return nil, fmt.Errorf("array slicing not yet implemented")
+	}
+
+	// Compile the index expression
+	indexValue, err := c.compileExpression(expr.Start)
+	if err != nil {
+		return nil, err
+	}
+
+	// Index must be an integer
+	if indexValue.Type() != types.I64 {
+		return nil, fmt.Errorf("array index must be integer, got %s", indexValue.Type())
+	}
+
+	// Call basalt_array_get
+	arrayGetFunc := c.externalFuncs["basalt_array_get"]
+	return c.currentBlock.NewCall(arrayGetFunc, arrayValue, indexValue), nil
+}
+
+// compileMemberAccessExpression compiles member access like arr.len()
+func (c *Compiler) compileMemberAccessExpression(expr *ast.MemberAccessExpression) (value.Value, error) {
+	// Compile the object being accessed
+	objectValue, err := c.compileExpression(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	memberName := expr.Right.Value
+
+	// Check if this is array.len() - we need to handle this specially since len() is a method call
+	// For now, we'll treat arr.len as a special case that returns a function-like value
+	// that can be called with no arguments
+	if memberName == "len" {
+		// We need to return something that can be called
+		// For now, let's return a special marker that the call expression handler can recognize
+		// This is a bit of a hack, but it works for our current needs
+		return objectValue, nil // Return the array itself, CallExpression will handle len() specially
+	}
+
+	return nil, fmt.Errorf("unsupported member access: %s", memberName)
 }
