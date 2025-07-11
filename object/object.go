@@ -14,6 +14,7 @@ const (
 	BOOLEAN_OBJ      = "BOOLEAN"
 	STRING_OBJ       = "STRING"
 	ARRAY_OBJ        = "ARRAY"
+	SLICE_OBJ        = "SLICE"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	SOME_OBJ         = "SOME"
 	NONE_OBJ         = "NONE"
@@ -68,6 +69,23 @@ func (ao *Array) Inspect() string {
 	var out strings.Builder
 	elements := []string{}
 	for _, e := range ao.Elements {
+		elements = append(elements, e.Inspect())
+	}
+	out.WriteString("[")
+	out.WriteString(strings.Join(elements, ", "))
+	out.WriteString("]")
+	return out.String()
+}
+
+type Slice struct {
+	Elements []Object
+}
+
+func (so *Slice) Type() ObjectType { return SLICE_OBJ }
+func (so *Slice) Inspect() string {
+	var out strings.Builder
+	elements := []string{}
+	for _, e := range so.Elements {
 		elements = append(elements, e.Inspect())
 	}
 	out.WriteString("[")

@@ -67,11 +67,42 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		if isError(left) {
 			return left
 		}
-		index := Eval(node.Index, env)
-		if isError(index) {
-			return index
+
+		// Handle slicing vs simple indexing
+		if node.IsSlice {
+			// This is a slicing operation
+			var start, end object.Object
+
+			// Evaluate start (can be nil for [:end])
+			if node.Start != nil {
+				start = Eval(node.Start, env)
+				if isError(start) {
+					return start
+				}
+			}
+
+			// Evaluate end (can be nil for [start:])
+			if node.End != nil {
+				end = Eval(node.End, env)
+				if isError(end) {
+					return end
+				}
+			}
+
+			return evalSliceExpression(left, start, end)
+		} else {
+			// This is a simple indexing operation
+			if node.Start == nil {
+				return &object.Error{Message: "index expression missing"}
+			}
+
+			index := Eval(node.Start, env)
+			if isError(index) {
+				return index
+			}
+
+			return evalIndexExpression(left, index)
 		}
-		return evalIndexExpression(left, index)
 	case *ast.PrefixExpression:
 		right := Eval(node.Right, env)
 		if isError(right) {
@@ -149,6 +180,19 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 					}
 				}
 				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on array", memberName)}
+			case object.SLICE_OBJ:
+				if memberName == "len" {
+					slice := some.Value.(*object.Slice)
+					return &object.Builtin{
+						Fn: func(args ...object.Object) object.Object {
+							if len(args) != 0 {
+								return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+							}
+							return &object.Some{Value: &object.Integer{Value: int64(len(slice.Elements))}}
+						},
+					}
+				}
+				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on slice", memberName)}
 			}
 		}
 
@@ -508,6 +552,127 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 	}
 
 	return arrayObject.Elements[idx]
+}
+
+func evalSliceExpression(left, start, end object.Object) object.Object {
+	// Handle wrapped values (Some objects)
+	if some, ok := left.(*object.Some); ok {
+		switch some.Value.Type() {
+		case object.ARRAY_OBJ:
+			return evalArraySliceExpression(some.Value, start, end)
+		case object.STRING_OBJ:
+			return evalStringSliceExpression(some.Value, start, end)
+		default:
+			return &object.Error{Message: fmt.Sprintf("slice operator not supported: %s", some.Value.Type())}
+		}
+	}
+
+	return &object.Error{Message: fmt.Sprintf("slice operator not supported: %s", left.Type())}
+}
+
+func evalArraySliceExpression(array, start, end object.Object) object.Object {
+	arrayObject := array.(*object.Array)
+
+	var startIdx, endIdx int64
+
+	// Handle start index
+	if start != nil {
+		if some, ok := start.(*object.Some); ok {
+			if integer, ok := some.Value.(*object.Integer); ok {
+				startIdx = integer.Value
+			} else {
+				return &object.Error{Message: "start index must be an integer"}
+			}
+		} else {
+			return &object.Error{Message: "start index must be an integer"}
+		}
+	} else {
+		startIdx = 0
+	}
+
+	// Handle end index
+	if end != nil {
+		if some, ok := end.(*object.Some); ok {
+			if integer, ok := some.Value.(*object.Integer); ok {
+				endIdx = integer.Value
+			} else {
+				return &object.Error{Message: "end index must be an integer"}
+			}
+		} else {
+			return &object.Error{Message: "end index must be an integer"}
+		}
+	} else {
+		endIdx = int64(len(arrayObject.Elements))
+	}
+
+	// Bounds checking
+	if startIdx < 0 || startIdx > int64(len(arrayObject.Elements)) {
+		return &object.Error{Message: "start index out of bounds"}
+	}
+	if endIdx < 0 || endIdx > int64(len(arrayObject.Elements)) {
+		return &object.Error{Message: "end index out of bounds"}
+	}
+	if startIdx > endIdx {
+		return &object.Some{Value: &object.Slice{Elements: []object.Object{}}}
+	}
+
+	// Create slice with elements from start to end (exclusive)
+	sliceElements := make([]object.Object, endIdx-startIdx)
+	copy(sliceElements, arrayObject.Elements[startIdx:endIdx])
+
+	return &object.Some{Value: &object.Slice{Elements: sliceElements}}
+}
+
+func evalStringSliceExpression(str, start, end object.Object) object.Object {
+	stringObject := str.(*object.String)
+
+	var startIdx, endIdx int64
+
+	// Handle start index
+	if start != nil {
+		if some, ok := start.(*object.Some); ok {
+			if integer, ok := some.Value.(*object.Integer); ok {
+				startIdx = integer.Value
+			} else {
+				return &object.Error{Message: "start index must be an integer"}
+			}
+		} else {
+			return &object.Error{Message: "start index must be an integer"}
+		}
+	} else {
+		startIdx = 0
+	}
+
+	// Handle end index
+	if end != nil {
+		if some, ok := end.(*object.Some); ok {
+			if integer, ok := some.Value.(*object.Integer); ok {
+				endIdx = integer.Value
+			} else {
+				return &object.Error{Message: "end index must be an integer"}
+			}
+		} else {
+			return &object.Error{Message: "end index must be an integer"}
+		}
+	} else {
+		endIdx = int64(len(stringObject.Value))
+	}
+
+	// Bounds checking
+	if startIdx < 0 || startIdx > int64(len(stringObject.Value)) {
+		return &object.Error{Message: "start index out of bounds"}
+	}
+	if endIdx < 0 || endIdx > int64(len(stringObject.Value)) {
+		return &object.Error{Message: "end index out of bounds"}
+	}
+	if startIdx > endIdx {
+		return &object.Some{Value: &object.String{Value: ""}}
+	}
+
+	// Create substring
+	substring := stringObject.Value[startIdx:endIdx]
+
+	return &object.Some{Value: &object.String{Value: substring}}
 }
 
 func getActualType(obj object.Object) object.ObjectType {

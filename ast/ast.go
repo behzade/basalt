@@ -159,11 +159,13 @@ func (al *ArrayLiteral) String() string {
 	return out.String()
 }
 
-// IndexExpression represents array indexing like arr[0].
+// IndexExpression represents array indexing like arr[0] or slicing like arr[1:3].
 type IndexExpression struct {
-	Token token.Token // The '[' token
-	Left  Expression  // The array being indexed
-	Index Expression  // The index expression
+	Token   token.Token // The '[' token
+	Left    Expression  // The array being indexed
+	Start   Expression  // The start index expression (renamed from Index)
+	End     Expression  // The end index expression (nil for simple indexing)
+	IsSlice bool        // True if this is a slicing operation (has colon)
 }
 
 func (ie *IndexExpression) expressionNode()      {}
@@ -173,7 +175,13 @@ func (ie *IndexExpression) String() string {
 	out.WriteString("(")
 	out.WriteString(ie.Left.String())
 	out.WriteString("[")
-	out.WriteString(ie.Index.String())
+	if ie.Start != nil {
+		out.WriteString(ie.Start.String())
+	}
+	if ie.End != nil {
+		out.WriteString(":")
+		out.WriteString(ie.End.String())
+	}
 	out.WriteString("])")
 	return out.String()
 }

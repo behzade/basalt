@@ -2,6 +2,7 @@ package lexer
 
 import (
 	"testing"
+
 	"github.com/behzade/basalt/token"
 )
 
@@ -25,6 +26,7 @@ if (5 < 10) {
 
 10 == 10;
 10 != 9;
+array[1:3];
 `
 
 	tests := []struct {
@@ -105,6 +107,13 @@ if (5 < 10) {
 		{token.INT, "10"},
 		{token.NOT_EQ, "!="},
 		{token.INT, "9"},
+		{token.SEMICOLON, ";"},
+		{token.IDENT, "array"},
+		{token.LBRACKET, "["},
+		{token.INT, "1"},
+		{token.COLON, ":"},
+		{token.INT, "3"},
+		{token.RBRACKET, "]"},
 		{token.SEMICOLON, ";"},
 		{token.EOF, ""},
 	}

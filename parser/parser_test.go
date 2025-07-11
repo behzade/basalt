@@ -796,3 +796,130 @@ func TestImportStatements(t *testing.T) {
 		}
 	}
 }
+
+func TestSlicingExpressions(t *testing.T) {
+	tests := []struct {
+		input         string
+		expectedLeft  string
+		expectedStart interface{}
+		expectedEnd   interface{}
+	}{
+		{
+			"array[1:3]",
+			"array",
+			1,
+			3,
+		},
+		{
+			"array[:3]",
+			"array",
+			nil,
+			3,
+		},
+		{
+			"array[1:]",
+			"array",
+			1,
+			nil,
+		},
+		{
+			"array[:]",
+			"array",
+			nil,
+			nil,
+		},
+		{
+			"[1, 2, 3][0:2]",
+			"[1, 2, 3]",
+			0,
+			2,
+		},
+	}
+
+	for _, tt := range tests {
+		l := lexer.New(tt.input)
+		p := New(l)
+		program := p.ParseProgram()
+		checkParserErrors(t, p)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements does not contain 1 statement. got=%d", len(program.Statements))
+		}
+
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T", program.Statements[0])
+		}
+
+		indexExp, ok := stmt.Expression.(*ast.IndexExpression)
+		if !ok {
+			t.Fatalf("stmt.Expression is not ast.IndexExpression. got=%T", stmt.Expression)
+		}
+
+		if indexExp.Left.String() != tt.expectedLeft {
+			t.Errorf("indexExp.Left.String() not '%s'. got=%s", tt.expectedLeft, indexExp.Left.String())
+		}
+
+		// Test start expression
+		if tt.expectedStart == nil {
+			if indexExp.Start != nil {
+				t.Errorf("indexExp.Start expected to be nil. got=%s", indexExp.Start.String())
+			}
+		} else {
+			if indexExp.Start == nil {
+				t.Errorf("indexExp.Start expected to be %v. got=nil", tt.expectedStart)
+			} else if !testLiteralExpression(t, indexExp.Start, tt.expectedStart) {
+				return
+			}
+		}
+
+		// Test end expression
+		if tt.expectedEnd == nil {
+			if indexExp.End != nil {
+				t.Errorf("indexExp.End expected to be nil. got=%s", indexExp.End.String())
+			}
+		} else {
+			if indexExp.End == nil {
+				t.Errorf("indexExp.End expected to be %v. got=nil", tt.expectedEnd)
+			} else if !testLiteralExpression(t, indexExp.End, tt.expectedEnd) {
+				return
+			}
+		}
+	}
+}
+
+func TestIndexExpressionParsing(t *testing.T) {
+	input := "myArray[1 + 1]"
+
+	l := lexer.New(input)
+	p := New(l)
+	program := p.ParseProgram()
+	checkParserErrors(t, p)
+
+	if len(program.Statements) != 1 {
+		t.Fatalf("program.Statements does not contain 1 statement. got=%d", len(program.Statements))
+	}
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	if !ok {
+		t.Fatalf("program.Statements[0] is not ast.ExpressionStatement. got=%T", program.Statements[0])
+	}
+
+	indexExp, ok := stmt.Expression.(*ast.IndexExpression)
+	if !ok {
+		t.Fatalf("stmt.Expression is not ast.IndexExpression. got=%T", stmt.Expression)
+	}
+
+	if !testIdentifier(t, indexExp.Left, "myArray") {
+		return
+	}
+
+	if !testInfixExpression(t, indexExp.Start, 1, "+", 1) {
+		return
+	}
+
+	// For regular indexing, End should be nil
+	if indexExp.End != nil {
+		t.Errorf("indexExp.End expected to be nil for regular indexing. got=%s", indexExp.End.String())
+	}
+}

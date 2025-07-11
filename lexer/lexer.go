@@ -59,7 +59,7 @@ func (l *Lexer) NextToken() token.Token {
 			literal := string(ch) + string(l.ch)
 			tok = token.Token{Type: token.COLONCOLON, Literal: literal}
 		} else {
-			tok = newToken(token.ILLEGAL, l.ch)
+			tok = newToken(token.COLON, l.ch)
 		}
 	case ';':
 		tok = newToken(token.SEMICOLON, l.ch)

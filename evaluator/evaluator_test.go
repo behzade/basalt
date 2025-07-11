@@ -779,3 +779,229 @@ func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
 
 	return true
 }
+
+func TestArraySlicing(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []int64
+	}{
+		{
+			"[1, 2, 3, 4][1:3]",
+			[]int64{2, 3},
+		},
+		{
+			"[1, 2, 3, 4][:2]",
+			[]int64{1, 2},
+		},
+		{
+			"[1, 2, 3, 4][2:]",
+			[]int64{3, 4},
+		},
+		{
+			"[1, 2, 3, 4][:]",
+			[]int64{1, 2, 3, 4},
+		},
+		{
+			"[1, 2, 3, 4][1:1]",
+			[]int64{},
+		},
+		{
+			"let arr = [1, 2, 3, 4]; arr[1:3]",
+			[]int64{2, 3},
+		},
+		{
+			"[1, 2, 3, 4, 5][1:4]",
+			[]int64{2, 3, 4},
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testSliceObject(t, evaluated, tt.expected)
+	}
+}
+
+func TestStringSlicing(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			"\"hello\"[1:4]",
+			"ell",
+		},
+		{
+			"\"hello\"[:3]",
+			"hel",
+		},
+		{
+			"\"hello\"[2:]",
+			"llo",
+		},
+		{
+			"\"hello\"[:]",
+			"hello",
+		},
+		{
+			"\"hello\"[1:1]",
+			"",
+		},
+		{
+			"let str = \"world\"; str[1:4]",
+			"orl",
+		},
+		{
+			"\"testing\"[0:4]",
+			"test",
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testOptionObject(t, evaluated, tt.expected)
+	}
+}
+
+func TestSlicingErrors(t *testing.T) {
+	tests := []struct {
+		input           string
+		expectedMessage string
+	}{
+		{
+			"[1, 2, 3][5:10]",
+			"start index out of bounds",
+		},
+		{
+			"[1, 2, 3][-1:2]",
+			"start index out of bounds",
+		},
+		{
+			"[1, 2, 3][1:10]",
+			"end index out of bounds",
+		},
+		{
+			"[1, 2, 3][1:-1]",
+			"end index out of bounds",
+		},
+		{
+			"\"hello\"[10:15]",
+			"start index out of bounds",
+		},
+		{
+			"\"hello\"[-1:3]",
+			"start index out of bounds",
+		},
+		{
+			"\"hello\"[1:10]",
+			"end index out of bounds",
+		},
+		{
+			"\"hello\"[1:-1]",
+			"end index out of bounds",
+		},
+		{
+			"42[1:3]",
+			"slice operator not supported: INTEGER",
+		},
+		{
+			"[1, 2, 3][\"a\":2]",
+			"start index must be an integer",
+		},
+		{
+			"[1, 2, 3][1:\"b\"]",
+			"end index must be an integer",
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		errObj, ok := evaluated.(*object.Error)
+		if !ok {
+			t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
+			continue
+		}
+
+		if errObj.Message != tt.expectedMessage {
+			t.Errorf("wrong error message. expected=%q, got=%q",
+				tt.expectedMessage, errObj.Message)
+		}
+	}
+}
+
+func TestSliceMethodAccess(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{
+			"[1, 2, 3, 4][1:3].len()",
+			2,
+		},
+		{
+			"[1, 2, 3, 4][:2].len()",
+			2,
+		},
+		{
+			"[1, 2, 3, 4][2:].len()",
+			2,
+		},
+		{
+			"[1, 2, 3, 4][1:1].len()",
+			0,
+		},
+		{
+			"let arr = [1, 2, 3, 4, 5]; arr[1:4].len()",
+			3,
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		switch expected := tt.expected.(type) {
+		case int:
+			testOptionObject(t, evaluated, int64(expected))
+		}
+	}
+}
+
+func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
+	result, ok := obj.(*object.Some)
+	if !ok {
+		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	slice, ok := result.Value.(*object.Slice)
+	if !ok {
+		t.Errorf("object is not Slice. got=%T (%+v)", result.Value, result.Value)
+		return false
+	}
+
+	if len(slice.Elements) != len(expected) {
+		t.Errorf("wrong num of elements. want=%d, got=%d",
+			len(expected), len(slice.Elements))
+		return false
+	}
+
+	for i, expectedElem := range expected {
+		elem, ok := slice.Elements[i].(*object.Some)
+		if !ok {
+			t.Errorf("slice element %d is not Some. got=%T (%+v)", i, slice.Elements[i], slice.Elements[i])
+			return false
+		}
+
+		intObj, ok := elem.Value.(*object.Integer)
+		if !ok {
+			t.Errorf("slice element %d is not Integer. got=%T (%+v)", i, elem.Value, elem.Value)
+			return false
+		}
+
+		if intObj.Value != expectedElem {
+			t.Errorf("slice element %d wrong value. want=%d, got=%d", i, expectedElem, intObj.Value)
+			return false
+		}
+	}
+
+	return true
+}
