@@ -244,6 +244,10 @@ func (c *Checker) Check(node ast.Node) Type {
 		return c.checkInfixExpression(node)
 	case *ast.IndexExpression:
 		return c.checkIndexExpression(node)
+	case *ast.StructLiteral:
+		return c.checkStructLiteral(node)
+	case *ast.StructInstanceExpression:
+		return c.checkStructInstanceExpression(node)
 	default:
 		c.addError(fmt.Sprintf("unknown node type: %T", node))
 		return &NoneType{}
@@ -352,11 +356,27 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 		return &NoneType{}
 	}
 
+	// Handle struct member access
+	if structType, ok := leftType.(*StructType); ok {
+		memberName := node.Right.Value
+		fieldType, exists := structType.Fields[memberName]
+		if !exists {
+			c.addError(fmt.Sprintf("field '%s' not found in struct", memberName))
+			return &NoneType{}
+		}
+		return fieldType
+	}
+
 	c.addError(fmt.Sprintf("member access not supported on type %s", leftType.String()))
 	return &NoneType{}
 }
 
 func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
+	// Special handling for struct definitions
+	if structLit, ok := node.Value.(*ast.StructLiteral); ok {
+		return c.checkStructDefinition(node.Name.Value, structLit)
+	}
+
 	// Special handling for function definitions to support recursion
 	if funcLit, ok := node.Value.(*ast.FunctionLiteral); ok {
 		// First, determine the function type signature
@@ -813,4 +833,81 @@ func (c *Checker) parseSimpleType(typeStr string) Type {
 		c.addError(fmt.Sprintf("unknown type: %s", typeStr))
 		return &NoneType{}
 	}
+}
+
+// checkStructDefinition handles struct definitions in let statements
+func (c *Checker) checkStructDefinition(structName string, node *ast.StructLiteral) Type {
+	// Create struct type from the field definitions
+	fields := make(map[string]Type)
+
+	for _, field := range node.Fields {
+		fieldName := field.Name.Value
+		fieldTypeName := field.Type.Value
+
+		// Convert field type name to Type
+		var fieldType Type
+		switch fieldTypeName {
+		case "int64":
+			fieldType = &IntegerType{}
+		case "bool":
+			fieldType = &BooleanType{}
+		case "float64":
+			fieldType = &FloatType{}
+		case "string":
+			fieldType = &StringType{}
+		default:
+			c.addError(fmt.Sprintf("unsupported field type: %s", fieldTypeName))
+			fieldType = &NoneType{}
+		}
+
+		fields[fieldName] = fieldType
+	}
+
+	// Create and register the struct type
+	structType := &StructType{Fields: fields}
+	c.env.Set(structName, structType)
+
+	return &NoneType{}
+}
+
+// checkStructLiteral handles struct literal expressions
+func (c *Checker) checkStructLiteral(node *ast.StructLiteral) Type {
+	// This shouldn't be called directly as struct literals are handled in let statements
+	c.addError("struct literals must be assigned to a variable")
+	return &NoneType{}
+}
+
+// checkStructInstanceExpression handles struct instantiation
+func (c *Checker) checkStructInstanceExpression(node *ast.StructInstanceExpression) Type {
+	// Get the struct type from the left side (should be an identifier)
+	structType := c.Check(node.StructExpr)
+
+	structDef, ok := structType.(*StructType)
+	if !ok {
+		c.addError(fmt.Sprintf("cannot instantiate non-struct type: %s", structType.String()))
+		return &NoneType{}
+	}
+
+	// Check that all required fields are provided
+	for fieldName := range structDef.Fields {
+		if _, provided := node.Fields[fieldName]; !provided {
+			c.addError(fmt.Sprintf("missing field '%s' in struct instantiation", fieldName))
+		}
+	}
+
+	// Check field types
+	for fieldName, fieldExpr := range node.Fields {
+		expectedType, exists := structDef.Fields[fieldName]
+		if !exists {
+			c.addError(fmt.Sprintf("field '%s' not found in struct definition", fieldName))
+			continue
+		}
+
+		actualType := c.Check(fieldExpr)
+		if !c.isAssignable(actualType, expectedType) {
+			c.addError(fmt.Sprintf("field '%s' expected type %s, got %s", fieldName, expectedType.String(), actualType.String()))
+		}
+	}
+
+	return structDef
 }

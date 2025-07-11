@@ -15,6 +15,14 @@ import (
 	"github.com/llir/llvm/ir/value"
 )
 
+// StructInfo holds information about a struct type
+type StructInfo struct {
+	LLVMType   *types.StructType
+	FieldNames []string              // Ordered list of field names
+	FieldTypes map[string]types.Type // Maps field name to LLVM type
+	FieldIndex map[string]int        // Maps field name to index in struct
+}
+
 // Compiler holds the LLVM IR module and compilation state
 type Compiler struct {
 	module        *ir.Module
@@ -22,6 +30,7 @@ type Compiler struct {
 	currentBlock  *ir.Block
 	symbolTable   map[string]value.Value // Maps variable names to their allocated stack pointers
 	functionTable map[string]*ir.Func    // Maps function names to their IR functions
+	typeRegistry  map[string]*StructInfo // Maps struct names to their type information
 	env           *checker.TypeEnvironment
 	externalFuncs map[string]*ir.Func // Cache for external function declarations
 	blockCounter  int                 // Counter for generating unique block names
@@ -33,6 +42,7 @@ func New() *Compiler {
 		module:        ir.NewModule(),
 		symbolTable:   make(map[string]value.Value),
 		functionTable: make(map[string]*ir.Func),
+		typeRegistry:  make(map[string]*StructInfo),
 		env:           checker.NewTypeEnvironment(),
 		externalFuncs: make(map[string]*ir.Func),
 		blockCounter:  0,
@@ -117,6 +127,11 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 		return c.compileFunctionDefinition(stmt.Name.Value, funcLit)
 	}
 
+	// Special handling for struct definitions
+	if structLit, ok := stmt.Value.(*ast.StructLiteral); ok {
+		return c.compileStructDefinition(stmt.Name.Value, structLit)
+	}
+
 	// Regular variable assignment
 	// Compile the right-hand side expression first to get its type
 	value, err := c.compileExpression(stmt.Value)
@@ -188,6 +203,10 @@ func (c *Compiler) compileExpression(expr ast.Expression) (value.Value, error) {
 		return c.compileIndexExpression(e)
 	case *ast.MemberAccessExpression:
 		return c.compileMemberAccessExpression(e)
+	case *ast.StructLiteral:
+		return c.compileStructLiteral(e)
+	case *ast.StructInstanceExpression:
+		return c.compileStructInstanceExpression(e)
 	default:
 		return nil, fmt.Errorf("unsupported expression type: %T", expr)
 	}
@@ -842,5 +861,141 @@ func (c *Compiler) compileMemberAccessExpression(expr *ast.MemberAccessExpressio
 		return objectValue, nil // Return the array itself, CallExpression will handle len() specially
 	}
 
+	// Check if this is struct field access
+	if structPtr, ok := objectValue.Type().(*types.PointerType); ok {
+		if structType, ok := structPtr.ElemType.(*types.StructType); ok {
+			// Find the struct info for this type
+			for _, structInfo := range c.typeRegistry {
+				if structInfo.LLVMType == structType {
+					// Check if the field exists
+					fieldIndex, exists := structInfo.FieldIndex[memberName]
+					if !exists {
+						return nil, fmt.Errorf("field '%s' not found in struct", memberName)
+					}
+
+					// Get pointer to the field using GEP
+					zero := constant.NewInt(types.I32, 0)
+					fieldIdx := constant.NewInt(types.I32, int64(fieldIndex))
+					fieldPtr := c.currentBlock.NewGetElementPtr(structType, objectValue, zero, fieldIdx)
+
+					// Load the value from the field
+					return c.currentBlock.NewLoad(structInfo.FieldTypes[memberName], fieldPtr), nil
+				}
+			}
+		}
+	}
+
 	return nil, fmt.Errorf("unsupported member access: %s", memberName)
+}
+
+// compileStructDefinition compiles a struct definition (let Point = struct { x: int64, y: int64 })
+func (c *Compiler) compileStructDefinition(structName string, expr *ast.StructLiteral) error {
+	// Create ordered list of field names and types
+	fieldNames := make([]string, len(expr.Fields))
+	fieldTypes := make(map[string]types.Type)
+	fieldIndex := make(map[string]int)
+	llvmFieldTypes := make([]types.Type, len(expr.Fields))
+
+	for i, field := range expr.Fields {
+		fieldName := field.Name.Value
+		fieldTypeName := field.Type.Value
+
+		// Convert Basalt type to LLVM type
+		var llvmType types.Type
+		switch fieldTypeName {
+		case "int64":
+			llvmType = types.I64
+		case "bool":
+			llvmType = types.I1
+		case "float64":
+			llvmType = types.Double
+		case "string":
+			llvmType = types.I8Ptr
+		default:
+			return fmt.Errorf("unsupported field type: %s", fieldTypeName)
+		}
+
+		fieldNames[i] = fieldName
+		fieldTypes[fieldName] = llvmType
+		fieldIndex[fieldName] = i
+		llvmFieldTypes[i] = llvmType
+	}
+
+	// Create struct type
+	structType := types.NewStruct(llvmFieldTypes...)
+
+	// Create named struct type
+	c.module.NewTypeDef(structName, structType)
+
+	// Store struct information in type registry
+	c.typeRegistry[structName] = &StructInfo{
+		LLVMType:   structType,
+		FieldNames: fieldNames,
+		FieldTypes: fieldTypes,
+		FieldIndex: fieldIndex,
+	}
+
+	return nil
+}
+
+// compileStructLiteral compiles a struct literal (for standalone struct definitions)
+func (c *Compiler) compileStructLiteral(expr *ast.StructLiteral) (value.Value, error) {
+	// This shouldn't be called directly as struct literals are handled in let statements
+	return nil, fmt.Errorf("struct literals must be assigned to a variable")
+}
+
+// compileStructInstanceExpression compiles struct instantiation (Point { x: 10, y: 20 })
+func (c *Compiler) compileStructInstanceExpression(expr *ast.StructInstanceExpression) (value.Value, error) {
+	// Get the struct type name from the left side (should be an identifier)
+	structIdent, ok := expr.StructExpr.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("struct instantiation requires a struct type name")
+	}
+
+	structName := structIdent.Value
+
+	// Look up the struct info
+	structInfo, exists := c.typeRegistry[structName]
+	if !exists {
+		return nil, fmt.Errorf("undefined struct type: %s", structName)
+	}
+
+	// Allocate stack memory for the struct
+	structPtr := c.currentBlock.NewAlloca(structInfo.LLVMType)
+
+	// Store field values
+	for fieldName, fieldExpr := range expr.Fields {
+		// Check if field exists
+		fieldIndex, exists := structInfo.FieldIndex[fieldName]
+		if !exists {
+			return nil, fmt.Errorf("field '%s' not found in struct %s", fieldName, structName)
+		}
+
+		// Compile the field value
+		fieldValue, err := c.compileExpression(fieldExpr)
+		if err != nil {
+			return nil, err
+		}
+
+		// Type check
+		expectedType := structInfo.FieldTypes[fieldName]
+		if !fieldValue.Type().Equal(expectedType) {
+			return nil, fmt.Errorf("field '%s' expected type %s, got %s", fieldName, expectedType, fieldValue.Type())
+		}
+
+		// Get pointer to the field using GEP
+		zero := constant.NewInt(types.I32, 0)
+		fieldIdx := constant.NewInt(types.I32, int64(fieldIndex))
+		fieldPtr := c.currentBlock.NewGetElementPtr(structInfo.LLVMType, structPtr, zero, fieldIdx)
+
+		// Store the value
+		c.currentBlock.NewStore(fieldValue, fieldPtr)
+	}
+
+	// Check that all fields are provided
+	if len(expr.Fields) != len(structInfo.FieldNames) {
+		return nil, fmt.Errorf("struct instantiation missing fields")
+	}
+
+	return structPtr, nil
 }
