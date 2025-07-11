@@ -68,6 +68,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return elements[0]
 		}
 		return &object.Some{Value: &object.Array{Elements: elements}}
+	case *ast.HashLiteral:
+		return evalHashLiteral(node, env)
 	case *ast.IndexExpression:
 		left := Eval(node.Left, env)
 		if isError(left) {
@@ -537,6 +539,11 @@ func evalArguments(exps []ast.Expression, env *object.Environment) []object.Obje
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
+	// Unwrap Some objects to get the actual function
+	if some, ok := fn.(*object.Some); ok {
+		fn = some.Value
+	}
+
 	switch fn := fn.(type) {
 	case *object.Function:
 		extendedEnv := extendFunctionEnv(fn, args)
@@ -622,14 +629,98 @@ func evalArrayElements(elems []ast.Expression, env *object.Environment) []object
 	return result
 }
 
+func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Object {
+	pairs := make(map[object.HashKey]object.HashPair)
+
+	var keyType, valueType object.ObjectType
+	var keyTypeSet, valueTypeSet bool
+
+	for keyNode, valueNode := range node.Pairs {
+		key := Eval(keyNode, env)
+		if isError(key) {
+			return key
+		}
+
+		// Unwrap Some objects to get the actual key
+		var actualKey object.Object
+		if some, ok := key.(*object.Some); ok {
+			actualKey = some.Value
+		} else {
+			actualKey = key
+		}
+
+		hashKey, ok := actualKey.(object.Hashable)
+		if !ok {
+			return &object.Error{Message: fmt.Sprintf("unusable as hash key: %s", actualKey.Type())}
+		}
+
+		// Check key type consistency
+		if !keyTypeSet {
+			keyType = actualKey.Type()
+			keyTypeSet = true
+		} else if actualKey.Type() != keyType {
+			return &object.Error{Message: fmt.Sprintf("hash key type mismatch: expected %s, got %s", keyType, actualKey.Type())}
+		}
+
+		value := Eval(valueNode, env)
+		if isError(value) {
+			return value
+		}
+
+		// Unwrap Some objects to get the actual value
+		var actualValue object.Object
+		if some, ok := value.(*object.Some); ok {
+			actualValue = some.Value
+		} else {
+			actualValue = value
+		}
+
+		// Check value type consistency
+		if !valueTypeSet {
+			valueType = actualValue.Type()
+			valueTypeSet = true
+		} else if actualValue.Type() != valueType {
+			return &object.Error{Message: fmt.Sprintf("hash value type mismatch: expected %s, got %s", valueType, actualValue.Type())}
+		}
+
+		hashed := hashKey.HashKey()
+		pairs[hashed] = object.HashPair{Key: actualKey, Value: actualValue}
+	}
+
+	// Handle empty hash maps - set default types
+	if !keyTypeSet {
+		keyType = object.STRING_OBJ // Default key type
+	}
+	if !valueTypeSet {
+		valueType = object.STRING_OBJ // Default value type
+	}
+
+	return &object.Some{Value: &object.Hash{
+		Pairs:     pairs,
+		KeyType:   keyType,
+		ValueType: valueType,
+	}}
+}
+
 func evalIndexExpression(left, index object.Object) object.Object {
 	switch {
-	case left.Type() == object.SOME_OBJ && index.Type() == object.SOME_OBJ:
+	case left.Type() == object.SOME_OBJ:
 		leftSome := left.(*object.Some)
-		indexSome := index.(*object.Some)
 
-		if leftSome.Value.Type() == object.ARRAY_OBJ && indexSome.Value.Type() == object.INTEGER_OBJ {
-			return evalArrayIndexExpression(leftSome.Value, indexSome.Value)
+		// Handle the index - it might be Some-wrapped or not
+		var actualIndex object.Object
+		if indexSome, ok := index.(*object.Some); ok {
+			actualIndex = indexSome.Value
+		} else {
+			actualIndex = index
+		}
+
+		if leftSome.Value.Type() == object.ARRAY_OBJ && actualIndex.Type() == object.INTEGER_OBJ {
+			return evalArrayIndexExpression(leftSome.Value, actualIndex)
+		}
+
+		if leftSome.Value.Type() == object.HASH_OBJ {
+			return evalHashIndexExpression(leftSome.Value, actualIndex)
 		}
 
 		return &object.Error{Message: fmt.Sprintf("index operator not supported: %s", leftSome.Value.Type())}
@@ -648,6 +739,27 @@ func evalArrayIndexExpression(array, index object.Object) object.Object {
 	}
 
 	return arrayObject.Elements[idx]
+}
+
+func evalHashIndexExpression(hash, key object.Object) object.Object {
+	hashObject := hash.(*object.Hash)
+
+	keyHash, ok := key.(object.Hashable)
+	if !ok {
+		return &object.Error{Message: fmt.Sprintf("unusable as hash key: %s", key.Type())}
+	}
+
+	// Check key type consistency
+	if key.Type() != hashObject.KeyType {
+		return &object.Error{Message: fmt.Sprintf("hash key type mismatch: expected %s, got %s", hashObject.KeyType, key.Type())}
+	}
+
+	pair, ok := hashObject.Pairs[keyHash.HashKey()]
+	if !ok {
+		return NONE
+	}
+
+	return &object.Some{Value: pair.Value}
 }
 
 func evalSliceExpression(left, start, end object.Object) object.Object {

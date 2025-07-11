@@ -2,6 +2,7 @@ package object
 
 import (
 	"fmt"
+	"hash/fnv"
 	"strings"
 
 	"github.com/behzade/basalt/ast"
@@ -16,6 +17,7 @@ const (
 	STRING_OBJ            = "STRING"
 	ARRAY_OBJ             = "ARRAY"
 	SLICE_OBJ             = "SLICE"
+	HASH_OBJ              = "HASH"
 	RETURN_VALUE_OBJ      = "RETURN_VALUE"
 	SOME_OBJ              = "SOME"
 	NONE_OBJ              = "NONE"
@@ -40,6 +42,23 @@ type Option interface {
 	option() // Marker method for the Option type.
 }
 
+// HashKey represents a unique key for hashing
+type HashKey struct {
+	Type  ObjectType
+	Value uint64
+}
+
+// Hashable is an interface for objects that can be used as hash keys
+type Hashable interface {
+	HashKey() HashKey
+}
+
+// HashPair represents a key-value pair in a hash map
+type HashPair struct {
+	Key   Object
+	Value Object
+}
+
 // --- Concrete Value Types ---
 
 type Integer struct {
@@ -48,6 +67,9 @@ type Integer struct {
 
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
+func (i *Integer) HashKey() HashKey {
+	return HashKey{Type: i.Type(), Value: uint64(i.Value)}
+}
 
 type Float struct {
 	Value float64
@@ -62,6 +84,15 @@ type Boolean struct {
 
 func (b *Boolean) Type() ObjectType { return BOOLEAN_OBJ }
 func (b *Boolean) Inspect() string  { return fmt.Sprintf("%t", b.Value) }
+func (b *Boolean) HashKey() HashKey {
+	var value uint64
+	if b.Value {
+		value = 1
+	} else {
+		value = 0
+	}
+	return HashKey{Type: b.Type(), Value: value}
+}
 
 type String struct {
 	Value string
@@ -69,6 +100,11 @@ type String struct {
 
 func (s *String) Type() ObjectType { return STRING_OBJ }
 func (s *String) Inspect() string  { return "\"" + s.Value + "\"" }
+func (s *String) HashKey() HashKey {
+	h := fnv.New64a()
+	h.Write([]byte(s.Value))
+	return HashKey{Type: s.Type(), Value: h.Sum64()}
+}
 
 type Array struct {
 	Elements []Object
@@ -212,6 +248,26 @@ func (si *StructInstance) Inspect() string {
 	out.WriteString("{ ")
 	out.WriteString(strings.Join(fields, ", "))
 	out.WriteString(" }")
+	return out.String()
+}
+
+// Hash represents a hash map object
+type Hash struct {
+	Pairs     map[HashKey]HashPair
+	KeyType   ObjectType // The type of keys in this hash map
+	ValueType ObjectType // The type of values in this hash map
+}
+
+func (h *Hash) Type() ObjectType { return HASH_OBJ }
+func (h *Hash) Inspect() string {
+	var out strings.Builder
+	pairs := []string{}
+	for _, pair := range h.Pairs {
+		pairs = append(pairs, pair.Key.Inspect()+": "+pair.Value.Inspect())
+	}
+	out.WriteString("{")
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
 	return out.String()
 }
 

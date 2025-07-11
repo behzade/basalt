@@ -48,6 +48,10 @@ func TestMutability(t *testing.T) {
 	runTestFile(t, "../tests/mutability.test")
 }
 
+func TestHashmaps(t *testing.T) {
+	runTestFile(t, "../tests/hashmaps.test")
+}
+
 // runTestFile executes tests from a specific test file
 func runTestFile(t *testing.T, filepath string) {
 	testCases, err := testutil.ParseTestFile(filepath)
@@ -97,6 +101,9 @@ func runEvalTest(t *testing.T, tc testutil.TestCase) {
 			// Array literal
 			expected := parseArrayLiteral(tc.Expected)
 			testOptionObject(t, evaluated, expected)
+		} else if strings.HasPrefix(tc.Expected, "{") && strings.HasSuffix(tc.Expected, "}") {
+			// Hash literal - for now, just check if it's a hash object
+			testHashLiteral(t, evaluated, tc.Expected)
 		} else if tc.Expected == "true" {
 			testOptionObject(t, evaluated, true)
 		} else if tc.Expected == "false" {
@@ -343,21 +350,118 @@ func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
 	return true
 }
 
-// parseArrayLiteral parses a string like "[1, 2, 3]" into []int64
+// parseArrayLiteral parses a simple array literal string like "[1, 2, 3]"
 func parseArrayLiteral(s string) []int64 {
+	// Remove brackets
 	s = strings.Trim(s, "[]")
 	if s == "" {
 		return []int64{}
 	}
 
+	// Split by comma and parse each element
 	parts := strings.Split(s, ",")
-	result := make([]int64, 0, len(parts))
-
-	for _, part := range parts {
+	result := make([]int64, len(parts))
+	for i, part := range parts {
 		part = strings.TrimSpace(part)
-		if val, err := strconv.ParseInt(part, 10, 64); err == nil {
-			result = append(result, val)
+		val, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			// If parsing fails, return empty array
+			return []int64{}
 		}
+		result[i] = val
+	}
+	return result
+}
+
+// testHashLiteral tests hash map objects by comparing their string representation
+func testHashLiteral(t *testing.T, obj object.Object, expected string) bool {
+	some, ok := obj.(*object.Some)
+	if !ok {
+		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	hash, ok := some.Value.(*object.Hash)
+	if !ok {
+		t.Errorf("object is not Hash. got=%T (%+v)", some.Value, some.Value)
+		return false
+	}
+
+	// For hash maps, we need to compare content rather than string representation
+	// because iteration order is not guaranteed
+
+	// Parse expected hash literal
+	expectedPairs := parseHashLiteral(expected)
+	if len(expectedPairs) != len(hash.Pairs) {
+		t.Errorf("Hash size mismatch. Expected=%d pairs, got=%d pairs", len(expectedPairs), len(hash.Pairs))
+		return false
+	}
+
+	// Check each expected pair exists in the actual hash
+	for expectedKey, expectedValue := range expectedPairs {
+		found := false
+		for _, pair := range hash.Pairs {
+			actualKey := pair.Key.Inspect()
+			actualValue := pair.Value.Inspect()
+
+			// Remove quotes from actual values for comparison
+			if strings.HasPrefix(actualKey, "\"") && strings.HasSuffix(actualKey, "\"") {
+				actualKey = strings.Trim(actualKey, "\"")
+			}
+			if strings.HasPrefix(actualValue, "\"") && strings.HasSuffix(actualValue, "\"") {
+				actualValue = strings.Trim(actualValue, "\"")
+			}
+
+			if actualKey == expectedKey && actualValue == expectedValue {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Expected key-value pair not found: %s: %s", expectedKey, expectedValue)
+			return false
+		}
+	}
+
+	return true
+}
+
+// parseHashLiteral parses a simple hash literal string like `{"key": "value", "key2": "value2"}`
+func parseHashLiteral(s string) map[string]string {
+	result := make(map[string]string)
+
+	// Remove braces
+	s = strings.Trim(s, "{}")
+	if s == "" {
+		return result
+	}
+
+	// Split by comma, but be careful about commas inside strings
+	pairs := strings.Split(s, ",")
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		// Split by colon
+		parts := strings.SplitN(pair, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Remove quotes from strings if present
+		if strings.HasPrefix(key, "\"") && strings.HasSuffix(key, "\"") {
+			key = strings.Trim(key, "\"")
+		}
+		if strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"") {
+			value = strings.Trim(value, "\"")
+		}
+
+		result[key] = value
 	}
 
 	return result

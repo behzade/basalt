@@ -432,3 +432,23 @@ func (sie *StructInstanceExpression) String() string {
 	out.WriteString(" }")
 	return out.String()
 }
+
+// HashLiteral represents a hash map literal like {"key": value, 42: "answer"}
+type HashLiteral struct {
+	Token token.Token               // The '{' token
+	Pairs map[Expression]Expression // Key-value pairs
+}
+
+func (hl *HashLiteral) expressionNode()      {}
+func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
+func (hl *HashLiteral) String() string {
+	var out bytes.Buffer
+	pairs := []string{}
+	for key, value := range hl.Pairs {
+		pairs = append(pairs, key.String()+": "+value.String())
+	}
+	out.WriteString("{")
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
+	return out.String()
+}
