@@ -54,6 +54,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Some{Value: &object.Integer{Value: node.Value}}
 	case *ast.Boolean:
 		return &object.Some{Value: nativeBoolToBooleanObject(node.Value)}
+	case *ast.StringLiteral:
+		return &object.Some{Value: &object.String{Value: node.Value}}
 	case *ast.PrefixExpression:
 		right := Eval(node.Right, env)
 		if isError(right) {
@@ -73,6 +75,10 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.Identifier:
 		val, ok := env.Get(node.Value)
 		if !ok {
+			// Check if it's a built-in function
+			if builtin, ok := stdlib.Builtins[node.Value]; ok {
+				return builtin
+			}
 			return &object.Error{Message: fmt.Sprintf("identifier not found: %s", node.Value)}
 		}
 		return val
@@ -259,6 +265,12 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 					return evalIntegerInfixExpression(operator, leftInt, rightInt)
 				}
 			}
+			// Handle string infix expressions
+			if leftStr, ok := leftSome.Value.(*object.String); ok {
+				if rightStr, ok := rightSome.Value.(*object.String); ok {
+					return evalStringInfixExpression(operator, leftStr, rightStr)
+				}
+			}
 			// Handle boolean comparisons
 			if leftBool, ok := leftSome.Value.(*object.Boolean); ok {
 				if rightBool, ok := rightSome.Value.(*object.Boolean); ok {
@@ -272,6 +284,22 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 
 	// Return error for unsupported operand types
 	return &object.Error{Message: fmt.Sprintf("type mismatch: %s %s %s", left.Type(), operator, right.Type())}
+}
+
+func evalStringInfixExpression(operator string, left, right *object.String) object.Object {
+	leftVal := left.Value
+	rightVal := right.Value
+
+	switch operator {
+	case "+":
+		return &object.Some{Value: &object.String{Value: leftVal + rightVal}}
+	case "==":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+	case "!=":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+	default:
+		return &object.Error{Message: fmt.Sprintf("unknown operator: %s", operator)}
+	}
 }
 
 func evalIntegerInfixExpression(operator string, left, right *object.Integer) object.Object {

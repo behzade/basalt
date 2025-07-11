@@ -247,9 +247,7 @@ func testLiteralObject(t *testing.T, obj object.Object, expected interface{}) bo
 	case bool:
 		return testBooleanObject(t, obj, v)
 	case string:
-		// This case is not used yet but is here for completeness
-		t.Errorf("string literal testing not implemented yet")
-		return false
+		return testStringObject(t, obj, v)
 	default:
 		t.Errorf("type of expected not handled. got=%T", expected)
 		return false
@@ -278,6 +276,20 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 	}
 	if result.Value != expected {
 		t.Errorf("object has wrong value. got=%t, want=%t",
+			result.Value, expected)
+		return false
+	}
+	return true
+}
+
+func testStringObject(t *testing.T, obj object.Object, expected string) bool {
+	result, ok := obj.(*object.String)
+	if !ok {
+		t.Errorf("object is not String. got=%T (%+v)", obj, obj)
+		return false
+	}
+	if result.Value != expected {
+		t.Errorf("object has wrong value. got=%q, want=%q",
 			result.Value, expected)
 		return false
 	}
@@ -491,6 +503,81 @@ func TestMemberAccessExpressions(t *testing.T) {
 			if intObj.Value != int64(expectedInt) {
 				t.Errorf("test %d: wrong integer value. expected=%d, got=%d", i, expectedInt, intObj.Value)
 			}
+		}
+	}
+}
+
+func TestStringLiteralExpression(t *testing.T) {
+	input := `"hello world!"`
+
+	evaluated := testEval(input)
+	testOptionObject(t, evaluated, "hello world!")
+}
+
+func TestStringConcatenation(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{`"Hello" + " " + "World!"`, "Hello World!"},
+		{`"foo" + "bar"`, "foobar"},
+		{`"" + "test"`, "test"},
+		{`"test" + ""`, "test"},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testOptionObject(t, evaluated, tt.expected)
+	}
+}
+
+func TestBuiltinLenFunction(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`len("")`, 0},
+		{`len("hello")`, 5},
+		{`len("hello world")`, 11},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		switch expected := tt.expected.(type) {
+		case int:
+			testOptionObject(t, evaluated, int64(expected))
+		}
+	}
+}
+
+func TestBuiltinLenFunctionErrors(t *testing.T) {
+	tests := []struct {
+		input           string
+		expectedMessage string
+	}{
+		{
+			`len(1)`,
+			"argument to `len` not supported, got INTEGER",
+		},
+		{
+			`len("one", "two")`,
+			"wrong number of arguments. got=2, want=1",
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		errObj, ok := evaluated.(*object.Error)
+		if !ok {
+			t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
+			continue
+		}
+
+		if errObj.Message != tt.expectedMessage {
+			t.Errorf("wrong error message. expected=%q, got=%q",
+				tt.expectedMessage, errObj.Message)
 		}
 	}
 }
