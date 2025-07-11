@@ -1,6 +1,11 @@
 package object
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+	
+	"github.com/behzade/basalt/ast"
+)
 
 type ObjectType string
 
@@ -10,6 +15,7 @@ const (
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
 	SOME_OBJ         = "SOME"
 	NONE_OBJ         = "NONE"
+	FUNCTION_OBJ     = "FUNCTION"
 )
 
 // Object is the base interface for all types in the language.
@@ -66,19 +72,52 @@ func (n *None) Type() ObjectType { return NONE_OBJ }
 func (n *None) Inspect() string  { return "None" }
 func (n *None) option()          {} // Implements the Option interface
 
+// Function represents a function value.
+type Function struct {
+	Parameters []*ast.Identifier
+	Body       *ast.BlockStatement
+	Env        *Environment
+}
+
+func (f *Function) Type() ObjectType { return FUNCTION_OBJ }
+func (f *Function) Inspect() string {
+	var out strings.Builder
+	params := []string{}
+	for _, p := range f.Parameters {
+		params = append(params, p.String())
+	}
+	out.WriteString("fn")
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") {\n")
+	out.WriteString(f.Body.String())
+	out.WriteString("\n}")
+	return out.String()
+}
+
 // --- Environment ---
 
 type Environment struct {
 	store map[string]Object
+	outer *Environment
 }
 
 func NewEnvironment() *Environment {
 	s := make(map[string]Object)
-	return &Environment{store: s}
+	return &Environment{store: s, outer: nil}
+}
+
+func NewEnclosedEnvironment(outer *Environment) *Environment {
+	env := NewEnvironment()
+	env.outer = outer
+	return env
 }
 
 func (e *Environment) Get(name string) (Object, bool) {
 	obj, ok := e.store[name]
+	if !ok && e.outer != nil {
+		obj, ok = e.outer.Get(name)
+	}
 	return obj, ok
 }
 

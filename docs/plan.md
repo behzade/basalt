@@ -5,12 +5,16 @@ Phase 2: Evaluation (The "Heart")
 Objective: Implement the evaluator to execute the parsed AST, starting with basic expressions and statements, then moving to functions and control flow.
 
 Step 2.1: Basic Expression Evaluation (Completed)
-Step 2.2: Let and Return Statement Evaluation
-Step 2.3: Function Application
-Step 2.4: Closures
-Step 2.5: Built-in Functions
-Step 2.6: If/Else Expressions
-Step 2.7: Error Handling
+Step 2.2: Let and Return Statement Evaluation (Completed)
+Step 2.3: Function Evaluation and Application (Completed)
+- Created Function object type with parameters, body, and environment
+- Implemented function literal evaluation (fn(x) { ... })
+- Implemented function call evaluation with proper argument binding
+- Added block statement evaluation for function bodies
+- Implemented closure support with environment chaining
+Step 2.4: Built-in Functions
+Step 2.5: If/Else Expressions
+Step 2.6: Error Handling
 
 Phase 3: Standard Library & Advanced Features (The "Brain")
 Objective: Build out the standard library and implement more advanced language features.

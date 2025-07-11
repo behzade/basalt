@@ -48,6 +48,16 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return NONE
 		}
 		return val
+	case *ast.FunctionLiteral:
+		params := node.Parameters
+		body := node.Body
+		return &object.Function{Parameters: params, Env: env, Body: body}
+	case *ast.CallExpression:
+		function := Eval(node.Function, env)
+		args := evalArguments(node.Arguments, env)
+		return applyFunction(function, args)
+	case *ast.BlockStatement:
+		return evalBlockStatement(node, env)
 	}
 
 	return NONE
@@ -62,6 +72,22 @@ func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 		// When a return statement is encountered, unwrap its value.
 		if returnValue, ok := result.(*object.ReturnValue); ok {
 			return returnValue.Value
+		}
+	}
+
+	return result
+}
+
+func evalBlockStatement(block *ast.BlockStatement, env *object.Environment) object.Object {
+	var result object.Object
+
+	for _, statement := range block.Statements {
+		result = Eval(statement, env)
+
+		// When a return statement is encountered, return it wrapped
+		// (unlike evalProgram, we don't unwrap it here to let the caller handle it)
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			return returnValue
 		}
 	}
 
@@ -139,7 +165,7 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 			}
 		}
 	}
-	
+
 	// For now, return NONE for unsupported operand types
 	return NONE
 }
@@ -147,7 +173,7 @@ func evalInfixExpression(operator string, left, right object.Object) object.Obje
 func evalIntegerInfixExpression(operator string, left, right *object.Integer) object.Object {
 	leftVal := left.Value
 	rightVal := right.Value
-	
+
 	switch operator {
 	case "+":
 		return &object.Some{Value: &object.Integer{Value: leftVal + rightVal}}
@@ -173,7 +199,7 @@ func evalIntegerInfixExpression(operator string, left, right *object.Integer) ob
 func evalBooleanInfixExpression(operator string, left, right *object.Boolean) object.Object {
 	leftVal := left.Value
 	rightVal := right.Value
-	
+
 	switch operator {
 	case "==":
 		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
@@ -182,4 +208,41 @@ func evalBooleanInfixExpression(operator string, left, right *object.Boolean) ob
 	default:
 		return NONE
 	}
+}
+
+func evalArguments(exps []ast.Expression, env *object.Environment) []object.Object {
+	result := []object.Object{}
+	for _, e := range exps {
+		evaluated := Eval(e, env)
+		result = append(result, evaluated)
+	}
+	return result
+}
+
+func applyFunction(fn object.Object, args []object.Object) object.Object {
+	function, ok := fn.(*object.Function)
+	if !ok {
+		return NONE
+	}
+
+	extendedEnv := extendFunctionEnv(function, args)
+	evaluated := Eval(function.Body, extendedEnv)
+	return unwrapReturnValue(evaluated)
+}
+
+func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Environment {
+	env := object.NewEnclosedEnvironment(fn.Env)
+
+	for paramIdx, param := range fn.Parameters {
+		env.Set(param.Value, args[paramIdx])
+	}
+
+	return env
+}
+
+func unwrapReturnValue(obj object.Object) object.Object {
+	if returnValue, ok := obj.(*object.ReturnValue); ok {
+		return returnValue.Value
+	}
+	return obj
 }

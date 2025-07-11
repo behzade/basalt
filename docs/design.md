@@ -60,14 +60,51 @@
 
 ---
 
-#### **Part 2: Multi-Phase Task List**
+#### **Part 2: Current Implementation Status**
+
+**✅ Completed Features**
+
+* **Lexical Analysis:** Complete tokenization of source code including keywords, operators, identifiers, integers, and booleans
+* **Parsing:** Full Pratt parser implementation supporting:
+  * Let statements (`let x = 5;`)
+  * Return statements (`return x + 1;`)
+  * Expression statements
+  * Prefix expressions (`-x`, `!true`)
+  * Infix expressions (`x + y`, `a == b`, etc.)
+  * Function literals (`fn(x, y) { x + y }`)
+  * Function calls (`myFunc(1, 2)`)
+  * Grouped expressions with parentheses
+* **Tree-Walking Interpreter:** Complete evaluation engine supporting:
+  * Integer and boolean literal evaluation
+  * Variable binding and lookup with scoped environments
+  * All mathematical and comparison operators
+  * Function object creation and storage
+  * Function call evaluation with argument binding
+  * Block statement evaluation
+  * **Closures:** Functions correctly capture and remember their creation environment
+  * Return statement handling with proper unwrapping
+
+**🚧 In Progress / Next Steps**
+
+* Built-in functions (print, len, etc.)
+* Conditional expressions (if/else)
+* Error handling and reporting
+* String literals and operations
+* Array/list data structures
+
+---
+
+#### **Part 3: Multi-Phase Task List**
 
 **Phase 1: Compiler in Go**
 
 **Build a minimal proof-of-concept compiler in Go to bootstrap the language.**
 
 * **Tasks:**  
-  * **Lexer/parser for core syntax, including destructuring and lambdas.**  
+  * **✅ Lexer/parser for core syntax (tokens, statements, expressions, functions)**  
+  * **✅ Tree-walking interpreter with basic evaluation**  
+  * **✅ Function literals and first-class functions with closures**  
+  * **✅ Environment-based variable scoping**  
   * **Type system implementation with structs, interfaces, and optional `implements` checks.**  
   * **Implement expression-based control flow (`if`/`match`).**  
   * **Implement the Garbage Collector (GC) for managed pointers.**  
