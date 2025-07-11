@@ -248,6 +248,8 @@ func testLiteralObject(t *testing.T, obj object.Object, expected interface{}) bo
 		return testBooleanObject(t, obj, v)
 	case string:
 		return testStringObject(t, obj, v)
+	case []int64:
+		return testArrayObject(t, &object.Some{Value: obj}, v)
 	default:
 		t.Errorf("type of expected not handled. got=%T", expected)
 		return false
@@ -531,38 +533,94 @@ func TestStringConcatenation(t *testing.T) {
 	}
 }
 
-func TestBuiltinLenFunction(t *testing.T) {
+func TestArrayLiterals(t *testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+
+	evaluated := testEval(input)
+	testOptionObject(t, evaluated, []int64{1, 4, 6})
+}
+
+func TestArrayIndexExpressions(t *testing.T) {
 	tests := []struct {
 		input    string
 		expected interface{}
 	}{
-		{`len("")`, 0},
-		{`len("hello")`, 5},
-		{`len("hello world")`, 11},
+		{
+			"[1, 2, 3][0]",
+			1,
+		},
+		{
+			"[1, 2, 3][1]",
+			2,
+		},
+		{
+			"[1, 2, 3][2]",
+			3,
+		},
+		{
+			"let i = 0; [1][i];",
+			1,
+		},
+		{
+			"[1, 2, 3][1 + 1];",
+			3,
+		},
+		{
+			"let myArray = [1, 2, 3]; myArray[2];",
+			3,
+		},
+		{
+			"let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+			6,
+		},
+		{
+			"let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+			2,
+		},
+		{
+			"[1, 2, 3][3]",
+			"index out of bounds",
+		},
+		{
+			"[1, 2, 3][-1]",
+			"index out of bounds",
+		},
 	}
 
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
-
 		switch expected := tt.expected.(type) {
 		case int:
 			testOptionObject(t, evaluated, int64(expected))
+		case string:
+			errObj, ok := evaluated.(*object.Error)
+			if !ok {
+				t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
+				continue
+			}
+			if errObj.Message != expected {
+				t.Errorf("wrong error message. expected=%q, got=%q", expected, errObj.Message)
+			}
 		}
 	}
 }
 
-func TestBuiltinLenFunctionErrors(t *testing.T) {
+func TestArrayTypeEnforcement(t *testing.T) {
 	tests := []struct {
 		input           string
 		expectedMessage string
 	}{
 		{
-			`len(1)`,
-			"argument to `len` not supported, got INTEGER",
+			"[1, \"hello\"]",
+			"array elements must be of the same type",
 		},
 		{
-			`len("one", "two")`,
-			"wrong number of arguments. got=2, want=1",
+			"[true, 42]",
+			"array elements must be of the same type",
+		},
+		{
+			"[1, 2, \"three\"]",
+			"array elements must be of the same type",
 		},
 	}
 
@@ -580,4 +638,144 @@ func TestBuiltinLenFunctionErrors(t *testing.T) {
 				tt.expectedMessage, errObj.Message)
 		}
 	}
+}
+
+func TestArrayMethodAccess(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{
+			"[1, 2, 3, 4].len()",
+			4,
+		},
+		{
+			"[].len()",
+			0,
+		},
+		{
+			"let arr = [1, 2, 3]; arr.len()",
+			3,
+		},
+		{
+			"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].len()",
+			10,
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		switch expected := tt.expected.(type) {
+		case int:
+			testOptionObject(t, evaluated, int64(expected))
+		}
+	}
+}
+
+func TestStringMethodAccess(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{
+			"\"hello world\".len()",
+			11,
+		},
+		{
+			"\"\".len()",
+			0,
+		},
+		{
+			"let str = \"test\"; str.len()",
+			4,
+		},
+		{
+			"\"hello\".len() + \"world\".len()",
+			10,
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		switch expected := tt.expected.(type) {
+		case int:
+			testOptionObject(t, evaluated, int64(expected))
+		}
+	}
+}
+
+func TestMethodAccessErrors(t *testing.T) {
+	tests := []struct {
+		input           string
+		expectedMessage string
+	}{
+		{
+			"[1, 2, 3].foo()",
+			"undefined method 'foo' on array",
+		},
+		{
+			"\"hello\".bar()",
+			"undefined method 'bar' on string",
+		},
+		{
+			"42.len()",
+			"member access not supported on type SOME",
+		},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		errObj, ok := evaluated.(*object.Error)
+		if !ok {
+			t.Errorf("object is not Error. got=%T (%+v)", evaluated, evaluated)
+			continue
+		}
+
+		if errObj.Message != tt.expectedMessage {
+			t.Errorf("wrong error message. expected=%q, got=%q",
+				tt.expectedMessage, errObj.Message)
+		}
+	}
+}
+
+func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
+	result, ok := obj.(*object.Some)
+	if !ok {
+		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	array, ok := result.Value.(*object.Array)
+	if !ok {
+		t.Errorf("object is not Array. got=%T (%+v)", result.Value, result.Value)
+		return false
+	}
+
+	if len(array.Elements) != len(expected) {
+		t.Errorf("wrong num of elements. want=%d, got=%d",
+			len(expected), len(array.Elements))
+		return false
+	}
+
+	for i, expectedElem := range expected {
+		elem, ok := array.Elements[i].(*object.Some)
+		if !ok {
+			t.Errorf("array element %d is not Some. got=%T (%+v)", i, array.Elements[i], array.Elements[i])
+			return false
+		}
+
+		intObj, ok := elem.Value.(*object.Integer)
+		if !ok {
+			t.Errorf("array element %d is not Integer. got=%T (%+v)", i, elem.Value, elem.Value)
+			return false
+		}
+
+		if intObj.Value != expectedElem {
+			t.Errorf("array element %d wrong value. want=%d, got=%d", i, expectedElem, intObj.Value)
+			return false
+		}
+	}
+
+	return true
 }

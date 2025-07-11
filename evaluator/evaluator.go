@@ -56,6 +56,22 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Some{Value: nativeBoolToBooleanObject(node.Value)}
 	case *ast.StringLiteral:
 		return &object.Some{Value: &object.String{Value: node.Value}}
+	case *ast.ArrayLiteral:
+		elements := evalArrayElements(node.Elements, env)
+		if len(elements) == 1 && isError(elements[0]) {
+			return elements[0]
+		}
+		return &object.Some{Value: &object.Array{Elements: elements}}
+	case *ast.IndexExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+		index := Eval(node.Index, env)
+		if isError(index) {
+			return index
+		}
+		return evalIndexExpression(left, index)
 	case *ast.PrefixExpression:
 		right := Eval(node.Right, env)
 		if isError(right) {
@@ -75,10 +91,6 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.Identifier:
 		val, ok := env.Get(node.Value)
 		if !ok {
-			// Check if it's a built-in function
-			if builtin, ok := stdlib.Builtins[node.Value]; ok {
-				return builtin
-			}
 			return &object.Error{Message: fmt.Sprintf("identifier not found: %s", node.Value)}
 		}
 		return val
@@ -106,20 +118,50 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			return left
 		}
 
-		// Check that the left side is a module
-		module, ok := left.(*object.Module)
-		if !ok {
-			return &object.Error{Message: fmt.Sprintf("member access not supported on type %s", left.Type())}
-		}
-
-		// Look up the member in the module's environment
 		memberName := node.Right.Value
-		member, exists := module.Env.Get(memberName)
-		if !exists {
-			return &object.Error{Message: fmt.Sprintf("undefined member '%s' on module", memberName)}
+
+		// Handle method access on Some-wrapped values
+		if some, ok := left.(*object.Some); ok {
+			switch some.Value.Type() {
+			case object.STRING_OBJ:
+				if memberName == "len" {
+					str := some.Value.(*object.String)
+					return &object.Builtin{
+						Fn: func(args ...object.Object) object.Object {
+							if len(args) != 0 {
+								return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+							}
+							return &object.Some{Value: &object.Integer{Value: int64(len(str.Value))}}
+						},
+					}
+				}
+				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on string", memberName)}
+			case object.ARRAY_OBJ:
+				if memberName == "len" {
+					arr := some.Value.(*object.Array)
+					return &object.Builtin{
+						Fn: func(args ...object.Object) object.Object {
+							if len(args) != 0 {
+								return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+							}
+							return &object.Some{Value: &object.Integer{Value: int64(len(arr.Elements))}}
+						},
+					}
+				}
+				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on array", memberName)}
+			}
 		}
 
-		return member
+		// Handle module access (original behavior)
+		if module, ok := left.(*object.Module); ok {
+			member, exists := module.Env.Get(memberName)
+			if !exists {
+				return &object.Error{Message: fmt.Sprintf("undefined member '%s' on module", memberName)}
+			}
+			return member
+		}
+
+		return &object.Error{Message: fmt.Sprintf("member access not supported on type %s", left.Type())}
 	}
 
 	return &object.Error{Message: "unknown node type"}
@@ -414,4 +456,63 @@ func evalImportStatement(importStmt *ast.ImportStatement, env *object.Environmen
 
 	// The import statement itself evaluates to NONE
 	return NONE
+}
+
+func evalArrayElements(elems []ast.Expression, env *object.Environment) []object.Object {
+	result := []object.Object{}
+
+	for _, e := range elems {
+		evaluated := Eval(e, env)
+		if isError(evaluated) {
+			return []object.Object{evaluated}
+		}
+		result = append(result, evaluated)
+	}
+
+	// Check that all elements are of the same type
+	if len(result) > 0 {
+		firstType := getActualType(result[0])
+		for i := 1; i < len(result); i++ {
+			if getActualType(result[i]) != firstType {
+				return []object.Object{&object.Error{Message: "array elements must be of the same type"}}
+			}
+		}
+	}
+
+	return result
+}
+
+func evalIndexExpression(left, index object.Object) object.Object {
+	switch {
+	case left.Type() == object.SOME_OBJ && index.Type() == object.SOME_OBJ:
+		leftSome := left.(*object.Some)
+		indexSome := index.(*object.Some)
+
+		if leftSome.Value.Type() == object.ARRAY_OBJ && indexSome.Value.Type() == object.INTEGER_OBJ {
+			return evalArrayIndexExpression(leftSome.Value, indexSome.Value)
+		}
+
+		return &object.Error{Message: fmt.Sprintf("index operator not supported: %s", leftSome.Value.Type())}
+	default:
+		return &object.Error{Message: fmt.Sprintf("index operator not supported: %s", left.Type())}
+	}
+}
+
+func evalArrayIndexExpression(array, index object.Object) object.Object {
+	arrayObject := array.(*object.Array)
+	idx := index.(*object.Integer).Value
+	max := int64(len(arrayObject.Elements) - 1)
+
+	if idx < 0 || idx > max {
+		return &object.Error{Message: "index out of bounds"}
+	}
+
+	return arrayObject.Elements[idx]
+}
+
+func getActualType(obj object.Object) object.ObjectType {
+	if some, ok := obj.(*object.Some); ok {
+		return some.Value.Type()
+	}
+	return obj.Type()
 }
