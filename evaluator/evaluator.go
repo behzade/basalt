@@ -35,6 +35,13 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Some{Value: &object.Integer{Value: node.Value}}
 	case *ast.Boolean:
 		return &object.Some{Value: nativeBoolToBooleanObject(node.Value)}
+	case *ast.PrefixExpression:
+		right := Eval(node.Right, env)
+		return evalPrefixExpression(node.Operator, right)
+	case *ast.InfixExpression:
+		left := Eval(node.Left, env)
+		right := Eval(node.Right, env)
+		return evalInfixExpression(node.Operator, left, right)
 	case *ast.Identifier:
 		val, ok := env.Get(node.Value)
 		if !ok {
@@ -66,4 +73,113 @@ func nativeBoolToBooleanObject(input bool) *object.Boolean {
 		return TRUE
 	}
 	return FALSE
+}
+
+func evalPrefixExpression(operator string, right object.Object) object.Object {
+	switch operator {
+	case "!":
+		return evalBangOperatorExpression(right)
+	case "-":
+		return evalMinusPrefixOperatorExpression(right)
+	default:
+		return NONE
+	}
+}
+
+func evalBangOperatorExpression(right object.Object) object.Object {
+	switch right {
+	case TRUE:
+		return &object.Some{Value: FALSE}
+	case FALSE:
+		return &object.Some{Value: TRUE}
+	case NONE:
+		return &object.Some{Value: TRUE}
+	default:
+		// For wrapped values (Some), we need to check the inner value
+		if some, ok := right.(*object.Some); ok {
+			switch some.Value {
+			case TRUE:
+				return &object.Some{Value: FALSE}
+			case FALSE:
+				return &object.Some{Value: TRUE}
+			default:
+				// For any other value (integers, etc.), return FALSE
+				return &object.Some{Value: TRUE}
+			}
+		}
+		return &object.Some{Value: FALSE}
+	}
+}
+
+func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
+	// Handle wrapped values
+	if some, ok := right.(*object.Some); ok {
+		if integer, ok := some.Value.(*object.Integer); ok {
+			return &object.Some{Value: &object.Integer{Value: -integer.Value}}
+		}
+	}
+	// For now, return NONE for non-integer values (could be an error object later)
+	return NONE
+}
+
+func evalInfixExpression(operator string, left, right object.Object) object.Object {
+	// Handle integer infix expressions
+	if leftSome, ok := left.(*object.Some); ok {
+		if rightSome, ok := right.(*object.Some); ok {
+			if leftInt, ok := leftSome.Value.(*object.Integer); ok {
+				if rightInt, ok := rightSome.Value.(*object.Integer); ok {
+					return evalIntegerInfixExpression(operator, leftInt, rightInt)
+				}
+			}
+			// Handle boolean comparisons
+			if leftBool, ok := leftSome.Value.(*object.Boolean); ok {
+				if rightBool, ok := rightSome.Value.(*object.Boolean); ok {
+					return evalBooleanInfixExpression(operator, leftBool, rightBool)
+				}
+			}
+		}
+	}
+	
+	// For now, return NONE for unsupported operand types
+	return NONE
+}
+
+func evalIntegerInfixExpression(operator string, left, right *object.Integer) object.Object {
+	leftVal := left.Value
+	rightVal := right.Value
+	
+	switch operator {
+	case "+":
+		return &object.Some{Value: &object.Integer{Value: leftVal + rightVal}}
+	case "-":
+		return &object.Some{Value: &object.Integer{Value: leftVal - rightVal}}
+	case "*":
+		return &object.Some{Value: &object.Integer{Value: leftVal * rightVal}}
+	case "/":
+		return &object.Some{Value: &object.Integer{Value: leftVal / rightVal}}
+	case "<":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal < rightVal)}
+	case ">":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal > rightVal)}
+	case "==":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+	case "!=":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+	default:
+		return NONE
+	}
+}
+
+func evalBooleanInfixExpression(operator string, left, right *object.Boolean) object.Object {
+	leftVal := left.Value
+	rightVal := right.Value
+	
+	switch operator {
+	case "==":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+	case "!=":
+		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+	default:
+		return NONE
+	}
 }
