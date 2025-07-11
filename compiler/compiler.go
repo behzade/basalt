@@ -62,6 +62,9 @@ func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
 	c.declareExternalFunction("basalt_print_int", types.Void, types.I64)
 	c.declareExternalFunction("basalt_print_bool", types.Void, types.I1)
 	c.declareExternalFunction("basalt_print_float", types.Void, types.Double)
+	c.declareExternalFunction("basalt_print_string", types.Void, types.I8Ptr)
+	c.declareExternalFunction("basalt_string_concat", types.I8Ptr, types.I8Ptr, types.I8Ptr)
+	c.declareExternalFunction("basalt_string_equals", types.I32, types.I8Ptr, types.I8Ptr)
 
 	// Create main function
 	mainFunc := c.module.NewFunc("main", types.I32)
@@ -158,6 +161,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) (value.Value, error) {
 		return constant.NewBool(false), nil
 	case *ast.FloatLiteral:
 		return constant.NewFloat(types.Double, e.Value), nil
+	case *ast.StringLiteral:
+		return c.compileStringLiteral(e)
 	case *ast.Identifier:
 		return c.compileIdentifier(e)
 	case *ast.PrefixExpression:
@@ -398,7 +403,18 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 
 	switch expr.Operator {
 	case "+":
-		return c.currentBlock.NewAdd(left, right), nil
+		// Check if both operands are strings (pointers to i8)
+		leftType := left.Type()
+		rightType := right.Type()
+
+		if c.isStringType(leftType) && c.isStringType(rightType) {
+			// String concatenation
+			concatFunc := c.externalFuncs["basalt_string_concat"]
+			return c.currentBlock.NewCall(concatFunc, left, right), nil
+		} else {
+			// Regular arithmetic addition
+			return c.currentBlock.NewAdd(left, right), nil
+		}
 	case "-":
 		return c.currentBlock.NewSub(left, right), nil
 	case "*":
@@ -406,9 +422,37 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 	case "/":
 		return c.currentBlock.NewSDiv(left, right), nil
 	case "==":
-		return c.currentBlock.NewICmp(enum.IPredEQ, left, right), nil
+		// Check if both operands are strings
+		leftType := left.Type()
+		rightType := right.Type()
+
+		if c.isStringType(leftType) && c.isStringType(rightType) {
+			// String comparison
+			equalsFunc := c.externalFuncs["basalt_string_equals"]
+			result := c.currentBlock.NewCall(equalsFunc, left, right)
+			// Convert i32 result to i1 (boolean)
+			zero := constant.NewInt(types.I32, 0)
+			return c.currentBlock.NewICmp(enum.IPredNE, result, zero), nil
+		} else {
+			// Regular integer comparison
+			return c.currentBlock.NewICmp(enum.IPredEQ, left, right), nil
+		}
 	case "!=":
-		return c.currentBlock.NewICmp(enum.IPredNE, left, right), nil
+		// Check if both operands are strings
+		leftType := left.Type()
+		rightType := right.Type()
+
+		if c.isStringType(leftType) && c.isStringType(rightType) {
+			// String comparison
+			equalsFunc := c.externalFuncs["basalt_string_equals"]
+			result := c.currentBlock.NewCall(equalsFunc, left, right)
+			// Convert i32 result to i1 (boolean) and negate
+			zero := constant.NewInt(types.I32, 0)
+			return c.currentBlock.NewICmp(enum.IPredEQ, result, zero), nil
+		} else {
+			// Regular integer comparison
+			return c.currentBlock.NewICmp(enum.IPredNE, left, right), nil
+		}
 	case "<":
 		return c.currentBlock.NewICmp(enum.IPredSLT, left, right), nil
 	case ">":
@@ -416,6 +460,14 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", expr.Operator)
 	}
+}
+
+// isStringType checks if a type is a string (pointer to i8)
+func (c *Compiler) isStringType(t types.Type) bool {
+	if ptrType, ok := t.(*types.PointerType); ok {
+		return ptrType.ElemType == types.I8
+	}
+	return false
 }
 
 // compileCallExpression compiles a function call
@@ -470,7 +522,9 @@ func (c *Compiler) compilePrintCall(expr *ast.CallExpression) (value.Value, erro
 
 	// Determine which print function to call based on argument type
 	var printFunc *ir.Func
-	switch arg.Type() {
+	argType := arg.Type()
+
+	switch argType {
 	case types.I64:
 		printFunc = c.externalFuncs["basalt_print_int"]
 	case types.I1:
@@ -478,7 +532,16 @@ func (c *Compiler) compilePrintCall(expr *ast.CallExpression) (value.Value, erro
 	case types.Double:
 		printFunc = c.externalFuncs["basalt_print_float"]
 	default:
-		return nil, fmt.Errorf("unsupported type for print: %s", arg.Type())
+		// Check if it's a pointer to i8 (string)
+		if ptrType, ok := argType.(*types.PointerType); ok {
+			if ptrType.ElemType == types.I8 {
+				printFunc = c.externalFuncs["basalt_print_string"]
+			} else {
+				return nil, fmt.Errorf("unsupported pointer type for print: %s", argType)
+			}
+		} else {
+			return nil, fmt.Errorf("unsupported type for print: %s", argType)
+		}
 	}
 
 	// Call the print function
@@ -486,6 +549,37 @@ func (c *Compiler) compilePrintCall(expr *ast.CallExpression) (value.Value, erro
 
 	// Print returns void, but we need to return something for expression context
 	return constant.NewInt(types.I32, 0), nil
+}
+
+// compileStringLiteral compiles a string literal to a global string constant
+func (c *Compiler) compileStringLiteral(expr *ast.StringLiteral) (value.Value, error) {
+	// Create a global string constant
+	// LLVM string constants are arrays of i8 with null terminator
+	stringValue := expr.Value + "\x00" // Add null terminator
+
+	// Create character array type
+	charArrayType := types.NewArray(uint64(len(stringValue)), types.I8)
+
+	// Create the global string constant
+	globalName := fmt.Sprintf("str_%d", c.blockCounter)
+	c.blockCounter++
+
+	// Create constant character array
+	chars := make([]constant.Constant, len(stringValue))
+	for i, char := range stringValue {
+		chars[i] = constant.NewInt(types.I8, int64(char))
+	}
+	charArray := constant.NewArray(charArrayType, chars...)
+
+	// Create global variable for the string
+	global := c.module.NewGlobalDef(globalName, charArray)
+	global.Linkage = enum.LinkagePrivate
+	global.UnnamedAddr = enum.UnnamedAddrUnnamedAddr
+
+	// Return a pointer to the first character (i8*)
+	// Use GetElementPtr to get pointer to first element
+	zero := constant.NewInt(types.I64, 0)
+	return constant.NewGetElementPtr(charArrayType, global, zero, zero), nil
 }
 
 // basaltTypeToLLVMType converts a Basalt type to an LLVM type
@@ -511,6 +605,8 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 		return types.I1
 	case "float64":
 		return types.Double
+	case "string":
+		return types.I8Ptr // String is represented as i8* (pointer to i8)
 	case "none":
 		return types.Void
 	default:

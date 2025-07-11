@@ -43,6 +43,26 @@ Tests user-defined functions:
 120
 ```
 
+### 04_strings.bst
+Tests string operations:
+- String literals and printing
+- String concatenation with + operator
+- String comparisons with == and != operators
+- Complex string expressions
+
+**Expected Output:**
+```
+String Literals:
+Hello
+World
+Hello, World!
+true
+false
+true
+true
+false
+```
+
 ## Running Tests
 
 To run all tests and verify the LLVM backend is working correctly:
@@ -57,8 +77,11 @@ go run main.go llvm_tests/02_control_flow.bst --compile test2 && ./test2
 # Test functions
 go run main.go llvm_tests/03_functions.bst --compile test3 && ./test3
 
+# Test strings
+go run main.go llvm_tests/04_strings.bst --compile test4 && ./test4
+
 # Clean up
-rm test1 test2 test3
+rm test1 test2 test3 test4
 ```
 
 ## Features Validated
@@ -66,12 +89,13 @@ rm test1 test2 test3
 These tests validate the following LLVM backend features:
 
 1. **Code Generation**: AST to LLVM IR translation
-2. **Type System**: Proper LLVM type mapping (i64, i1, double)
+2. **Type System**: Proper LLVM type mapping (i64, i1, double, i8*)
 3. **Memory Management**: Stack allocation and load/store operations
 4. **Control Flow**: Basic blocks, conditional branches, and PHI nodes
 5. **Function Compilation**: Function definitions, calls, and recursion
 6. **External Functions**: C runtime integration for I/O
-7. **Build Pipeline**: IR generation → llc → clang → executable
+7. **String Operations**: String literals, concatenation, and comparisons
+8. **Build Pipeline**: IR generation → llc → clang → executable
 
 ## Implementation Status
 
@@ -81,6 +105,7 @@ These tests validate the following LLVM backend features:
 - Control flow (if-else)
 - User-defined functions
 - Function calls and recursion
+- String literals, concatenation, and comparisons
 - Print statements via C runtime
 - Complete compilation pipeline
 
