@@ -34,6 +34,7 @@ const (
 	GT       = ">"
 	EQ       = "=="
 	NOT_EQ   = "!="
+	QUESTION = "?"
 
 	// Delimiters
 	COMMA      = ","

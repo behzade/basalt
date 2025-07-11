@@ -52,6 +52,10 @@ func TestHashmaps(t *testing.T) {
 	runTestFile(t, "../tests/hashmaps.test")
 }
 
+func TestResult(t *testing.T) {
+	runTestFile(t, "../tests/result.test")
+}
+
 // runTestFile executes tests from a specific test file
 func runTestFile(t *testing.T, filepath string) {
 	testCases, err := testutil.ParseTestFile(filepath)
@@ -92,8 +96,18 @@ func runEvalTest(t *testing.T, tc testutil.TestCase) {
 			t.Errorf("Expected function object, got %T", evaluated)
 		}
 	default:
-		// Try to parse as different types
-		if strings.HasPrefix(tc.Expected, "\"") && strings.HasSuffix(tc.Expected, "\"") {
+		// Check for Result object patterns
+		if strings.HasPrefix(tc.Expected, "Result::Ok(") && strings.HasSuffix(tc.Expected, ")") {
+			// Extract the expected value from Result::Ok(value)
+			expectedValue := strings.TrimPrefix(tc.Expected, "Result::Ok(")
+			expectedValue = strings.TrimSuffix(expectedValue, ")")
+			testResultObject(t, evaluated, expectedValue, true)
+		} else if strings.HasPrefix(tc.Expected, "Result::Err(") && strings.HasSuffix(tc.Expected, ")") {
+			// Extract the expected error from Result::Err(error)
+			expectedError := strings.TrimPrefix(tc.Expected, "Result::Err(")
+			expectedError = strings.TrimSuffix(expectedError, ")")
+			testResultObject(t, evaluated, expectedError, false)
+		} else if strings.HasPrefix(tc.Expected, "\"") && strings.HasSuffix(tc.Expected, "\"") {
 			// String literal
 			expected := strings.Trim(tc.Expected, "\"")
 			testOptionObject(t, evaluated, expected)
@@ -145,6 +159,7 @@ func testEval(input string) object.Object {
 	}
 
 	env := object.NewEnvironment()
+	setupBuiltins(env) // Add built-in functions
 	evaluated := Eval(program, env)
 
 	// Unwrap return values to get the actual object for testing
@@ -175,6 +190,74 @@ func testOptionObject(t *testing.T, obj object.Object, expected interface{}) boo
 
 	// Test the value contained within Some
 	return testLiteralObject(t, some.Value, expected)
+}
+
+// testResultObject tests Result objects (Ok/Err)
+func testResultObject(t *testing.T, obj object.Object, expected string, expectOk bool) bool {
+	result, ok := obj.(*object.Result)
+	if !ok {
+		t.Errorf("object is not Result. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	if expectOk {
+		// Expecting a successful Result
+		if result.IsErr() {
+			t.Errorf("expected Ok Result, got Err: %s", result.Err.Message)
+			return false
+		}
+
+		// Parse the expected value and test it
+		if expected == "None" {
+			return result.Value == NONE
+		} else if strings.HasPrefix(expected, "\"") && strings.HasSuffix(expected, "\"") {
+			// String literal - check if the value is a Some object containing a string
+			expectedStr := strings.Trim(expected, "\"")
+			if some, ok := result.Value.(*object.Some); ok {
+				return testLiteralObject(t, some.Value, expectedStr)
+			}
+			return testLiteralObject(t, result.Value, expectedStr)
+		} else if val, err := strconv.ParseInt(expected, 10, 64); err == nil {
+			// Integer - check if the value is a Some object containing an integer
+			if some, ok := result.Value.(*object.Some); ok {
+				return testLiteralObject(t, some.Value, val)
+			}
+			return testLiteralObject(t, result.Value, val)
+		} else if val, err := strconv.ParseFloat(expected, 64); err == nil {
+			// Float - check if the value is a Some object containing a float
+			if some, ok := result.Value.(*object.Some); ok {
+				return testLiteralObject(t, some.Value, val)
+			}
+			return testLiteralObject(t, result.Value, val)
+		} else if expected == "true" {
+			// Boolean - check if the value is a Some object containing a boolean
+			if some, ok := result.Value.(*object.Some); ok {
+				return testLiteralObject(t, some.Value, true)
+			}
+			return testLiteralObject(t, result.Value, true)
+		} else if expected == "false" {
+			// Boolean - check if the value is a Some object containing a boolean
+			if some, ok := result.Value.(*object.Some); ok {
+				return testLiteralObject(t, some.Value, false)
+			}
+			return testLiteralObject(t, result.Value, false)
+		} else {
+			t.Errorf("Unknown expected value format in Result: %s", expected)
+			return false
+		}
+	} else {
+		// Expecting an error Result
+		if result.IsOk() {
+			t.Errorf("expected Err Result, got Ok: %s", result.Value.Inspect())
+			return false
+		}
+
+		if result.Err.Message != expected {
+			t.Errorf("expected error message: %s, got: %s", expected, result.Err.Message)
+			return false
+		}
+		return true
+	}
 }
 
 // testLiteralObject tests literal objects

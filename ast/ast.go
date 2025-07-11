@@ -451,10 +451,32 @@ func (sie *StructInstanceExpression) String() string {
 	return out.String()
 }
 
+// ErrorPropagationExpression represents the ? operator for error propagation
+type ErrorPropagationExpression struct {
+	Token      token.Token // The '?' token
+	Expression Expression  // The expression the ? is applied to
+}
+
+func (epe *ErrorPropagationExpression) expressionNode()      {}
+func (epe *ErrorPropagationExpression) TokenLiteral() string { return epe.Token.Literal }
+func (epe *ErrorPropagationExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(epe.Expression.String())
+	out.WriteString("?)")
+	return out.String()
+}
+
+// HashPair represents a key-value pair in a hash literal
+type HashPair struct {
+	Key   Expression
+	Value Expression
+}
+
 // HashLiteral represents a hash map literal like {"key": value, 42: "answer"}
 type HashLiteral struct {
-	Token token.Token               // The '{' token
-	Pairs map[Expression]Expression // Key-value pairs
+	Token token.Token // The '{' token
+	Pairs []HashPair  // Key-value pairs in source order
 }
 
 func (hl *HashLiteral) expressionNode()      {}
@@ -462,8 +484,8 @@ func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
 func (hl *HashLiteral) String() string {
 	var out bytes.Buffer
 	pairs := []string{}
-	for key, value := range hl.Pairs {
-		pairs = append(pairs, key.String()+": "+value.String())
+	for _, pair := range hl.Pairs {
+		pairs = append(pairs, pair.Key.String()+": "+pair.Value.String())
 	}
 	out.WriteString("{")
 	out.WriteString(strings.Join(pairs, ", "))

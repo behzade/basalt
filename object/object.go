@@ -21,6 +21,7 @@ const (
 	RETURN_VALUE_OBJ      = "RETURN_VALUE"
 	SOME_OBJ              = "SOME"
 	NONE_OBJ              = "NONE"
+	RESULT_OBJ            = "RESULT"
 	FUNCTION_OBJ          = "FUNCTION"
 	ERROR_OBJ             = "ERROR"
 	MODULE_OBJ            = "MODULE"
@@ -163,7 +164,41 @@ type None struct{}
 
 func (n *None) Type() ObjectType { return NONE_OBJ }
 func (n *None) Inspect() string  { return "None" }
-func (n *None) option()          {} // Implements the Option interface
+func (n *None) option()          {}
+
+// Result represents a container for either a value or an error.
+type Result struct {
+	Value Object // Could be any object, including NONE
+	Err   *Error
+}
+
+func (r *Result) Type() ObjectType { return RESULT_OBJ }
+func (r *Result) Inspect() string {
+	if r.Err != nil {
+		return fmt.Sprintf("Result::Err(%s)", r.Err.Inspect())
+	}
+	return fmt.Sprintf("Result::Ok(%s)", r.Value.Inspect())
+}
+
+// NewOk creates a new Result with a value and no error
+func NewOk(value Object) *Result {
+	return &Result{Value: value, Err: nil}
+}
+
+// NewErr creates a new Result with an error and no value
+func NewErr(message string) *Result {
+	return &Result{Value: nil, Err: &Error{Message: message}}
+}
+
+// IsOk returns true if the Result contains a value (no error)
+func (r *Result) IsOk() bool {
+	return r.Err == nil
+}
+
+// IsErr returns true if the Result contains an error
+func (r *Result) IsErr() bool {
+	return r.Err != nil
+}
 
 // Error represents a runtime error.
 type Error struct {

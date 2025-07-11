@@ -12,7 +12,44 @@ var (
 	TRUE  = &object.Boolean{Value: true}
 	FALSE = &object.Boolean{Value: false}
 	NONE  = &object.None{}
+
+	// Built-in Result constructors
+	RESULT_OK = &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			return &object.Result{Value: args[0], Err: nil}
+		},
+	}
+
+	RESULT_ERR = &object.Builtin{
+		Fn: func(args ...object.Object) object.Object {
+			if len(args) != 1 {
+				return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=1", len(args))}
+			}
+			// Extract string from Some object if needed
+			var message string
+			if some, ok := args[0].(*object.Some); ok {
+				if str, ok := some.Value.(*object.String); ok {
+					message = str.Value
+				} else {
+					message = some.Value.Inspect()
+				}
+			} else if str, ok := args[0].(*object.String); ok {
+				message = str.Value
+			} else {
+				message = args[0].Inspect()
+			}
+			return &object.Result{Value: nil, Err: &object.Error{Message: message}}
+		},
+	}
 )
+
+func setupBuiltins(env *object.Environment) {
+	env.Set("Ok", RESULT_OK, false)
+	env.Set("Err", RESULT_ERR, false)
+}
 
 // isError checks if an object is an error
 func isError(obj object.Object) bool {
@@ -238,6 +275,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		}
 
 		return &object.Error{Message: fmt.Sprintf("member access not supported on type %s", left.Type())}
+	case *ast.ErrorPropagationExpression:
+		return evalErrorPropagationExpression(node, env)
 	}
 
 	return &object.Error{Message: fmt.Sprintf("unknown node type: %T", node)}
@@ -660,12 +699,13 @@ func evalArrayElements(elems []ast.Expression, env *object.Environment) []object
 
 func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Object {
 	pairs := make(map[object.HashKey]object.HashPair)
+	seenKeys := make(map[string]bool) // Track keys by their string representation
 
 	var keyType, valueType object.ObjectType
 	var keyTypeSet, valueTypeSet bool
 
-	for keyNode, valueNode := range node.Pairs {
-		key := Eval(keyNode, env)
+	for _, pair := range node.Pairs {
+		key := Eval(pair.Key, env)
 		if isError(key) {
 			return key
 		}
@@ -683,6 +723,13 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 			return &object.Error{Message: fmt.Sprintf("unusable as hash key: %s", actualKey.Type())}
 		}
 
+		// Check for duplicate keys
+		keyStr := actualKey.Inspect()
+		if seenKeys[keyStr] {
+			return &object.Error{Message: fmt.Sprintf("duplicate key in hash literal: %s", keyStr)}
+		}
+		seenKeys[keyStr] = true
+
 		// Check key type consistency
 		if !keyTypeSet {
 			keyType = actualKey.Type()
@@ -691,7 +738,7 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 			return &object.Error{Message: fmt.Sprintf("hash key type mismatch: expected %s, got %s", keyType, actualKey.Type())}
 		}
 
-		value := Eval(valueNode, env)
+		value := Eval(pair.Value, env)
 		if isError(value) {
 			return value
 		}
@@ -994,4 +1041,26 @@ func evalStructInstanceExpression(node *ast.StructInstanceExpression, env *objec
 		Definition: definition,
 		Fields:     fieldValues,
 	}
+}
+
+func evalErrorPropagationExpression(node *ast.ErrorPropagationExpression, env *object.Environment) object.Object {
+	// First, evaluate the wrapped expression
+	result := Eval(node.Expression, env)
+	if isError(result) {
+		return result
+	}
+
+	// Check if the result is a Result object
+	resultObj, ok := result.(*object.Result)
+	if !ok {
+		return &object.Error{Message: fmt.Sprintf("? operator can only be applied to Result objects, got %T", result)}
+	}
+
+	// If there's an error, return it (this propagates the error up)
+	if resultObj.Err != nil {
+		return resultObj.Err
+	}
+
+	// If there's no error, return the value
+	return resultObj.Value
 }

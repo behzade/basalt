@@ -109,6 +109,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok = newToken(token.GT, l.ch)
 	case '.':
 		tok = newToken(token.DOT, l.ch)
+	case '?':
+		tok = newToken(token.QUESTION, l.ch)
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
@@ -149,23 +151,23 @@ func (l *Lexer) readIdentifier() string {
 func (l *Lexer) readNumber() (token.TokenType, string) {
 	position := l.position
 	var tokenType token.TokenType = token.INT
-	
+
 	// Read digits
 	for isDigit(l.ch) {
 		l.readChar()
 	}
-	
+
 	// Check for decimal point
 	if l.ch == '.' && isDigit(l.peekChar()) {
 		tokenType = token.FLOAT
 		l.readChar() // consume the '.'
-		
+
 		// Read digits after decimal point
 		for isDigit(l.ch) {
 			l.readChar()
 		}
 	}
-	
+
 	return tokenType, l.input[position:l.position]
 }
 
@@ -195,4 +197,3 @@ func isDigit(ch byte) bool {
 func newToken(tokenType token.TokenType, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
 }
-

@@ -41,8 +41,9 @@ var precedences = map[token.TokenType]int{
 }
 
 type (
-	prefixParseFn func() ast.Expression
-	infixParseFn  func(ast.Expression) ast.Expression
+	prefixParseFn  func() ast.Expression
+	infixParseFn   func(ast.Expression) ast.Expression
+	postfixParseFn func(ast.Expression) ast.Expression
 )
 
 // Parser holds the lexer and the current/peek tokens.
@@ -53,8 +54,9 @@ type Parser struct {
 	curToken  token.Token
 	peekToken token.Token
 
-	prefixParseFns map[token.TokenType]prefixParseFn
-	infixParseFns  map[token.TokenType]infixParseFn
+	prefixParseFns  map[token.TokenType]prefixParseFn
+	infixParseFns   map[token.TokenType]infixParseFn
+	postfixParseFns map[token.TokenType]postfixParseFn
 }
 
 // New creates a new Parser.
@@ -95,6 +97,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.DOT, p.parseMemberAccessExpression)
 	p.registerInfix(token.LBRACE, p.parseStructInstanceExpression)
 	p.registerInfix(token.ASSIGN, p.parseInfixExpression)
+
+	p.postfixParseFns = make(map[token.TokenType]postfixParseFn)
+	p.registerPostfix(token.QUESTION, p.parseErrorPropagationExpression)
 
 	// Read two tokens, so curToken and peekToken are both set.
 	p.nextToken()
@@ -224,6 +229,18 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		p.nextToken()
 
 		leftExp = infix(leftExp)
+	}
+
+	// Handle postfix operators
+	for {
+		postfix := p.postfixParseFns[p.peekToken.Type]
+		if postfix == nil {
+			break
+		}
+
+		p.nextToken()
+
+		leftExp = postfix(leftExp)
 	}
 
 	return leftExp
@@ -481,7 +498,7 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 // parseHashLiteral parses hash map literals like {"key": value, 42: "answer"}
 func (p *Parser) parseHashLiteral() ast.Expression {
 	hash := &ast.HashLiteral{Token: p.curToken}
-	hash.Pairs = make(map[ast.Expression]ast.Expression)
+	hash.Pairs = []ast.HashPair{}
 
 	if p.peekTokenIs(token.RBRACE) {
 		p.nextToken()
@@ -498,7 +515,7 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 
 	p.nextToken()
 	value := p.parseExpression(LOWEST)
-	hash.Pairs[key] = value
+	hash.Pairs = append(hash.Pairs, ast.HashPair{Key: key, Value: value})
 
 	// Parse additional key-value pairs
 	for p.peekTokenIs(token.COMMA) {
@@ -512,7 +529,7 @@ func (p *Parser) parseHashLiteral() ast.Expression {
 
 		p.nextToken()
 		value := p.parseExpression(LOWEST)
-		hash.Pairs[key] = value
+		hash.Pairs = append(hash.Pairs, ast.HashPair{Key: key, Value: value})
 	}
 
 	if !p.expectPeek(token.RBRACE) {
@@ -621,6 +638,10 @@ func (p *Parser) registerPrefix(tokenType token.TokenType, fn prefixParseFn) {
 
 func (p *Parser) registerInfix(tokenType token.TokenType, fn infixParseFn) {
 	p.infixParseFns[tokenType] = fn
+}
+
+func (p *Parser) registerPostfix(tokenType token.TokenType, fn postfixParseFn) {
+	p.postfixParseFns[tokenType] = fn
 }
 
 func (p *Parser) peekPrecedence() int {
@@ -816,6 +837,15 @@ func (p *Parser) parseStructInstanceExpression(left ast.Expression) ast.Expressi
 
 	if !p.expectPeek(token.RBRACE) {
 		return nil
+	}
+
+	return exp
+}
+
+func (p *Parser) parseErrorPropagationExpression(left ast.Expression) ast.Expression {
+	exp := &ast.ErrorPropagationExpression{
+		Token:      p.curToken,
+		Expression: left,
 	}
 
 	return exp

@@ -1,0 +1,40 @@
+-- TEST: Function returning Result - Ok case  
+-- INPUT
+let divide = fn(a, b) { 
+  if (b == 0) { 
+    Err("division by zero") 
+  } else { 
+    Ok(a / b) 
+  } 
+};
+let result = divide(10, 2);
+result?
+-- EXPECT-EVAL
+5
+===
+-- TEST: Function returning Result - Err case
+-- INPUT
+let divide = fn(a, b) { 
+  if (b == 0) { 
+    Err("division by zero") 
+  } else { 
+    Ok(a / b) 
+  } 
+};
+let result = divide(10, 0);
+result?
+-- EXPECT-ERROR
+division by zero
+===
+-- TEST: Result object inspection - Ok case
+-- INPUT
+Ok(42)
+-- EXPECT-EVAL
+Result::Ok(42)
+===
+-- TEST: Result object inspection - Err case
+-- INPUT
+Err("error message")
+-- EXPECT-EVAL
+Result::Err(error message)
+=== 

@@ -151,20 +151,20 @@ let add = fn(a, b) { a + b }; let sub = fn(a, b) { a - b }; {"add": add, "sub": 
 -- TEST: Hash key collision - same string
 -- INPUT
 {"key": "first", "key": "second"}
--- EXPECT-EVAL
-{"key": "second"}
+-- EXPECT-ERROR
+duplicate key in hash literal: "key"
 ===
 -- TEST: Hash key collision - same integer
 -- INPUT
 {1: 10, 1: 20}
--- EXPECT-EVAL
-{1: 20}
+-- EXPECT-ERROR
+duplicate key in hash literal: 1
 ===
 -- TEST: Hash key collision - same boolean
 -- INPUT
 {true: "first", true: "second"}
--- EXPECT-EVAL
-{true: "second"}
+-- EXPECT-ERROR
+duplicate key in hash literal: true
 ===
 -- TEST: Hash with zero values
 -- INPUT
