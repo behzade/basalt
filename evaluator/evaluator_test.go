@@ -159,7 +159,7 @@ func testEval(input string) object.Object {
 	}
 
 	env := object.NewEnvironment()
-	setupBuiltins(env) // Add built-in functions
+	SetupBuiltins(env) // Add built-in functions
 	evaluated := Eval(program, env)
 
 	// Unwrap return values to get the actual object for testing
@@ -170,7 +170,7 @@ func testEval(input string) object.Object {
 	return evaluated
 }
 
-// testOptionObject tests Option objects (Some/None)
+// testOptionObject tests values (no longer wrapped in Some)
 func testOptionObject(t *testing.T, obj object.Object, expected interface{}) bool {
 	if expected == nil {
 		// Expecting a None object
@@ -181,15 +181,8 @@ func testOptionObject(t *testing.T, obj object.Object, expected interface{}) boo
 		return true
 	}
 
-	// Expecting a Some object
-	some, ok := obj.(*object.Some)
-	if !ok {
-		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
-		return false
-	}
-
-	// Test the value contained within Some
-	return testLiteralObject(t, some.Value, expected)
+	// Values are no longer wrapped in Some, test directly
+	return testLiteralObject(t, obj, expected)
 }
 
 // testResultObject tests Result objects (Ok/Err)
@@ -211,35 +204,20 @@ func testResultObject(t *testing.T, obj object.Object, expected string, expectOk
 		if expected == "None" {
 			return result.Value == NONE
 		} else if strings.HasPrefix(expected, "\"") && strings.HasSuffix(expected, "\"") {
-			// String literal - check if the value is a Some object containing a string
+			// String literal - values are no longer wrapped in Some
 			expectedStr := strings.Trim(expected, "\"")
-			if some, ok := result.Value.(*object.Some); ok {
-				return testLiteralObject(t, some.Value, expectedStr)
-			}
 			return testLiteralObject(t, result.Value, expectedStr)
 		} else if val, err := strconv.ParseInt(expected, 10, 64); err == nil {
-			// Integer - check if the value is a Some object containing an integer
-			if some, ok := result.Value.(*object.Some); ok {
-				return testLiteralObject(t, some.Value, val)
-			}
+			// Integer - values are no longer wrapped in Some
 			return testLiteralObject(t, result.Value, val)
 		} else if val, err := strconv.ParseFloat(expected, 64); err == nil {
-			// Float - check if the value is a Some object containing a float
-			if some, ok := result.Value.(*object.Some); ok {
-				return testLiteralObject(t, some.Value, val)
-			}
+			// Float - values are no longer wrapped in Some
 			return testLiteralObject(t, result.Value, val)
 		} else if expected == "true" {
-			// Boolean - check if the value is a Some object containing a boolean
-			if some, ok := result.Value.(*object.Some); ok {
-				return testLiteralObject(t, some.Value, true)
-			}
+			// Boolean - values are no longer wrapped in Some
 			return testLiteralObject(t, result.Value, true)
 		} else if expected == "false" {
-			// Boolean - check if the value is a Some object containing a boolean
-			if some, ok := result.Value.(*object.Some); ok {
-				return testLiteralObject(t, some.Value, false)
-			}
+			// Boolean - values are no longer wrapped in Some
 			return testLiteralObject(t, result.Value, false)
 		} else {
 			t.Errorf("Unknown expected value format in Result: %s", expected)
@@ -274,7 +252,7 @@ func testLiteralObject(t *testing.T, obj object.Object, expected interface{}) bo
 	case string:
 		return testStringObject(t, obj, v)
 	case []int64:
-		return testArrayObject(t, &object.Some{Value: obj}, v)
+		return testArrayObject(t, obj, v)
 	default:
 		t.Errorf("type of expected not handled. got=%T", expected)
 		return false
@@ -349,19 +327,13 @@ func testStringObject(t *testing.T, obj object.Object, expected string) bool {
 
 // testArrayObject tests array objects
 func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
-	result, ok := obj.(*object.Some)
-	if !ok {
-		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
-		return false
-	}
-
-	array, ok := result.Value.(*object.Array)
+	array, ok := obj.(*object.Array)
 	if !ok {
 		// Check if it's a slice instead
-		if _, ok := result.Value.(*object.Slice); ok {
+		if _, ok := obj.(*object.Slice); ok {
 			return testSliceObject(t, obj, expected)
 		}
-		t.Errorf("object is not Array or Slice. got=%T (%+v)", result.Value, result.Value)
+		t.Errorf("object is not Array or Slice. got=%T (%+v)", obj, obj)
 		return false
 	}
 
@@ -371,15 +343,9 @@ func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
 	}
 
 	for i, expectedElem := range expected {
-		elem, ok := array.Elements[i].(*object.Some)
+		intObj, ok := array.Elements[i].(*object.Integer)
 		if !ok {
-			t.Errorf("array element %d is not Some. got=%T (%+v)", i, array.Elements[i], array.Elements[i])
-			return false
-		}
-
-		intObj, ok := elem.Value.(*object.Integer)
-		if !ok {
-			t.Errorf("array element %d is not Integer. got=%T (%+v)", i, elem.Value, elem.Value)
+			t.Errorf("array element %d is not Integer. got=%T (%+v)", i, array.Elements[i], array.Elements[i])
 			return false
 		}
 
@@ -394,15 +360,9 @@ func testArrayObject(t *testing.T, obj object.Object, expected []int64) bool {
 
 // testSliceObject tests slice objects
 func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
-	result, ok := obj.(*object.Some)
+	slice, ok := obj.(*object.Slice)
 	if !ok {
-		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
-		return false
-	}
-
-	slice, ok := result.Value.(*object.Slice)
-	if !ok {
-		t.Errorf("object is not Slice. got=%T (%+v)", result.Value, result.Value)
+		t.Errorf("object is not Slice. got=%T (%+v)", obj, obj)
 		return false
 	}
 
@@ -412,15 +372,9 @@ func testSliceObject(t *testing.T, obj object.Object, expected []int64) bool {
 	}
 
 	for i, expectedElem := range expected {
-		elem, ok := slice.Elements[i].(*object.Some)
+		intObj, ok := slice.Elements[i].(*object.Integer)
 		if !ok {
-			t.Errorf("slice element %d is not Some. got=%T (%+v)", i, slice.Elements[i], slice.Elements[i])
-			return false
-		}
-
-		intObj, ok := elem.Value.(*object.Integer)
-		if !ok {
-			t.Errorf("slice element %d is not Integer. got=%T (%+v)", i, elem.Value, elem.Value)
+			t.Errorf("slice element %d is not Integer. got=%T (%+v)", i, slice.Elements[i], slice.Elements[i])
 			return false
 		}
 
@@ -458,15 +412,9 @@ func parseArrayLiteral(s string) []int64 {
 
 // testHashLiteral tests hash map objects by comparing their string representation
 func testHashLiteral(t *testing.T, obj object.Object, expected string) bool {
-	some, ok := obj.(*object.Some)
+	hash, ok := obj.(*object.Hash)
 	if !ok {
-		t.Errorf("object is not Some. got=%T (%+v)", obj, obj)
-		return false
-	}
-
-	hash, ok := some.Value.(*object.Hash)
-	if !ok {
-		t.Errorf("object is not Hash. got=%T (%+v)", some.Value, some.Value)
+		t.Errorf("object is not Hash. got=%T (%+v)", obj, obj)
 		return false
 	}
 

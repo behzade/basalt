@@ -46,7 +46,8 @@ var (
 	}
 )
 
-func setupBuiltins(env *object.Environment) {
+// SetupBuiltins sets up built-in functions in the environment
+func SetupBuiltins(env *object.Environment) {
 	env.Set("Ok", RESULT_OK, false)
 	env.Set("Err", RESULT_ERR, false)
 }
@@ -92,19 +93,19 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 	// Expressions
 	case *ast.IntegerLiteral:
-		return &object.Some{Value: &object.Integer{Value: node.Value}}
+		return &object.Integer{Value: node.Value}
 	case *ast.FloatLiteral:
-		return &object.Some{Value: &object.Float{Value: node.Value}}
+		return &object.Float{Value: node.Value}
 	case *ast.Boolean:
-		return &object.Some{Value: nativeBoolToBooleanObject(node.Value)}
+		return nativeBoolToBooleanObject(node.Value)
 	case *ast.StringLiteral:
-		return &object.Some{Value: &object.String{Value: node.Value}}
+		return &object.String{Value: node.Value}
 	case *ast.ArrayLiteral:
 		elements := evalArrayElements(node.Elements, env)
 		if len(elements) == 1 && isError(elements[0]) {
 			return elements[0]
 		}
-		return &object.Some{Value: &object.Array{Elements: elements}}
+		return &object.Array{Elements: elements}
 	case *ast.HashLiteral:
 		return evalHashLiteral(node, env)
 	case *ast.IndexExpression:
@@ -211,49 +212,47 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 
 		memberName := node.Right.Value
 
-		// Handle method access on Some-wrapped values
-		if some, ok := left.(*object.Some); ok {
-			switch some.Value.Type() {
-			case object.STRING_OBJ:
-				if memberName == "len" {
-					str := some.Value.(*object.String)
-					return &object.Builtin{
-						Fn: func(args ...object.Object) object.Object {
-							if len(args) != 0 {
-								return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
-							}
-							return &object.Some{Value: &object.Integer{Value: int64(len(str.Value))}}
-						},
-					}
+		// Handle method access on values
+		switch left.Type() {
+		case object.STRING_OBJ:
+			if memberName == "len" {
+				str := left.(*object.String)
+				return &object.Builtin{
+					Fn: func(args ...object.Object) object.Object {
+						if len(args) != 0 {
+							return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+						}
+						return &object.Integer{Value: int64(len(str.Value))}
+					},
 				}
-				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on string", memberName)}
-			case object.ARRAY_OBJ:
-				if memberName == "len" {
-					arr := some.Value.(*object.Array)
-					return &object.Builtin{
-						Fn: func(args ...object.Object) object.Object {
-							if len(args) != 0 {
-								return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
-							}
-							return &object.Some{Value: &object.Integer{Value: int64(len(arr.Elements))}}
-						},
-					}
-				}
-				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on array", memberName)}
-			case object.SLICE_OBJ:
-				if memberName == "len" {
-					slice := some.Value.(*object.Slice)
-					return &object.Builtin{
-						Fn: func(args ...object.Object) object.Object {
-							if len(args) != 0 {
-								return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
-							}
-							return &object.Some{Value: &object.Integer{Value: int64(len(slice.Elements))}}
-						},
-					}
-				}
-				return &object.Error{Message: fmt.Sprintf("undefined method '%s' on slice", memberName)}
 			}
+			return &object.Error{Message: fmt.Sprintf("undefined method '%s' on string", memberName)}
+		case object.ARRAY_OBJ:
+			if memberName == "len" {
+				arr := left.(*object.Array)
+				return &object.Builtin{
+					Fn: func(args ...object.Object) object.Object {
+						if len(args) != 0 {
+							return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+						}
+						return &object.Integer{Value: int64(len(arr.Elements))}
+					},
+				}
+			}
+			return &object.Error{Message: fmt.Sprintf("undefined method '%s' on array", memberName)}
+		case object.SLICE_OBJ:
+			if memberName == "len" {
+				slice := left.(*object.Slice)
+				return &object.Builtin{
+					Fn: func(args ...object.Object) object.Object {
+						if len(args) != 0 {
+							return &object.Error{Message: fmt.Sprintf("wrong number of arguments. got=%d, want=0", len(args))}
+						}
+						return &object.Integer{Value: int64(len(slice.Elements))}
+					},
+				}
+			}
+			return &object.Error{Message: fmt.Sprintf("undefined method '%s' on slice", memberName)}
 		}
 
 		// Handle struct field access
@@ -262,7 +261,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			if !exists {
 				return &object.Error{Message: fmt.Sprintf("field '%s' not found in struct", memberName)}
 			}
-			return &object.Some{Value: field}
+			return field
 		}
 
 		// Handle module access (original behavior)
@@ -329,12 +328,15 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 		return condition
 	}
 
-	if isTruthy(condition) {
-		return Eval(ie.Consequence, env)
-	} else if ie.Alternative != nil {
-		return Eval(ie.Alternative, env)
+	// Only FALSE and NONE are falsy, everything else is truthy
+	if condition == FALSE || condition == NONE {
+		if ie.Alternative != nil {
+			return Eval(ie.Alternative, env)
+		} else {
+			return NONE
+		}
 	} else {
-		return NONE
+		return Eval(ie.Consequence, env)
 	}
 }
 
@@ -345,7 +347,8 @@ func evalForExpression(fe *ast.ForExpression, env *object.Environment) object.Ob
 			return condition
 		}
 
-		if !isTruthy(condition) {
+		// Only FALSE and NONE are falsy, everything else is truthy
+		if condition == FALSE || condition == NONE {
 			break
 		}
 
@@ -363,27 +366,6 @@ func evalForExpression(fe *ast.ForExpression, env *object.Environment) object.Ob
 
 	// If the loop completes normally, return NONE
 	return NONE
-}
-
-func isTruthy(obj object.Object) bool {
-	switch obj {
-	case NONE:
-		return false
-	case FALSE:
-		return false
-	default:
-		// For wrapped values (Some), check the inner value
-		if some, ok := obj.(*object.Some); ok {
-			switch some.Value {
-			case FALSE:
-				return false
-			default:
-				// All other values (including integers, even 0) are truthy
-				return true
-			}
-		}
-		return true
-	}
 }
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
@@ -405,83 +387,60 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 }
 
 func evalBangOperatorExpression(right object.Object) object.Object {
-	switch right {
-	case TRUE:
-		return &object.Some{Value: FALSE}
-	case FALSE:
-		return &object.Some{Value: TRUE}
-	case NONE:
-		return &object.Some{Value: TRUE}
-	default:
-		// For wrapped values (Some), we need to check the inner value
-		if some, ok := right.(*object.Some); ok {
-			switch some.Value {
-			case TRUE:
-				return &object.Some{Value: FALSE}
-			case FALSE:
-				return &object.Some{Value: TRUE}
-			default:
-				// For any other value (integers, etc.), return FALSE
-				return &object.Some{Value: TRUE}
-			}
-		}
-		return &object.Some{Value: FALSE}
+	// Bang operator only works on boolean values
+	if right == TRUE {
+		return FALSE
+	} else if right == FALSE {
+		return TRUE
+	} else {
+		return &object.Error{Message: fmt.Sprintf("unknown operator: !%s", right.Type())}
 	}
 }
 
 func evalMinusPrefixOperatorExpression(right object.Object) object.Object {
-	// Handle wrapped values
-	if some, ok := right.(*object.Some); ok {
-		if integer, ok := some.Value.(*object.Integer); ok {
-			return &object.Some{Value: &object.Integer{Value: -integer.Value}}
-		}
-		if float, ok := some.Value.(*object.Float); ok {
-			return &object.Some{Value: &object.Float{Value: -float.Value}}
-		}
+	if integer, ok := right.(*object.Integer); ok {
+		return &object.Integer{Value: -integer.Value}
+	}
+	if float, ok := right.(*object.Float); ok {
+		return &object.Float{Value: -float.Value}
 	}
 	// Return error for non-numeric values
 	return &object.Error{Message: fmt.Sprintf("unknown operator: -%s", right.Type())}
 }
 
 func evalInfixExpression(operator string, left, right object.Object) object.Object {
-	if leftSome, ok := left.(*object.Some); ok {
-		if rightSome, ok := right.(*object.Some); ok {
-			// Handle integer/integer operations
-			if leftInt, ok := leftSome.Value.(*object.Integer); ok {
-				if rightInt, ok := rightSome.Value.(*object.Integer); ok {
-					return evalIntegerInfixExpression(operator, leftInt, rightInt)
-				}
-				// Handle mixed-mode: integer/float (promote integer to float)
-				if rightFloat, ok := rightSome.Value.(*object.Float); ok {
-					leftAsFloat := &object.Float{Value: float64(leftInt.Value)}
-					return evalFloatInfixExpression(operator, leftAsFloat, rightFloat)
-				}
-			}
-			// Handle float/float operations
-			if leftFloat, ok := leftSome.Value.(*object.Float); ok {
-				if rightFloat, ok := rightSome.Value.(*object.Float); ok {
-					return evalFloatInfixExpression(operator, leftFloat, rightFloat)
-				}
-				// Handle mixed-mode: float/integer (promote integer to float)
-				if rightInt, ok := rightSome.Value.(*object.Integer); ok {
-					rightAsFloat := &object.Float{Value: float64(rightInt.Value)}
-					return evalFloatInfixExpression(operator, leftFloat, rightAsFloat)
-				}
-			}
-			// Handle string infix expressions
-			if leftStr, ok := leftSome.Value.(*object.String); ok {
-				if rightStr, ok := rightSome.Value.(*object.String); ok {
-					return evalStringInfixExpression(operator, leftStr, rightStr)
-				}
-			}
-			// Handle boolean comparisons
-			if leftBool, ok := leftSome.Value.(*object.Boolean); ok {
-				if rightBool, ok := rightSome.Value.(*object.Boolean); ok {
-					return evalBooleanInfixExpression(operator, leftBool, rightBool)
-				}
-			}
-			// If we get here, we have a type mismatch within Some objects
-			return &object.Error{Message: fmt.Sprintf("type mismatch: %s %s %s", leftSome.Value.Type(), operator, rightSome.Value.Type())}
+	// Handle integer/integer operations
+	if leftInt, ok := left.(*object.Integer); ok {
+		if rightInt, ok := right.(*object.Integer); ok {
+			return evalIntegerInfixExpression(operator, leftInt, rightInt)
+		}
+		// Handle mixed-mode: integer/float (promote integer to float)
+		if rightFloat, ok := right.(*object.Float); ok {
+			leftAsFloat := &object.Float{Value: float64(leftInt.Value)}
+			return evalFloatInfixExpression(operator, leftAsFloat, rightFloat)
+		}
+	}
+	// Handle float/float operations
+	if leftFloat, ok := left.(*object.Float); ok {
+		if rightFloat, ok := right.(*object.Float); ok {
+			return evalFloatInfixExpression(operator, leftFloat, rightFloat)
+		}
+		// Handle mixed-mode: float/integer (promote integer to float)
+		if rightInt, ok := right.(*object.Integer); ok {
+			rightAsFloat := &object.Float{Value: float64(rightInt.Value)}
+			return evalFloatInfixExpression(operator, leftFloat, rightAsFloat)
+		}
+	}
+	// Handle string infix expressions
+	if leftStr, ok := left.(*object.String); ok {
+		if rightStr, ok := right.(*object.String); ok {
+			return evalStringInfixExpression(operator, leftStr, rightStr)
+		}
+	}
+	// Handle boolean comparisons
+	if leftBool, ok := left.(*object.Boolean); ok {
+		if rightBool, ok := right.(*object.Boolean); ok {
+			return evalBooleanInfixExpression(operator, leftBool, rightBool)
 		}
 	}
 
@@ -518,11 +477,11 @@ func evalStringInfixExpression(operator string, left, right *object.String) obje
 
 	switch operator {
 	case "+":
-		return &object.Some{Value: &object.String{Value: leftVal + rightVal}}
+		return &object.String{Value: leftVal + rightVal}
 	case "==":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return &object.Error{Message: fmt.Sprintf("unknown operator: %s", operator)}
 	}
@@ -534,21 +493,21 @@ func evalIntegerInfixExpression(operator string, left, right *object.Integer) ob
 
 	switch operator {
 	case "+":
-		return &object.Some{Value: &object.Integer{Value: leftVal + rightVal}}
+		return &object.Integer{Value: leftVal + rightVal}
 	case "-":
-		return &object.Some{Value: &object.Integer{Value: leftVal - rightVal}}
+		return &object.Integer{Value: leftVal - rightVal}
 	case "*":
-		return &object.Some{Value: &object.Integer{Value: leftVal * rightVal}}
+		return &object.Integer{Value: leftVal * rightVal}
 	case "/":
-		return &object.Some{Value: &object.Integer{Value: leftVal / rightVal}}
+		return &object.Integer{Value: leftVal / rightVal}
 	case "<":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal < rightVal)}
+		return nativeBoolToBooleanObject(leftVal < rightVal)
 	case ">":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal > rightVal)}
+		return nativeBoolToBooleanObject(leftVal > rightVal)
 	case "==":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return &object.Error{Message: fmt.Sprintf("unknown operator: %s", operator)}
 	}
@@ -560,21 +519,21 @@ func evalFloatInfixExpression(operator string, left, right *object.Float) object
 
 	switch operator {
 	case "+":
-		return &object.Some{Value: &object.Float{Value: leftVal + rightVal}}
+		return &object.Float{Value: leftVal + rightVal}
 	case "-":
-		return &object.Some{Value: &object.Float{Value: leftVal - rightVal}}
+		return &object.Float{Value: leftVal - rightVal}
 	case "*":
-		return &object.Some{Value: &object.Float{Value: leftVal * rightVal}}
+		return &object.Float{Value: leftVal * rightVal}
 	case "/":
-		return &object.Some{Value: &object.Float{Value: leftVal / rightVal}}
+		return &object.Float{Value: leftVal / rightVal}
 	case "<":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal < rightVal)}
+		return nativeBoolToBooleanObject(leftVal < rightVal)
 	case ">":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal > rightVal)}
+		return nativeBoolToBooleanObject(leftVal > rightVal)
 	case "==":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return &object.Error{Message: fmt.Sprintf("unknown operator: %s", operator)}
 	}
@@ -586,9 +545,9 @@ func evalBooleanInfixExpression(operator string, left, right *object.Boolean) ob
 
 	switch operator {
 	case "==":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal == rightVal)}
+		return nativeBoolToBooleanObject(leftVal == rightVal)
 	case "!=":
-		return &object.Some{Value: nativeBoolToBooleanObject(leftVal != rightVal)}
+		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
 		return &object.Error{Message: fmt.Sprintf("unknown operator: %s", operator)}
 	}
@@ -607,11 +566,6 @@ func evalArguments(exps []ast.Expression, env *object.Environment) []object.Obje
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	// Unwrap Some objects to get the actual function
-	if some, ok := fn.(*object.Some); ok {
-		fn = some.Value
-	}
-
 	switch fn := fn.(type) {
 	case *object.Function:
 		extendedEnv := extendFunctionEnv(fn, args)
@@ -710,13 +664,8 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 			return key
 		}
 
-		// Unwrap Some objects to get the actual key
-		var actualKey object.Object
-		if some, ok := key.(*object.Some); ok {
-			actualKey = some.Value
-		} else {
-			actualKey = key
-		}
+		// Keys are no longer wrapped
+		actualKey := key
 
 		hashKey, ok := actualKey.(object.Hashable)
 		if !ok {
@@ -743,13 +692,8 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 			return value
 		}
 
-		// Unwrap Some objects to get the actual value
-		var actualValue object.Object
-		if some, ok := value.(*object.Some); ok {
-			actualValue = some.Value
-		} else {
-			actualValue = value
-		}
+		// Values are no longer wrapped
+		actualValue := value
 
 		// Check value type consistency
 		if !valueTypeSet {
@@ -771,35 +715,22 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 		valueType = object.STRING_OBJ // Default value type
 	}
 
-	return &object.Some{Value: &object.Hash{
+	return &object.Hash{
 		Pairs:     pairs,
 		KeyType:   keyType,
 		ValueType: valueType,
-	}}
+	}
 }
 
 func evalIndexExpression(left, index object.Object) object.Object {
-	switch {
-	case left.Type() == object.SOME_OBJ:
-		leftSome := left.(*object.Some)
-
-		// Handle the index - it might be Some-wrapped or not
-		var actualIndex object.Object
-		if indexSome, ok := index.(*object.Some); ok {
-			actualIndex = indexSome.Value
-		} else {
-			actualIndex = index
+	switch left.Type() {
+	case object.ARRAY_OBJ:
+		if index.Type() == object.INTEGER_OBJ {
+			return evalArrayIndexExpression(left, index)
 		}
-
-		if leftSome.Value.Type() == object.ARRAY_OBJ && actualIndex.Type() == object.INTEGER_OBJ {
-			return evalArrayIndexExpression(leftSome.Value, actualIndex)
-		}
-
-		if leftSome.Value.Type() == object.HASH_OBJ {
-			return evalHashIndexExpression(leftSome.Value, actualIndex)
-		}
-
-		return &object.Error{Message: fmt.Sprintf("index operator not supported: %s", leftSome.Value.Type())}
+		return &object.Error{Message: "array index must be an integer"}
+	case object.HASH_OBJ:
+		return evalHashIndexExpression(left, index)
 	default:
 		return &object.Error{Message: fmt.Sprintf("index operator not supported: %s", left.Type())}
 	}
@@ -835,23 +766,18 @@ func evalHashIndexExpression(hash, key object.Object) object.Object {
 		return NONE
 	}
 
-	return &object.Some{Value: pair.Value}
+	return pair.Value
 }
 
 func evalSliceExpression(left, start, end object.Object) object.Object {
-	// Handle wrapped values (Some objects)
-	if some, ok := left.(*object.Some); ok {
-		switch some.Value.Type() {
-		case object.ARRAY_OBJ:
-			return evalArraySliceExpression(some.Value, start, end)
-		case object.STRING_OBJ:
-			return evalStringSliceExpression(some.Value, start, end)
-		default:
-			return &object.Error{Message: fmt.Sprintf("slice operator not supported: %s", some.Value.Type())}
-		}
+	switch left.Type() {
+	case object.ARRAY_OBJ:
+		return evalArraySliceExpression(left, start, end)
+	case object.STRING_OBJ:
+		return evalStringSliceExpression(left, start, end)
+	default:
+		return &object.Error{Message: fmt.Sprintf("slice operator not supported: %s", left.Type())}
 	}
-
-	return &object.Error{Message: fmt.Sprintf("slice operator not supported: %s", left.Type())}
 }
 
 func evalArraySliceExpression(array, start, end object.Object) object.Object {
@@ -861,12 +787,8 @@ func evalArraySliceExpression(array, start, end object.Object) object.Object {
 
 	// Handle start index
 	if start != nil {
-		if some, ok := start.(*object.Some); ok {
-			if integer, ok := some.Value.(*object.Integer); ok {
-				startIdx = integer.Value
-			} else {
-				return &object.Error{Message: "start index must be an integer"}
-			}
+		if integer, ok := start.(*object.Integer); ok {
+			startIdx = integer.Value
 		} else {
 			return &object.Error{Message: "start index must be an integer"}
 		}
@@ -876,12 +798,8 @@ func evalArraySliceExpression(array, start, end object.Object) object.Object {
 
 	// Handle end index
 	if end != nil {
-		if some, ok := end.(*object.Some); ok {
-			if integer, ok := some.Value.(*object.Integer); ok {
-				endIdx = integer.Value
-			} else {
-				return &object.Error{Message: "end index must be an integer"}
-			}
+		if integer, ok := end.(*object.Integer); ok {
+			endIdx = integer.Value
 		} else {
 			return &object.Error{Message: "end index must be an integer"}
 		}
@@ -897,14 +815,14 @@ func evalArraySliceExpression(array, start, end object.Object) object.Object {
 		return &object.Error{Message: "end index out of bounds"}
 	}
 	if startIdx > endIdx {
-		return &object.Some{Value: &object.Slice{Elements: []object.Object{}}}
+		return &object.Slice{Elements: []object.Object{}}
 	}
 
 	// Create slice with elements from start to end (exclusive)
 	sliceElements := make([]object.Object, endIdx-startIdx)
 	copy(sliceElements, arrayObject.Elements[startIdx:endIdx])
 
-	return &object.Some{Value: &object.Slice{Elements: sliceElements}}
+	return &object.Slice{Elements: sliceElements}
 }
 
 func evalStringSliceExpression(str, start, end object.Object) object.Object {
@@ -914,12 +832,8 @@ func evalStringSliceExpression(str, start, end object.Object) object.Object {
 
 	// Handle start index
 	if start != nil {
-		if some, ok := start.(*object.Some); ok {
-			if integer, ok := some.Value.(*object.Integer); ok {
-				startIdx = integer.Value
-			} else {
-				return &object.Error{Message: "start index must be an integer"}
-			}
+		if integer, ok := start.(*object.Integer); ok {
+			startIdx = integer.Value
 		} else {
 			return &object.Error{Message: "start index must be an integer"}
 		}
@@ -929,12 +843,8 @@ func evalStringSliceExpression(str, start, end object.Object) object.Object {
 
 	// Handle end index
 	if end != nil {
-		if some, ok := end.(*object.Some); ok {
-			if integer, ok := some.Value.(*object.Integer); ok {
-				endIdx = integer.Value
-			} else {
-				return &object.Error{Message: "end index must be an integer"}
-			}
+		if integer, ok := end.(*object.Integer); ok {
+			endIdx = integer.Value
 		} else {
 			return &object.Error{Message: "end index must be an integer"}
 		}
@@ -950,13 +860,13 @@ func evalStringSliceExpression(str, start, end object.Object) object.Object {
 		return &object.Error{Message: "end index out of bounds"}
 	}
 	if startIdx > endIdx {
-		return &object.Some{Value: &object.String{Value: ""}}
+		return &object.String{Value: ""}
 	}
 
 	// Create substring
 	substring := stringObject.Value[startIdx:endIdx]
 
-	return &object.Some{Value: &object.String{Value: substring}}
+	return &object.String{Value: substring}
 }
 
 func getActualType(obj object.Object) object.ObjectType {
@@ -1017,13 +927,9 @@ func evalStructInstanceExpression(node *ast.StructInstanceExpression, env *objec
 
 		// Type checking - for now, we only support int64
 		if expectedType == "int64" {
-			// Check if the value is a Some-wrapped Integer
-			if some, ok := fieldValue.(*object.Some); ok {
-				if _, ok := some.Value.(*object.Integer); ok {
-					fieldValues[fieldName] = some.Value
-				} else {
-					return &object.Error{Message: fmt.Sprintf("field '%s' expected int64, got %T", fieldName, some.Value)}
-				}
+			// Check if the value is an Integer
+			if _, ok := fieldValue.(*object.Integer); ok {
+				fieldValues[fieldName] = fieldValue
 			} else {
 				return &object.Error{Message: fmt.Sprintf("field '%s' expected int64, got %T", fieldName, fieldValue)}
 			}

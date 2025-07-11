@@ -92,7 +92,7 @@ unsupported type: string
 -- INPUT
 let x = 42; let i = x { a: 1 };
 -- EXPECT-ERROR
-not a struct definition: *object.Some
+not a struct definition: *object.Integer
 ===
 -- TEST: Complex struct usage
 -- INPUT

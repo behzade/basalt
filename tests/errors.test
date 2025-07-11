@@ -32,7 +32,7 @@ type mismatch: INTEGER + BOOLEAN
 -- INPUT
 -true
 -- EXPECT-ERROR
-unknown operator: -SOME
+unknown operator: -BOOLEAN
 ===
 -- TEST: Complex type mismatch
 -- INPUT
@@ -44,7 +44,7 @@ type mismatch: INTEGER + BOOLEAN
 -- INPUT
 42.len()
 -- EXPECT-ERROR
-member access not supported on type SOME
+member access not supported on type INTEGER
 ===
 -- TEST: Slice operator error - unsupported type
 -- INPUT

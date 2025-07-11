@@ -25,8 +25,8 @@ true
 -- TEST: Bang operator on integer
 -- INPUT
 !5
--- EXPECT-EVAL
-true
+-- EXPECT-ERROR
+unknown operator: !INTEGER
 ===
 -- TEST: Double bang on true
 -- INPUT
@@ -43,8 +43,8 @@ false
 -- TEST: Double bang on integer
 -- INPUT
 !!5
--- EXPECT-EVAL
-false
+-- EXPECT-ERROR
+unknown operator: !INTEGER
 ===
 -- TEST: Boolean comparison - less than true
 -- INPUT
