@@ -1,0 +1,113 @@
+-- TEST: Function with type annotations - valid
+-- INPUT
+let add = fn(x: int64, y: int64): int64 { x + y; };
+add(5, 3);
+-- EXPECT-EVAL
+8
+===
+-- TEST: Function with type annotations - invalid argument type
+-- INPUT
+let add = fn(x: int64, y: int64): int64 { x + y; };
+add("hello", 3);
+-- EXPECT-TYPE-ERROR
+argument 0 has type string, expected int64
+===
+-- TEST: Function with type annotations - wrong number of arguments
+-- INPUT
+let add = fn(x: int64, y: int64): int64 { x + y; };
+add(5);
+-- EXPECT-TYPE-ERROR
+wrong number of arguments: expected 2, got 1
+===
+-- TEST: Variable with type annotation - valid
+-- INPUT
+let name: string = "Alice";
+name;
+-- EXPECT-EVAL
+"Alice"
+===
+-- TEST: Variable with type annotation - invalid type
+-- INPUT
+let name: string = 42;
+-- EXPECT-TYPE-ERROR
+type mismatch: cannot assign int64 to string
+===
+-- TEST: If condition must be boolean
+-- INPUT
+let x: int64 = 5;
+if x { 10; } else { 20; };
+-- EXPECT-TYPE-ERROR
+if condition must be boolean, got int64
+===
+-- TEST: For condition must be boolean
+-- INPUT
+let x: int64 = 5;
+for x { x = x - 1; };
+-- EXPECT-TYPE-ERROR
+for condition must be boolean, got int64
+===
+-- TEST: Array with mixed types
+-- INPUT
+let arr = [1, "hello", true];
+-- EXPECT-TYPE-ERROR
+array element 1 has type string, expected int64
+===
+-- TEST: Arithmetic on incompatible types
+-- INPUT
+let result = "hello" - 10;
+-- EXPECT-TYPE-ERROR
+cannot apply - to string and int64
+===
+-- TEST: Function parameter without type annotation
+-- INPUT
+let func = fn(x) { x + 1; };
+-- EXPECT-TYPE-ERROR
+parameter x must have a type annotation
+===
+-- TEST: Function return type mismatch
+-- INPUT
+let func = fn(x: int64): string { x + 1; };
+-- EXPECT-TYPE-ERROR
+function body returns int64, expected string
+===
+-- TEST: Array indexing with non-integer
+-- INPUT
+let arr: [int64] = [1, 2, 3];
+arr["hello"];
+-- EXPECT-TYPE-ERROR
+array index must be integer, got string
+===
+-- TEST: Calling non-function
+-- INPUT
+let x: int64 = 42;
+x(5);
+-- EXPECT-TYPE-ERROR
+cannot call non-function type: int64
+===
+-- TEST: Comparison of incompatible types
+-- INPUT
+let result = "hello" == 42;
+-- EXPECT-TYPE-ERROR
+cannot compare string with int64
+===
+-- TEST: Prefix operator on wrong type
+-- INPUT
+let result = !"hello";
+-- EXPECT-TYPE-ERROR
+cannot apply ! to string
+===
+-- TEST: Variable type inference
+-- INPUT
+let x = 42;
+let y = x + 10;
+y;
+-- EXPECT-EVAL
+52
+===
+-- TEST: Function type inference
+-- INPUT
+let identity = fn(x: int64) { x; };
+identity(42);
+-- EXPECT-EVAL
+42
+=== 

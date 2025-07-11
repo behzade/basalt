@@ -80,7 +80,14 @@ func (l *Lexer) NextToken() token.Token {
 	case ']':
 		tok = newToken(token.RBRACKET, l.ch)
 	case '-':
-		tok = newToken(token.MINUS, l.ch)
+		if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.ARROW, Literal: literal}
+		} else {
+			tok = newToken(token.MINUS, l.ch)
+		}
 	case '!':
 		if l.peekChar() == '=' {
 			ch := l.ch

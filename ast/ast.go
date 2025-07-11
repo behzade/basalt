@@ -45,10 +45,34 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-// LetStatement represents `let <name> = <value>;` or `let mut <name> = <value>;`
+// TypeAnnotation represents a type annotation like int64, string, [int64], etc.
+type TypeAnnotation struct {
+	Token token.Token // The type token
+	Value string      // The type name (e.g., "int64", "string", "bool")
+}
+
+func (ta *TypeAnnotation) expressionNode()      {}
+func (ta *TypeAnnotation) TokenLiteral() string { return ta.Token.Literal }
+func (ta *TypeAnnotation) String() string       { return ta.Value }
+
+// Parameter represents a function parameter with optional type annotation
+type Parameter struct {
+	Name *Identifier     // Parameter name
+	Type *TypeAnnotation // Optional type annotation
+}
+
+func (p *Parameter) String() string {
+	if p.Type != nil {
+		return p.Name.String() + ": " + p.Type.String()
+	}
+	return p.Name.String()
+}
+
+// LetStatement represents `let <name> = <value>;` or `let mut <name> = <value>;` or `let <name>: <type> = <value>;`
 type LetStatement struct {
 	Token   token.Token // the token.LET token
 	Name    *Identifier
+	Type    *TypeAnnotation // Optional type annotation
 	Value   Expression
 	Mutable bool // Add this field
 }
@@ -62,6 +86,10 @@ func (ls *LetStatement) String() string {
 		out.WriteString("mut ")
 	}
 	out.WriteString(ls.Name.String())
+	if ls.Type != nil {
+		out.WriteString(": ")
+		out.WriteString(ls.Type.String())
+	}
 	out.WriteString(" = ")
 	if ls.Value != nil {
 		out.WriteString(ls.Value.String())
@@ -240,10 +268,11 @@ func (ie *InfixExpression) String() string {
 	return out.String()
 }
 
-// FunctionLiteral represents a function definition.
+// FunctionLiteral represents a function definition with optional type annotations.
 type FunctionLiteral struct {
-	Token      token.Token // The 'fn' token
-	Parameters []*Identifier
+	Token      token.Token     // The 'fn' token
+	Parameters []*Parameter    // Parameters with type annotations
+	ReturnType *TypeAnnotation // Optional return type annotation
 	Body       *BlockStatement
 }
 
@@ -258,7 +287,12 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(fl.TokenLiteral())
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
-	out.WriteString(") ")
+	out.WriteString(")")
+	if fl.ReturnType != nil {
+		out.WriteString(": ")
+		out.WriteString(fl.ReturnType.String())
+	}
+	out.WriteString(" ")
 	out.WriteString(fl.Body.String())
 	return out.String()
 }
@@ -440,10 +474,27 @@ func (sie *StructInstanceExpression) expressionNode()      {}
 func (sie *StructInstanceExpression) TokenLiteral() string { return sie.Token.Literal }
 func (sie *StructInstanceExpression) String() string {
 	var out bytes.Buffer
-	fields := []string{}
-	for name, value := range sie.Fields {
-		fields = append(fields, name+": "+value.String())
+
+	// Sort field names to ensure deterministic output
+	fieldNames := make([]string, 0, len(sie.Fields))
+	for name := range sie.Fields {
+		fieldNames = append(fieldNames, name)
 	}
+
+	// Sort the field names alphabetically
+	for i := 0; i < len(fieldNames); i++ {
+		for j := i + 1; j < len(fieldNames); j++ {
+			if fieldNames[i] > fieldNames[j] {
+				fieldNames[i], fieldNames[j] = fieldNames[j], fieldNames[i]
+			}
+		}
+	}
+
+	fields := make([]string, 0, len(fieldNames))
+	for _, name := range fieldNames {
+		fields = append(fields, name+": "+sie.Fields[name].String())
+	}
+
 	out.WriteString(sie.StructExpr.String())
 	out.WriteString(" { ")
 	out.WriteString(strings.Join(fields, ", "))

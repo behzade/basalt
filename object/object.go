@@ -210,7 +210,7 @@ func (e *Error) Inspect() string  { return e.Message }
 
 // Function represents a function value.
 type Function struct {
-	Parameters []*ast.Identifier
+	Parameters []*ast.Parameter
 	Body       *ast.BlockStatement
 	Env        *Environment
 }

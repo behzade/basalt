@@ -582,7 +582,7 @@ func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Enviro
 	env := object.NewEnclosedEnvironment(fn.Env)
 
 	for paramIdx, param := range fn.Parameters {
-		env.Set(param.Value, args[paramIdx], false) // function parameters are immutable by default
+		env.Set(param.Name.Value, args[paramIdx], false) // function parameters are immutable by default
 	}
 
 	return env

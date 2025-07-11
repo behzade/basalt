@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/behzade/basalt/checker"
 	"github.com/behzade/basalt/evaluator"
 	"github.com/behzade/basalt/lexer"
 	"github.com/behzade/basalt/object"
@@ -60,6 +61,19 @@ func runBasalt(input string) (object.Object, error) {
 	// Check for parser errors
 	if len(p.Errors()) > 0 {
 		return nil, fmt.Errorf("parser errors: %v", p.Errors())
+	}
+
+	// Create type checker and perform type checking
+	typeChecker := checker.New()
+	typeChecker.Check(program)
+
+	// Check for type errors
+	if len(typeChecker.Errors()) > 0 {
+		errorMessages := make([]string, len(typeChecker.Errors()))
+		for i, err := range typeChecker.Errors() {
+			errorMessages[i] = err.Error()
+		}
+		return nil, fmt.Errorf("type errors: %v", errorMessages)
 	}
 
 	// Create environment and set up built-ins

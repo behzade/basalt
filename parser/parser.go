@@ -167,6 +167,15 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
+	// Check for optional type annotation
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken() // consume the colon
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		stmt.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
+	}
+
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
 	}
@@ -388,6 +397,15 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 
 	lit.Parameters = p.parseFunctionParameters()
 
+	// Check for return type annotation with ->
+	if p.peekTokenIs(token.ARROW) {
+		p.nextToken() // consume the ->
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		lit.ReturnType = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
+	}
+
 	if !p.expectPeek(token.LBRACE) {
 		return nil
 	}
@@ -397,31 +415,57 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return lit
 }
 
-func (p *Parser) parseFunctionParameters() []*ast.Identifier {
-	identifiers := []*ast.Identifier{}
+func (p *Parser) parseFunctionParameters() []*ast.Parameter {
+	parameters := []*ast.Parameter{}
 
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
-		return identifiers
+		return parameters
 	}
 
 	p.nextToken()
 
-	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	identifiers = append(identifiers, ident)
+	// Parse first parameter
+	param := &ast.Parameter{
+		Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
+	}
+
+	// Check for type annotation
+	if p.peekTokenIs(token.COLON) {
+		p.nextToken() // consume the colon
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		param.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
+	}
+
+	parameters = append(parameters, param)
 
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
-		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-		identifiers = append(identifiers, ident)
+
+		param := &ast.Parameter{
+			Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
+		}
+
+		// Check for type annotation
+		if p.peekTokenIs(token.COLON) {
+			p.nextToken() // consume the colon
+			if !p.expectPeek(token.IDENT) {
+				return nil
+			}
+			param.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
+		}
+
+		parameters = append(parameters, param)
 	}
 
 	if !p.expectPeek(token.RPAREN) {
 		return nil
 	}
 
-	return identifiers
+	return parameters
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {

@@ -10,7 +10,7 @@ type TestCase struct {
 	Name     string
 	Input    string
 	Expected string
-	Type     string // "EVAL", "AST", or "ERROR"
+	Type     string // "EVAL", "AST", "ERROR", or "TYPE_ERROR"
 }
 
 // ParseTestFile reads and parses a .test file into TestCase structs
@@ -71,6 +71,8 @@ func parseTestBlock(block string) *TestCase {
 				testType = "AST"
 			} else if strings.HasPrefix(line, "-- EXPECT-ERROR") {
 				testType = "ERROR"
+			} else if strings.HasPrefix(line, "-- EXPECT-TYPE-ERROR") {
+				testType = "TYPE_ERROR"
 			}
 			currentSection = "EXPECT"
 		} else {

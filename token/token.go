@@ -35,6 +35,7 @@ const (
 	EQ       = "=="
 	NOT_EQ   = "!="
 	QUESTION = "?"
+	ARROW    = "->"
 
 	// Delimiters
 	COMMA      = ","
