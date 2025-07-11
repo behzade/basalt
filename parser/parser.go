@@ -12,12 +12,13 @@ import (
 const (
 	_ int = iota
 	LOWEST
-	EQUALS      // ==
-	LESSGREATER // > or <
-	SUM         // +
-	PRODUCT     // *
-	PREFIX      // -X or !X
-	CALL        // myFunction(X)
+	EQUALS        // ==
+	LESSGREATER   // > or <
+	SUM           // +
+	PRODUCT       // *
+	PREFIX        // -X or !X
+	CALL          // myFunction(X)
+	MEMBER_ACCESS // object.member
 )
 
 var precedences = map[token.TokenType]int{
@@ -30,6 +31,7 @@ var precedences = map[token.TokenType]int{
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
 	token.LPAREN:   CALL,
+	token.DOT:      MEMBER_ACCESS,
 }
 
 type (
@@ -77,6 +79,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LT, p.parseInfixExpression)
 	p.registerInfix(token.GT, p.parseInfixExpression)
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
+	p.registerInfix(token.DOT, p.parseMemberAccessExpression)
 
 	// Read two tokens, so curToken and peekToken are both set.
 	p.nextToken()
@@ -380,6 +383,24 @@ func (p *Parser) parseCallArguments() []ast.Expression {
 	}
 
 	return args
+}
+
+func (p *Parser) parseMemberAccessExpression(left ast.Expression) ast.Expression {
+	exp := &ast.MemberAccessExpression{
+		Token: p.curToken, // The '.' token
+		Left:  left,
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	exp.Right = &ast.Identifier{
+		Token: p.curToken,
+		Value: p.curToken.Literal,
+	}
+
+	return exp
 }
 
 func (p *Parser) curTokenIs(t token.TokenType) bool {

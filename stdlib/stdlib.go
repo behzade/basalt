@@ -34,6 +34,9 @@ func createIOModule() *object.Module {
 	// Add puts to the module's environment
 	env.Set("puts", putsBuiltin)
 
+	// Add VERSION constant for testing member access
+	env.Set("VERSION", &object.Integer{Value: 1})
+
 	// Create and return the module
 	return &object.Module{Env: env}
 }

@@ -37,6 +37,7 @@ const (
 	COMMA      = ","
 	SEMICOLON  = ";"
 	COLONCOLON = "::"
+	DOT        = "."
 	LPAREN     = "("
 	RPAREN     = ")"
 	LBRACE     = "{"

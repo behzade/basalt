@@ -437,3 +437,60 @@ io;
 		t.Fatalf("builtin function is nil")
 	}
 }
+
+func TestMemberAccessExpressions(t *testing.T) {
+	tests := []struct {
+		input        string
+		expected     interface{}
+		expectError  bool
+		errorMessage string
+	}{
+		// Test Case 1: Successful Access
+		{
+			input:    "import std::io; io.VERSION",
+			expected: 1,
+		},
+		// Test Case 2: Member Not Found
+		{
+			input:        "import std::io; io.nonexistent",
+			expectError:  true,
+			errorMessage: "undefined member 'nonexistent' on module",
+		},
+		// Test Case 3: Invalid Access on non-module
+		{
+			input:        "1.foo",
+			expectError:  true,
+			errorMessage: "member access not supported on type SOME",
+		},
+	}
+
+	for i, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		if tt.expectError {
+			errObj, ok := evaluated.(*object.Error)
+			if !ok {
+				t.Errorf("test %d: expected Error object. got=%T (%+v)", i, evaluated, evaluated)
+				continue
+			}
+			if errObj.Message != tt.errorMessage {
+				t.Errorf("test %d: wrong error message. expected=%q, got=%q", i, tt.errorMessage, errObj.Message)
+			}
+		} else {
+			// For successful access, we expect an Integer
+			intObj, ok := evaluated.(*object.Integer)
+			if !ok {
+				t.Errorf("test %d: expected Integer object. got=%T (%+v)", i, evaluated, evaluated)
+				continue
+			}
+			expectedInt, ok := tt.expected.(int)
+			if !ok {
+				t.Errorf("test %d: expected value should be int. got=%T", i, tt.expected)
+				continue
+			}
+			if intObj.Value != int64(expectedInt) {
+				t.Errorf("test %d: wrong integer value. expected=%d, got=%d", i, expectedInt, intObj.Value)
+			}
+		}
+	}
+}

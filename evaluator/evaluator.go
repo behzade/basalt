@@ -94,6 +94,26 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalIfExpression(node, env)
 	case *ast.BlockStatement:
 		return evalBlockStatement(node, env)
+	case *ast.MemberAccessExpression:
+		left := Eval(node.Left, env)
+		if isError(left) {
+			return left
+		}
+
+		// Check that the left side is a module
+		module, ok := left.(*object.Module)
+		if !ok {
+			return &object.Error{Message: fmt.Sprintf("member access not supported on type %s", left.Type())}
+		}
+
+		// Look up the member in the module's environment
+		memberName := node.Right.Value
+		member, exists := module.Env.Get(memberName)
+		if !exists {
+			return &object.Error{Message: fmt.Sprintf("undefined member '%s' on module", memberName)}
+		}
+
+		return member
 	}
 
 	return &object.Error{Message: "unknown node type"}

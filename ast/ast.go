@@ -253,6 +253,25 @@ func (bs *BlockStatement) String() string {
 	return out.String()
 }
 
+// MemberAccessExpression represents access to a member of an object using the dot operator (object.member)
+type MemberAccessExpression struct {
+	Token token.Token // The '.' token
+	Left  Expression  // The object being accessed (e.g., io)
+	Right *Identifier // The member being accessed (e.g., VERSION)
+}
+
+func (mae *MemberAccessExpression) expressionNode()      {}
+func (mae *MemberAccessExpression) TokenLiteral() string { return mae.Token.Literal }
+func (mae *MemberAccessExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("(")
+	out.WriteString(mae.Left.String())
+	out.WriteString(".")
+	out.WriteString(mae.Right.String())
+	out.WriteString(")")
+	return out.String()
+}
+
 // PathExpression represents a module path like std::io::fs
 type PathExpression struct {
 	Token    token.Token   // The first identifier token
