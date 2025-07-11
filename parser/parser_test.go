@@ -27,6 +27,10 @@ func TestFunctions(t *testing.T) {
 	runTestFile(t, "../tests/functions.test")
 }
 
+func TestStructs(t *testing.T) {
+	runTestFile(t, "../tests/structs.test")
+}
+
 // runTestFile executes tests from a specific test file
 func runTestFile(t *testing.T, filepath string) {
 	testCases, err := testutil.ParseTestFile(filepath)

@@ -1,0 +1,102 @@
+-- TEST: Struct definition parsing
+-- INPUT
+let s = struct { a: int64 };
+-- EXPECT-AST
+let s = struct { a: int64 };
+===
+-- TEST: Struct definition with multiple fields parsing
+-- INPUT
+let s = struct { a: int64, b: int64 };
+-- EXPECT-AST
+let s = struct { a: int64, b: int64 };
+===
+-- TEST: Struct instantiation parsing
+-- INPUT
+let s = struct { a: int64 }; let i = s { a: 1 };
+-- EXPECT-AST
+let s = struct { a: int64 };let i = s { a: 1 };
+===
+-- TEST: Struct instantiation with multiple fields parsing
+-- INPUT
+let s = struct { a: int64, b: int64 }; let i = s { a: 1, b: 2 };
+-- EXPECT-AST
+let s = struct { a: int64, b: int64 };let i = s { a: 1, b: 2 };
+===
+-- TEST: Struct field access parsing
+-- INPUT
+let s = struct { a: int64 }; let i = s { a: 42 }; i.a;
+-- EXPECT-AST
+let s = struct { a: int64 };let i = s { a: 42 };(i.a)
+===
+-- TEST: Simple struct definition evaluation
+-- INPUT
+let s = struct { a: int64 };
+-- EXPECT-EVAL
+None
+===
+-- TEST: Struct instantiation evaluation
+-- INPUT
+let s = struct { a: int64 }; let i = s { a: 42 };
+-- EXPECT-EVAL
+None
+===
+-- TEST: Struct field access evaluation
+-- INPUT
+let s = struct { a: int64 }; let i = s { a: 42 }; i.a
+-- EXPECT-EVAL
+42
+===
+-- TEST: Struct with multiple fields evaluation
+-- INPUT
+let s = struct { a: int64, b: int64 }; let i = s { a: 42, b: 100 }; i.a
+-- EXPECT-EVAL
+42
+===
+-- TEST: Struct multiple field access evaluation
+-- INPUT
+let s = struct { a: int64, b: int64 }; let i = s { a: 42, b: 100 }; i.b
+-- EXPECT-EVAL
+100
+===
+-- TEST: Struct field access with arithmetic
+-- INPUT
+let s = struct { a: int64, b: int64 }; let i = s { a: 42, b: 100 }; i.a + i.b
+-- EXPECT-EVAL
+142
+===
+-- TEST: Error - undefined field in struct definition
+-- INPUT
+let s = struct { a: int64 }; let i = s { b: 42 };
+-- EXPECT-ERROR
+field 'b' not found in struct definition
+===
+-- TEST: Error - missing field in struct instantiation
+-- INPUT
+let s = struct { a: int64, b: int64 }; let i = s { a: 42 };
+-- EXPECT-ERROR
+missing field 'b' in struct instantiation
+===
+-- TEST: Error - accessing non-existent field
+-- INPUT
+let s = struct { a: int64 }; let i = s { a: 42 }; i.b
+-- EXPECT-ERROR
+field 'b' not found in struct
+===
+-- TEST: Error - unsupported type in struct definition
+-- INPUT
+let s = struct { a: string };
+-- EXPECT-ERROR
+unsupported type: string
+===
+-- TEST: Error - instantiating non-struct
+-- INPUT
+let x = 42; let i = x { a: 1 };
+-- EXPECT-ERROR
+not a struct definition: *object.Some
+===
+-- TEST: Complex struct usage
+-- INPUT
+let Point = struct { x: int64, y: int64 }; let p1 = Point { x: 10, y: 20 }; let p2 = Point { x: 5, y: 15 }; p1.x + p2.y
+-- EXPECT-EVAL
+25
+=== 

@@ -370,3 +370,51 @@ func (is *ImportStatement) String() string {
 	out.WriteString(";")
 	return out.String()
 }
+
+// StructField represents a field in a struct definition with name and type
+type StructField struct {
+	Name *Identifier // Field name
+	Type *Identifier // Field type (e.g., int64)
+}
+
+// StructLiteral represents an anonymous struct definition: struct { a: int64, b: string }
+type StructLiteral struct {
+	Token  token.Token    // The 'struct' token
+	Fields []*StructField // The field definitions
+}
+
+func (sl *StructLiteral) expressionNode()      {}
+func (sl *StructLiteral) TokenLiteral() string { return sl.Token.Literal }
+func (sl *StructLiteral) String() string {
+	var out bytes.Buffer
+	fields := []string{}
+	for _, f := range sl.Fields {
+		fields = append(fields, f.Name.String()+": "+f.Type.String())
+	}
+	out.WriteString("struct { ")
+	out.WriteString(strings.Join(fields, ", "))
+	out.WriteString(" }")
+	return out.String()
+}
+
+// StructInstanceExpression represents struct instantiation: struct_def { a: 42, b: "hello" }
+type StructInstanceExpression struct {
+	Token      token.Token           // The '{' token
+	StructExpr Expression            // The struct definition being instantiated
+	Fields     map[string]Expression // Field name -> value expression
+}
+
+func (sie *StructInstanceExpression) expressionNode()      {}
+func (sie *StructInstanceExpression) TokenLiteral() string { return sie.Token.Literal }
+func (sie *StructInstanceExpression) String() string {
+	var out bytes.Buffer
+	fields := []string{}
+	for name, value := range sie.Fields {
+		fields = append(fields, name+": "+value.String())
+	}
+	out.WriteString(sie.StructExpr.String())
+	out.WriteString(" { ")
+	out.WriteString(strings.Join(fields, ", "))
+	out.WriteString(" }")
+	return out.String()
+}

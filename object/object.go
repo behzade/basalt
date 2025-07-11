@@ -10,18 +10,20 @@ import (
 type ObjectType string
 
 const (
-	INTEGER_OBJ      = "INTEGER"
-	BOOLEAN_OBJ      = "BOOLEAN"
-	STRING_OBJ       = "STRING"
-	ARRAY_OBJ        = "ARRAY"
-	SLICE_OBJ        = "SLICE"
-	RETURN_VALUE_OBJ = "RETURN_VALUE"
-	SOME_OBJ         = "SOME"
-	NONE_OBJ         = "NONE"
-	FUNCTION_OBJ     = "FUNCTION"
-	ERROR_OBJ        = "ERROR"
-	MODULE_OBJ       = "MODULE"
-	BUILTIN_OBJ      = "BUILTIN"
+	INTEGER_OBJ           = "INTEGER"
+	BOOLEAN_OBJ           = "BOOLEAN"
+	STRING_OBJ            = "STRING"
+	ARRAY_OBJ             = "ARRAY"
+	SLICE_OBJ             = "SLICE"
+	RETURN_VALUE_OBJ      = "RETURN_VALUE"
+	SOME_OBJ              = "SOME"
+	NONE_OBJ              = "NONE"
+	FUNCTION_OBJ          = "FUNCTION"
+	ERROR_OBJ             = "ERROR"
+	MODULE_OBJ            = "MODULE"
+	BUILTIN_OBJ           = "BUILTIN"
+	STRUCT_DEFINITION_OBJ = "STRUCT_DEFINITION"
+	STRUCT_INSTANCE_OBJ   = "STRUCT_INSTANCE"
 )
 
 // Object is the base interface for all types in the language.
@@ -167,6 +169,43 @@ type Module struct {
 
 func (m *Module) Type() ObjectType { return MODULE_OBJ }
 func (m *Module) Inspect() string  { return "<module>" }
+
+// StructDefinition represents a struct type definition with field names and types
+type StructDefinition struct {
+	Fields map[string]string // field name -> type name (e.g., "a" -> "int64")
+}
+
+func (sd *StructDefinition) Type() ObjectType { return STRUCT_DEFINITION_OBJ }
+func (sd *StructDefinition) Inspect() string {
+	var out strings.Builder
+	fields := []string{}
+	for name, typeName := range sd.Fields {
+		fields = append(fields, name+": "+typeName)
+	}
+	out.WriteString("struct { ")
+	out.WriteString(strings.Join(fields, ", "))
+	out.WriteString(" }")
+	return out.String()
+}
+
+// StructInstance represents an instance of a struct with actual field values
+type StructInstance struct {
+	Definition *StructDefinition // Reference to the struct definition
+	Fields     map[string]Object // field name -> field value
+}
+
+func (si *StructInstance) Type() ObjectType { return STRUCT_INSTANCE_OBJ }
+func (si *StructInstance) Inspect() string {
+	var out strings.Builder
+	fields := []string{}
+	for name, value := range si.Fields {
+		fields = append(fields, name+": "+value.Inspect())
+	}
+	out.WriteString("{ ")
+	out.WriteString(strings.Join(fields, ", "))
+	out.WriteString(" }")
+	return out.String()
+}
 
 // --- Environment ---
 

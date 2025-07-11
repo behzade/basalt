@@ -141,7 +141,7 @@ func (l *Lexer) skipWhitespace() {
 
 func (l *Lexer) readIdentifier() string {
 	position := l.position
-	for isLetter(l.ch) {
+	for isAlphaNumeric(l.ch) {
 		l.readChar()
 	}
 	return l.input[position:l.position]
@@ -168,6 +168,10 @@ func (l *Lexer) readString() string {
 
 func isLetter(ch byte) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+}
+
+func isAlphaNumeric(ch byte) bool {
+	return isLetter(ch) || isDigit(ch)
 }
 
 func isDigit(ch byte) bool {

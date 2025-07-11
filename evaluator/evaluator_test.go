@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -39,6 +40,10 @@ func TestErrors(t *testing.T) {
 	runTestFile(t, "../tests/errors.test")
 }
 
+func TestStructs(t *testing.T) {
+	runTestFile(t, "../tests/structs.test")
+}
+
 // runTestFile executes tests from a specific test file
 func runTestFile(t *testing.T, filepath string) {
 	testCases, err := testutil.ParseTestFile(filepath)
@@ -70,6 +75,8 @@ func runEvalTest(t *testing.T, tc testutil.TestCase) {
 	// Handle different expected value types
 	switch tc.Expected {
 	case "null":
+		testOptionObject(t, evaluated, nil)
+	case "None":
 		testOptionObject(t, evaluated, nil)
 	case "function":
 		// Just check if it's a function object
@@ -118,6 +125,12 @@ func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
+
+	// Check for parser errors
+	if len(p.Errors()) > 0 {
+		return &object.Error{Message: fmt.Sprintf("parser errors: %v", p.Errors())}
+	}
+
 	env := object.NewEnvironment()
 	evaluated := Eval(program, env)
 

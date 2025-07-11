@@ -12,14 +12,15 @@ import (
 const (
 	_ int = iota
 	LOWEST
-	EQUALS        // ==
-	LESSGREATER   // > or <
-	SUM           // +
-	PRODUCT       // *
-	PREFIX        // -X or !X
-	CALL          // myFunction(X)
-	INDEX         // array[index]
-	MEMBER_ACCESS // object.member
+	EQUALS          // ==
+	LESSGREATER     // > or <
+	SUM             // +
+	PRODUCT         // *
+	PREFIX          // -X or !X
+	CALL            // myFunction(X)
+	INDEX           // array[index]
+	MEMBER_ACCESS   // object.member
+	STRUCT_INSTANCE // struct_def { ... }
 )
 
 var precedences = map[token.TokenType]int{
@@ -34,6 +35,7 @@ var precedences = map[token.TokenType]int{
 	token.LPAREN:   CALL,
 	token.LBRACKET: INDEX,
 	token.DOT:      MEMBER_ACCESS,
+	token.LBRACE:   STRUCT_INSTANCE,
 }
 
 type (
@@ -72,6 +74,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.IF, p.parseIfExpression)
 	p.registerPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
+	p.registerPrefix(token.STRUCT, p.parseStructLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
@@ -85,6 +88,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfix(token.LPAREN, p.parseCallExpression)
 	p.registerInfix(token.LBRACKET, p.parseIndexExpression)
 	p.registerInfix(token.DOT, p.parseMemberAccessExpression)
+	p.registerInfix(token.LBRACE, p.parseStructInstanceExpression)
 
 	// Read two tokens, so curToken and peekToken are both set.
 	p.nextToken()
@@ -254,7 +258,15 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	expression := &ast.IfExpression{Token: p.curToken}
 
 	p.nextToken()
+	
+	// Temporarily remove LBRACE from infix operators to prevent it from being consumed
+	lbraceInfix := p.infixParseFns[token.LBRACE]
+	delete(p.infixParseFns, token.LBRACE)
+	
 	expression.Condition = p.parseExpression(LOWEST)
+	
+	// Restore LBRACE infix operator
+	p.infixParseFns[token.LBRACE] = lbraceInfix
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
@@ -586,4 +598,133 @@ func (p *Parser) parseImportStatement() *ast.ImportStatement {
 	}
 
 	return stmt
+}
+
+// parseStructLiteral parses struct definitions like "struct { a: int64, b: string }"
+func (p *Parser) parseStructLiteral() ast.Expression {
+	lit := &ast.StructLiteral{Token: p.curToken}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	lit.Fields = p.parseStructFields()
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
+	return lit
+}
+
+// parseStructFields parses the field definitions inside a struct
+func (p *Parser) parseStructFields() []*ast.StructField {
+	fields := []*ast.StructField{}
+
+	if p.peekTokenIs(token.RBRACE) {
+		p.nextToken()
+		return fields
+	}
+
+	p.nextToken()
+
+	field := &ast.StructField{}
+	if !p.curTokenIs(token.IDENT) {
+		return nil
+	}
+
+	field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(token.COLON) {
+		return nil
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	fields = append(fields, field)
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+
+		field := &ast.StructField{}
+		if !p.curTokenIs(token.IDENT) {
+			return nil
+		}
+
+		field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+		if !p.expectPeek(token.COLON) {
+			return nil
+		}
+
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+
+		field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		fields = append(fields, field)
+	}
+
+	return fields
+}
+
+// parseStructInstanceExpression parses struct instantiation like "struct_def { a: 42, b: "hello" }"
+func (p *Parser) parseStructInstanceExpression(left ast.Expression) ast.Expression {
+	exp := &ast.StructInstanceExpression{
+		Token:      p.curToken, // The '{' token
+		StructExpr: left,
+		Fields:     make(map[string]ast.Expression),
+	}
+
+	if p.peekTokenIs(token.RBRACE) {
+		p.nextToken()
+		return exp
+	}
+
+	p.nextToken()
+
+	// Parse first field
+	if !p.curTokenIs(token.IDENT) {
+		return nil
+	}
+
+	fieldName := p.curToken.Literal
+
+	if !p.expectPeek(token.COLON) {
+		return nil
+	}
+
+	p.nextToken()
+	fieldValue := p.parseExpression(LOWEST)
+	exp.Fields[fieldName] = fieldValue
+
+	// Parse additional fields
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken()
+		p.nextToken()
+
+		if !p.curTokenIs(token.IDENT) {
+			return nil
+		}
+
+		fieldName := p.curToken.Literal
+
+		if !p.expectPeek(token.COLON) {
+			return nil
+		}
+
+		p.nextToken()
+		fieldValue := p.parseExpression(LOWEST)
+		exp.Fields[fieldName] = fieldValue
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
+	return exp
 }

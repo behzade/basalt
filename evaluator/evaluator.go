@@ -24,6 +24,10 @@ func isError(obj object.Object) bool {
 
 // Eval evaluates an AST node.
 func Eval(node ast.Node, env *object.Environment) object.Object {
+	if node == nil {
+		return &object.Error{Message: "cannot evaluate nil node"}
+	}
+
 	switch node := node.(type) {
 	// Statements
 	case *ast.Program:
@@ -143,6 +147,14 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalIfExpression(node, env)
 	case *ast.BlockStatement:
 		return evalBlockStatement(node, env)
+	case *ast.StructLiteral:
+		return evalStructLiteral(node, env)
+	case *ast.StructInstanceExpression:
+		return evalStructInstanceExpression(node, env)
+	case *ast.PathExpression:
+		// For now, just return an error since path expressions are used in import statements
+		// and should be handled by the import statement evaluation
+		return &object.Error{Message: "path expressions are not directly evaluable"}
 	case *ast.MemberAccessExpression:
 		left := Eval(node.Left, env)
 		if isError(left) {
@@ -196,6 +208,15 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 			}
 		}
 
+		// Handle struct field access
+		if structInstance, ok := left.(*object.StructInstance); ok {
+			field, exists := structInstance.Fields[memberName]
+			if !exists {
+				return &object.Error{Message: fmt.Sprintf("field '%s' not found in struct", memberName)}
+			}
+			return &object.Some{Value: field}
+		}
+
 		// Handle module access (original behavior)
 		if module, ok := left.(*object.Module); ok {
 			member, exists := module.Env.Get(memberName)
@@ -208,7 +229,7 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Error{Message: fmt.Sprintf("member access not supported on type %s", left.Type())}
 	}
 
-	return &object.Error{Message: "unknown node type"}
+	return &object.Error{Message: fmt.Sprintf("unknown node type: %T", node)}
 }
 
 func evalProgram(program *ast.Program, env *object.Environment) object.Object {
@@ -680,4 +701,81 @@ func getActualType(obj object.Object) object.ObjectType {
 		return some.Value.Type()
 	}
 	return obj.Type()
+}
+
+// evalStructLiteral evaluates a struct definition and returns a StructDefinition object
+func evalStructLiteral(node *ast.StructLiteral, env *object.Environment) object.Object {
+	fields := make(map[string]string)
+
+	for _, field := range node.Fields {
+		fieldName := field.Name.Value
+		fieldType := field.Type.Value
+
+		// Validate that it's a supported type
+		if fieldType != "int64" {
+			return &object.Error{Message: fmt.Sprintf("unsupported type: %s", fieldType)}
+		}
+
+		fields[fieldName] = fieldType
+	}
+
+	return &object.StructDefinition{Fields: fields}
+}
+
+// evalStructInstanceExpression evaluates struct instantiation and returns a StructInstance object
+func evalStructInstanceExpression(node *ast.StructInstanceExpression, env *object.Environment) object.Object {
+	// Evaluate the struct definition expression
+	structDef := Eval(node.StructExpr, env)
+	if isError(structDef) {
+		return structDef
+	}
+
+	// Ensure it's a struct definition
+	definition, ok := structDef.(*object.StructDefinition)
+	if !ok {
+		return &object.Error{Message: fmt.Sprintf("not a struct definition: %T", structDef)}
+	}
+
+	// Evaluate field values
+	fieldValues := make(map[string]object.Object)
+
+	for fieldName, fieldExpr := range node.Fields {
+		// Check if field exists in the definition
+		expectedType, exists := definition.Fields[fieldName]
+		if !exists {
+			return &object.Error{Message: fmt.Sprintf("field '%s' not found in struct definition", fieldName)}
+		}
+
+		// Evaluate the field value
+		fieldValue := Eval(fieldExpr, env)
+		if isError(fieldValue) {
+			return fieldValue
+		}
+
+		// Type checking - for now, we only support int64
+		if expectedType == "int64" {
+			// Check if the value is a Some-wrapped Integer
+			if some, ok := fieldValue.(*object.Some); ok {
+				if _, ok := some.Value.(*object.Integer); ok {
+					fieldValues[fieldName] = some.Value
+				} else {
+					return &object.Error{Message: fmt.Sprintf("field '%s' expected int64, got %T", fieldName, some.Value)}
+				}
+			} else {
+				return &object.Error{Message: fmt.Sprintf("field '%s' expected int64, got %T", fieldName, fieldValue)}
+			}
+		}
+	}
+
+	// Check that all required fields are provided
+	for fieldName := range definition.Fields {
+		if _, provided := fieldValues[fieldName]; !provided {
+			return &object.Error{Message: fmt.Sprintf("missing field '%s' in struct instantiation", fieldName)}
+		}
+	}
+
+	return &object.StructInstance{
+		Definition: definition,
+		Fields:     fieldValues,
+	}
 }
