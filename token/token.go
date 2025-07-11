@@ -61,6 +61,7 @@ const (
 	INTERFACE = "INTERFACE"
 	IMPORT    = "IMPORT"
 	AS        = "AS"
+	FOR       = "FOR"
 )
 
 // keywords maps keyword strings to their TokenType.
@@ -77,6 +78,7 @@ var keywords = map[string]TokenType{
 	"interface": INTERFACE,
 	"import":    IMPORT,
 	"as":        AS,
+	"for":       FOR,
 }
 
 // LookupIdent checks the keywords table to see if an identifier is a keyword.

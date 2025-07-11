@@ -154,6 +154,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return applyFunction(function, args)
 	case *ast.IfExpression:
 		return evalIfExpression(node, env)
+	case *ast.ForExpression:
+		return evalForExpression(node, env)
 	case *ast.BlockStatement:
 		return evalBlockStatement(node, env)
 	case *ast.StructLiteral:
@@ -295,6 +297,33 @@ func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Obje
 	} else {
 		return NONE
 	}
+}
+
+func evalForExpression(fe *ast.ForExpression, env *object.Environment) object.Object {
+	for {
+		condition := Eval(fe.Condition, env)
+		if isError(condition) {
+			return condition
+		}
+
+		if !isTruthy(condition) {
+			break
+		}
+
+		result := Eval(fe.Consequence, env)
+		if isError(result) {
+			return result
+		}
+
+		// If the evaluation of the consequence block results in a ReturnValue,
+		// break the loop and immediately propagate that object up
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			return returnValue
+		}
+	}
+
+	// If the loop completes normally, return NONE
+	return NONE
 }
 
 func isTruthy(obj object.Object) bool {

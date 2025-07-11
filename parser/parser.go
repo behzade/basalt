@@ -79,6 +79,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.LBRACKET, p.parseArrayLiteral)
 	p.registerPrefix(token.STRUCT, p.parseStructLiteral)
 	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
+	p.registerPrefix(token.FOR, p.parseForExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
@@ -307,6 +308,29 @@ func (p *Parser) parseIfExpression() ast.Expression {
 
 		expression.Alternative = p.parseBlockStatement()
 	}
+
+	return expression
+}
+
+func (p *Parser) parseForExpression() ast.Expression {
+	expression := &ast.ForExpression{Token: p.curToken}
+
+	p.nextToken()
+
+	// Temporarily remove LBRACE from infix operators to prevent it from being consumed
+	lbraceInfix := p.infixParseFns[token.LBRACE]
+	delete(p.infixParseFns, token.LBRACE)
+
+	expression.Condition = p.parseExpression(LOWEST)
+
+	// Restore LBRACE infix operator
+	p.infixParseFns[token.LBRACE] = lbraceInfix
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	expression.Consequence = p.parseBlockStatement()
 
 	return expression
 }

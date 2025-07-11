@@ -308,6 +308,24 @@ func (ie *IfExpression) String() string {
 	return out.String()
 }
 
+// ForExpression represents a for loop.
+type ForExpression struct {
+	Token       token.Token     // The 'for' token
+	Condition   Expression      // The condition to evaluate
+	Consequence *BlockStatement // The block to execute while condition is true
+}
+
+func (fe *ForExpression) expressionNode()      {}
+func (fe *ForExpression) TokenLiteral() string { return fe.Token.Literal }
+func (fe *ForExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("for ")
+	out.WriteString(fe.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(fe.Consequence.String())
+	return out.String()
+}
+
 // BlockStatement represents a block of statements, e.g., the body of a function or an if-else block.
 type BlockStatement struct {
 	Token      token.Token // The '{' token
