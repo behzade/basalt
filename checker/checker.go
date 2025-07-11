@@ -173,10 +173,24 @@ type Checker struct {
 }
 
 func New() *Checker {
-	return &Checker{
+	checker := &Checker{
 		env:    NewTypeEnvironment(),
 		errors: []error{},
 	}
+
+	// Add builtin functions
+	checker.setupBuiltins()
+
+	return checker
+}
+
+func (c *Checker) setupBuiltins() {
+	// Add print function - variadic function that accepts any type and returns none
+	printType := &FunctionType{
+		Parameters: []Type{}, // Variadic, handled specially
+		ReturnType: &NoneType{},
+	}
+	c.env.Set("print", printType)
 }
 
 func (c *Checker) Errors() []error {
@@ -533,12 +547,19 @@ func (c *Checker) checkCallExpression(node *ast.CallExpression) Type {
 		return &NoneType{}
 	}
 
-	// Special handling for variadic functions like io.print
-	if len(fnType.Parameters) == 0 && fnType.ReturnType.Equals(&NoneType{}) {
-		// This is likely a variadic function like io.print, allow any arguments
-		return fnType.ReturnType
+	// Special handling for print function (variadic)
+	if ident, ok := node.Function.(*ast.Identifier); ok && ident.Value == "print" {
+		// Print accepts any single argument and returns none
+		if len(node.Arguments) != 1 {
+			c.addError(fmt.Sprintf("print expects exactly 1 argument, got %d", len(node.Arguments)))
+		} else {
+			// Type check the argument but allow any type
+			c.Check(node.Arguments[0])
+		}
+		return &NoneType{}
 	}
 
+	// Regular function call handling
 	if len(node.Arguments) != len(fnType.Parameters) {
 		c.addError(fmt.Sprintf("wrong number of arguments: expected %d, got %d", len(fnType.Parameters), len(node.Arguments)))
 		return fnType.ReturnType

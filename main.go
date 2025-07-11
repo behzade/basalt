@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/behzade/basalt/checker"
+	"github.com/behzade/basalt/compiler"
 	"github.com/behzade/basalt/evaluator"
 	"github.com/behzade/basalt/lexer"
 	"github.com/behzade/basalt/object"
@@ -14,7 +15,6 @@ import (
 
 func main() {
 	var input string
-	var err error
 
 	if len(os.Args) > 1 {
 		// Read from file
@@ -35,17 +35,77 @@ func main() {
 		input = string(inputBytes)
 	}
 
-	// Parse and evaluate the input
-	result, err := runBasalt(input)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	// Check if we should compile or interpret
+	// For now, let's use a simple heuristic: if there's a --compile flag, compile
+	shouldCompile := false
+	outputPath := "./output"
+
+	// Check for --compile flag
+	for i, arg := range os.Args {
+		if arg == "--compile" {
+			shouldCompile = true
+			// Check if output path is specified
+			if i+1 < len(os.Args) && os.Args[i+1][:1] != "-" {
+				outputPath = os.Args[i+1]
+			}
+			break
+		}
 	}
 
-	// Print the result if it's not None
-	if result != nil && result.Type() != object.NONE_OBJ {
-		fmt.Println(result.Inspect())
+	if shouldCompile {
+		// Compile mode
+		err := compileBasalt(input, outputPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Compilation error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Successfully compiled to %s\n", outputPath)
+	} else {
+		// Interpret mode (existing behavior)
+		result, err := runBasalt(input)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Print the result if it's not None
+		if result != nil && result.Type() != object.NONE_OBJ {
+			fmt.Println(result.Inspect())
+		}
 	}
+}
+
+func compileBasalt(input string, outputPath string) error {
+	// Create lexer
+	l := lexer.New(input)
+
+	// Create parser
+	p := parser.New(l)
+
+	// Parse the program
+	program := p.ParseProgram()
+
+	// Check for parser errors
+	if len(p.Errors()) > 0 {
+		return fmt.Errorf("parser errors: %v", p.Errors())
+	}
+
+	// Create type checker and perform type checking
+	typeChecker := checker.New()
+	typeChecker.Check(program)
+
+	// Check for type errors
+	if len(typeChecker.Errors()) > 0 {
+		errorMessages := make([]string, len(typeChecker.Errors()))
+		for i, err := range typeChecker.Errors() {
+			errorMessages[i] = err.Error()
+		}
+		return fmt.Errorf("type errors: %v", errorMessages)
+	}
+
+	// Create compiler and compile to executable
+	comp := compiler.New()
+	return comp.CompileToExecutable(program, outputPath)
 }
 
 func runBasalt(input string) (object.Object, error) {
