@@ -66,3 +66,14 @@ interface Test3 {
 interface Test4 {
     fn green(x: string) -> string;
 }
+
+// interface with property test
+interface Test5 {
+    x: int,
+}
+
+// interface with method and property test
+interface Test6 {
+    fn green(x: string) -> string;
+    x: int,
+}
