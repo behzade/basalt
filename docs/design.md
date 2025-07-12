@@ -63,6 +63,7 @@ The project has rapidly evolved from an interpreter to a powerful ahead-of-time 
   * **Strings:** Heap-allocated via the C runtime, with support for concatenation and comparison.  
   * **Arrays:** Dynamically-sized integer arrays managed by the C runtime, with support for creation, indexing, and `.len()`.  
   * **Structs:** User-defined, stack-allocated aggregate types with field access.  
+  * **Enums:** Discriminated unions with pattern matching (`match`).  
 * **Control Flow:**  
   * `if`/`else` expressions.  
   * `for` loops.  
@@ -77,20 +78,18 @@ The project has rapidly evolved from an interpreter to a powerful ahead-of-time 
 
 The goal of this phase is to build a "v1.0" feature-complete compiler.
 
-* **✅ Lexer, Parser, Type Checker**  
-* **✅ LLVM Backend Setup & Build Orchestration**  
-* **✅ Core Constructs:** Expressions, Variables, Functions  
-* **✅ Control Flow:** `if-else`, `for`  
-* **✅ Data Structures:** Strings, Arrays, Structs  
-* **🚧 Next Major Task:**  
-  * **Implement General-Purpose Enums and Pattern Matching (`match`):** This is the next architectural step.  
-    * **Part 1 (Enums):** Implement the parsing, type-checking, and memory layout for user-defined discriminated unions (e.g., `enum MyType { VariantA(i64), VariantB }`).  
-    * **Part 2 (Pattern Matching):** Implement a `match` expression to safely destructure enum variants. This will involve compiling to a `switch` on the enum's tag and generating branches for each pattern.  
+* ✅ Lexer, Parser, Type Checker  
+* ✅ LLVM Backend Setup & Build Orchestration  
+* ✅ Core Constructs: Expressions, Variables, Functions  
+* ✅ Control Flow: `if-else`, `for`  
+* ✅ Data Structures: Strings, Arrays, Structs, Enums, `match`  
+* 🚧 **Next Major Tasks:**  
+  * **Implement Generics:** Add support for generic functions and types using monomorphization. This is a prerequisite for a clean standard library.  
+  * **Implement Hash Maps:** The last major built-in data structure, essential for bootstrapping.  
+  * **Integrate a Garbage Collector:** Replace `malloc` in the C runtime with a GC library (like Boehm GC) to eliminate memory leaks.  
 * **Future Tasks for Phase 1:**  
-  * **Implement Floating-Point Numbers:** Add `f64` as a primitive type.  
-  * **Implement the `?` Operator:** Add the special error-propagation logic for the `Result` type.  
-  * **Implement Hash Maps:** The last major built-in data structure.  
-  * **Integrate a Garbage Collector:** Replace `malloc` in the C runtime with a GC library (like Boehm GC) to eliminate memory leaks.
+  * Implement Floating-Point Numbers: Add `f64` as a primitive type.  
+  * Implement the `?` Operator: Add the special error-propagation logic for the `Result` type.
 
 #### **Phase 2: Self-Hosted Compiler**
 
@@ -110,64 +109,80 @@ With a self-hosted compiler, focus shifts to tooling and community.
   * Create a Foreign Function Interface (FFI) for C interoperability.  
   * Expand the standard library.
 
+---
 
 ### **Part 4: Advanced Design & Ecosystem Philosophy**
 
-This section outlines the planned architecture for concurrency, metaprogramming, and the developer ecosystem. These features are designed to provide a powerful, ergonomic, and scalable experience, building upon the core principles of safety and explicitness.
+This section outlines the planned architecture for generics, concurrency, metaprogramming, and the developer ecosystem. These features are designed to provide a powerful, ergonomic, and scalable experience.
 
----
+### **Generics: Compile-Time Specialization via Monomorphization**
 
-### **\#\# Concurrency: Lightweight Green Threads**
+To eliminate redundant code (e.g., `print_int`, `print_bool`) and enable powerful, type-safe abstractions like `Option<T>` or `List<T>`, the language will implement **generics through monomorphization**, similar to Rust or C++.
 
-To provide powerful and easy-to-use concurrency without the ergonomic issues of "colored functions" (`async`/`await`), the language will adopt a **Go-style M:N concurrency model.**
+* **The Approach:** Monomorphization means the compiler generates a specialized, concrete version of a generic function or data structure for every unique set of types it's used with.  
+  1. A generic function `fn print<T>(value: T)` used with `int64` and `bool` will cause the compiler to generate two separate, optimized functions internally, as if they were written `fn print_int64(value: int64)` and `fn print_bool(value: bool)`.  
+  2. **Benefit:** This approach achieves maximum runtime performance with zero-cost abstractions, as there is no overhead from boxing, dynamic dispatch, or pointer indirection. The cost is a potentially larger binary size.
 
-* **Green Threads:** Concurrency will be achieved via lightweight green threads, managed by a built-in language runtime scheduler. This allows for spawning hundreds of thousands or even millions of concurrent tasks efficiently, making it ideal for I/O-bound applications like web servers and network clients.  
-* **Cooperative & Preemptive Scheduling:** The runtime scheduler will map green threads onto a smaller pool of OS threads. To ensure fairness and prevent greedy threads from monopolizing resources, the compiler will inject cooperative preemption points into the code, ensuring that tight loops or long-running computations yield to the scheduler.  
-* **GC Integration:** The garbage collector will be fully integrated with the scheduler, capable of safely pausing and resuming all green threads to perform memory collection.
-
-This model prioritizes developer ergonomics, allowing any function to be run concurrently without altering its signature, while providing the performance necessary for modern, scalable software.
-
----
-
-### **\#\# Metaprogramming: Compile-Time Code Generation**
-
-To eliminate boilerplate and provide powerful code generation capabilities without resorting to external tools, the language will implement a **Zig-style compile-time function execution (`comptime`) system.**
-
-* **Purity Mandate:** `comptime` functions are **required to be pure**. Their output must depend solely on their inputs, with no observable side effects such as I/O. This ensures that builds are completely deterministic and reproducible while still allowing for powerful type inspection and code generation.  
-* **Seamless Integration:** Metaprogramming will use the exact same syntax as regular code. There is no separate macro language to learn. This provides a low barrier to entry for writing custom code generators, such as deriving a `Serializable` implementation for a `struct`.  
-* **The Builder Pattern:** This system is the ideal tool for solving the "Big Struct" initialization problem. A `comptime` function will be able to generate a fluent **Builder** for any given struct, providing an ergonomic and safe way to construct complex objects.
-
----
-
-### **\#\# Initialization and Data Handling**
-
-The language enforces strict and safe patterns for data initialization and updates.
-
-* **No Implicit Defaults:** To eliminate an entire class of runtime bugs, variables are not permitted to be read before they are explicitly initialized. Types do not have "zero values." This guarantees that an object can never exist in a logically invalid state.  
-* **The `Default` Interface:** To solve the ergonomic challenge of creating complex objects, a built-in `Default` interface will be provided. A developer can implement the `default()` method for their `struct` to define a standard, baseline instance. This is an explicit, opt-in mechanism for default construction.
-
-**Struct Update Syntax:** To support ergonomic use of immutable data, the language will adopt Rust's **struct update syntax**. This allows a developer to create a new instance of a struct based on an old one while changing only the necessary fields, avoiding verbose and error-prone manual copying.  
+**Proposed Syntax:** The syntax will be familiar, using angle brackets for generic parameters.  
 Go  
-let config1 \= AppConfig::default();
+// Generic function  
+fn identity\<T\>(arg: T) \-\> T {  
+    arg  
+}
 
-// Create a new config with a different port, copying all other fields from config1.  
-let config2 \= AppConfig {  
-    port: 9090,  
-    ..config1  
+// Generic struct  
+let List\<T\> \= struct {  
+    items: \[T\]  
 };
+
+// Usage  
+let num \= identity\<int64\>(42);  
+let str \= identity\<string\>("hello");
+
+*   
+* **Implementation Plan:**  
+  1. **Parser:** Update the parser to recognize `<T>` syntax on `fn`, `struct`, and `enum` definitions, as well as on type instantiations like `List<int64>`.  
+  2. **Type Checker:** This is the most significant change. The checker must be able to work with unbound generic types (`T`). When a generic function is called (`identity<int64>(...)`), the checker will substitute `T` with `int64` to create a concrete function signature and validate the call.  
+  3. **Compiler:** The compiler will perform the monomorphization. When it encounters the first call to `identity<int64>`, it will generate the LLVM IR for that specific version. Subsequent calls will reuse the generated function. This requires a name-mangling scheme to create unique symbols (e.g., `identity_int64`).
+
+**Constraints with Interfaces:** To make generics useful, we need to place constraints on them. For example, a generic `add` function should only work on types that support addition. This will be solved using the **`interface`** system.  
+Go  
+// Define an interface for types that can be added  
+interface Add {  
+    fn add(self, other: Self) \-\> Self;  
+}
+
+// A generic function constrained by the 'Add' interface  
+fn sum\<T: Add\>(a: T, b: T) \-\> T {  
+    a.add(b) // Use the method defined in the interface  
+}
 
 * 
 
 ---
 
-### **\#\# Ecosystem: The All-in-One Toolchain**
+### **Concurrency: Lightweight Green Threads**
 
-A successful language requires a thriving ecosystem supported by first-class tooling. The language will be distributed with a single, canonical command-line tool, **`basalt`**, that serves as the entry point for the entire developer experience.
+To provide powerful and easy-to-use concurrency without the ergonomic issues of "colored functions" (`async`/`await`), the language will adopt a **Go-style M:N concurrency model.**
 
-* **Integrated Tooling:** The `basalt` tool will handle all common development tasks, including:  
-  * `basalt build`: Compiling projects into a final binary.  
-  * `basalt run`: Compiling and running code directly.  
-  * `basalt test`: Running the test suite for a project.  
-  * `basalt fmt`: Applying canonical, non-negotiable code formatting.  
-  * `basalt lint`: Checking for common style and logic errors.  
-* **Package Management:** The tool will manage dependencies using a **decentralized, Go-style model**. Packages will be fetched from their source repositories (e.g., GitHub), with versions managed through a manifest file. To ensure build security and reproducibility, this system will be supported by a **checksum database or proxy**, preventing issues like deleted repositories or rewritten git histories.
+* **Green Threads:** Concurrency will be achieved via lightweight green threads, managed by a built-in language runtime scheduler.  
+* **Cooperative & Preemptive Scheduling:** The runtime scheduler will map green threads onto a smaller pool of OS threads.
+
+---
+
+### **Metaprogramming: Compile-Time Code Generation**
+
+To eliminate boilerplate, the language will implement a **Zig-style compile-time function execution (`comptime`) system.**
+
+* **Purity Mandate:** `comptime` functions are **required to be pure**.  
+* **Seamless Integration:** Metaprogramming will use the exact same syntax as regular code.
+
+---
+
+### **Ecosystem: The All-in-One Toolchain**
+
+A successful language requires a thriving ecosystem supported by first-class tooling. The language will be distributed with a single, canonical command-line tool, **`basalt`**.
+
+* **Integrated Tooling:** The `basalt` tool will handle `build`, `run`, `test`, `fmt`, and `lint` commands.  
+* **Package Management:** The tool will manage dependencies using a **decentralized, Go-style model**, secured by a checksum database.
+
