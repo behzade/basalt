@@ -38,6 +38,7 @@ const (
 	NOT_EQ   = "!="
 	QUESTION = "?"
 	ARROW    = "->"
+	FATARROW = "=>"
 
 	// Delimiters
 	COMMA      = ","
@@ -68,6 +69,8 @@ const (
 	IMPORT    = "IMPORT"
 	AS        = "AS"
 	FOR       = "FOR"
+	ENUM      = "ENUM"
+	MATCH     = "MATCH"
 )
 
 // keywords maps keyword strings to their TokenType.
@@ -86,6 +89,8 @@ var keywords = map[string]TokenType{
 	"import":    IMPORT,
 	"as":        AS,
 	"for":       FOR,
+	"enum":      ENUM,
+	"match":     MATCH,
 }
 
 // LookupIdent checks the keywords table to see if an identifier is a keyword.

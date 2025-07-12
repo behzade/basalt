@@ -593,3 +593,116 @@ func (es *ExternStatement) String() string {
 	out.WriteString(";")
 	return out.String()
 }
+
+// EnumVariant represents a single variant in an enum definition
+type EnumVariant struct {
+	Name    *Identifier     // Variant name
+	Payload *TypeAnnotation // Optional payload type (can be nil)
+}
+
+// EnumStatement represents an enum definition: enum Option { Some(int64), None }
+type EnumStatement struct {
+	Token    token.Token    // The 'enum' token
+	Name     *Identifier    // Enum name
+	Variants []*EnumVariant // The enum variants
+}
+
+func (es *EnumStatement) statementNode()       {}
+func (es *EnumStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *EnumStatement) String() string {
+	var out bytes.Buffer
+	variants := []string{}
+	for _, v := range es.Variants {
+		if v.Payload != nil {
+			variants = append(variants, v.Name.String()+"("+v.Payload.String()+")")
+		} else {
+			variants = append(variants, v.Name.String())
+		}
+	}
+	out.WriteString("enum ")
+	out.WriteString(es.Name.String())
+	out.WriteString(" { ")
+	out.WriteString(strings.Join(variants, ", "))
+	out.WriteString(" }")
+	return out.String()
+}
+
+// EnumLiteral represents an enum literal expression: enum { Some(int64), None }
+type EnumLiteral struct {
+	Token    token.Token    // The 'enum' token
+	Variants []*EnumVariant // The enum variants
+}
+
+func (el *EnumLiteral) expressionNode()      {}
+func (el *EnumLiteral) TokenLiteral() string { return el.Token.Literal }
+func (el *EnumLiteral) String() string {
+	var out bytes.Buffer
+	variants := []string{}
+	for _, v := range el.Variants {
+		if v.Payload != nil {
+			variants = append(variants, v.Name.String()+"("+v.Payload.String()+")")
+		} else {
+			variants = append(variants, v.Name.String())
+		}
+	}
+	out.WriteString("enum { ")
+	out.WriteString(strings.Join(variants, ", "))
+	out.WriteString(" }")
+	return out.String()
+}
+
+// EnumInstantiationExpression represents enum instantiation: Option::Some(42)
+type EnumInstantiationExpression struct {
+	Token     token.Token     // The first token of the enum path
+	Enum      *PathExpression // The enum path (e.g., Option)
+	Variant   *Identifier     // The variant name (e.g., Some)
+	Arguments []Expression    // Arguments for the variant (empty for variants without payload)
+}
+
+func (eie *EnumInstantiationExpression) expressionNode()      {}
+func (eie *EnumInstantiationExpression) TokenLiteral() string { return eie.Token.Literal }
+func (eie *EnumInstantiationExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(eie.Enum.String())
+	out.WriteString("::")
+	out.WriteString(eie.Variant.String())
+	if len(eie.Arguments) > 0 {
+		args := []string{}
+		for _, arg := range eie.Arguments {
+			args = append(args, arg.String())
+		}
+		out.WriteString("(")
+		out.WriteString(strings.Join(args, ", "))
+		out.WriteString(")")
+	}
+	return out.String()
+}
+
+// MatchArm represents a single arm in a match expression
+type MatchArm struct {
+	Pattern     *EnumInstantiationExpression // The pattern to match
+	Consequence Expression                   // The expression to execute if pattern matches
+}
+
+// MatchExpression represents a match expression: match value { Pattern => expr, ... }
+type MatchExpression struct {
+	Token     token.Token // The 'match' token
+	Condition Expression  // The value being matched
+	Arms      []*MatchArm // The match arms
+}
+
+func (me *MatchExpression) expressionNode()      {}
+func (me *MatchExpression) TokenLiteral() string { return me.Token.Literal }
+func (me *MatchExpression) String() string {
+	var out bytes.Buffer
+	arms := []string{}
+	for _, arm := range me.Arms {
+		arms = append(arms, arm.Pattern.String()+" => "+arm.Consequence.String())
+	}
+	out.WriteString("match ")
+	out.WriteString(me.Condition.String())
+	out.WriteString(" { ")
+	out.WriteString(strings.Join(arms, ", "))
+	out.WriteString(" }")
+	return out.String()
+}

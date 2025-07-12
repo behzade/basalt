@@ -63,6 +63,11 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			literal := string(ch) + string(l.ch)
 			tok = token.Token{Type: token.EQ, Literal: literal}
+		} else if l.peekChar() == '>' {
+			ch := l.ch
+			l.readChar()
+			literal := string(ch) + string(l.ch)
+			tok = token.Token{Type: token.FATARROW, Literal: literal}
 		} else {
 			tok = l.newToken(token.ASSIGN, l.ch)
 		}
@@ -163,6 +168,8 @@ func (l *Lexer) NextToken() token.Token {
 	}
 
 	l.readChar()
+	tok.Line = l.line
+	tok.Column = l.column
 	return tok
 }
 

@@ -131,6 +131,52 @@ func (t *ModuleType) Equals(other Type) bool {
 	return false
 }
 
+// EnumVariantType represents a single variant in an enum
+type EnumVariantType struct {
+	Name        string
+	PayloadType Type // nil if no payload
+}
+
+func (t *EnumVariantType) String() string {
+	if t.PayloadType != nil {
+		return fmt.Sprintf("%s(%s)", t.Name, t.PayloadType.String())
+	}
+	return t.Name
+}
+
+func (t *EnumVariantType) Equals(other Type) bool {
+	if otherVariant, ok := other.(*EnumVariantType); ok {
+		if t.Name != otherVariant.Name {
+			return false
+		}
+		if t.PayloadType == nil && otherVariant.PayloadType == nil {
+			return true
+		}
+		if t.PayloadType != nil && otherVariant.PayloadType != nil {
+			return t.PayloadType.Equals(otherVariant.PayloadType)
+		}
+		return false
+	}
+	return false
+}
+
+// EnumType represents an enum type
+type EnumType struct {
+	Name     string
+	Variants map[string]*EnumVariantType
+}
+
+func (t *EnumType) String() string {
+	return t.Name
+}
+
+func (t *EnumType) Equals(other Type) bool {
+	if otherEnum, ok := other.(*EnumType); ok {
+		return t.Name == otherEnum.Name
+	}
+	return false
+}
+
 // TypeEnvironment represents a scope-aware symbol table for types
 type TypeEnvironment struct {
 	store map[string]Type
@@ -293,6 +339,12 @@ func (c *Checker) Check(node ast.Node) Type {
 		return c.checkStructInstanceExpression(node)
 	case *ast.ExternStatement:
 		return c.checkExternStatement(node)
+	case *ast.EnumLiteral:
+		return c.checkEnumLiteral(node)
+	case *ast.EnumInstantiationExpression:
+		return c.checkEnumInstantiationExpression(node)
+	case *ast.MatchExpression:
+		return c.checkMatchExpression(node)
 	default:
 		c.addError(fmt.Sprintf("unknown node type: %T", node))
 		return &NoneType{}
@@ -412,6 +464,16 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 	// Special handling for struct definitions
 	if structLit, ok := node.Value.(*ast.StructLiteral); ok {
 		return c.checkStructDefinition(node.Name.Value, structLit)
+	}
+
+	// Special handling for enum definitions
+	if enumLit, ok := node.Value.(*ast.EnumLiteral); ok {
+		enumType := c.checkEnumLiteral(enumLit)
+		if enumTypeVal, ok := enumType.(*EnumType); ok {
+			enumTypeVal.Name = node.Name.Value
+			c.env.Set(node.Name.Value, enumTypeVal)
+		}
+		return &NoneType{}
 	}
 
 	// Special handling for function definitions to support recursion
@@ -831,4 +893,184 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 
 	c.addError(fmt.Sprintf("member access not supported on type %s", leftType.String()))
 	return &NoneType{}
+}
+
+// checkEnumLiteral checks enum literal expressions and returns the enum type
+func (c *Checker) checkEnumLiteral(node *ast.EnumLiteral) Type {
+	variants := make(map[string]*EnumVariantType)
+
+	for _, variant := range node.Variants {
+		variantType := &EnumVariantType{
+			Name:        variant.Name.Value,
+			PayloadType: nil,
+		}
+
+		if variant.Payload != nil {
+			variantType.PayloadType = c.parseTypeAnnotation(variant.Payload)
+		}
+
+		variants[variant.Name.Value] = variantType
+	}
+
+	// For enum literals, we create an anonymous enum type
+	// The name will be set when it's assigned to a variable
+	enumType := &EnumType{
+		Name:     "", // Will be set during assignment
+		Variants: variants,
+	}
+
+	return enumType
+}
+
+// checkEnumInstantiationExpression checks enum instantiation expressions
+func (c *Checker) checkEnumInstantiationExpression(node *ast.EnumInstantiationExpression) Type {
+	// Get the enum type from the environment
+	enumName := node.Enum.Segments[0].Value
+	enumTypeVal, ok := c.env.Get(enumName)
+	if !ok {
+		c.addError(fmt.Sprintf("unknown enum type: %s", enumName))
+		return &NoneType{}
+	}
+
+	enumType, ok := enumTypeVal.(*EnumType)
+	if !ok {
+		c.addError(fmt.Sprintf("%s is not an enum type", enumName))
+		return &NoneType{}
+	}
+
+	// Check if the variant exists
+	variantName := node.Variant.Value
+	variant, ok := enumType.Variants[variantName]
+	if !ok {
+		c.addError(fmt.Sprintf("variant %s not found in enum %s", variantName, enumName))
+		return &NoneType{}
+	}
+
+	// Check arguments match the variant's payload
+	if variant.PayloadType == nil {
+		if len(node.Arguments) > 0 {
+			c.addError(fmt.Sprintf("variant %s::%s expects no arguments, got %d", enumName, variantName, len(node.Arguments)))
+		}
+	} else {
+		if len(node.Arguments) != 1 {
+			c.addError(fmt.Sprintf("variant %s::%s expects 1 argument, got %d", enumName, variantName, len(node.Arguments)))
+		} else {
+			argType := c.Check(node.Arguments[0])
+			if !c.isAssignable(argType, variant.PayloadType) {
+				c.addError(fmt.Sprintf("variant %s::%s expects argument of type %s, got %s", enumName, variantName, variant.PayloadType.String(), argType.String()))
+			}
+		}
+	}
+
+	return enumType
+}
+
+// checkMatchExpression checks match expressions for exhaustiveness and type consistency
+func (c *Checker) checkMatchExpression(node *ast.MatchExpression) Type {
+	// Check the condition type
+	conditionType := c.Check(node.Condition)
+	enumType, ok := conditionType.(*EnumType)
+	if !ok {
+		c.addError(fmt.Sprintf("match expression can only be used with enum types, got %s", conditionType.String()))
+		return &NoneType{}
+	}
+
+	// Track which variants are covered
+	coveredVariants := make(map[string]bool)
+	var armTypes []Type
+
+	for _, arm := range node.Arms {
+		// Check the pattern
+		patternType := c.checkMatchPattern(arm.Pattern, enumType)
+		if patternType == nil {
+			continue
+		}
+
+		// Mark variant as covered
+		variantName := arm.Pattern.Variant.Value
+		coveredVariants[variantName] = true
+
+		// Check the consequence in a new scope with pattern variables
+		consequenceEnv := NewEnclosedTypeEnvironment(c.env)
+		c.addPatternVariables(arm.Pattern, enumType, consequenceEnv)
+
+		savedEnv := c.env
+		c.env = consequenceEnv
+		armType := c.Check(arm.Consequence)
+		c.env = savedEnv
+
+		armTypes = append(armTypes, armType)
+	}
+
+	// Check exhaustiveness
+	for variantName := range enumType.Variants {
+		if !coveredVariants[variantName] {
+			c.addError(fmt.Sprintf("match expression is not exhaustive: missing variant %s::%s", enumType.Name, variantName))
+		}
+	}
+
+	// Check that all arms return the same type
+	if len(armTypes) == 0 {
+		return &NoneType{}
+	}
+
+	firstType := armTypes[0]
+	for i, armType := range armTypes {
+		if !armType.Equals(firstType) {
+			c.addError(fmt.Sprintf("match arm %d returns type %s, expected %s", i+1, armType.String(), firstType.String()))
+		}
+	}
+
+	return firstType
+}
+
+// checkMatchPattern checks a match pattern and returns the variant type
+func (c *Checker) checkMatchPattern(pattern *ast.EnumInstantiationExpression, enumType *EnumType) *EnumVariantType {
+	// Check if the pattern refers to the correct enum
+	patternEnumName := pattern.Enum.Segments[0].Value
+	if patternEnumName != enumType.Name {
+		c.addError(fmt.Sprintf("pattern uses enum %s, but matching against %s", patternEnumName, enumType.Name))
+		return nil
+	}
+
+	// Check if the variant exists
+	variantName := pattern.Variant.Value
+	variant, ok := enumType.Variants[variantName]
+	if !ok {
+		c.addError(fmt.Sprintf("variant %s not found in enum %s", variantName, enumType.Name))
+		return nil
+	}
+
+	// Check pattern arguments
+	if variant.PayloadType == nil {
+		if len(pattern.Arguments) > 0 {
+			c.addError(fmt.Sprintf("variant %s::%s has no payload, but pattern has %d arguments", enumType.Name, variantName, len(pattern.Arguments)))
+		}
+	} else {
+		if len(pattern.Arguments) != 1 {
+			c.addError(fmt.Sprintf("variant %s::%s expects 1 pattern argument, got %d", enumType.Name, variantName, len(pattern.Arguments)))
+		} else {
+			// Pattern arguments should be identifiers (pattern variables)
+			if _, ok := pattern.Arguments[0].(*ast.Identifier); !ok {
+				c.addError(fmt.Sprintf("pattern argument must be an identifier, got %T", pattern.Arguments[0]))
+			}
+		}
+	}
+
+	return variant
+}
+
+// addPatternVariables adds pattern variables to the environment
+func (c *Checker) addPatternVariables(pattern *ast.EnumInstantiationExpression, enumType *EnumType, env *TypeEnvironment) {
+	variantName := pattern.Variant.Value
+	variant, ok := enumType.Variants[variantName]
+	if !ok {
+		return
+	}
+
+	if variant.PayloadType != nil && len(pattern.Arguments) == 1 {
+		if ident, ok := pattern.Arguments[0].(*ast.Identifier); ok {
+			env.Set(ident.Value, variant.PayloadType)
+		}
+	}
 }

@@ -1,13 +1,13 @@
 // Test basic expressions, variables, and print
-import Std::Runtime;
+import Std::Fmt;
 
 let x = 42;
 let y = 10;
 let sum = x + y;
-print(sum);
+Fmt.print_int(sum);
 
 let product = x * y;
-print(product);
+Fmt.print_int(product);
 
 let comparison = x > y;
-print(comparison); 
+Fmt.print_bool(comparison); 

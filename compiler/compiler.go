@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/behzade/basalt/ast"
 	"github.com/behzade/basalt/checker"
@@ -24,6 +25,20 @@ type StructInfo struct {
 	FieldIndex map[string]int        // Maps field name to index in struct
 }
 
+// EnumVariantInfo holds information about an enum variant
+type EnumVariantInfo struct {
+	Tag         int32      // The tag value for this variant
+	PayloadType types.Type // LLVM type for the payload (nil if no payload)
+}
+
+// EnumInfo holds information about an enum type
+type EnumInfo struct {
+	LLVMType    *types.StructType           // The LLVM struct type for the enum
+	Variants    map[string]*EnumVariantInfo // Maps variant name to variant info
+	TagToName   map[int32]string            // Maps tag values to variant names
+	MaxDataSize int                         // Size of the largest variant payload
+}
+
 // Compiler holds the LLVM IR module and compilation state
 type Compiler struct {
 	module        *ir.Module
@@ -32,6 +47,7 @@ type Compiler struct {
 	symbolTable   map[string]value.Value // Maps variable names to their allocated stack pointers
 	functionTable map[string]*ir.Func    // Maps function names to their IR functions
 	typeRegistry  map[string]*StructInfo // Maps struct names to their type information
+	enumRegistry  map[string]*EnumInfo   // Maps enum names to their type information
 	env           *checker.TypeEnvironment
 	blockCounter  int // Counter for generating unique block names
 }
@@ -43,6 +59,7 @@ func New() *Compiler {
 		symbolTable:   make(map[string]value.Value),
 		functionTable: make(map[string]*ir.Func),
 		typeRegistry:  make(map[string]*StructInfo),
+		enumRegistry:  make(map[string]*EnumInfo),
 		env:           checker.NewTypeEnvironment(),
 		blockCounter:  0,
 	}
@@ -86,6 +103,7 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileExternStatement(s)
 	case *ast.ImportStatement:
 		return c.compileImportStatement(s)
+	// EnumLiteral is now handled as an expression in let statements
 	default:
 		return fmt.Errorf("unsupported statement type: %T", stmt)
 	}
@@ -101,6 +119,11 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 	// Special handling for struct definitions
 	if structLit, ok := stmt.Value.(*ast.StructLiteral); ok {
 		return c.compileStructDefinition(stmt.Name.Value, structLit)
+	}
+
+	// Special handling for enum definitions
+	if enumLit, ok := stmt.Value.(*ast.EnumLiteral); ok {
+		return c.compileEnumDefinition(stmt.Name.Value, enumLit)
 	}
 
 	// Regular variable assignment
@@ -180,6 +203,12 @@ func (c *Compiler) compileExpression(expr ast.Expression) (value.Value, error) {
 		return c.compileStructLiteral(e)
 	case *ast.StructInstanceExpression:
 		return c.compileStructInstanceExpression(e)
+	case *ast.EnumInstantiationExpression:
+		return c.compileEnumInstantiationExpression(e)
+	case *ast.MatchExpression:
+		return c.compileMatchExpression(e)
+	case *ast.EnumLiteral:
+		return c.compileEnumLiteral(e)
 	default:
 		return nil, fmt.Errorf("unsupported expression type: %T", expr)
 	}
@@ -832,11 +861,58 @@ func (c *Compiler) compilePrintCall(expr *ast.CallExpression) (value.Value, erro
 	return constant.NewInt(types.I32, 0), nil
 }
 
+// compileEnumLiteral compiles enum literal expressions (shouldn't be called directly)
+func (c *Compiler) compileEnumLiteral(expr *ast.EnumLiteral) (value.Value, error) {
+	// Enum literals should not be compiled directly as expressions
+	// They are handled in let statements via compileEnumDefinition
+	return nil, fmt.Errorf("enum literals must be assigned to a variable")
+}
+
+func unescapeString(raw string) (string, error) {
+	var sb strings.Builder
+	// The raw string from the parser includes the surrounding quotes,
+	// so we can iterate from the second character to the second-to-last.
+	// If your parser provides the string WITHOUT quotes, use `for i := 0; i < len(raw); i++`
+	for i := 0; i < len(raw); i++ {
+		char := raw[i]
+		if char == '\\' {
+			// Make sure there is a character after the backslash
+			if i+1 >= len(raw) {
+				return "", fmt.Errorf("invalid escape sequence at end of string")
+			}
+			i++ // Move to the character after '\'
+			switch raw[i] {
+			case 'n':
+				sb.WriteRune('\n')
+			case 't':
+				sb.WriteRune('\t')
+			case '\\':
+				sb.WriteRune('\\')
+			case '"':
+				sb.WriteRune('"')
+			// Add other escapes as needed (e.g., \r)
+			default:
+				// Optional: return an error for unknown escape sequences
+				return "", fmt.Errorf("unknown escape sequence: \\%c", raw[i])
+			}
+		} else {
+			sb.WriteRune(rune(char))
+		}
+	}
+	return sb.String(), nil
+}
+
 // compileStringLiteral compiles a string literal to a global string constant
 func (c *Compiler) compileStringLiteral(expr *ast.StringLiteral) (value.Value, error) {
+	// 1. Un-escape the raw string value to handle sequences like \n
+	processedValue, err := unescapeString(expr.Value)
+	if err != nil {
+		return nil, err // Propagate error if the escape sequence is invalid
+	}
+
 	// Create a global string constant
 	// LLVM string constants are arrays of i8 with null terminator
-	stringValue := expr.Value + "\x00" // Add null terminator
+	stringValue := processedValue + "\x00" // Add null terminator
 
 	// Create character array type
 	charArrayType := types.NewArray(uint64(len(stringValue)), types.I8)
@@ -933,7 +1009,7 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 	}
 
 	// Also write IR to debug.ll for inspection
-	debugFile := "debug.ll"
+	debugFile := "./dist/debug.ll"
 	if err := os.WriteFile(debugFile, []byte(irContent), 0o644); err != nil {
 		// Don't fail if we can't write debug file
 		fmt.Printf("Warning: couldn't write debug file: %v\n", err)
@@ -1365,4 +1441,229 @@ func (c *Compiler) compileExternStatement(stmt *ast.ExternStatement) error {
 	c.functionTable[funcName] = fn // Register it for calls
 
 	return nil
+}
+
+// compileEnumDefinition compiles enum definitions and registers them in the enum registry
+func (c *Compiler) compileEnumDefinition(enumName string, enumLit *ast.EnumLiteral) error {
+	// Calculate the maximum data size needed for any variant
+	maxDataSize := 0
+	variants := make(map[string]*EnumVariantInfo)
+	tagToName := make(map[int32]string)
+
+	for i, variant := range enumLit.Variants {
+		tag := int32(i)
+		variantName := variant.Name.Value
+
+		variantInfo := &EnumVariantInfo{
+			Tag:         tag,
+			PayloadType: nil,
+		}
+
+		if variant.Payload != nil {
+			payloadType := c.typeAnnotationToLLVMType(variant.Payload)
+			variantInfo.PayloadType = payloadType
+
+			// Calculate size (simplified - just use 8 bytes for all types for now)
+			size := 8
+			if size > maxDataSize {
+				maxDataSize = size
+			}
+		}
+
+		variants[variantName] = variantInfo
+		tagToName[tag] = variantName
+	}
+
+	// Create the enum struct type: { i32 tag, [N x i8] data }
+	dataArrayType := types.NewArray(uint64(maxDataSize), types.I8)
+	enumStructType := types.NewStruct(types.I32, dataArrayType)
+
+	// Create named type
+	c.module.NewTypeDef(enumName, enumStructType)
+
+	// Register in enum registry
+	c.enumRegistry[enumName] = &EnumInfo{
+		LLVMType:    enumStructType,
+		Variants:    variants,
+		TagToName:   tagToName,
+		MaxDataSize: maxDataSize,
+	}
+
+	return nil
+}
+
+// compileEnumInstantiationExpression compiles enum instantiation (Option::Some(42))
+func (c *Compiler) compileEnumInstantiationExpression(expr *ast.EnumInstantiationExpression) (value.Value, error) {
+	enumName := expr.Enum.Segments[0].Value
+	variantName := expr.Variant.Value
+
+	// Look up the enum info
+	enumInfo, exists := c.enumRegistry[enumName]
+	if !exists {
+		return nil, fmt.Errorf("undefined enum type: %s", enumName)
+	}
+
+	// Look up the variant info
+	variantInfo, exists := enumInfo.Variants[variantName]
+	if !exists {
+		return nil, fmt.Errorf("undefined variant: %s::%s", enumName, variantName)
+	}
+
+	// Allocate stack memory for the enum
+	enumPtr := c.currentBlock.NewAlloca(enumInfo.LLVMType)
+
+	// Store the tag
+	zero := constant.NewInt(types.I32, 0)
+	tagIdx := constant.NewInt(types.I32, 0)
+	tagPtr := c.currentBlock.NewGetElementPtr(enumInfo.LLVMType, enumPtr, zero, tagIdx)
+	tag := constant.NewInt(types.I32, int64(variantInfo.Tag))
+	c.currentBlock.NewStore(tag, tagPtr)
+
+	// Store the payload if present
+	if variantInfo.PayloadType != nil && len(expr.Arguments) > 0 {
+		// Compile the argument
+		argValue, err := c.compileExpression(expr.Arguments[0])
+		if err != nil {
+			return nil, err
+		}
+
+		// Get pointer to the data field
+		dataIdx := constant.NewInt(types.I32, 1)
+		dataPtr := c.currentBlock.NewGetElementPtr(enumInfo.LLVMType, enumPtr, zero, dataIdx)
+
+		// Cast the data pointer to the correct type
+		payloadPtrType := types.NewPointer(variantInfo.PayloadType)
+		castedDataPtr := c.currentBlock.NewBitCast(dataPtr, payloadPtrType)
+
+		// Store the payload
+		c.currentBlock.NewStore(argValue, castedDataPtr)
+	}
+
+	return enumPtr, nil
+}
+
+// compileMatchExpression compiles match expressions with switch/case logic
+func (c *Compiler) compileMatchExpression(expr *ast.MatchExpression) (value.Value, error) {
+	// Compile the condition
+	conditionValue, err := c.compileExpression(expr.Condition)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get the tag from the enum
+	zero := constant.NewInt(types.I32, 0)
+	tagIdx := constant.NewInt(types.I32, 0)
+	tagPtr := c.currentBlock.NewGetElementPtr(conditionValue.Type().(*types.PointerType).ElemType, conditionValue, zero, tagIdx)
+	tagValue := c.currentBlock.NewLoad(types.I32, tagPtr)
+
+	// Create blocks for each arm and a merge block
+	c.blockCounter++
+	mergeBlock := c.currentFunc.NewBlock(fmt.Sprintf("match_merge_%d", c.blockCounter))
+
+	// Create a switch instruction
+	var defaultBlock *ir.Block
+
+	armBlocks := make([]*ir.Block, len(expr.Arms))
+	armValues := make([]value.Value, len(expr.Arms))
+
+	// Create blocks for each arm
+	for i := range expr.Arms {
+		c.blockCounter++
+		armBlocks[i] = c.currentFunc.NewBlock(fmt.Sprintf("match_arm_%d_%d", c.blockCounter, i))
+	}
+
+	// Create default block (should never be reached due to exhaustiveness checking)
+	c.blockCounter++
+	defaultBlock = c.currentFunc.NewBlock(fmt.Sprintf("match_default_%d", c.blockCounter))
+
+	// Create switch instruction
+	cases := make([]*ir.Case, len(expr.Arms))
+
+	// Create cases for switch
+	for i, arm := range expr.Arms {
+		// Get the variant info to find the tag
+		enumName := arm.Pattern.Enum.Segments[0].Value
+		variantName := arm.Pattern.Variant.Value
+
+		enumInfo, exists := c.enumRegistry[enumName]
+		if !exists {
+			return nil, fmt.Errorf("undefined enum type: %s", enumName)
+		}
+
+		variantInfo, exists := enumInfo.Variants[variantName]
+		if !exists {
+			return nil, fmt.Errorf("undefined variant: %s::%s", enumName, variantName)
+		}
+
+		tag := constant.NewInt(types.I32, int64(variantInfo.Tag))
+		cases[i] = ir.NewCase(tag, armBlocks[i])
+	}
+
+	// Create switch instruction with cases
+	c.currentBlock.NewSwitch(tagValue, defaultBlock, cases...)
+
+	// Compile each arm
+	for i, arm := range expr.Arms {
+		c.currentBlock = armBlocks[i]
+
+		// If the variant has a payload, extract it and bind to pattern variable
+		enumName := arm.Pattern.Enum.Segments[0].Value
+		variantName := arm.Pattern.Variant.Value
+
+		enumInfo := c.enumRegistry[enumName]
+		variantInfo := enumInfo.Variants[variantName]
+
+		if variantInfo.PayloadType != nil && len(arm.Pattern.Arguments) > 0 {
+			// Extract the payload
+			dataIdx := constant.NewInt(types.I32, 1)
+			dataPtr := c.currentBlock.NewGetElementPtr(enumInfo.LLVMType, conditionValue, zero, dataIdx)
+
+			// Cast to the correct type
+			payloadPtrType := types.NewPointer(variantInfo.PayloadType)
+			castedDataPtr := c.currentBlock.NewBitCast(dataPtr, payloadPtrType)
+
+			// Load the payload
+			payloadValue := c.currentBlock.NewLoad(variantInfo.PayloadType, castedDataPtr)
+
+			// Bind to pattern variable
+			if ident, ok := arm.Pattern.Arguments[0].(*ast.Identifier); ok {
+				// Allocate space for the pattern variable
+				patternVar := c.currentBlock.NewAlloca(variantInfo.PayloadType)
+				c.currentBlock.NewStore(payloadValue, patternVar)
+
+				// Add to symbol table
+				c.symbolTable[ident.Value] = patternVar
+			}
+		}
+
+		// Compile the arm consequence
+		armValue, err := c.compileExpression(arm.Consequence)
+		if err != nil {
+			return nil, err
+		}
+
+		armValues[i] = armValue
+
+		// Jump to merge block
+		c.currentBlock.NewBr(mergeBlock)
+	}
+
+	// Default block (unreachable)
+	c.currentBlock = defaultBlock
+	c.currentBlock.NewUnreachable()
+
+	// Merge block
+	c.currentBlock = mergeBlock
+
+	// Create phi node to collect results
+	if len(armValues) > 0 {
+		incomings := make([]*ir.Incoming, len(armValues))
+		for i := 0; i < len(armValues); i++ {
+			incomings[i] = ir.NewIncoming(armValues[i], armBlocks[i])
+		}
+		phi := c.currentBlock.NewPhi(incomings...)
+		return phi, nil
+	}
+
+	return constant.NewInt(types.I32, 0), nil
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -127,14 +128,7 @@ func main() {
 		input = string(inputBytes)
 	}
 
-	outputPath := "./output"
-
-	// Check for --compile flag
-	for i := range os.Args {
-		if i+1 < len(os.Args) && os.Args[i+1][:1] != "-" {
-			outputPath = os.Args[i+1]
-		}
-	}
+	outputPath := "./dist/output"
 
 	err := compileBasalt(input, outputPath)
 	if err != nil {
@@ -142,6 +136,17 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("Successfully compiled to %s\n", outputPath)
+
+	if len(os.Args) > 2 && os.Args[2] == "--run" {
+		// Run the compiled program
+		cmd := exec.Command(outputPath)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error running program: %v\n", err)
+			os.Exit(1)
+		}
+	}
 }
 
 func compileBasalt(input string, outputPath string) error {
@@ -159,6 +164,10 @@ func compileBasalt(input string, outputPath string) error {
 
 	// Check for parser errors
 	if len(p.Errors()) > 0 {
+		fmt.Println("Parser errors:")
+		for _, err := range p.Errors() {
+			fmt.Printf("  %s %v:%v\n", err.Msg, err.Line, err.Col)
+		}
 		return fmt.Errorf("parser errors: %v", p.Errors())
 	}
 

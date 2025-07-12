@@ -46,10 +46,16 @@ type (
 	postfixParseFn func(ast.Expression) ast.Expression
 )
 
+type ParserError struct {
+	Msg  string
+	Line int
+	Col  int
+}
+
 // Parser holds the lexer and the current/peek tokens.
 type Parser struct {
 	l      *lexer.Lexer
-	errors []string
+	errors []ParserError
 
 	curToken  token.Token
 	peekToken token.Token
@@ -63,7 +69,7 @@ type Parser struct {
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{
 		l:      l,
-		errors: []string{},
+		errors: []ParserError{},
 	}
 
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
@@ -82,6 +88,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefix(token.STRUCT, p.parseStructLiteral)
 	p.registerPrefix(token.LBRACE, p.parseHashLiteral)
 	p.registerPrefix(token.FOR, p.parseForExpression)
+	p.registerPrefix(token.MATCH, p.parseMatchExpression)
+	p.registerPrefix(token.ENUM, p.parseEnumExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfix(token.PLUS, p.parseInfixExpression)
@@ -108,14 +116,14 @@ func New(l *lexer.Lexer) *Parser {
 	return p
 }
 
-func (p *Parser) Errors() []string {
+func (p *Parser) Errors() []ParserError {
 	return p.errors
 }
 
 func (p *Parser) peekError(t token.TokenType) {
 	msg := fmt.Sprintf("expected next token to be %s, got %s instead",
 		t, p.peekToken.Type)
-	p.errors = append(p.errors, msg)
+	p.errors = append(p.errors, ParserError{msg, p.peekToken.Line, p.peekToken.Column})
 }
 
 func (p *Parser) nextToken() {
@@ -223,7 +231,7 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 
 func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
-	p.errors = append(p.errors, msg)
+	p.errors = append(p.errors, ParserError{msg, p.curToken.Line, p.curToken.Column})
 }
 
 func (p *Parser) parseExpression(precedence int) ast.Expression {
@@ -261,7 +269,46 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
+	// Check if this is an enum instantiation (Enum::Variant)
+	if p.peekTokenIs(token.COLONCOLON) {
+		return p.parseEnumInstantiation()
+	}
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+// parseEnumInstantiation parses enum instantiation expressions like "Option::Some(42)"
+func (p *Parser) parseEnumInstantiation() ast.Expression {
+	// Parse the enum path (e.g., "Option")
+	enumPath := &ast.PathExpression{
+		Token:    p.curToken,
+		Segments: []*ast.Identifier{{Token: p.curToken, Value: p.curToken.Literal}},
+	}
+
+	if !p.expectPeek(token.COLONCOLON) {
+		return nil
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	// Parse the variant name (e.g., "Some")
+	variant := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	exp := &ast.EnumInstantiationExpression{
+		Token:     enumPath.Token,
+		Enum:      enumPath,
+		Variant:   variant,
+		Arguments: []ast.Expression{},
+	}
+
+	// Check for optional arguments
+	if p.peekTokenIs(token.LPAREN) {
+		p.nextToken() // consume '('
+		exp.Arguments = p.parseCallArguments()
+	}
+
+	return exp
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expression {
@@ -270,7 +317,7 @@ func (p *Parser) parseIntegerLiteral() ast.Expression {
 	value, err := strconv.ParseInt(p.curToken.Literal, 0, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as integer", p.curToken.Literal)
-		p.errors = append(p.errors, msg)
+		p.errors = append(p.errors, ParserError{msg, p.curToken.Line, p.curToken.Column})
 		return nil
 	}
 	lit.Value = value
@@ -283,7 +330,7 @@ func (p *Parser) parseFloatLiteral() ast.Expression {
 	value, err := strconv.ParseFloat(p.curToken.Literal, 64)
 	if err != nil {
 		msg := fmt.Sprintf("could not parse %q as float", p.curToken.Literal)
-		p.errors = append(p.errors, msg)
+		p.errors = append(p.errors, ParserError{msg, p.curToken.Line, p.curToken.Column})
 		return nil
 	}
 	lit.Value = value
@@ -929,6 +976,180 @@ func (p *Parser) parseErrorPropagationExpression(left ast.Expression) ast.Expres
 	exp := &ast.ErrorPropagationExpression{
 		Token:      p.curToken,
 		Expression: left,
+	}
+
+	return exp
+}
+
+// parseEnumExpression parses enum expressions like "enum { Some(int64), None }"
+func (p *Parser) parseEnumExpression() ast.Expression {
+	expr := &ast.EnumLiteral{Token: p.curToken}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	expr.Variants = p.parseEnumVariants()
+
+	// parseEnumVariants should leave us positioned at the closing brace
+	if !p.curTokenIs(token.RBRACE) {
+		return nil
+	}
+
+	return expr
+}
+
+// parseEnumVariants parses the variants inside an enum definition
+func (p *Parser) parseEnumVariants() []*ast.EnumVariant {
+	variants := []*ast.EnumVariant{}
+
+	if p.peekTokenIs(token.RBRACE) {
+		return variants
+	}
+
+	p.nextToken()
+
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		variant := &ast.EnumVariant{}
+		if !p.curTokenIs(token.IDENT) {
+			return nil
+		}
+		variant.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+		// Check for optional payload
+		if p.peekTokenIs(token.LPAREN) {
+			p.nextToken() // consume '('
+			if !p.expectPeek(token.IDENT) {
+				return nil
+			}
+			variant.Payload = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
+			if !p.expectPeek(token.RPAREN) {
+				return nil
+			}
+		}
+
+		variants = append(variants, variant)
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+			p.nextToken()
+		} else if p.peekTokenIs(token.RBRACE) {
+			break
+		} else {
+			return nil // Malformed
+		}
+	}
+
+	return variants
+}
+
+// parseMatchExpression parses match expressions like "match value { Pattern => expr, ... }"
+func (p *Parser) parseMatchExpression() ast.Expression {
+	exp := &ast.MatchExpression{Token: p.curToken}
+
+	p.nextToken()
+	exp.Condition = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	exp.Arms = p.parseMatchArms()
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
+	return exp
+}
+
+// parseMatchArms parses the arms inside a match expression
+func (p *Parser) parseMatchArms() []*ast.MatchArm {
+	arms := []*ast.MatchArm{}
+
+	if p.peekTokenIs(token.RBRACE) {
+		return arms
+	}
+
+	p.nextToken()
+
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		arm := &ast.MatchArm{}
+
+		// Parse the pattern (EnumInstantiationExpression)
+		pattern := p.parseEnumInstantiationPattern()
+		if pattern == nil {
+			return nil
+		}
+		arm.Pattern = pattern
+
+		if !p.expectPeek(token.FATARROW) {
+			return nil
+		}
+
+		p.nextToken()
+		arm.Consequence = p.parseExpression(LOWEST)
+
+		arms = append(arms, arm)
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+			p.nextToken()
+		} else if p.peekTokenIs(token.RBRACE) {
+			break
+		} else {
+			return nil // Malformed
+		}
+	}
+
+	return arms
+}
+
+// parseEnumInstantiationPattern parses enum instantiation patterns like "Option::Some(x)"
+func (p *Parser) parseEnumInstantiationPattern() *ast.EnumInstantiationExpression {
+	if !p.curTokenIs(token.IDENT) {
+		return nil
+	}
+
+	// Parse the enum path (e.g., "Option")
+	enumPath := &ast.PathExpression{
+		Token:    p.curToken,
+		Segments: []*ast.Identifier{{Token: p.curToken, Value: p.curToken.Literal}},
+	}
+
+	if !p.expectPeek(token.COLONCOLON) {
+		return nil
+	}
+
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+
+	// Parse the variant name (e.g., "Some")
+	variant := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	exp := &ast.EnumInstantiationExpression{
+		Token:     enumPath.Token,
+		Enum:      enumPath,
+		Variant:   variant,
+		Arguments: []ast.Expression{},
+	}
+
+	// Check for optional arguments
+	if p.peekTokenIs(token.LPAREN) {
+		p.nextToken() // consume '('
+
+		// For patterns, we expect identifiers (pattern variables)
+		if !p.peekTokenIs(token.RPAREN) {
+			p.nextToken()
+			if p.curTokenIs(token.IDENT) {
+				exp.Arguments = append(exp.Arguments, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+			}
+		}
+
+		if !p.expectPeek(token.RPAREN) {
+			return nil
+		}
 	}
 
 	return exp
