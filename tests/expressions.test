@@ -1,0 +1,107 @@
+-- TEST: Expression as return value
+-- INPUT
+5
+-- EXPECT-EVAL
+5
+===
+-- TEST: Statement evaluates to None
+-- INPUT
+5;
+-- EXPECT-EVAL
+null
+===
+-- TEST: If-expression returns value from 'then' block
+-- INPUT
+let x = if true { 10 };
+x
+-- EXPECT-EVAL
+10
+===
+-- TEST: If-expression statement evaluates to None
+-- INPUT
+let mut x = 0;
+if true { x = 10; };
+x
+-- EXPECT-EVAL
+10
+===
+-- TEST: If-expression returns value from 'else' block
+-- INPUT
+if false { 10 } else { 20 }
+-- EXPECT-EVAL
+20
+===
+-- TEST: For-loop evaluates to None
+-- INPUT
+for false { 1 }
+-- EXPECT-EVAL
+null
+===
+-- TEST: Block expression returns last value
+-- INPUT
+let x = { 1; 2; 3 };
+x
+-- EXPECT-EVAL
+3
+===
+-- TEST: Block statement returns None
+-- INPUT
+let x = { 1; 2; 3; };
+x
+-- EXPECT-EVAL
+null
+===
+-- TEST: Mixed statements and expressions
+-- INPUT
+let a = 5;
+let b = 10;
+a + b
+-- EXPECT-EVAL
+15
+===
+-- TEST: Expression without semicolon in program
+-- INPUT
+let a = 5;
+a * 2
+-- EXPECT-EVAL
+10
+===
+-- TEST: Statement with semicolon in program
+-- INPUT
+let a = 5;
+a * 2;
+-- EXPECT-EVAL
+null
+===
+-- TEST: Function returning expression
+-- INPUT
+let f = fn() { 42 };
+f()
+-- EXPECT-EVAL
+42
+===
+-- TEST: Function returning statement
+-- INPUT
+let f = fn() { 42; };
+f()
+-- EXPECT-EVAL
+null
+===
+-- TEST: If expression with block expressions
+-- INPUT
+if true { 
+  let x = 5;
+  x * 2
+}
+-- EXPECT-EVAL
+10
+===
+-- TEST: If expression with block statements
+-- INPUT
+if true { 
+  let x = 5;
+  x * 2;
+}
+-- EXPECT-EVAL
+null
+=== 

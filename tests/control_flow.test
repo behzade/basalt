@@ -104,7 +104,7 @@ null
 -- INPUT
 foobar;
 -- EXPECT-AST
-foobar
+foobar;
 ===
 -- TEST: Import statement parsing - simple
 -- INPUT
@@ -206,17 +206,17 @@ type mismatch: INTEGER + BOOLEAN
 -- INPUT
 for true { 42; }
 -- EXPECT-AST
-for true {42}
+for true {42;}
 ===
 -- TEST: For loop parsing - with variable condition
 -- INPUT
 for x < 10 { x = x + 1; }
 -- EXPECT-AST
-for (x < 10) {(x = (x + 1))}
+for (x < 10) {(x = (x + 1));}
 ===
 -- TEST: For loop parsing - complex condition
 -- INPUT
 for (x + y) > (a * b) { doSomething(); }
 -- EXPECT-AST
-for ((x + y) > (a * b)) {doSomething()}
+for ((x + y) > (a * b)) {doSomething();}
 === 

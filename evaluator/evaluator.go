@@ -284,42 +284,57 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 func evalProgram(program *ast.Program, env *object.Environment) object.Object {
 	var result object.Object
 
-	for _, statement := range program.Statements {
+	for i, statement := range program.Statements {
 		result = Eval(statement, env)
 
-		// Check for errors first
-		if isError(result) {
-			return result
-		}
-
-		// When a return statement is encountered, unwrap its value.
+		// Unwrap return values at the top level.
 		if returnValue, ok := result.(*object.ReturnValue); ok {
 			return returnValue.Value
 		}
+		if err, ok := result.(*object.Error); ok {
+			return err
+		}
+
+		// Check if this is the last statement in the program.
+		if i == len(program.Statements)-1 {
+			// If it's an expression statement without a semicolon, it's the program's return value.
+			if es, ok := statement.(*ast.ExpressionStatement); ok && !es.HasSemicolon {
+				return result // Return the evaluated expression's value.
+			}
+		}
 	}
 
+	// If the program is empty or ends with a semicolon-terminated statement,
+	// the final result is the last evaluated object (which would be NONE
+	// for semicolon-terminated statements).
 	return result
 }
 
 func evalBlockStatement(block *ast.BlockStatement, env *object.Environment) object.Object {
 	var result object.Object
 
-	for _, statement := range block.Statements {
+	for i, statement := range block.Statements {
 		result = Eval(statement, env)
 
-		// Check for errors first
-		if isError(result) {
-			return result
+		// Immediately propagate return values or errors.
+		if result != nil {
+			rt := result.Type()
+			if rt == object.RETURN_VALUE_OBJ || rt == object.ERROR_OBJ {
+				return result
+			}
 		}
 
-		// When a return statement is encountered, return it wrapped
-		// (unlike evalProgram, we don't unwrap it here to let the caller handle it)
-		if returnValue, ok := result.(*object.ReturnValue); ok {
-			return returnValue
+		// Check if this is the last statement in the block.
+		if i == len(block.Statements)-1 {
+			// If it's an expression statement without a semicolon, it's the block's return value.
+			if es, ok := statement.(*ast.ExpressionStatement); ok && !es.HasSemicolon {
+				return result // Return the evaluated expression's value.
+			}
 		}
 	}
 
-	return result
+	// If the block is empty or the last statement was semicolon-terminated, return NONE.
+	return NONE
 }
 
 func evalIfExpression(ie *ast.IfExpression, env *object.Environment) object.Object {

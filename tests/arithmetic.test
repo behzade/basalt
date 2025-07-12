@@ -80,37 +80,37 @@
 -- INPUT
 5;
 -- EXPECT-AST
-5
+5;
 ===
 -- TEST: Negation parsing
 -- INPUT
 -15;
 -- EXPECT-AST
-(-15)
+(-15);
 ===
 -- TEST: Addition parsing
 -- INPUT
 5 + 5;
 -- EXPECT-AST
-(5 + 5)
+(5 + 5);
 ===
 -- TEST: Subtraction parsing
 -- INPUT
 5 - 5;
 -- EXPECT-AST
-(5 - 5)
+(5 - 5);
 ===
 -- TEST: Multiplication parsing
 -- INPUT
 5 * 5;
 -- EXPECT-AST
-(5 * 5)
+(5 * 5);
 ===
 -- TEST: Division parsing
 -- INPUT
 5 / 5;
 -- EXPECT-AST
-(5 / 5)
+(5 / 5);
 ===
 -- TEST: Operator precedence - negation and multiplication
 -- INPUT
@@ -158,7 +158,7 @@ a + b * c + d / e - f
 -- INPUT
 3 + 4; -5 * 5
 -- EXPECT-AST
-(3 + 4)((-5) * 5)
+(3 + 4);((-5) * 5)
 ===
 -- TEST: Operator precedence - parentheses override
 -- INPUT
@@ -320,23 +320,23 @@ true
 -- INPUT
 3.14;
 -- EXPECT-AST
-3.14
+3.14;
 ===
 -- TEST: Negative float parsing
 -- INPUT
 -3.14;
 -- EXPECT-AST
-(-3.14)
+(-3.14);
 ===
 -- TEST: Float addition parsing
 -- INPUT
 3.14 + 2.86;
 -- EXPECT-AST
-(3.14 + 2.86)
+(3.14 + 2.86);
 ===
 -- TEST: Mixed-mode parsing
 -- INPUT
 5 + 3.14;
 -- EXPECT-AST
-(5 + 3.14)
+(5 + 3.14);
 === 

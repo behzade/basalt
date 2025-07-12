@@ -26,7 +26,7 @@ let s = struct { a: int64, b: int64 };let i = s { a: 1, b: 2 };
 -- INPUT
 let s = struct { a: int64 }; let i = s { a: 42 }; i.a;
 -- EXPECT-AST
-let s = struct { a: int64 };let i = s { a: 42 };(i.a)
+let s = struct { a: int64 };let i = s { a: 42 };(i.a);
 ===
 -- TEST: Simple struct definition evaluation
 -- INPUT

@@ -152,19 +152,19 @@ true
 -- INPUT
 true;
 -- EXPECT-AST
-true
+true;
 ===
 -- TEST: Boolean expression parsing false
 -- INPUT
 false;
 -- EXPECT-AST
-false
+false;
 ===
 -- TEST: Prefix expression parsing - bang
 -- INPUT
 !5;
 -- EXPECT-AST
-(!5)
+(!5);
 ===
 -- TEST: Operator precedence - bang and negation
 -- INPUT
@@ -212,23 +212,23 @@ false
 -- INPUT
 5 > 5;
 -- EXPECT-AST
-(5 > 5)
+(5 > 5);
 ===
 -- TEST: Less than parsing
 -- INPUT
 5 < 5;
 -- EXPECT-AST
-(5 < 5)
+(5 < 5);
 ===
 -- TEST: Equality parsing
 -- INPUT
 5 == 5;
 -- EXPECT-AST
-(5 == 5)
+(5 == 5);
 ===
 -- TEST: Inequality parsing
 -- INPUT
 5 != 5;
 -- EXPECT-AST
-(5 != 5)
+(5 != 5);
 === 

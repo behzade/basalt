@@ -120,12 +120,19 @@ func (rs *ReturnStatement) String() string {
 type ExpressionStatement struct {
 	Token      token.Token // the first token of the expression
 	Expression Expression
+	// Add this field to track if a semicolon was present, distinguishing
+	// a statement (true) from a value-producing expression (false).
+	HasSemicolon bool
 }
 
 func (es *ExpressionStatement) statementNode()       {}
 func (es *ExpressionStatement) TokenLiteral() string { return es.Token.Literal }
 func (es *ExpressionStatement) String() string {
 	if es.Expression != nil {
+		// If it had a semicolon, append it for accurate AST representation.
+		if es.HasSemicolon {
+			return es.Expression.String() + ";"
+		}
 		return es.Expression.String()
 	}
 	return ""

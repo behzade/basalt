@@ -206,11 +206,14 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 
 func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	stmt := &ast.ExpressionStatement{Token: p.curToken}
-
 	stmt.Expression = p.parseExpression(LOWEST)
 
+	// Check for an optional semicolon.
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
+		stmt.HasSemicolon = true
+	} else {
+		stmt.HasSemicolon = false
 	}
 
 	return stmt
