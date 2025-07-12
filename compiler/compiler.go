@@ -84,6 +84,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileReturnStatement(s)
 	case *ast.ExternStatement:
 		return c.compileExternStatement(s)
+	case *ast.ImportStatement:
+		return c.compileImportStatement(s)
 	default:
 		return fmt.Errorf("unsupported statement type: %T", stmt)
 	}
@@ -339,6 +341,11 @@ func (c *Compiler) compileIfExpression(expr *ast.IfExpression) (value.Value, err
 	// For now, assume they have the same type
 	if thenValue.Type() != elseValue.Type() {
 		return nil, fmt.Errorf("if branches return different types: %s vs %s", thenValue.Type(), elseValue.Type())
+	}
+
+	// Don't create PHI node for void types
+	if thenValue.Type() == types.Void {
+		return constant.NewInt(types.I64, 0), nil // Return a dummy value
 	}
 
 	// Create PHI node to merge the values
@@ -734,11 +741,14 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 		}
 	}
 
-	// Handle member access expressions (for method calls if needed in the future)
+	// Handle member access expressions (for module function calls)
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
-		// For now, we don't support method calls, only property access
-		// This could be extended in the future for methods like arr.push(value)
-		return nil, fmt.Errorf("method calls not yet supported: %s", memberAccess.Right.Value)
+		// This is a module function call like Fmt.print_int(value)
+		funcName := memberAccess.Right.Value
+		if fn, exists := c.functionTable[funcName]; exists {
+			return c.compileFunctionCall(expr, fn)
+		}
+		return nil, fmt.Errorf("undefined function: %s", funcName)
 	}
 
 	return nil, fmt.Errorf("undefined function: %v", expr.Function)
@@ -1307,6 +1317,16 @@ func (c *Compiler) compileStructFieldAssignment(memberAccess *ast.MemberAccessEx
 	}
 
 	return nil, fmt.Errorf("cannot assign to field '%s' on non-struct type", memberName)
+}
+
+func (c *Compiler) compileImportStatement(stmt *ast.ImportStatement) error {
+	// Import statements are handled at the module resolution level
+	// The actual module code is already included in the program
+	// So we just need to create a module namespace entry
+
+	// For now, we don't need to do anything special in the compiler
+	// The module functions are already compiled as part of the program
+	return nil
 }
 
 func (c *Compiler) compileExternStatement(stmt *ast.ExternStatement) error {

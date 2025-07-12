@@ -1,21 +1,21 @@
 import Std::Runtime;
 
-fn print_int(value: int) -> none {
+let print_int = fn(value: int64) -> none {
     Runtime.printf("%d\n", value);
-}
+};
 
-fn print_string(value: string) -> none {
+let print_string = fn(value: string) -> none {
     Runtime.printf("%s\n", value);
-}
+};
 
-fn print_bool(value: bool) -> none {
+let print_bool = fn(value: bool) -> none {
     if value {
         Runtime.printf("true\n");
     } else {
         Runtime.printf("false\n");
-    }
-}
+    };
+};
 
-fn print_float(value: float64) -> none {
+let print_float = fn(value: float64) -> none {
     Runtime.printf("%f\n", value);
-}
+};

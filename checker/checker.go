@@ -250,7 +250,7 @@ func (c *Checker) Check(node ast.Node) Type {
 	case *ast.Program:
 		return c.checkProgram(node)
 	case *ast.ImportStatement:
-		return &NoneType{} // Imports are handled by file loading for now
+		return c.checkImportStatement(node)
 	case *ast.LetStatement:
 		return c.checkLetStatement(node)
 	case *ast.ReturnStatement:
@@ -301,10 +301,111 @@ func (c *Checker) Check(node ast.Node) Type {
 
 func (c *Checker) checkProgram(program *ast.Program) Type {
 	var result Type = &NoneType{}
+
+	// First pass: collect all function definitions and associate them with modules
+	c.collectModuleFunctions(program)
+
+	// Second pass: type check everything
 	for _, stmt := range program.Statements {
 		result = c.Check(stmt)
 	}
 	return result
+}
+
+func (c *Checker) collectModuleFunctions(program *ast.Program) {
+	var currentModule *ModuleType
+
+	for _, stmt := range program.Statements {
+		switch s := stmt.(type) {
+		case *ast.ImportStatement:
+			// Create or get the module
+			moduleName := s.Path.Segments[len(s.Path.Segments)-1].Value
+			if s.Alias != nil {
+				moduleName = s.Alias.Value
+			}
+
+			moduleType := &ModuleType{
+				Name:    moduleName,
+				Members: make(map[string]Type),
+			}
+			c.env.Set(moduleName, moduleType)
+			currentModule = moduleType
+
+		case *ast.LetStatement:
+			// If we're in a module context and this is a function, add it to the module
+			if currentModule != nil {
+				if funcLit, ok := s.Value.(*ast.FunctionLiteral); ok {
+					// Create function type
+					paramTypes := make([]Type, len(funcLit.Parameters))
+					for i, param := range funcLit.Parameters {
+						paramTypes[i] = c.parseTypeAnnotation(param.Type)
+					}
+					var returnType Type = &NoneType{}
+					if funcLit.ReturnType != nil {
+						returnType = c.parseTypeAnnotation(funcLit.ReturnType)
+					}
+					funcType := &FunctionType{
+						Parameters: paramTypes,
+						ReturnType: returnType,
+						IsVariadic: funcLit.IsVariadic,
+					}
+
+					// Add to module
+					currentModule.Members[s.Name.Value] = funcType
+				}
+			} else {
+				// This is a regular let statement in the main program, reset module context
+				currentModule = nil
+			}
+
+		case *ast.ExternStatement:
+			// If we're in a module context, add extern function to the module
+			if currentModule != nil {
+				paramTypes := make([]Type, len(s.Parameters))
+				for i, p := range s.Parameters {
+					paramTypes[i] = c.parseTypeAnnotation(p.Type)
+				}
+				var returnType Type = &NoneType{}
+				if s.ReturnType != nil {
+					returnType = c.parseTypeAnnotation(s.ReturnType)
+				}
+				funcType := &FunctionType{
+					Parameters: paramTypes,
+					ReturnType: returnType,
+					IsVariadic: s.IsVariadic,
+				}
+
+				// Add to module
+				currentModule.Members[s.Function.Value] = funcType
+			}
+
+		case *ast.ExpressionStatement:
+			// Expression statements from main program, reset module context
+			currentModule = nil
+		}
+	}
+}
+
+func (c *Checker) checkImportStatement(node *ast.ImportStatement) Type {
+	// Create module name from path
+	moduleName := node.Path.Segments[len(node.Path.Segments)-1].Value
+
+	// Use alias if provided, otherwise use the last segment of the path
+	if node.Alias != nil {
+		moduleName = node.Alias.Value
+	}
+
+	// Create a module type with empty members for now
+	// The members will be populated as functions are defined in the module
+	moduleType := &ModuleType{
+		Name:    moduleName,
+		Members: make(map[string]Type),
+	}
+
+	// Add the module to the environment
+	c.env.Set(moduleName, moduleType)
+
+	return &NoneType{}
 }
 
 func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
@@ -709,6 +810,23 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 			return &NoneType{}
 		}
 		return fieldType
+	}
+
+	if moduleType, ok := leftType.(*ModuleType); ok {
+		memberName := node.Right.Value
+		memberType, exists := moduleType.Members[memberName]
+		if !exists {
+			// Check if it's a function that might be defined later in the module
+			// For now, we'll look it up in the global environment
+			if typ, found := c.env.Get(memberName); found {
+				// Add the member to the module for future reference
+				moduleType.Members[memberName] = typ
+				return typ
+			}
+			c.addError(fmt.Sprintf("member '%s' not found in module %s", memberName, moduleType.Name))
+			return &NoneType{}
+		}
+		return memberType
 	}
 
 	c.addError(fmt.Sprintf("member access not supported on type %s", leftType.String()))
