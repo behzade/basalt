@@ -1,4 +1,6 @@
 // Test basic expressions, variables, and print
+import Std::Runtime;
+
 let x = 42;
 let y = 10;
 let sum = x + y;

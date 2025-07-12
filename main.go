@@ -12,13 +12,6 @@ import (
 )
 
 func main() {
-	runtimeBytes, err := os.ReadFile("stdlib/runtime.bst") // Adjust path if needed
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading runtime file: %v\n", err)
-		os.Exit(1)
-	}
-	runtimeInput := string(runtimeBytes)
-
 	var input string
 
 	if len(os.Args) > 1 {
@@ -40,8 +33,6 @@ func main() {
 		input = string(inputBytes)
 	}
 
-	input = runtimeInput + "\n" + input
-
 	outputPath := "./output"
 
 	// Check for --compile flag
@@ -51,7 +42,7 @@ func main() {
 		}
 	}
 
-	err = compileBasalt(input, outputPath)
+	err := compileBasalt(input, outputPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Compilation error: %v\n", err)
 		os.Exit(1)
