@@ -147,6 +147,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseReturnStatement()
 	case token.IMPORT:
 		return p.parseImportStatement()
+	case token.EXTERN:
+		return p.parseExternStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -757,6 +759,41 @@ func (p *Parser) parseImportStatement() *ast.ImportStatement {
 		p.nextToken()
 	}
 
+	return stmt
+}
+
+// In parser/parser.go
+
+func (p *Parser) parseExternStatement() *ast.ExternStatement {
+	stmt := &ast.ExternStatement{Token: p.curToken} // Current token is 'extern'
+
+	if !p.expectPeek(token.FUNCTION) {
+		return nil
+	} // Consumes 'fn'
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	} // Consumes the function name
+	stmt.Function = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(token.LPAREN) {
+		return nil
+	} // Consumes '('
+	stmt.Parameters = p.parseFunctionParameters() // On return, current token is ')'
+
+	if !p.expectPeek(token.ARROW) {
+		return nil
+	} // Consumes '->'
+
+	// The return type is the next token, which we expect to be an identifier.
+	if !p.expectPeek(token.IDENT) {
+		return nil // Consumes the return type identifier
+	}
+	stmt.ReturnType = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
+
+	// Optionally consume a final semicolon.
+	if p.peekTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
 	return stmt
 }
 

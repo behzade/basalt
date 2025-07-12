@@ -14,11 +14,14 @@ type Type interface {
 }
 
 // Basic types
-type IntegerType struct{}
-type FloatType struct{}
-type BooleanType struct{}
-type StringType struct{}
-type NoneType struct{}
+type (
+	IntegerType  struct{}
+	FloatType    struct{}
+	BooleanType  struct{}
+	StringType   struct{}
+	NoneType     struct{}
+	ArrayPtrType struct{}
+)
 
 func (t *IntegerType) String() string         { return "int64" }
 func (t *IntegerType) Equals(other Type) bool { _, ok := other.(*IntegerType); return ok }
@@ -34,6 +37,9 @@ func (t *StringType) Equals(other Type) bool { _, ok := other.(*StringType); ret
 
 func (t *NoneType) String() string         { return "none" }
 func (t *NoneType) Equals(other Type) bool { _, ok := other.(*NoneType); return ok }
+
+func (t *ArrayPtrType) String() string         { return "array_ptr" }
+func (t *ArrayPtrType) Equals(other Type) bool { _, ok := other.(*ArrayPtrType); return ok }
 
 // Array type
 type ArrayType struct {
@@ -248,6 +254,8 @@ func (c *Checker) Check(node ast.Node) Type {
 		return c.checkStructLiteral(node)
 	case *ast.StructInstanceExpression:
 		return c.checkStructInstanceExpression(node)
+	case *ast.ExternStatement:
+		return c.checkExternStatement(node)
 	default:
 		c.addError(fmt.Sprintf("unknown node type: %T", node))
 		return &NoneType{}
@@ -748,6 +756,8 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation *ast.TypeAnnotation) Type {
 		return &StringType{}
 	case "none":
 		return &NoneType{}
+	case "array_ptr":
+		return &ArrayPtrType{}
 	default:
 		// Check if it's a function type annotation like "fn(int64): int64"
 		if strings.HasPrefix(typeAnnotation.Value, "fn(") {
@@ -910,4 +920,23 @@ func (c *Checker) checkStructInstanceExpression(node *ast.StructInstanceExpressi
 	}
 
 	return structDef
+}
+
+func (c *Checker) checkExternStatement(node *ast.ExternStatement) Type {
+	paramTypes := make([]Type, len(node.Parameters))
+	for i, p := range node.Parameters {
+		paramTypes[i] = c.parseTypeAnnotation(p.Type)
+	}
+
+	returnType := c.parseTypeAnnotation(node.ReturnType)
+
+	funcType := &FunctionType{
+		Parameters: paramTypes,
+		ReturnType: returnType,
+	}
+
+	// Register the external function in the type environment
+	c.env.Set(node.Function.Value, funcType)
+
+	return &NoneType{}
 }

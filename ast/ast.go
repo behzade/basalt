@@ -550,3 +550,16 @@ func (hl *HashLiteral) String() string {
 	out.WriteString("}")
 	return out.String()
 }
+
+type ExternStatement struct {
+    Token      token.Token      // The 'extern' token
+    Function   *Identifier
+    Parameters []*Parameter
+    ReturnType *TypeAnnotation
+}
+
+func (es *ExternStatement) statementNode()       {}
+func (es *ExternStatement) TokenLiteral() string { return es.Token.Literal }
+func (es *ExternStatement) String() string {
+	return es.TokenLiteral() + " " + es.Function.String()
+}

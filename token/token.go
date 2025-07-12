@@ -52,6 +52,7 @@ const (
 
 	// Keywords
 	FUNCTION  = "FUNCTION"
+	EXTERN    = "EXTERN" // Add this
 	LET       = "LET"
 	MUT       = "MUT"
 	TRUE      = "TRUE"
@@ -69,6 +70,7 @@ const (
 // keywords maps keyword strings to their TokenType.
 var keywords = map[string]TokenType{
 	"fn":        FUNCTION,
+	"extern":    EXTERN,
 	"let":       LET,
 	"mut":       MUT,
 	"true":      TRUE,

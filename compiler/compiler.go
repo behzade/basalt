@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,8 +33,7 @@ type Compiler struct {
 	functionTable map[string]*ir.Func    // Maps function names to their IR functions
 	typeRegistry  map[string]*StructInfo // Maps struct names to their type information
 	env           *checker.TypeEnvironment
-	externalFuncs map[string]*ir.Func // Cache for external function declarations
-	blockCounter  int                 // Counter for generating unique block names
+	blockCounter  int // Counter for generating unique block names
 }
 
 // New creates a new compiler instance
@@ -44,45 +44,12 @@ func New() *Compiler {
 		functionTable: make(map[string]*ir.Func),
 		typeRegistry:  make(map[string]*StructInfo),
 		env:           checker.NewTypeEnvironment(),
-		externalFuncs: make(map[string]*ir.Func),
 		blockCounter:  0,
 	}
 }
 
-// declareExternalFunction declares an external C function
-func (c *Compiler) declareExternalFunction(name string, returnType types.Type, paramTypes ...types.Type) *ir.Func {
-	if fn, exists := c.externalFuncs[name]; exists {
-		return fn
-	}
-
-	// Create parameters
-	var params []*ir.Param
-	for i, paramType := range paramTypes {
-		params = append(params, ir.NewParam(fmt.Sprintf("arg%d", i), paramType))
-	}
-
-	fn := c.module.NewFunc(name, returnType, params...)
-	c.externalFuncs[name] = fn
-	return fn
-}
-
 // Compile compiles the AST program to LLVM IR
 func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
-	// Declare external functions
-	c.declareExternalFunction("basalt_print_int", types.Void, types.I64)
-	c.declareExternalFunction("basalt_print_bool", types.Void, types.I1)
-	c.declareExternalFunction("basalt_print_float", types.Void, types.Double)
-	c.declareExternalFunction("basalt_print_string", types.Void, types.I8Ptr)
-	c.declareExternalFunction("basalt_string_concat", types.I8Ptr, types.I8Ptr, types.I8Ptr)
-	c.declareExternalFunction("basalt_string_equals", types.I32, types.I8Ptr, types.I8Ptr)
-
-	// Declare array runtime functions
-	arrayPtrType := types.NewPointer(types.I8) // BasaltArray* represented as i8*
-	c.declareExternalFunction("basalt_array_new", arrayPtrType, types.I64)
-	c.declareExternalFunction("basalt_array_push", types.Void, arrayPtrType, types.I64)
-	c.declareExternalFunction("basalt_array_get", types.I64, arrayPtrType, types.I64)
-	c.declareExternalFunction("basalt_array_len", types.I64, arrayPtrType)
-
 	// Create main function
 	mainFunc := c.module.NewFunc("main", types.I32)
 	c.currentFunc = mainFunc
@@ -115,6 +82,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return err
 	case *ast.ReturnStatement:
 		return c.compileReturnStatement(s)
+	case *ast.ExternStatement:
+		return c.compileExternStatement(s)
 	default:
 		return fmt.Errorf("unsupported statement type: %T", stmt)
 	}
@@ -488,7 +457,10 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 
 		if c.isStringType(leftType) && c.isStringType(rightType) {
 			// String concatenation
-			concatFunc := c.externalFuncs["basalt_string_concat"]
+			concatFunc, ok := c.functionTable["basalt_string_concat"]
+			if !ok {
+				return nil, fmt.Errorf("runtime function basalt_string_concat not found")
+			}
 			return c.currentBlock.NewCall(concatFunc, left, right), nil
 		} else {
 			// Regular arithmetic addition
@@ -507,7 +479,10 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 
 		if c.isStringType(leftType) && c.isStringType(rightType) {
 			// String comparison
-			equalsFunc := c.externalFuncs["basalt_string_equals"]
+			equalsFunc, ok := c.functionTable["basalt_string_equals"]
+			if !ok {
+				return nil, fmt.Errorf("runtime function basalt_string_equals not found")
+			}
 			result := c.currentBlock.NewCall(equalsFunc, left, right)
 			// Convert i32 result to i1 (boolean)
 			zero := constant.NewInt(types.I32, 0)
@@ -523,7 +498,10 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 
 		if c.isStringType(leftType) && c.isStringType(rightType) {
 			// String comparison
-			equalsFunc := c.externalFuncs["basalt_string_equals"]
+			equalsFunc, ok := c.functionTable["basalt_string_equals"]
+			if !ok {
+				return nil, fmt.Errorf("runtime function basalt_string_equals not found")
+			}
 			result := c.currentBlock.NewCall(equalsFunc, left, right)
 			// Convert i32 result to i1 (boolean) and negate
 			zero := constant.NewInt(types.I32, 0)
@@ -595,7 +573,10 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 			}
 
 			// Call basalt_array_len
-			arrayLenFunc := c.externalFuncs["basalt_array_len"]
+			arrayLenFunc, ok := c.functionTable["basalt_array_len"]
+			if !ok {
+				return nil, fmt.Errorf("runtime function basalt_array_len not found")
+			}
 			return c.currentBlock.NewCall(arrayLenFunc, arrayValue), nil
 		}
 	}
@@ -637,27 +618,25 @@ func (c *Compiler) compilePrintCall(expr *ast.CallExpression) (value.Value, erro
 	}
 
 	// Determine which print function to call based on argument type
-	var printFunc *ir.Func
+	var funcName string
 	argType := arg.Type()
 
-	switch argType {
-	case types.I64:
-		printFunc = c.externalFuncs["basalt_print_int"]
-	case types.I1:
-		printFunc = c.externalFuncs["basalt_print_bool"]
-	case types.Double:
-		printFunc = c.externalFuncs["basalt_print_float"]
+	switch {
+	case argType.Equal(types.I64):
+		funcName = "basalt_print_int"
+	case argType.Equal(types.I1):
+		funcName = "basalt_print_bool"
+	case argType.Equal(types.Double):
+		funcName = "basalt_print_float"
+	case c.isStringType(argType):
+		funcName = "basalt_print_string"
 	default:
-		// Check if it's a pointer to i8 (string)
-		if ptrType, ok := argType.(*types.PointerType); ok {
-			if ptrType.ElemType == types.I8 {
-				printFunc = c.externalFuncs["basalt_print_string"]
-			} else {
-				return nil, fmt.Errorf("unsupported pointer type for print: %s", argType)
-			}
-		} else {
-			return nil, fmt.Errorf("unsupported type for print: %s", argType)
-		}
+		return nil, fmt.Errorf("unsupported type for print: %s", argType)
+	}
+
+	printFunc, exists := c.functionTable[funcName]
+	if !exists {
+		return nil, fmt.Errorf("runtime function %s not found", funcName)
 	}
 
 	// Call the print function
@@ -725,6 +704,8 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 		return types.I8Ptr // String is represented as i8* (pointer to i8)
 	case "none":
 		return types.Void
+	case "array_ptr":
+		return types.I8Ptr // Array pointer is represented as i8* (pointer to i8)
 	default:
 		return types.I64 // Default to i64
 	}
@@ -748,13 +729,13 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 	// Write LLVM IR to file
 	irFile := filepath.Join(tempDir, "output.ll")
 	irContent := module.String()
-	if err := os.WriteFile(irFile, []byte(irContent), 0644); err != nil {
+	if err := os.WriteFile(irFile, []byte(irContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write IR file: %w", err)
 	}
 
 	// Also write IR to debug.ll for inspection
 	debugFile := "debug.ll"
-	if err := os.WriteFile(debugFile, []byte(irContent), 0644); err != nil {
+	if err := os.WriteFile(debugFile, []byte(irContent), 0o644); err != nil {
 		// Don't fail if we can't write debug file
 		fmt.Printf("Warning: couldn't write debug file: %v\n", err)
 	}
@@ -762,14 +743,22 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 	// Compile IR to object file using llc
 	objFile := filepath.Join(tempDir, "output.o")
 	llcCmd := exec.Command("llc", "-filetype=obj", irFile, "-o", objFile)
+	var llcStdErr bytes.Buffer
+	var llcStdOut bytes.Buffer
+	llcCmd.Stdout = &llcStdOut
+	llcCmd.Stderr = &llcStdErr
 	if err := llcCmd.Run(); err != nil {
-		return fmt.Errorf("llc compilation failed: %w", err)
+		return fmt.Errorf("llc compilation failed: %w\n%v\n%v", err, llcStdOut.String(), llcStdErr.String())
 	}
 
 	// Link object file with runtime.c to executable using clang
-	clangCmd := exec.Command("clang", objFile, "runtime.c", "-o", outputPath)
+	clangCmd := exec.Command("clang", objFile, "-o", outputPath)
+	var clangStdErr bytes.Buffer
+	var clangStdOut bytes.Buffer
+	clangCmd.Stdout = &clangStdOut
+	clangCmd.Stderr = &clangStdErr
 	if err := clangCmd.Run(); err != nil {
-		return fmt.Errorf("clang linking failed: %w", err)
+		return fmt.Errorf("clang linking failed: %ww\n%v\n%v", err, clangStdOut.String(), clangStdErr.String())
 	}
 
 	return nil
@@ -854,11 +843,17 @@ func (c *Compiler) compileArrayLiteral(expr *ast.ArrayLiteral) (value.Value, err
 	// Create a new array with initial capacity equal to the number of elements
 	// For empty arrays, use a default capacity of 0
 	initialCapacity := constant.NewInt(types.I64, int64(len(expr.Elements)))
-	arrayNewFunc := c.externalFuncs["basalt_array_new"]
+	arrayNewFunc, ok := c.functionTable["basalt_array_new"]
+	if !ok {
+		return nil, fmt.Errorf("runtime function basalt_array_new not found")
+	}
 	arrayPtr := c.currentBlock.NewCall(arrayNewFunc, initialCapacity)
 
 	// Push each element to the array
-	arrayPushFunc := c.externalFuncs["basalt_array_push"]
+	arrayPushFunc, ok := c.functionTable["basalt_array_push"]
+	if !ok {
+		return nil, fmt.Errorf("runtime function basalt_array_push not found")
+	}
 	for _, element := range expr.Elements {
 		elementValue, err := c.compileExpression(element)
 		if err != nil {
@@ -901,7 +896,10 @@ func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) (value.Valu
 	}
 
 	// Call basalt_array_get
-	arrayGetFunc := c.externalFuncs["basalt_array_get"]
+	arrayGetFunc, ok := c.functionTable["basalt_array_get"]
+	if !ok {
+		return nil, fmt.Errorf("runtime function basalt_array_get not found")
+	}
 	return c.currentBlock.NewCall(arrayGetFunc, arrayValue, indexValue), nil
 }
 
@@ -1108,4 +1106,36 @@ func (c *Compiler) compileStructFieldAssignment(memberAccess *ast.MemberAccessEx
 	}
 
 	return nil, fmt.Errorf("cannot assign to field '%s' on non-struct type", memberName)
+}
+
+func (c *Compiler) compileExternStatement(stmt *ast.ExternStatement) error {
+	funcName := stmt.Function.Value
+
+	// Check if the function is already in the function table to avoid redefinition
+	if _, exists := c.functionTable[funcName]; exists {
+		return nil // Already declared, so we can skip it.
+	}
+
+	// 1. Create a slice to hold the LLVM parameter objects (*ir.Param).
+	var llvmParams []*ir.Param
+
+	// 2. Loop through the parameters from the AST.
+	for _, p := range stmt.Parameters {
+		// For each parameter, get its name and LLVM type.
+		paramName := p.Name.Value
+		paramType := c.typeAnnotationToLLVMType(p.Type)
+
+		// 3. Create a single LLVM parameter with ir.NewParam and add it to the slice.
+		llvmParams = append(llvmParams, ir.NewParam(paramName, paramType))
+	}
+
+	// 4. Get the return type.
+	returnType := c.typeAnnotationToLLVMType(stmt.ReturnType)
+
+	// 5. Declare the function using the correctly constructed slice of parameters.
+	// The '...' unpacks the llvmParams slice for the variadic function call.
+	fn := c.module.NewFunc(funcName, returnType, llvmParams...)
+	c.functionTable[funcName] = fn // Register it for calls
+
+	return nil
 }
