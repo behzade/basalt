@@ -20,7 +20,7 @@ type (
 	BooleanType  struct{}
 	StringType   struct{}
 	NoneType     struct{}
-	ArrayPtrType struct{}
+	ArrayPtrType struct{} // Represents a generic pointer, used for interop
 )
 
 func (t *IntegerType) String() string         { return "int64" }
@@ -52,6 +52,9 @@ func (t *ArrayType) String() string {
 
 func (t *ArrayType) Equals(other Type) bool {
 	if otherArray, ok := other.(*ArrayType); ok {
+		if t.ElementType.Equals(&NoneType{}) || otherArray.ElementType.Equals(&NoneType{}) {
+			return true // Allow comparison with untyped empty array
+		}
 		return t.ElementType.Equals(otherArray.ElementType)
 	}
 	return false
@@ -61,6 +64,7 @@ func (t *ArrayType) Equals(other Type) bool {
 type FunctionType struct {
 	Parameters []Type
 	ReturnType Type
+	IsVariadic bool
 }
 
 func (t *FunctionType) String() string {
@@ -68,12 +72,19 @@ func (t *FunctionType) String() string {
 	for i, param := range t.Parameters {
 		params[i] = param.String()
 	}
-	return fmt.Sprintf("fn(%s): %s", strings.Join(params, ", "), t.ReturnType.String())
+	paramStr := strings.Join(params, ", ")
+	if t.IsVariadic {
+		if len(params) > 0 {
+			paramStr += ", "
+		}
+		paramStr += "..."
+	}
+	return fmt.Sprintf("fn(%s) -> %s", paramStr, t.ReturnType.String())
 }
 
 func (t *FunctionType) Equals(other Type) bool {
 	if otherFunc, ok := other.(*FunctionType); ok {
-		if len(t.Parameters) != len(otherFunc.Parameters) {
+		if len(t.Parameters) != len(otherFunc.Parameters) || t.IsVariadic != otherFunc.IsVariadic {
 			return false
 		}
 		for i, param := range t.Parameters {
@@ -88,29 +99,17 @@ func (t *FunctionType) Equals(other Type) bool {
 
 // Struct type
 type StructType struct {
+	Name   string
 	Fields map[string]Type
 }
 
 func (t *StructType) String() string {
-	fields := make([]string, 0, len(t.Fields))
-	for name, fieldType := range t.Fields {
-		fields = append(fields, fmt.Sprintf("%s: %s", name, fieldType.String()))
-	}
-	return fmt.Sprintf("struct { %s }", strings.Join(fields, ", "))
+	return t.Name
 }
 
 func (t *StructType) Equals(other Type) bool {
 	if otherStruct, ok := other.(*StructType); ok {
-		if len(t.Fields) != len(otherStruct.Fields) {
-			return false
-		}
-		for name, fieldType := range t.Fields {
-			otherFieldType, exists := otherStruct.Fields[name]
-			if !exists || !fieldType.Equals(otherFieldType) {
-				return false
-			}
-		}
-		return true
+		return t.Name == otherStruct.Name
 	}
 	return false
 }
@@ -183,20 +182,12 @@ func New() *Checker {
 		env:    NewTypeEnvironment(),
 		errors: []error{},
 	}
-
-	// Add builtin functions
 	checker.setupBuiltins()
-
 	return checker
 }
 
 func (c *Checker) setupBuiltins() {
-	// Add print function - variadic function that accepts any type and returns none
-	printType := &FunctionType{
-		Parameters: []Type{}, // Variadic, handled specially
-		ReturnType: &NoneType{},
-	}
-	c.env.Set("print", printType)
+	// No built-ins needed anymore, as they are provided by the stdlib
 }
 
 func (c *Checker) Errors() []error {
@@ -213,7 +204,7 @@ func (c *Checker) Check(node ast.Node) Type {
 	case *ast.Program:
 		return c.checkProgram(node)
 	case *ast.ImportStatement:
-		return c.checkImportStatement(node)
+		return &NoneType{} // Imports are handled by file loading for now
 	case *ast.LetStatement:
 		return c.checkLetStatement(node)
 	case *ast.ReturnStatement:
@@ -264,119 +255,10 @@ func (c *Checker) Check(node ast.Node) Type {
 
 func (c *Checker) checkProgram(program *ast.Program) Type {
 	var result Type = &NoneType{}
-
 	for _, stmt := range program.Statements {
 		result = c.Check(stmt)
 	}
-
 	return result
-}
-
-func (c *Checker) checkImportStatement(node *ast.ImportStatement) Type {
-	// For now, we'll create a simple module type for standard library modules
-	modulePath := node.Path.String()
-
-	// Determine the variable name for the import
-	var variableName string
-	if node.Alias != nil {
-		variableName = node.Alias.Value
-	} else {
-		// Use the last part of the module path (e.g., "io" from "std::io")
-		pathSegments := node.Path.Segments
-		if len(pathSegments) > 0 {
-			variableName = pathSegments[len(pathSegments)-1].Value
-		} else {
-			c.addError("invalid module path")
-			return &NoneType{}
-		}
-	}
-
-	// Create a module type with known members
-	moduleType := &ModuleType{
-		Name:    modulePath,
-		Members: make(map[string]Type),
-	}
-
-	// Add known standard library functions
-	switch modulePath {
-	case "std::io":
-		// io.print is a variadic function that accepts any number of arguments
-		moduleType.Members["print"] = &FunctionType{
-			Parameters: []Type{}, // Variadic, so we'll handle specially
-			ReturnType: &NoneType{},
-		}
-		// io.write_file(filename: string, content: string) -> none
-		moduleType.Members["write_file"] = &FunctionType{
-			Parameters: []Type{&StringType{}, &StringType{}},
-			ReturnType: &NoneType{},
-		}
-		// io.read_file(filename: string) -> string
-		moduleType.Members["read_file"] = &FunctionType{
-			Parameters: []Type{&StringType{}},
-			ReturnType: &StringType{},
-		}
-	case "std::strings":
-		// strings.contains(text: string, substring: string) -> bool
-		moduleType.Members["contains"] = &FunctionType{
-			Parameters: []Type{&StringType{}, &StringType{}},
-			ReturnType: &BooleanType{},
-		}
-		// strings.split(text: string, separator: string) -> [string]
-		moduleType.Members["split"] = &FunctionType{
-			Parameters: []Type{&StringType{}, &StringType{}},
-			ReturnType: &ArrayType{ElementType: &StringType{}},
-		}
-		// strings.join(parts: [string], separator: string) -> string
-		moduleType.Members["join"] = &FunctionType{
-			Parameters: []Type{&ArrayType{ElementType: &StringType{}}, &StringType{}},
-			ReturnType: &StringType{},
-		}
-	}
-
-	c.env.Set(variableName, moduleType)
-	return &NoneType{}
-}
-
-func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) Type {
-	leftType := c.Check(node.Left)
-
-	if moduleType, ok := leftType.(*ModuleType); ok {
-		memberName := node.Right.Value
-		memberType, exists := moduleType.Members[memberName]
-		if !exists {
-			c.addError(fmt.Sprintf("undefined member '%s' on module %s", memberName, moduleType.Name))
-			return &NoneType{}
-		}
-		return memberType
-	}
-
-	// Handle array member access
-	if _, ok := leftType.(*ArrayType); ok {
-		memberName := node.Right.Value
-		if memberName == "len" {
-			// arr.len is a function that returns the length of the array
-			return &FunctionType{
-				Parameters: []Type{}, // No parameters
-				ReturnType: &IntegerType{},
-			}
-		}
-		c.addError(fmt.Sprintf("undefined member '%s' on array", memberName))
-		return &NoneType{}
-	}
-
-	// Handle struct member access
-	if structType, ok := leftType.(*StructType); ok {
-		memberName := node.Right.Value
-		fieldType, exists := structType.Fields[memberName]
-		if !exists {
-			c.addError(fmt.Sprintf("field '%s' not found in struct", memberName))
-			return &NoneType{}
-		}
-		return fieldType
-	}
-
-	c.addError(fmt.Sprintf("member access not supported on type %s", leftType.String()))
-	return &NoneType{}
 }
 
 func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
@@ -387,54 +269,40 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 
 	// Special handling for function definitions to support recursion
 	if funcLit, ok := node.Value.(*ast.FunctionLiteral); ok {
-		// First, determine the function type signature
 		paramTypes := make([]Type, len(funcLit.Parameters))
 		for i, param := range funcLit.Parameters {
-			if param.Type == nil {
-				c.addError(fmt.Sprintf("parameter %s must have a type annotation", param.Name.Value))
-				paramTypes[i] = &NoneType{}
-			} else {
-				paramTypes[i] = c.parseTypeAnnotation(param.Type)
-			}
+			paramTypes[i] = c.parseTypeAnnotation(param.Type)
 		}
-
-		var returnType Type
+		var returnType Type = &NoneType{}
 		if funcLit.ReturnType != nil {
 			returnType = c.parseTypeAnnotation(funcLit.ReturnType)
-		} else {
-			returnType = &NoneType{}
 		}
-
-		// Create the function type
 		funcType := &FunctionType{
 			Parameters: paramTypes,
 			ReturnType: returnType,
+			IsVariadic: funcLit.IsVariadic,
 		}
-
-		// Register the function name in the current scope BEFORE checking the body
-		// This allows recursive calls to work
 		c.env.Set(node.Name.Value, funcType)
 
-		// Now check the function body with the function name available
-		bodyType := c.checkFunctionLiteralBody(funcLit, funcType)
-
-		// If return type was specified, check compatibility
-		if funcLit.ReturnType != nil {
-			if !c.isAssignable(bodyType, returnType) {
-				c.addError(fmt.Sprintf("function body returns %s, expected %s", bodyType.String(), returnType.String()))
-			}
-		} else {
-			// Update return type based on body
-			funcType.ReturnType = bodyType
-			c.env.Set(node.Name.Value, funcType) // Update with correct return type
+		// Check function body in a new scope
+		funcEnv := NewEnclosedTypeEnvironment(c.env)
+		for i, param := range funcLit.Parameters {
+			funcEnv.Set(param.Name.Value, paramTypes[i])
 		}
+		savedEnv := c.env
+		c.env = funcEnv
+		bodyType := c.Check(funcLit.Body)
+		c.env = savedEnv
 
-		// If variable type annotation is provided, check compatibility
-		if node.Type != nil {
-			expectedType := c.parseTypeAnnotation(node.Type)
-			if !c.isAssignable(funcType, expectedType) {
-				c.addError(fmt.Sprintf("type mismatch: cannot assign %s to %s", funcType.String(), expectedType.String()))
+		// If return type is explicit, check against inferred body type
+		if funcLit.ReturnType != nil {
+			// A block's type is its last expression. If it ends in a semicolon, it's NoneType.
+			// Allow functions to implicitly return.
+			if !c.isAssignable(bodyType, returnType) && bodyType.String() != "none" {
+				c.addError(fmt.Sprintf("function body returns %s but expected %s", bodyType.String(), returnType.String()))
 			}
+		} else { // Infer return type
+			funcType.ReturnType = bodyType
 		}
 
 		return &NoneType{}
@@ -442,42 +310,16 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 
 	// Regular variable assignment
 	valueType := c.Check(node.Value)
-
-	// If type annotation is provided, check compatibility
 	if node.Type != nil {
 		expectedType := c.parseTypeAnnotation(node.Type)
 		if !c.isAssignable(valueType, expectedType) {
-			c.addError(fmt.Sprintf("type mismatch: cannot assign %s to %s", valueType.String(), expectedType.String()))
+			c.addError(fmt.Sprintf("type mismatch: cannot assign %s to variable of type %s", valueType.String(), expectedType.String()))
 		}
 		c.env.Set(node.Name.Value, expectedType)
 	} else {
-		// Type inference: use the type of the value
 		c.env.Set(node.Name.Value, valueType)
 	}
-
 	return &NoneType{}
-}
-
-func (c *Checker) checkFunctionLiteralBody(node *ast.FunctionLiteral, funcType *FunctionType) Type {
-	// Create new scope for function parameters
-	prevEnv := c.env
-	c.env = NewEnclosedTypeEnvironment(prevEnv)
-
-	// Add parameters to scope
-	for _, param := range node.Parameters {
-		if param.Type != nil {
-			paramType := c.parseTypeAnnotation(param.Type)
-			c.env.Set(param.Name.Value, paramType)
-		}
-	}
-
-	// Check function body
-	bodyType := c.Check(node.Body)
-
-	// Restore previous environment
-	c.env = prevEnv
-
-	return bodyType
 }
 
 func (c *Checker) checkReturnStatement(node *ast.ReturnStatement) Type {
@@ -488,132 +330,98 @@ func (c *Checker) checkReturnStatement(node *ast.ReturnStatement) Type {
 }
 
 func (c *Checker) checkExpressionStatement(node *ast.ExpressionStatement) Type {
-	return c.Check(node.Expression)
+	exprType := c.Check(node.Expression)
+	if node.HasSemicolon {
+		return &NoneType{}
+	}
+	return exprType
 }
 
 func (c *Checker) checkBlockStatement(node *ast.BlockStatement) Type {
-	var result Type = &NoneType{}
+	blockEnv := NewEnclosedTypeEnvironment(c.env)
+	savedEnv := c.env
+	c.env = blockEnv
+	defer func() { c.env = savedEnv }()
 
+	var result Type = &NoneType{}
 	for _, stmt := range node.Statements {
 		result = c.Check(stmt)
 	}
-
 	return result
 }
 
 func (c *Checker) checkIdentifier(node *ast.Identifier) Type {
-	typ, ok := c.env.Get(node.Value)
-	if !ok {
-		c.addError(fmt.Sprintf("identifier not found: %s", node.Value))
-		return &NoneType{}
+	if typ, ok := c.env.Get(node.Value); ok {
+		return typ
 	}
-	return typ
+	c.addError(fmt.Sprintf("identifier not found: %s", node.Value))
+	return &NoneType{}
 }
 
 func (c *Checker) checkArrayLiteral(node *ast.ArrayLiteral) Type {
 	if len(node.Elements) == 0 {
-		// For empty arrays, we'll assume they're integer arrays for now
-		// In a more sophisticated implementation, we'd need type inference or annotations
-		return &ArrayType{ElementType: &IntegerType{}}
+		return &ArrayType{ElementType: &NoneType{}} // An array of unknown type
 	}
-
-	elementType := c.Check(node.Elements[0])
-
+	elemType := c.Check(node.Elements[0])
 	for i, elem := range node.Elements[1:] {
-		elemType := c.Check(elem)
-		if !elementType.Equals(elemType) {
-			c.addError(fmt.Sprintf("array element %d has type %s, expected %s", i+1, elemType.String(), elementType.String()))
+		t := c.Check(elem)
+		if !elemType.Equals(t) {
+			c.addError(fmt.Sprintf("array element %d has type %s, expected %s", i+2, t.String(), elemType.String()))
 		}
 	}
-
-	return &ArrayType{ElementType: elementType}
+	return &ArrayType{ElementType: elemType}
 }
 
 func (c *Checker) checkFunctionLiteral(node *ast.FunctionLiteral) Type {
-	// Create new scope for function
-	prevEnv := c.env
-	c.env = NewEnclosedTypeEnvironment(prevEnv)
-
-	// Add parameters to scope
 	paramTypes := make([]Type, len(node.Parameters))
 	for i, param := range node.Parameters {
-		if param.Type == nil {
-			c.addError(fmt.Sprintf("parameter %s must have a type annotation", param.Name.Value))
-			paramTypes[i] = &NoneType{}
-			c.env.Set(param.Name.Value, &NoneType{})
-		} else {
-			paramType := c.parseTypeAnnotation(param.Type)
-			paramTypes[i] = paramType
-			c.env.Set(param.Name.Value, paramType)
-		}
+		paramTypes[i] = c.parseTypeAnnotation(param.Type)
 	}
-
-	// Determine return type first
-	var returnType Type
+	var returnType Type = &NoneType{}
 	if node.ReturnType != nil {
 		returnType = c.parseTypeAnnotation(node.ReturnType)
-	} else {
-		returnType = &NoneType{} // Default return type
 	}
-
-	// Create the function type early so it can be used for recursive calls
-	funcType := &FunctionType{
+	return &FunctionType{
 		Parameters: paramTypes,
 		ReturnType: returnType,
+		IsVariadic: node.IsVariadic,
 	}
-
-	// Check function body
-	bodyType := c.Check(node.Body)
-
-	// If return type was specified, check compatibility
-	if node.ReturnType != nil {
-		if !c.isAssignable(bodyType, returnType) {
-			c.addError(fmt.Sprintf("function body returns %s, expected %s", bodyType.String(), returnType.String()))
-		}
-	} else {
-		// Update return type based on body
-		funcType.ReturnType = bodyType
-	}
-
-	// Restore previous environment
-	c.env = prevEnv
-
-	return funcType
 }
 
 func (c *Checker) checkCallExpression(node *ast.CallExpression) Type {
-	funcType := c.Check(node.Function)
-
-	fnType, ok := funcType.(*FunctionType)
+	funcTypeVal := c.Check(node.Function)
+	fnType, ok := funcTypeVal.(*FunctionType)
 	if !ok {
-		c.addError(fmt.Sprintf("cannot call non-function type: %s", funcType.String()))
+		c.addError(fmt.Sprintf("cannot call non-function type: %s", funcTypeVal.String()))
 		return &NoneType{}
 	}
 
-	// Special handling for print function (variadic)
-	if ident, ok := node.Function.(*ast.Identifier); ok && ident.Value == "print" {
-		// Print accepts any single argument and returns none
-		if len(node.Arguments) != 1 {
-			c.addError(fmt.Sprintf("print expects exactly 1 argument, got %d", len(node.Arguments)))
-		} else {
-			// Type check the argument but allow any type
-			c.Check(node.Arguments[0])
+	if fnType.IsVariadic {
+		if len(node.Arguments) < len(fnType.Parameters) {
+			c.addError(fmt.Sprintf("wrong number of arguments for variadic function: expected at least %d, got %d", len(fnType.Parameters), len(node.Arguments)))
 		}
-		return &NoneType{}
+	} else {
+		if len(node.Arguments) != len(fnType.Parameters) {
+			c.addError(fmt.Sprintf("wrong number of arguments: expected %d, got %d", len(fnType.Parameters), len(node.Arguments)))
+		}
 	}
 
-	// Regular function call handling
-	if len(node.Arguments) != len(fnType.Parameters) {
-		c.addError(fmt.Sprintf("wrong number of arguments: expected %d, got %d", len(fnType.Parameters), len(node.Arguments)))
-		return fnType.ReturnType
+	// Type-check the non-variadic arguments
+	numFixedArgs := len(fnType.Parameters)
+	if len(node.Arguments) < numFixedArgs {
+		numFixedArgs = len(node.Arguments)
+	}
+	for i := 0; i < numFixedArgs; i++ {
+		argType := c.Check(node.Arguments[i])
+		paramType := fnType.Parameters[i]
+		if !c.isAssignable(argType, paramType) {
+			c.addError(fmt.Sprintf("argument %d has type %s, expected %s", i+1, argType.String(), paramType.String()))
+		}
 	}
 
-	for i, arg := range node.Arguments {
-		argType := c.Check(arg)
-		expectedType := fnType.Parameters[i]
-		if !c.isAssignable(argType, expectedType) {
-			c.addError(fmt.Sprintf("argument %d has type %s, expected %s", i, argType.String(), expectedType.String()))
-		}
+	// Type-check variadic arguments (for now, we just check them without a specific target type)
+	for i := len(fnType.Parameters); i < len(node.Arguments); i++ {
+		c.Check(node.Arguments[i])
 	}
 
 	return fnType.ReturnType
@@ -624,17 +432,18 @@ func (c *Checker) checkIfExpression(node *ast.IfExpression) Type {
 	if !condType.Equals(&BooleanType{}) {
 		c.addError(fmt.Sprintf("if condition must be boolean, got %s", condType.String()))
 	}
-
 	consequenceType := c.Check(node.Consequence)
-
 	if node.Alternative != nil {
 		alternativeType := c.Check(node.Alternative)
 		if !consequenceType.Equals(alternativeType) {
+			// This might be okay if one branch returns a value and the other doesn't,
+			// making the whole expression have type NoneType.
+			// For now, let's be strict.
 			c.addError(fmt.Sprintf("if branches have different types: %s vs %s", consequenceType.String(), alternativeType.String()))
 		}
+		return consequenceType
 	}
-
-	return consequenceType
+	return &NoneType{}
 }
 
 func (c *Checker) checkForExpression(node *ast.ForExpression) Type {
@@ -642,14 +451,12 @@ func (c *Checker) checkForExpression(node *ast.ForExpression) Type {
 	if !condType.Equals(&BooleanType{}) {
 		c.addError(fmt.Sprintf("for condition must be boolean, got %s", condType.String()))
 	}
-
 	c.Check(node.Consequence)
 	return &NoneType{}
 }
 
 func (c *Checker) checkPrefixExpression(node *ast.PrefixExpression) Type {
 	rightType := c.Check(node.Right)
-
 	switch node.Operator {
 	case "!":
 		if !rightType.Equals(&BooleanType{}) {
@@ -670,35 +477,56 @@ func (c *Checker) checkPrefixExpression(node *ast.PrefixExpression) Type {
 func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 	leftType := c.Check(node.Left)
 	rightType := c.Check(node.Right)
+	op := node.Operator
 
-	switch node.Operator {
-	case "+", "-", "*", "/":
-		return c.checkArithmeticOperation(node.Operator, leftType, rightType)
-	case "==", "!=":
-		if !leftType.Equals(rightType) {
-			c.addError(fmt.Sprintf("cannot compare %s with %s", leftType.String(), rightType.String()))
+	// Handle numeric types
+	isLeftNum := leftType.Equals(&IntegerType{}) || leftType.Equals(&FloatType{})
+	isRightNum := rightType.Equals(&IntegerType{}) || rightType.Equals(&FloatType{})
+	if isLeftNum && isRightNum {
+		switch op {
+		case "+", "-", "*", "/":
+			if leftType.Equals(&FloatType{}) || rightType.Equals(&FloatType{}) {
+				return &FloatType{}
+			}
+			return &IntegerType{}
+		case "<", ">", "==", "!=":
+			return &BooleanType{}
 		}
-		return &BooleanType{}
-	case "<", ">":
-		if !c.isComparable(leftType, rightType) {
-			c.addError(fmt.Sprintf("cannot compare %s with %s", leftType.String(), rightType.String()))
+	}
+
+	// Handle string types
+	isLeftString := leftType.Equals(&StringType{})
+	isRightString := rightType.Equals(&StringType{})
+	if isLeftString && isRightString {
+		switch op {
+		case "+":
+			return &StringType{}
+		case "==", "!=":
+			return &BooleanType{}
 		}
+	}
+
+	// Handle boolean types
+	isLeftBool := leftType.Equals(&BooleanType{})
+	isRightBool := rightType.Equals(&BooleanType{})
+	if isLeftBool && isRightBool && (op == "==" || op == "!=") {
 		return &BooleanType{}
-	case "=":
-		// Assignment
+	}
+
+	// Handle assignment
+	if op == "=" {
 		if !c.isAssignable(rightType, leftType) {
 			c.addError(fmt.Sprintf("cannot assign %s to %s", rightType.String(), leftType.String()))
 		}
 		return rightType
-	default:
-		c.addError(fmt.Sprintf("unknown infix operator: %s", node.Operator))
-		return &NoneType{}
 	}
+
+	c.addError(fmt.Sprintf("unknown infix operator: %s for types %s and %s", op, leftType.String(), rightType.String()))
+	return &NoneType{}
 }
 
 func (c *Checker) checkIndexExpression(node *ast.IndexExpression) Type {
 	leftType := c.Check(node.Left)
-
 	if arrayType, ok := leftType.(*ArrayType); ok {
 		indexType := c.Check(node.Start)
 		if !indexType.Equals(&IntegerType{}) {
@@ -706,46 +534,103 @@ func (c *Checker) checkIndexExpression(node *ast.IndexExpression) Type {
 		}
 		return arrayType.ElementType
 	}
-
 	c.addError(fmt.Sprintf("cannot index into %s", leftType.String()))
 	return &NoneType{}
 }
 
-func (c *Checker) checkArithmeticOperation(operator string, leftType, rightType Type) Type {
-	// String concatenation
-	if operator == "+" && leftType.Equals(&StringType{}) && rightType.Equals(&StringType{}) {
-		return &StringType{}
+func (c *Checker) isAssignable(from, to Type) bool {
+	if from.Equals(to) {
+		return true
 	}
-
-	// Numeric operations
-	if leftType.Equals(&IntegerType{}) && rightType.Equals(&IntegerType{}) {
-		return &IntegerType{}
+	// Allow assigning int to float
+	if from.Equals(&IntegerType{}) && to.Equals(&FloatType{}) {
+		return true
 	}
-
-	if leftType.Equals(&FloatType{}) && rightType.Equals(&FloatType{}) {
-		return &FloatType{}
+	// Allow assigning untyped array literal to any array type
+	if from.Equals(&ArrayType{ElementType: &NoneType{}}) {
+		if _, ok := to.(*ArrayType); ok {
+			return true
+		}
 	}
+	return false
+}
 
-	if (leftType.Equals(&IntegerType{}) && rightType.Equals(&FloatType{})) ||
-		(leftType.Equals(&FloatType{}) && rightType.Equals(&IntegerType{})) {
-		return &FloatType{}
+func (c *Checker) checkStructDefinition(structName string, node *ast.StructLiteral) Type {
+	fields := make(map[string]Type)
+	for _, field := range node.Fields {
+		fieldName := field.Name.Value
+		fieldType := c.parseTypeAnnotation(field.Type)
+		fields[fieldName] = fieldType
 	}
-
-	c.addError(fmt.Sprintf("cannot apply %s to %s and %s", operator, leftType.String(), rightType.String()))
+	structType := &StructType{Name: structName, Fields: fields}
+	c.env.Set(structName, structType)
 	return &NoneType{}
 }
 
-func (c *Checker) isAssignable(from, to Type) bool {
-	return from.Equals(to)
+func (c *Checker) checkStructLiteral(node *ast.StructLiteral) Type {
+	c.addError("struct literals must be assigned to a variable")
+	return &NoneType{}
 }
 
-func (c *Checker) isComparable(left, right Type) bool {
-	return (left.Equals(&IntegerType{}) || left.Equals(&FloatType{})) &&
-		(right.Equals(&IntegerType{}) || right.Equals(&FloatType{}))
+func (c *Checker) checkStructInstanceExpression(node *ast.StructInstanceExpression) Type {
+	structTypeVal := c.Check(node.StructExpr)
+	structDef, ok := structTypeVal.(*StructType)
+	if !ok {
+		c.addError(fmt.Sprintf("cannot instantiate non-struct type: %s", structTypeVal.String()))
+		return &NoneType{}
+	}
+	// Check field existence and types
+	for name, expr := range node.Fields {
+		expectedType, ok := structDef.Fields[name]
+		if !ok {
+			c.addError(fmt.Sprintf("field '%s' not found in struct %s", name, structDef.Name))
+			continue
+		}
+		actualType := c.Check(expr)
+		if !c.isAssignable(actualType, expectedType) {
+			c.addError(fmt.Sprintf("field '%s' expects type %s, got %s", name, expectedType.String(), actualType.String()))
+		}
+	}
+	// Check for missing fields
+	for name := range structDef.Fields {
+		if _, ok := node.Fields[name]; !ok {
+			c.addError(fmt.Sprintf("missing field '%s' in instantiation of struct %s", name, structDef.Name))
+		}
+	}
+	return structDef
 }
 
-func (c *Checker) parseTypeAnnotation(typeAnnotation *ast.TypeAnnotation) Type {
-	switch typeAnnotation.Value {
+func (c *Checker) checkExternStatement(node *ast.ExternStatement) Type {
+	paramTypes := make([]Type, len(node.Parameters))
+	for i, p := range node.Parameters {
+		paramTypes[i] = c.parseTypeAnnotation(p.Type)
+	}
+	var returnType Type = &NoneType{}
+	if node.ReturnType != nil {
+		returnType = c.parseTypeAnnotation(node.ReturnType)
+	}
+	funcType := &FunctionType{
+		Parameters: paramTypes,
+		ReturnType: returnType,
+		IsVariadic: node.IsVariadic,
+	}
+	c.env.Set(node.Function.Value, funcType)
+	return &NoneType{}
+}
+
+func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
+	var typeName string
+	switch ta := typeAnnotation.(type) {
+	case *ast.TypeAnnotation:
+		typeName = ta.Value
+	case *ast.Identifier:
+		typeName = ta.Value
+	default:
+		c.addError(fmt.Sprintf("invalid type annotation node: %T", typeAnnotation))
+		return &NoneType{}
+	}
+
+	switch typeName {
 	case "int64":
 		return &IntegerType{}
 	case "float64":
@@ -759,184 +644,27 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation *ast.TypeAnnotation) Type {
 	case "array_ptr":
 		return &ArrayPtrType{}
 	default:
-		// Check if it's a function type annotation like "fn(int64): int64"
-		if strings.HasPrefix(typeAnnotation.Value, "fn(") {
-			return c.parseFunctionTypeAnnotation(typeAnnotation.Value)
+		if typ, ok := c.env.Get(typeName); ok {
+			return typ
 		}
-		c.addError(fmt.Sprintf("unknown type: %s", typeAnnotation.Value))
+		c.addError(fmt.Sprintf("unknown type: %s", typeName))
 		return &NoneType{}
 	}
 }
 
-func (c *Checker) parseFunctionTypeAnnotation(typeStr string) Type {
-	// For now, we'll do a simple parsing of function type annotations
-	// This is a simplified parser for function types like "fn(int64): int64"
+func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) Type {
+	leftType := c.Check(node.Left)
 
-	// Remove "fn(" prefix
-	if !strings.HasPrefix(typeStr, "fn(") {
-		c.addError(fmt.Sprintf("invalid function type: %s", typeStr))
-		return &NoneType{}
-	}
-
-	// Find the matching closing parenthesis
-	parenCount := 0
-	paramEnd := -1
-	for i, char := range typeStr {
-		if char == '(' {
-			parenCount++
-		} else if char == ')' {
-			parenCount--
-			if parenCount == 0 {
-				paramEnd = i
-				break
-			}
-		}
-	}
-
-	if paramEnd == -1 {
-		c.addError(fmt.Sprintf("invalid function type: %s", typeStr))
-		return &NoneType{}
-	}
-
-	// Extract parameter types
-	paramStr := typeStr[3:paramEnd] // Remove "fn("
-	var paramTypes []Type
-
-	if paramStr != "" {
-		paramParts := strings.Split(paramStr, ",")
-		for _, part := range paramParts {
-			part = strings.TrimSpace(part)
-			paramTypes = append(paramTypes, c.parseSimpleType(part))
-		}
-	}
-
-	// Extract return type
-	returnTypeStr := ""
-	if len(typeStr) > paramEnd+1 && typeStr[paramEnd+1] == ':' {
-		returnTypeStr = strings.TrimSpace(typeStr[paramEnd+2:])
-	}
-
-	var returnType Type = &NoneType{}
-	if returnTypeStr != "" {
-		returnType = c.parseSimpleType(returnTypeStr)
-	}
-
-	return &FunctionType{
-		Parameters: paramTypes,
-		ReturnType: returnType,
-	}
-}
-
-func (c *Checker) parseSimpleType(typeStr string) Type {
-	switch strings.TrimSpace(typeStr) {
-	case "int64":
-		return &IntegerType{}
-	case "float64":
-		return &FloatType{}
-	case "bool":
-		return &BooleanType{}
-	case "string":
-		return &StringType{}
-	case "none":
-		return &NoneType{}
-	default:
-		c.addError(fmt.Sprintf("unknown type: %s", typeStr))
-		return &NoneType{}
-	}
-}
-
-// checkStructDefinition handles struct definitions in let statements
-func (c *Checker) checkStructDefinition(structName string, node *ast.StructLiteral) Type {
-	// Create struct type from the field definitions
-	fields := make(map[string]Type)
-
-	for _, field := range node.Fields {
-		fieldName := field.Name.Value
-		fieldTypeName := field.Type.Value
-
-		// Convert field type name to Type
-		var fieldType Type
-		switch fieldTypeName {
-		case "int64":
-			fieldType = &IntegerType{}
-		case "bool":
-			fieldType = &BooleanType{}
-		case "float64":
-			fieldType = &FloatType{}
-		case "string":
-			fieldType = &StringType{}
-		default:
-			c.addError(fmt.Sprintf("unsupported field type: %s", fieldTypeName))
-			fieldType = &NoneType{}
-		}
-
-		fields[fieldName] = fieldType
-	}
-
-	// Create and register the struct type
-	structType := &StructType{Fields: fields}
-	c.env.Set(structName, structType)
-
-	return &NoneType{}
-}
-
-// checkStructLiteral handles struct literal expressions
-func (c *Checker) checkStructLiteral(node *ast.StructLiteral) Type {
-	// This shouldn't be called directly as struct literals are handled in let statements
-	c.addError("struct literals must be assigned to a variable")
-	return &NoneType{}
-}
-
-// checkStructInstanceExpression handles struct instantiation
-func (c *Checker) checkStructInstanceExpression(node *ast.StructInstanceExpression) Type {
-	// Get the struct type from the left side (should be an identifier)
-	structType := c.Check(node.StructExpr)
-
-	structDef, ok := structType.(*StructType)
-	if !ok {
-		c.addError(fmt.Sprintf("cannot instantiate non-struct type: %s", structType.String()))
-		return &NoneType{}
-	}
-
-	// Check that all required fields are provided
-	for fieldName := range structDef.Fields {
-		if _, provided := node.Fields[fieldName]; !provided {
-			c.addError(fmt.Sprintf("missing field '%s' in struct instantiation", fieldName))
-		}
-	}
-
-	// Check field types
-	for fieldName, fieldExpr := range node.Fields {
-		expectedType, exists := structDef.Fields[fieldName]
+	if structType, ok := leftType.(*StructType); ok {
+		memberName := node.Right.Value
+		fieldType, exists := structType.Fields[memberName]
 		if !exists {
-			c.addError(fmt.Sprintf("field '%s' not found in struct definition", fieldName))
-			continue
+			c.addError(fmt.Sprintf("field '%s' not found in struct %s", memberName, structType.Name))
+			return &NoneType{}
 		}
-
-		actualType := c.Check(fieldExpr)
-		if !c.isAssignable(actualType, expectedType) {
-			c.addError(fmt.Sprintf("field '%s' expected type %s, got %s", fieldName, expectedType.String(), actualType.String()))
-		}
+		return fieldType
 	}
 
-	return structDef
-}
-
-func (c *Checker) checkExternStatement(node *ast.ExternStatement) Type {
-	paramTypes := make([]Type, len(node.Parameters))
-	for i, p := range node.Parameters {
-		paramTypes[i] = c.parseTypeAnnotation(p.Type)
-	}
-
-	returnType := c.parseTypeAnnotation(node.ReturnType)
-
-	funcType := &FunctionType{
-		Parameters: paramTypes,
-		ReturnType: returnType,
-	}
-
-	// Register the external function in the type environment
-	c.env.Set(node.Function.Value, funcType)
-
+	c.addError(fmt.Sprintf("member access not supported on type %s", leftType.String()))
 	return &NoneType{}
 }

@@ -120,7 +120,13 @@ func (l *Lexer) NextToken() token.Token {
 	case '>':
 		tok = newToken(token.GT, l.ch)
 	case '.':
-		tok = newToken(token.DOT, l.ch)
+		if l.peekChar() == '.' && l.readPosition+1 < len(l.input) && l.input[l.readPosition+1] == '.' {
+			l.readChar()
+			l.readChar()
+			tok = token.Token{Type: token.ELLIPSIS, Literal: "..."}
+		} else {
+			tok = newToken(token.DOT, l.ch)
+		}
 	case '?':
 		tok = newToken(token.QUESTION, l.ch)
 	case '"':

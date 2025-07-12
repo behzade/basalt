@@ -281,6 +281,7 @@ type FunctionLiteral struct {
 	Parameters []*Parameter    // Parameters with type annotations
 	ReturnType *TypeAnnotation // Optional return type annotation
 	Body       *BlockStatement
+	IsVariadic bool // New flag for variadic functions
 }
 
 func (fl *FunctionLiteral) expressionNode()      {}
@@ -294,6 +295,12 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(fl.TokenLiteral())
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
+	if fl.IsVariadic {
+		if len(params) > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString("...")
+	}
 	out.WriteString(")")
 	if fl.ReturnType != nil {
 		out.WriteString(": ")
@@ -552,14 +559,37 @@ func (hl *HashLiteral) String() string {
 }
 
 type ExternStatement struct {
-    Token      token.Token      // The 'extern' token
-    Function   *Identifier
-    Parameters []*Parameter
-    ReturnType *TypeAnnotation
+	Token      token.Token // The 'extern' token
+	Function   *Identifier
+	Parameters []*Parameter
+	ReturnType *TypeAnnotation
+	IsVariadic bool // New flag for variadic functions
 }
 
 func (es *ExternStatement) statementNode()       {}
 func (es *ExternStatement) TokenLiteral() string { return es.Token.Literal }
 func (es *ExternStatement) String() string {
-	return es.TokenLiteral() + " " + es.Function.String()
+	var out bytes.Buffer
+	params := []string{}
+	for _, p := range es.Parameters {
+		params = append(params, p.String())
+	}
+
+	out.WriteString(es.TokenLiteral() + " fn " + es.Function.String())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	if es.IsVariadic {
+		if len(params) > 0 {
+			out.WriteString(", ")
+		}
+		out.WriteString("...")
+	}
+	out.WriteString(")")
+
+	if es.ReturnType != nil {
+		out.WriteString(" -> " + es.ReturnType.String())
+	}
+
+	out.WriteString(";")
+	return out.String()
 }

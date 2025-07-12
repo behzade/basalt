@@ -43,6 +43,7 @@ const (
 	COLON      = ":"
 	COLONCOLON = "::"
 	DOT        = "."
+	ELLIPSIS   = "..." // New token for variadic functions
 	LPAREN     = "("
 	RPAREN     = ")"
 	LBRACE     = "{"

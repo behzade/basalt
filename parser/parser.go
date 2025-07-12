@@ -400,7 +400,7 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 		return nil
 	}
 
-	lit.Parameters = p.parseFunctionParameters()
+	lit.Parameters, lit.IsVariadic = p.parseFunctionParameters()
 
 	// Check for return type annotation with ->
 	if p.peekTokenIs(token.ARROW) {
@@ -420,57 +420,67 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return lit
 }
 
-func (p *Parser) parseFunctionParameters() []*ast.Parameter {
-	parameters := []*ast.Parameter{}
+func (p *Parser) parseFunctionParameters() ([]*ast.Parameter, bool) {
+	var parameters []*ast.Parameter
+	isVariadic := false
 
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
-		return parameters
+		return parameters, isVariadic
 	}
 
 	p.nextToken()
 
-	// Parse first parameter
+	// Handle first parameter or ellipsis
+	if p.curTokenIs(token.ELLIPSIS) {
+		isVariadic = true
+		if !p.expectPeek(token.RPAREN) {
+			return nil, false
+		}
+		return parameters, isVariadic
+	}
+
+	// It's a regular parameter
 	param := &ast.Parameter{
 		Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
 	}
-
-	// Check for type annotation
 	if p.peekTokenIs(token.COLON) {
-		p.nextToken() // consume the colon
+		p.nextToken()
 		if !p.expectPeek(token.IDENT) {
-			return nil
+			return nil, false
 		}
 		param.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 	}
-
 	parameters = append(parameters, param)
 
+	// Handle subsequent parameters
 	for p.peekTokenIs(token.COMMA) {
 		p.nextToken()
 		p.nextToken()
 
+		if p.curTokenIs(token.ELLIPSIS) {
+			isVariadic = true
+			break
+		}
+
 		param := &ast.Parameter{
 			Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
 		}
-
-		// Check for type annotation
 		if p.peekTokenIs(token.COLON) {
-			p.nextToken() // consume the colon
+			p.nextToken()
 			if !p.expectPeek(token.IDENT) {
-				return nil
+				return nil, false
 			}
 			param.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 		}
-
 		parameters = append(parameters, param)
 	}
 
 	if !p.expectPeek(token.RPAREN) {
-		return nil
+		return nil, false
 	}
 
-	return parameters
+	return parameters, isVariadic
 }
 
 func (p *Parser) parseBlockStatement() *ast.BlockStatement {
@@ -778,11 +788,16 @@ func (p *Parser) parseExternStatement() *ast.ExternStatement {
 	if !p.expectPeek(token.LPAREN) {
 		return nil
 	} // Consumes '('
-	stmt.Parameters = p.parseFunctionParameters() // On return, current token is ')'
+	stmt.Parameters, stmt.IsVariadic = p.parseFunctionParameters() // On return, current token is ')'
 
-	if !p.expectPeek(token.ARROW) {
-		return nil
-	} // Consumes '->'
+	if !p.peekTokenIs(token.ARROW) { // extern fn puts() -> none; might not have an arrow
+		if p.peekTokenIs(token.SEMICOLON) {
+			p.nextToken()
+		}
+		return stmt
+	}
+
+	p.nextToken() // Consumes '->'
 
 	// The return type is the next token, which we expect to be an identifier.
 	if !p.expectPeek(token.IDENT) {
@@ -807,10 +822,7 @@ func (p *Parser) parseStructLiteral() ast.Expression {
 
 	lit.Fields = p.parseStructFields()
 
-	if !p.expectPeek(token.RBRACE) {
-		return nil
-	}
-
+	// The RBRACE is consumed by parseStructFields
 	return lit
 }
 
@@ -825,45 +837,32 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 
 	p.nextToken()
 
-	field := &ast.StructField{}
-	if !p.curTokenIs(token.IDENT) {
-		return nil
-	}
-
-	field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	if !p.expectPeek(token.COLON) {
-		return nil
-	}
-
-	if !p.expectPeek(token.IDENT) {
-		return nil
-	}
-
-	field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	fields = append(fields, field)
-
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
-
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 		field := &ast.StructField{}
 		if !p.curTokenIs(token.IDENT) {
 			return nil
 		}
-
 		field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
 		if !p.expectPeek(token.COLON) {
 			return nil
 		}
-
 		if !p.expectPeek(token.IDENT) {
 			return nil
 		}
-
 		field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 		fields = append(fields, field)
+
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken()
+		} else if !p.peekTokenIs(token.RBRACE) {
+			return nil // Malformed
+		}
+	}
+
+	if !p.curTokenIs(token.RBRACE) {
+		p.peekError(token.RBRACE)
+		return nil
 	}
 
 	return fields
