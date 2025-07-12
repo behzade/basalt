@@ -1048,7 +1048,15 @@ func (p *Parser) parseMatchExpression() ast.Expression {
 	exp := &ast.MatchExpression{Token: p.curToken}
 
 	p.nextToken()
+
+	// Temporarily remove LBRACE from infix operators to prevent it from being consumed
+	lbraceInfix := p.infixParseFns[token.LBRACE]
+	delete(p.infixParseFns, token.LBRACE)
+
 	exp.Condition = p.parseExpression(LOWEST)
+
+	// Restore LBRACE infix operator
+	p.infixParseFns[token.LBRACE] = lbraceInfix
 
 	if !p.expectPeek(token.LBRACE) {
 		return nil
@@ -1093,7 +1101,12 @@ func (p *Parser) parseMatchArms() []*ast.MatchArm {
 		arms = append(arms, arm)
 
 		if p.peekTokenIs(token.COMMA) {
-			p.nextToken()
+			p.nextToken() // consume comma
+			// Check if we're at the end (trailing comma)
+			if p.peekTokenIs(token.RBRACE) {
+				break
+			}
+			// Move to next match arm
 			p.nextToken()
 		} else if p.peekTokenIs(token.RBRACE) {
 			break
