@@ -451,69 +451,21 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 
 	switch expr.Operator {
 	case "+":
-		// Check if both operands are strings (pointers to i8)
-		leftType := left.Type()
-		rightType := right.Type()
-
-		if c.isStringType(leftType) && c.isStringType(rightType) {
-			// String concatenation
-			concatFunc, ok := c.functionTable["basalt_string_concat"]
-			if !ok {
-				return nil, fmt.Errorf("runtime function basalt_string_concat not found")
-			}
-			return c.currentBlock.NewCall(concatFunc, left, right), nil
-		} else {
-			// Regular arithmetic addition
-			return c.currentBlock.NewAdd(left, right), nil
-		}
+		return c.compileAddition(left, right)
 	case "-":
-		return c.currentBlock.NewSub(left, right), nil
+		return c.compileSubtraction(left, right)
 	case "*":
-		return c.currentBlock.NewMul(left, right), nil
+		return c.compileMultiplication(left, right)
 	case "/":
-		return c.currentBlock.NewSDiv(left, right), nil
+		return c.compileDivision(left, right)
 	case "==":
-		// Check if both operands are strings
-		leftType := left.Type()
-		rightType := right.Type()
-
-		if c.isStringType(leftType) && c.isStringType(rightType) {
-			// String comparison
-			equalsFunc, ok := c.functionTable["basalt_string_equals"]
-			if !ok {
-				return nil, fmt.Errorf("runtime function basalt_string_equals not found")
-			}
-			result := c.currentBlock.NewCall(equalsFunc, left, right)
-			// Convert i32 result to i1 (boolean)
-			zero := constant.NewInt(types.I32, 0)
-			return c.currentBlock.NewICmp(enum.IPredNE, result, zero), nil
-		} else {
-			// Regular integer comparison
-			return c.currentBlock.NewICmp(enum.IPredEQ, left, right), nil
-		}
+		return c.compileEquality(left, right)
 	case "!=":
-		// Check if both operands are strings
-		leftType := left.Type()
-		rightType := right.Type()
-
-		if c.isStringType(leftType) && c.isStringType(rightType) {
-			// String comparison
-			equalsFunc, ok := c.functionTable["basalt_string_equals"]
-			if !ok {
-				return nil, fmt.Errorf("runtime function basalt_string_equals not found")
-			}
-			result := c.currentBlock.NewCall(equalsFunc, left, right)
-			// Convert i32 result to i1 (boolean) and negate
-			zero := constant.NewInt(types.I32, 0)
-			return c.currentBlock.NewICmp(enum.IPredEQ, result, zero), nil
-		} else {
-			// Regular integer comparison
-			return c.currentBlock.NewICmp(enum.IPredNE, left, right), nil
-		}
+		return c.compileInequality(left, right)
 	case "<":
-		return c.currentBlock.NewICmp(enum.IPredSLT, left, right), nil
+		return c.compileLessThan(left, right)
 	case ">":
-		return c.currentBlock.NewICmp(enum.IPredSGT, left, right), nil
+		return c.compileGreaterThan(left, right)
 	case "=":
 		// Assignment operator - left should be an identifier or member access
 		if ident, ok := expr.Left.(*ast.Identifier); ok {
@@ -536,6 +488,230 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 	}
 }
 
+// Helper methods for binary operations with type handling
+
+// compileAddition handles addition with type conversions and string concatenation
+func (c *Compiler) compileAddition(left, right value.Value) (value.Value, error) {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// String concatenation
+	if c.isStringType(leftType) && c.isStringType(rightType) {
+		return c.compileStringConcatenation(left, right)
+	}
+
+	// Numeric addition with type promotion
+	return c.compileNumericOperation(left, right, "add")
+}
+
+// compileSubtraction handles subtraction with type conversions
+func (c *Compiler) compileSubtraction(left, right value.Value) (value.Value, error) {
+	return c.compileNumericOperation(left, right, "sub")
+}
+
+// compileMultiplication handles multiplication with type conversions
+func (c *Compiler) compileMultiplication(left, right value.Value) (value.Value, error) {
+	return c.compileNumericOperation(left, right, "mul")
+}
+
+// compileDivision handles division with type conversions
+func (c *Compiler) compileDivision(left, right value.Value) (value.Value, error) {
+	return c.compileNumericOperation(left, right, "div")
+}
+
+// compileEquality handles equality comparison with string support
+func (c *Compiler) compileEquality(left, right value.Value) (value.Value, error) {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// String comparison
+	if c.isStringType(leftType) && c.isStringType(rightType) {
+		return c.compileStringComparison(left, right, true)
+	}
+
+	// Numeric comparison
+	return c.compileNumericComparison(left, right, "eq")
+}
+
+// compileInequality handles inequality comparison with string support
+func (c *Compiler) compileInequality(left, right value.Value) (value.Value, error) {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// String comparison
+	if c.isStringType(leftType) && c.isStringType(rightType) {
+		return c.compileStringComparison(left, right, false)
+	}
+
+	// Numeric comparison
+	return c.compileNumericComparison(left, right, "ne")
+}
+
+// compileLessThan handles less than comparison
+func (c *Compiler) compileLessThan(left, right value.Value) (value.Value, error) {
+	return c.compileNumericComparison(left, right, "lt")
+}
+
+// compileGreaterThan handles greater than comparison
+func (c *Compiler) compileGreaterThan(left, right value.Value) (value.Value, error) {
+	return c.compileNumericComparison(left, right, "gt")
+}
+
+// compileNumericOperation handles arithmetic operations with type promotion
+func (c *Compiler) compileNumericOperation(left, right value.Value, op string) (value.Value, error) {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// Promote types if necessary
+	if leftType.Equal(types.I64) && rightType.Equal(types.Double) {
+		// Convert int to float
+		left = c.currentBlock.NewSIToFP(left, types.Double)
+		leftType = types.Double
+	} else if leftType.Equal(types.Double) && rightType.Equal(types.I64) {
+		// Convert int to float
+		right = c.currentBlock.NewSIToFP(right, types.Double)
+		rightType = types.Double
+	}
+
+	// Perform operation based on type
+	if leftType.Equal(types.Double) && rightType.Equal(types.Double) {
+		switch op {
+		case "add":
+			return c.currentBlock.NewFAdd(left, right), nil
+		case "sub":
+			return c.currentBlock.NewFSub(left, right), nil
+		case "mul":
+			return c.currentBlock.NewFMul(left, right), nil
+		case "div":
+			return c.currentBlock.NewFDiv(left, right), nil
+		}
+	} else if leftType.Equal(types.I64) && rightType.Equal(types.I64) {
+		switch op {
+		case "add":
+			return c.currentBlock.NewAdd(left, right), nil
+		case "sub":
+			return c.currentBlock.NewSub(left, right), nil
+		case "mul":
+			return c.currentBlock.NewMul(left, right), nil
+		case "div":
+			return c.currentBlock.NewSDiv(left, right), nil
+		}
+	}
+
+	return nil, fmt.Errorf("unsupported types for %s operation: %s %s %s", op, leftType, op, rightType)
+}
+
+// compileNumericComparison handles numeric comparisons with type promotion
+func (c *Compiler) compileNumericComparison(left, right value.Value, op string) (value.Value, error) {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// Promote types if necessary
+	if leftType.Equal(types.I64) && rightType.Equal(types.Double) {
+		// Convert int to float
+		left = c.currentBlock.NewSIToFP(left, types.Double)
+		leftType = types.Double
+	} else if leftType.Equal(types.Double) && rightType.Equal(types.I64) {
+		// Convert int to float
+		right = c.currentBlock.NewSIToFP(right, types.Double)
+		rightType = types.Double
+	}
+
+	// Perform comparison based on type
+	if leftType.Equal(types.Double) && rightType.Equal(types.Double) {
+		switch op {
+		case "eq":
+			return c.currentBlock.NewFCmp(enum.FPredOEQ, left, right), nil
+		case "ne":
+			return c.currentBlock.NewFCmp(enum.FPredONE, left, right), nil
+		case "lt":
+			return c.currentBlock.NewFCmp(enum.FPredOLT, left, right), nil
+		case "gt":
+			return c.currentBlock.NewFCmp(enum.FPredOGT, left, right), nil
+		}
+	} else if leftType.Equal(types.I64) && rightType.Equal(types.I64) {
+		switch op {
+		case "eq":
+			return c.currentBlock.NewICmp(enum.IPredEQ, left, right), nil
+		case "ne":
+			return c.currentBlock.NewICmp(enum.IPredNE, left, right), nil
+		case "lt":
+			return c.currentBlock.NewICmp(enum.IPredSLT, left, right), nil
+		case "gt":
+			return c.currentBlock.NewICmp(enum.IPredSGT, left, right), nil
+		}
+	}
+
+	return nil, fmt.Errorf("unsupported types for %s comparison: %s %s %s", op, leftType, op, rightType)
+}
+
+// compileStringConcatenation implements string concatenation using C library functions
+func (c *Compiler) compileStringConcatenation(left, right value.Value) (value.Value, error) {
+	// Get strlen function
+	strlenFunc, ok := c.functionTable["strlen"]
+	if !ok {
+		return nil, fmt.Errorf("strlen function not found - ensure libc functions are declared")
+	}
+
+	// Get malloc function
+	mallocFunc, ok := c.functionTable["malloc"]
+	if !ok {
+		return nil, fmt.Errorf("malloc function not found - ensure libc functions are declared")
+	}
+
+	// Get strcpy function
+	strcpyFunc, ok := c.functionTable["strcpy"]
+	if !ok {
+		return nil, fmt.Errorf("strcpy function not found - ensure libc functions are declared")
+	}
+
+	// Get strcat function
+	strcatFunc, ok := c.functionTable["strcat"]
+	if !ok {
+		return nil, fmt.Errorf("strcat function not found - ensure libc functions are declared")
+	}
+
+	// Get lengths of both strings
+	leftLen := c.currentBlock.NewCall(strlenFunc, left)
+	rightLen := c.currentBlock.NewCall(strlenFunc, right)
+
+	// Calculate total length + 1 for null terminator
+	totalLen := c.currentBlock.NewAdd(leftLen, rightLen)
+	one := constant.NewInt(types.I64, 1)
+	totalLenPlusOne := c.currentBlock.NewAdd(totalLen, one)
+
+	// Allocate memory for result
+	result := c.currentBlock.NewCall(mallocFunc, totalLenPlusOne)
+
+	// Copy left string to result
+	c.currentBlock.NewCall(strcpyFunc, result, left)
+
+	// Concatenate right string to result
+	c.currentBlock.NewCall(strcatFunc, result, right)
+
+	return result, nil
+}
+
+// compileStringComparison implements string comparison using strcmp
+func (c *Compiler) compileStringComparison(left, right value.Value, isEqual bool) (value.Value, error) {
+	// Get strcmp function
+	strcmpFunc, ok := c.functionTable["strcmp"]
+	if !ok {
+		return nil, fmt.Errorf("strcmp function not found - ensure libc functions are declared")
+	}
+
+	// Call strcmp
+	result := c.currentBlock.NewCall(strcmpFunc, left, right)
+
+	// Compare result with 0
+	zero := constant.NewInt(types.I32, 0)
+	if isEqual {
+		return c.currentBlock.NewICmp(enum.IPredEQ, result, zero), nil
+	} else {
+		return c.currentBlock.NewICmp(enum.IPredNE, result, zero), nil
+	}
+}
+
 // isStringType checks if a type is a string (pointer to i8)
 func (c *Compiler) isStringType(t types.Type) bool {
 	if ptrType, ok := t.(*types.PointerType); ok {
@@ -552,40 +728,24 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 			return c.compilePrintCall(expr)
 		}
 
-		// Handle user-defined function calls
+		// Handle all function calls (user-defined and extern)
 		if fn, exists := c.functionTable[ident.Value]; exists {
-			return c.compileUserFunctionCall(expr, fn)
+			return c.compileFunctionCall(expr, fn)
 		}
 	}
 
-	// Handle member access expressions like arr.len()
+	// Handle member access expressions (for method calls if needed in the future)
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
-		if memberAccess.Right.Value == "len" {
-			// This is a .len() call
-			arrayValue, err := c.compileExpression(memberAccess.Left)
-			if err != nil {
-				return nil, err
-			}
-
-			// Verify no arguments are passed to len()
-			if len(expr.Arguments) != 0 {
-				return nil, fmt.Errorf("len() expects no arguments, got %d", len(expr.Arguments))
-			}
-
-			// Call basalt_array_len
-			arrayLenFunc, ok := c.functionTable["basalt_array_len"]
-			if !ok {
-				return nil, fmt.Errorf("runtime function basalt_array_len not found")
-			}
-			return c.currentBlock.NewCall(arrayLenFunc, arrayValue), nil
-		}
+		// For now, we don't support method calls, only property access
+		// This could be extended in the future for methods like arr.push(value)
+		return nil, fmt.Errorf("method calls not yet supported: %s", memberAccess.Right.Value)
 	}
 
 	return nil, fmt.Errorf("undefined function: %v", expr.Function)
 }
 
-// compileUserFunctionCall compiles a call to a user-defined function
-func (c *Compiler) compileUserFunctionCall(expr *ast.CallExpression, fn value.Value) (value.Value, error) {
+// compileFunctionCall compiles a call to any function (user-defined or extern)
+func (c *Compiler) compileFunctionCall(expr *ast.CallExpression, fn value.Value) (value.Value, error) {
 	// Compile arguments
 	var args []value.Value
 	for _, arg := range expr.Arguments {
@@ -600,6 +760,22 @@ func (c *Compiler) compileUserFunctionCall(expr *ast.CallExpression, fn value.Va
 	irFunc, ok := fn.(*ir.Func)
 	if !ok {
 		return nil, fmt.Errorf("invalid function type")
+	}
+
+	// Check if this is a variadic function call
+	if irFunc.Sig.Variadic {
+		// For variadic functions, we need to ensure we have at least the required number of arguments
+		requiredArgs := len(irFunc.Params)
+		if len(args) < requiredArgs {
+			return nil, fmt.Errorf("variadic function %s requires at least %d arguments, got %d",
+				irFunc.Name(), requiredArgs, len(args))
+		}
+	} else {
+		// For non-variadic functions, check exact argument count
+		if len(args) != len(irFunc.Params) {
+			return nil, fmt.Errorf("function %s expects %d arguments, got %d",
+				irFunc.Name(), len(irFunc.Params), len(args))
+		}
 	}
 
 	// Call the function
@@ -696,10 +872,18 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 	switch typeAnnotation.Value {
 	case "int64":
 		return types.I64
+	case "int32":
+		return types.I32
+	case "int16":
+		return types.I16
+	case "int8":
+		return types.I8
 	case "bool":
 		return types.I1
 	case "float64":
 		return types.Double
+	case "float32":
+		return types.Float
 	case "string":
 		return types.I8Ptr // String is represented as i8* (pointer to i8)
 	case "none":
@@ -707,7 +891,12 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 	case "array_ptr":
 		return types.I8Ptr // Array pointer is represented as i8* (pointer to i8)
 	default:
-		return types.I64 // Default to i64
+		// Check if it's a struct type
+		if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists {
+			return types.NewPointer(structInfo.LLVMType)
+		}
+		// Default to i64 for unknown types
+		return types.I64
 	}
 }
 
@@ -903,7 +1092,7 @@ func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) (value.Valu
 	return c.currentBlock.NewCall(arrayGetFunc, arrayValue, indexValue), nil
 }
 
-// compileMemberAccessExpression compiles member access like arr.len()
+// compileMemberAccessExpression compiles member access like arr.len or struct.field
 func (c *Compiler) compileMemberAccessExpression(expr *ast.MemberAccessExpression) (value.Value, error) {
 	// Compile the object being accessed
 	objectValue, err := c.compileExpression(expr.Left)
@@ -913,14 +1102,26 @@ func (c *Compiler) compileMemberAccessExpression(expr *ast.MemberAccessExpressio
 
 	memberName := expr.Right.Value
 
-	// Check if this is array.len() - we need to handle this specially since len() is a method call
-	// For now, we'll treat arr.len as a special case that returns a function-like value
-	// that can be called with no arguments
+	// Check if this is array.len - call basalt_array_len directly
 	if memberName == "len" {
-		// We need to return something that can be called
-		// For now, let's return a special marker that the call expression handler can recognize
-		// This is a bit of a hack, but it works for our current needs
-		return objectValue, nil // Return the array itself, CallExpression will handle len() specially
+		// Check if objectValue is an array (array_ptr type)
+		if objectValue.Type().Equal(types.I8Ptr) {
+			// Call basalt_array_len
+			arrayLenFunc, ok := c.functionTable["basalt_array_len"]
+			if !ok {
+				return nil, fmt.Errorf("runtime function basalt_array_len not found")
+			}
+			return c.currentBlock.NewCall(arrayLenFunc, objectValue), nil
+		}
+		// If it's a string, we could also support string.len here
+		if c.isStringType(objectValue.Type()) {
+			// Call strlen
+			strlenFunc, ok := c.functionTable["strlen"]
+			if !ok {
+				return nil, fmt.Errorf("strlen function not found")
+			}
+			return c.currentBlock.NewCall(strlenFunc, objectValue), nil
+		}
 	}
 
 	// Check if this is struct field access
@@ -1135,6 +1336,12 @@ func (c *Compiler) compileExternStatement(stmt *ast.ExternStatement) error {
 	// 5. Declare the function using the correctly constructed slice of parameters.
 	// The '...' unpacks the llvmParams slice for the variadic function call.
 	fn := c.module.NewFunc(funcName, returnType, llvmParams...)
+
+	// 6. Set the Variadic property if this is a variadic function
+	if stmt.IsVariadic {
+		fn.Sig.Variadic = true
+	}
+
 	c.functionTable[funcName] = fn // Register it for calls
 
 	return nil

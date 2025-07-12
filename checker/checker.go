@@ -198,6 +198,52 @@ func (c *Checker) addError(message string) {
 	c.errors = append(c.errors, &TypeError{Message: message})
 }
 
+func (c *Checker) addErrorWithLocation(message string, node ast.Node) {
+	var location string
+	if node != nil {
+		// Get token information from the node
+		switch n := node.(type) {
+		case *ast.Identifier:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.LetStatement:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.CallExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.InfixExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.PrefixExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.IntegerLiteral:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.FloatLiteral:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.StringLiteral:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.Boolean:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.ArrayLiteral:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.IndexExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.MemberAccessExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.IfExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.ForExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.FunctionLiteral:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.StructLiteral:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.StructInstanceExpression:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		case *ast.ExternStatement:
+			location = fmt.Sprintf("line %d, column %d: ", n.Token.Line, n.Token.Column)
+		}
+	}
+	c.errors = append(c.errors, &TypeError{Message: location + message})
+}
+
 // Check performs type checking on the given AST
 func (c *Checker) Check(node ast.Node) Type {
 	switch node := node.(type) {
@@ -354,7 +400,7 @@ func (c *Checker) checkIdentifier(node *ast.Identifier) Type {
 	if typ, ok := c.env.Get(node.Value); ok {
 		return typ
 	}
-	c.addError(fmt.Sprintf("identifier not found: %s", node.Value))
+	c.addErrorWithLocation(fmt.Sprintf("identifier not found: %s", node.Value), node)
 	return &NoneType{}
 }
 
@@ -392,17 +438,17 @@ func (c *Checker) checkCallExpression(node *ast.CallExpression) Type {
 	funcTypeVal := c.Check(node.Function)
 	fnType, ok := funcTypeVal.(*FunctionType)
 	if !ok {
-		c.addError(fmt.Sprintf("cannot call non-function type: %s", funcTypeVal.String()))
+		c.addErrorWithLocation(fmt.Sprintf("cannot call non-function type: %s", funcTypeVal.String()), node)
 		return &NoneType{}
 	}
 
 	if fnType.IsVariadic {
 		if len(node.Arguments) < len(fnType.Parameters) {
-			c.addError(fmt.Sprintf("wrong number of arguments for variadic function: expected at least %d, got %d", len(fnType.Parameters), len(node.Arguments)))
+			c.addErrorWithLocation(fmt.Sprintf("wrong number of arguments for variadic function: expected at least %d, got %d", len(fnType.Parameters), len(node.Arguments)), node)
 		}
 	} else {
 		if len(node.Arguments) != len(fnType.Parameters) {
-			c.addError(fmt.Sprintf("wrong number of arguments: expected %d, got %d", len(fnType.Parameters), len(node.Arguments)))
+			c.addErrorWithLocation(fmt.Sprintf("wrong number of arguments: expected %d, got %d", len(fnType.Parameters), len(node.Arguments)), node)
 		}
 	}
 
@@ -415,7 +461,7 @@ func (c *Checker) checkCallExpression(node *ast.CallExpression) Type {
 		argType := c.Check(node.Arguments[i])
 		paramType := fnType.Parameters[i]
 		if !c.isAssignable(argType, paramType) {
-			c.addError(fmt.Sprintf("argument %d has type %s, expected %s", i+1, argType.String(), paramType.String()))
+			c.addErrorWithLocation(fmt.Sprintf("argument %d has type %s, expected %s", i+1, argType.String(), paramType.String()), node)
 		}
 	}
 

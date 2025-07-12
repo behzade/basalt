@@ -9,6 +9,9 @@ extern fn basalt_print_bool(val: bool) -> none;
 extern fn basalt_print_string(str: string) -> none;
 extern fn basalt_print_float(val: float64) -> none;
 
+// Generic print function (implemented as a variadic function for flexibility)
+extern fn printf(format: string, ...) -> none;
+
 // --- String Functions ---
 extern fn basalt_string_concat(s1: string, s2: string) -> string;
 extern fn basalt_string_equals(s1: string, s2: string) -> bool;

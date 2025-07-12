@@ -7,6 +7,8 @@ type TokenType string
 type Token struct {
 	Type    TokenType
 	Literal string
+	Line    int // Line number where the token appears
+	Column  int // Column number where the token appears
 }
 
 // Defines all possible token types in our language.
