@@ -424,7 +424,8 @@ func (c *Compiler) compileIfExpression(expr *ast.IfExpression) (value.Value, err
 	// If the then and else values have different types, we need to handle this
 	// For now, assume they have the same type
 	if thenValue.Type() != elseValue.Type() {
-		return nil, fmt.Errorf("if branches return different types: %s vs %s", thenValue.Type(), elseValue.Type())
+		println(expr.String())
+		return nil, fmt.Errorf("if branches return different types: %s vs %s, %+v vs %+v", thenValue.Type(), elseValue.Type(), thenValue, elseValue)
 	}
 
 	// Don't create PHI node for void types
@@ -517,11 +518,11 @@ func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value
 	return lastVal, nil
 }
 
-// isARCManagedValue checks if a value is ARC-managed (allocated with arc_alloc)
+// isARCManagedValue checks if a value is ARC-managed (allocated with arc_alloc_internal)
 func (c *Compiler) isARCManagedValue(val value.Value) bool {
 	// For now, we consider string pointers as ARC-managed
 	// This is a simplified check - in a full implementation, we'd need to track
-	// which values were allocated with arc_alloc
+	// which values were allocated with arc_alloc_internal
 	return c.isStringType(val.Type())
 }
 
@@ -840,9 +841,9 @@ func (c *Compiler) compileStringConcatenation(left, right value.Value) (value.Va
 		result = c.currentBlock.NewCall(mallocFunc, totalLenPlusOne)
 	} else {
 		// In regular context, use ARC allocation
-		arcAllocFunc, ok := c.functionTable["arc_alloc"]
+		arcAllocFunc, ok := c.functionTable["arc_alloc_internal"]
 		if !ok {
-			return nil, fmt.Errorf("arc_alloc function not found")
+			return nil, fmt.Errorf("arc_alloc_internal function not found")
 		}
 		result = c.currentBlock.NewCall(arcAllocFunc, totalLenPlusOne)
 	}
