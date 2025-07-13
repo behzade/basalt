@@ -27,6 +27,9 @@ if (5 < 10) {
 10 == 10;
 10 != 9;
 array[1:3];
+unsafe {
+    let p: rawptr = malloc(8);
+}
 `
 
 	tests := []struct {
@@ -115,6 +118,19 @@ array[1:3];
 		{token.INT, "3"},
 		{token.RBRACKET, "]"},
 		{token.SEMICOLON, ";"},
+		{token.UNSAFE, "unsafe"},
+		{token.LBRACE, "{"},
+		{token.LET, "let"},
+		{token.IDENT, "p"},
+		{token.COLON, ":"},
+		{token.RAWPTR, "rawptr"},
+		{token.ASSIGN, "="},
+		{token.IDENT, "malloc"},
+		{token.LPAREN, "("},
+		{token.INT, "8"},
+		{token.RPAREN, ")"},
+		{token.SEMICOLON, ";"},
+		{token.RBRACE, "}"},
 		{token.EOF, ""},
 	}
 

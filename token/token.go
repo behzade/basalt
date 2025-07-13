@@ -72,6 +72,8 @@ const (
 	FOR       = "FOR"
 	ENUM      = "ENUM"
 	MATCH     = "MATCH"
+	UNSAFE    = "UNSAFE"
+	RAWPTR    = "RAWPTR"
 )
 
 // keywords maps keyword strings to their TokenType.
@@ -92,6 +94,8 @@ var keywords = map[string]TokenType{
 	"for":       FOR,
 	"enum":      ENUM,
 	"match":     MATCH,
+	"unsafe":    UNSAFE,
+	"rawptr":    RAWPTR,
 }
 
 // LookupIdent checks the keywords table to see if an identifier is a keyword.

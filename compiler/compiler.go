@@ -120,6 +120,8 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 		return c.compileExternStatement(s)
 	case *ast.ImportStatement:
 		return c.compileImportStatement(s)
+	case *ast.UnsafeStatement:
+		return c.compileUnsafeStatement(s)
 	// EnumLiteral is now handled as an expression in let statements
 	default:
 		return fmt.Errorf("unsupported statement type: %T", stmt)
@@ -156,15 +158,10 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 		// Use the declared type annotation
 		targetType = c.typeAnnotationToLLVMType(stmt.Type)
 
-		// Handle type conversion if needed
+		// The checker has already approved this assignment. If types don't match,
+		// it must be a valid cast (e.g., rawptr to *MyStruct).
 		if !value.Type().Equal(targetType) {
-			// Check if this is an int64 to pointer conversion
-			if value.Type().Equal(types.I64) {
-				if ptrType, ok := targetType.(*types.PointerType); ok {
-					// Convert int64 to pointer using inttoptr
-					value = c.currentBlock.NewIntToPtr(value, ptrType)
-				}
-			}
+			value = c.currentBlock.NewBitCast(value, targetType)
 		}
 	} else {
 		// Use the actual type of the compiled value
@@ -1104,6 +1101,8 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 		baseType = types.Float
 	case "string":
 		baseType = types.I8Ptr // String is represented as i8* (pointer to i8)
+	case "rawptr":
+		baseType = types.I8Ptr // rawptr is also represented as a generic i8*
 	case "none":
 		baseType = types.Void
 	default:
@@ -1244,6 +1243,8 @@ func (c *Compiler) compileImplementation(stmt ast.Statement) error {
 	case *ast.ExternStatement:
 		// Already handled in Pass 1.
 		return nil
+	case *ast.UnsafeStatement:
+		return c.compileUnsafeStatement(s)
 	default:
 		return fmt.Errorf("unsupported implementation statement type: %T", stmt)
 	}
@@ -1363,6 +1364,16 @@ func (c *Compiler) compileLetAssignment(stmt *ast.LetStatement) error {
 	var targetType types.Type
 	if stmt.Type != nil {
 		targetType = c.typeAnnotationToLLVMType(stmt.Type)
+		// The checker has already approved this assignment. If types don't match,
+		// it must be a valid cast (e.g., int64 to rawptr).
+		if !val.Type().Equal(targetType) {
+			if val.Type().Equal(types.I64) && targetType.Equal(types.I8Ptr) {
+				// Convert int64 to rawptr using inttoptr
+				val = c.currentBlock.NewIntToPtr(val, targetType)
+			} else {
+				val = c.currentBlock.NewBitCast(val, targetType)
+			}
+		}
 	} else {
 		targetType = val.Type()
 	}
@@ -1718,6 +1729,13 @@ func (c *Compiler) compileImportStatement(stmt *ast.ImportStatement) error {
 	// For now, we don't need to do anything special in the compiler
 	// The module functions are already compiled as part of the program
 	return nil
+}
+
+func (c *Compiler) compileUnsafeStatement(stmt *ast.UnsafeStatement) error {
+	// Unsafe blocks are just regular blocks from the compiler's perspective
+	// The type checker has already enforced the safety rules
+	_, err := c.compileBlockStatement(stmt.Body)
+	return err
 }
 
 func (c *Compiler) compileExternStatement(stmt *ast.ExternStatement) error {

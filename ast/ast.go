@@ -418,6 +418,21 @@ func (bs *BlockStatement) String() string {
 	return out.String()
 }
 
+// UnsafeStatement represents a block of code marked as unsafe
+type UnsafeStatement struct {
+	Token token.Token // The 'unsafe' token
+	Body  *BlockStatement
+}
+
+func (us *UnsafeStatement) statementNode()       {}
+func (us *UnsafeStatement) TokenLiteral() string { return us.Token.Literal }
+func (us *UnsafeStatement) String() string {
+	var out bytes.Buffer
+	out.WriteString("unsafe ")
+	out.WriteString(us.Body.String())
+	return out.String()
+}
+
 // MemberAccessExpression represents access to a member of an object using the dot operator (object.member)
 type MemberAccessExpression struct {
 	Token token.Token // The '.' token

@@ -162,6 +162,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		stmt = p.parseImportStatement()
 	case token.EXTERN:
 		stmt = p.parseExternStatement()
+	case token.UNSAFE:
+		stmt = p.parseUnsafeStatement()
 	default:
 		stmt = p.parseExpressionStatement()
 	}
@@ -899,6 +901,18 @@ func (p *Parser) parseExternStatement() *ast.ExternStatement {
 	return stmt
 }
 
+func (p *Parser) parseUnsafeStatement() *ast.UnsafeStatement {
+	stmt := &ast.UnsafeStatement{Token: p.curToken}
+
+	if !p.expectPeek(token.LBRACE) {
+		return nil
+	}
+
+	stmt.Body = p.parseBlockStatement()
+
+	return stmt
+}
+
 // parseStructLiteral parses struct definitions like "struct { a: int64, b: string }"
 func (p *Parser) parseStructLiteral() ast.Expression {
 	lit := &ast.StructLiteral{Token: p.curToken}
@@ -1221,8 +1235,20 @@ func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
 		p.nextToken() // consume '*'
 	}
 
-	if !p.expectPeek(token.IDENT) {
+	// Expect either an IDENT or the RAWPTR keyword.
+	if !p.peekTokenIs(token.IDENT) && !p.peekTokenIs(token.RAWPTR) {
+		p.peekError(token.IDENT) // Error still reports IDENT as expected type
 		return nil
+	}
+	p.nextToken()
+
+	// Handle rawptr as a special case
+	if p.curTokenIs(token.RAWPTR) {
+		return &ast.TypeAnnotation{
+			Token:     p.curToken,
+			Value:     "rawptr",
+			IsPointer: isPointer,
+		}
 	}
 
 	// Use the path parsing helper to handle `MyModule::MyType`

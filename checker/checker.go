@@ -23,6 +23,12 @@ type (
 	NoneType    struct{}
 )
 
+// RawPointerType represents the special rawptr type for unsafe operations
+type RawPointerType struct{}
+
+func (t *RawPointerType) String() string         { return "rawptr" }
+func (t *RawPointerType) Equals(other Type) bool { _, ok := other.(*RawPointerType); return ok }
+
 // PointerType represents a pointer to another type (e.g., *ArcHeader)
 type PointerType struct {
 	InnerType Type
@@ -233,8 +239,9 @@ func (e *TypeError) Error() string {
 
 // Checker performs static type checking
 type Checker struct {
-	env    *TypeEnvironment
-	errors []*TypeError
+	env               *TypeEnvironment
+	errors            []*TypeError
+	isInUnsafeContext bool // Flag to track if we are inside an unsafe block
 }
 
 func New() *Checker {
@@ -359,6 +366,8 @@ func (c *Checker) Check(node ast.Node) Type {
 		return c.checkEnumInstantiationExpression(node)
 	case *ast.MatchExpression:
 		return c.checkMatchExpression(node)
+	case *ast.UnsafeStatement:
+		return c.checkUnsafeStatement(node)
 	default:
 		c.addError(fmt.Sprintf("unknown node type: %T", node), token.Token{Type: token.ILLEGAL, Literal: "unknown"})
 		return &NoneType{}
@@ -515,8 +524,17 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 
 	// Regular variable assignment
 	valueType := c.Check(node.Value)
+
+	// Check for illegal rawptr declaration
+	if valueType.Equals(&RawPointerType{}) && !c.isInUnsafeContext {
+		c.addError("variables of type rawptr can only be declared inside an unsafe block", node.Token)
+	}
+
 	if node.Type != nil {
 		expectedType := c.parseTypeAnnotation(node.Type)
+		if expectedType.Equals(&RawPointerType{}) && !c.isInUnsafeContext {
+			c.addError("variables of type rawptr can only be declared inside an unsafe block", node.Token)
+		}
 		if !c.isAssignable(valueType, expectedType) {
 			c.addError(fmt.Sprintf("type mismatch: cannot assign %s to variable of type %s", valueType.String(), expectedType.String()), node.Token)
 		}
@@ -553,6 +571,14 @@ func (c *Checker) checkBlockStatement(node *ast.BlockStatement) Type {
 		result = c.Check(stmt)
 	}
 	return result
+}
+
+func (c *Checker) checkUnsafeStatement(node *ast.UnsafeStatement) Type {
+	// Set the unsafe context flag, check the body, then reset it.
+	c.isInUnsafeContext = true
+	defer func() { c.isInUnsafeContext = false }()
+
+	return c.Check(node.Body)
 }
 
 func (c *Checker) checkIdentifier(node *ast.Identifier) Type {
@@ -738,6 +764,24 @@ func (c *Checker) isAssignable(from, to Type) bool {
 	if from.Equals(to) {
 		return true
 	}
+
+	// Inside an unsafe block, allow casting between rawptr and any other pointer type.
+	if c.isInUnsafeContext {
+		_, isFromPtr := from.(*PointerType)
+		_, isToPtr := to.(*PointerType)
+		isFromRaw := from.Equals(&RawPointerType{})
+		isToRaw := to.Equals(&RawPointerType{})
+		isFromInt := from.Equals(&IntegerType{})
+
+		if (isFromRaw && isToPtr) || (isFromPtr && isToRaw) {
+			return true
+		}
+		// Allow integer to rawptr conversion in unsafe context
+		if isFromInt && isToRaw {
+			return true
+		}
+	}
+
 	if from.Equals(&IntegerType{}) && to.Equals(&FloatType{}) {
 		return true
 	}
@@ -856,6 +900,8 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 			innerType = &StringType{}
 		case "none":
 			innerType = &NoneType{}
+		case "rawptr":
+			innerType = &RawPointerType{}
 		default:
 			if typ, ok := c.env.Get(typeName); ok {
 				innerType = typ
