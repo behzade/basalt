@@ -50,11 +50,15 @@ type Compiler struct {
 	enumRegistry  map[string]*EnumInfo   // Maps enum names to their type information
 	env           *checker.TypeEnvironment
 	blockCounter  int // Counter for generating unique block names
+
+	// ARC management fields
+	scopeStack    [][]value.Value // Stack of ARC-managed variables per scope
+	isNoGCContext bool            // True if currently compiling inside a #[nogc] function
 }
 
 // New creates a new compiler instance
 func New() *Compiler {
-	return &Compiler{
+	c := &Compiler{
 		module:        ir.NewModule(),
 		symbolTable:   make(map[string]value.Value),
 		functionTable: make(map[string]*ir.Func),
@@ -62,7 +66,45 @@ func New() *Compiler {
 		enumRegistry:  make(map[string]*EnumInfo),
 		env:           checker.NewTypeEnvironment(),
 		blockCounter:  0,
+		scopeStack:    make([][]value.Value, 0),
+		isNoGCContext: false,
 	}
+
+	// Declare ARC runtime functions
+	c.declareARCFunctions()
+
+	return c
+}
+
+// declareARCFunctions declares the ARC runtime functions in the function table
+func (c *Compiler) declareARCFunctions() {
+	// arc_alloc(size: int64) -> array_ptr
+	arcAllocParams := []*ir.Param{
+		ir.NewParam("size", types.I64),
+	}
+	arcAllocFunc := c.module.NewFunc("arc_alloc", types.I8Ptr, arcAllocParams...)
+	c.functionTable["arc_alloc"] = arcAllocFunc
+
+	// arc_retain(ptr: array_ptr) -> none
+	arcRetainParams := []*ir.Param{
+		ir.NewParam("ptr", types.I8Ptr),
+	}
+	arcRetainFunc := c.module.NewFunc("arc_retain", types.Void, arcRetainParams...)
+	c.functionTable["arc_retain"] = arcRetainFunc
+
+	// arc_release(ptr: array_ptr) -> none
+	arcReleaseParams := []*ir.Param{
+		ir.NewParam("ptr", types.I8Ptr),
+	}
+	arcReleaseFunc := c.module.NewFunc("arc_release", types.Void, arcReleaseParams...)
+	c.functionTable["arc_release"] = arcReleaseFunc
+
+	// arc_get_ref_count(ptr: array_ptr) -> int64 (for debugging)
+	arcGetRefCountParams := []*ir.Param{
+		ir.NewParam("ptr", types.I8Ptr),
+	}
+	arcGetRefCountFunc := c.module.NewFunc("arc_get_ref_count", types.I64, arcGetRefCountParams...)
+	c.functionTable["arc_get_ref_count"] = arcGetRefCountFunc
 }
 
 // Compile compiles the AST program to LLVM IR
@@ -145,6 +187,12 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 	// Add to symbol table
 	c.symbolTable[stmt.Name.Value] = alloca
 
+	// Track ARC-managed variables in current scope
+	if c.isARCManagedValue(value) && len(c.scopeStack) > 0 {
+		currentScopeIndex := len(c.scopeStack) - 1
+		c.scopeStack[currentScopeIndex] = append(c.scopeStack[currentScopeIndex], value)
+	}
+
 	return nil
 }
 
@@ -158,6 +206,23 @@ func (c *Compiler) compileReturnStatement(stmt *ast.ReturnStatement) error {
 	value, err := c.compileExpression(stmt.ReturnValue)
 	if err != nil {
 		return err
+	}
+
+	// If returning an ARC-managed value, remove it from current scope's release list
+	// to prevent it from being freed before the caller receives it
+	// This is only needed when not in nogc context
+	if !c.isNoGCContext && c.isARCManagedValue(value) && len(c.scopeStack) > 0 {
+		currentScopeIndex := len(c.scopeStack) - 1
+		currentScope := c.scopeStack[currentScopeIndex]
+
+		// Remove the returned value from the scope's release list
+		for i, scopeValue := range currentScope {
+			if scopeValue == value {
+				// Remove from slice
+				c.scopeStack[currentScopeIndex] = append(currentScope[:i], currentScope[i+1:]...)
+				break
+			}
+		}
 	}
 
 	// For now, assume main returns int
@@ -432,6 +497,9 @@ func (c *Compiler) compileForExpression(expr *ast.ForExpression) (value.Value, e
 func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value, error) {
 	var lastValue value.Value = constant.NewInt(types.I64, 0) // Default value
 
+	// Push new scope for ARC management
+	c.scopeStack = append(c.scopeStack, []value.Value{})
+
 	for _, stmt := range block.Statements {
 		switch s := stmt.(type) {
 		case *ast.ExpressionStatement:
@@ -453,7 +521,31 @@ func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value
 		}
 	}
 
+	// Pop scope and release ARC-managed variables
+	if len(c.scopeStack) > 0 {
+		currentScope := c.scopeStack[len(c.scopeStack)-1]
+		c.scopeStack = c.scopeStack[:len(c.scopeStack)-1]
+
+		// Release variables in this scope only if not in nogc context
+		if !c.isNoGCContext {
+			arcReleaseFunc, ok := c.functionTable["arc_release"]
+			if ok {
+				for _, varPtr := range currentScope {
+					c.currentBlock.NewCall(arcReleaseFunc, varPtr)
+				}
+			}
+		}
+	}
+
 	return lastValue, nil
+}
+
+// isARCManagedValue checks if a value is ARC-managed (allocated with arc_alloc)
+func (c *Compiler) isARCManagedValue(val value.Value) bool {
+	// For now, we consider string pointers as ARC-managed
+	// This is a simplified check - in a full implementation, we'd need to track
+	// which values were allocated with arc_alloc
+	return c.isStringType(val.Type())
 }
 
 // compileIdentifier compiles an identifier (variable lookup)
@@ -510,6 +602,22 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 			if !exists {
 				return nil, fmt.Errorf("undefined variable: %s", ident.Value)
 			}
+
+			// Handle ARC retain/release for assignment only if not in nogc context
+			if !c.isNoGCContext {
+				// If assigning an ARC-managed value, retain it
+				if c.isARCManagedValue(right) {
+					arcRetainFunc, ok := c.functionTable["arc_retain"]
+					if ok {
+						c.currentBlock.NewCall(arcRetainFunc, right)
+					}
+				}
+
+				// If the variable previously held an ARC-managed value, release it
+				// This is simplified - in a full implementation, we'd need to track
+				// what the variable previously contained
+			}
+
 			// Store the right-hand side value into the variable
 			c.currentBlock.NewStore(right, ptr)
 			// Return the assigned value
@@ -717,7 +825,18 @@ func (c *Compiler) compileStringConcatenation(left, right value.Value) (value.Va
 	totalLenPlusOne := c.currentBlock.NewAdd(totalLen, one)
 
 	// Allocate memory for result
-	result := c.currentBlock.NewCall(mallocFunc, totalLenPlusOne)
+	var result value.Value
+	if c.isNoGCContext {
+		// In nogc context, use regular malloc
+		result = c.currentBlock.NewCall(mallocFunc, totalLenPlusOne)
+	} else {
+		// In regular context, use ARC allocation
+		arcAllocFunc, ok := c.functionTable["arc_alloc"]
+		if !ok {
+			return nil, fmt.Errorf("arc_alloc function not found")
+		}
+		result = c.currentBlock.NewCall(arcAllocFunc, totalLenPlusOne)
+	}
 
 	// Copy left string to result
 	c.currentBlock.NewCall(strcpyFunc, result, left)
@@ -792,6 +911,15 @@ func (c *Compiler) compileFunctionCall(expr *ast.CallExpression, fn value.Value)
 		if err != nil {
 			return nil, err
 		}
+
+		// Retain ARC-managed arguments only if not in nogc context
+		if !c.isNoGCContext && c.isARCManagedValue(argValue) {
+			arcRetainFunc, ok := c.functionTable["arc_retain"]
+			if ok {
+				c.currentBlock.NewCall(arcRetainFunc, argValue)
+			}
+		}
+
 		args = append(args, argValue)
 	}
 
@@ -1076,6 +1204,10 @@ func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.Function
 	savedFunc := c.currentFunc
 	savedBlock := c.currentBlock
 	savedSymbolTable := c.symbolTable
+	savedNoGCContext := c.isNoGCContext
+
+	// Set the NoGC context for this function's compilation
+	c.isNoGCContext = expr.IsNoGC()
 
 	// Set up new compilation context for the function
 	c.currentFunc = fn
@@ -1109,6 +1241,7 @@ func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.Function
 	c.currentFunc = savedFunc
 	c.currentBlock = savedBlock
 	c.symbolTable = savedSymbolTable
+	c.isNoGCContext = savedNoGCContext
 
 	return nil
 }
