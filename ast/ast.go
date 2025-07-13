@@ -478,8 +478,8 @@ func (is *ImportStatement) String() string {
 
 // StructField represents a field in a struct definition with name and type
 type StructField struct {
-	Name *Identifier // Field name
-	Type *Identifier // Field type (e.g., int64)
+	Name *Identifier     // Field name
+	Type *TypeAnnotation // Field type (e.g., int64)
 }
 
 // StructLiteral represents an anonymous struct definition: struct { a: int64, b: string }

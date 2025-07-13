@@ -941,6 +941,7 @@ func (p *Parser) parseStructLiteral() ast.Expression {
 }
 
 // parseStructFields parses the field definitions inside a struct
+// parseStructFields parses the field definitions inside a struct
 func (p *Parser) parseStructFields() []*ast.StructField {
 	fields := []*ast.StructField{}
 
@@ -951,29 +952,12 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 
 	p.nextToken()
 
-	// Parse first field
-	field := &ast.StructField{}
-	if !p.curTokenIs(token.IDENT) {
-		return nil
-	}
-	field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-
-	if !p.expectPeek(token.COLON) {
-		return nil
-	}
-	if !p.expectPeek(token.IDENT) {
-		return nil
-	}
-	field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
-	fields = append(fields, field)
-
-	// Parse additional fields
-	for p.peekTokenIs(token.COMMA) {
-		p.nextToken() // consume comma
-		p.nextToken() // move to next field
-
+	// This function body needs to be updated to handle multiple fields correctly.
+	// The key change is replacing the simple identifier parsing with parseTypeAnnotation.
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 		field := &ast.StructField{}
 		if !p.curTokenIs(token.IDENT) {
+			// Add an error or return nil if the field name is not an identifier
 			return nil
 		}
 		field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
@@ -981,13 +965,29 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 		if !p.expectPeek(token.COLON) {
 			return nil
 		}
-		if !p.expectPeek(token.IDENT) {
+
+		// vvvvvvvvvvvv THE FIX vvvvvvvvvvvv
+		// Use the dedicated function to parse the type annotation.
+		// This replaces the incorrect 'expectPeek(token.IDENT)'.
+		field.Type = p.parseTypeAnnotation()
+		if field.Type == nil {
 			return nil
 		}
-		field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 		fields = append(fields, field)
+
+		// Expect a comma or the closing brace
+		if p.peekTokenIs(token.COMMA) {
+			p.nextToken() // consume comma
+			p.nextToken() // move to the next field name
+		} else if !p.peekTokenIs(token.RBRACE) {
+			// If it's not a comma, it must be a closing brace, otherwise it's an error.
+			return nil
+		}
 	}
 
+	// This logic replaces your original for loop and final expectPeek
 	if !p.expectPeek(token.RBRACE) {
 		return nil
 	}

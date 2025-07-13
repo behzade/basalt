@@ -366,100 +366,79 @@ func (c *Checker) Check(node ast.Node) Type {
 }
 
 func (c *Checker) checkProgram(program *ast.Program) Type {
-	var result Type = &NoneType{}
-
-	// First pass: collect all function definitions and associate them with modules
-	c.collectModuleFunctions(program)
-
-	// Second pass: type check everything
+	// PASS 1: Collect all top-level struct, enum, and function definitions
 	for _, stmt := range program.Statements {
-		result = c.Check(stmt)
+		c.collectTopLevelDeclarations(stmt)
+	}
+
+	// PASS 2: Type-check the entire program
+	var result Type = &NoneType{}
+	for _, stmt := range program.Statements {
+		result = c.Check(stmt) // Use a new helper for the actual checking logic
 	}
 	return result
 }
 
-func (c *Checker) collectModuleFunctions(program *ast.Program) {
-	var currentModule *ModuleType
-
-	for _, stmt := range program.Statements {
-		switch s := stmt.(type) {
-		case *ast.ImportStatement:
-			// Create or get the module
-			moduleName := s.Path.Segments[len(s.Path.Segments)-1].Value
-			if s.Alias != nil {
-				moduleName = s.Alias.Value
+func (c *Checker) collectTopLevelDeclarations(stmt ast.Statement) {
+	switch s := stmt.(type) {
+	case *ast.LetStatement:
+		// Handle struct definitions
+		if structLit, ok := s.Value.(*ast.StructLiteral); ok {
+			fields := make(map[string]Type)
+			for _, field := range structLit.Fields {
+				fieldName := field.Name.Value
+				// Use parseTypeAnnotation to convert AST type to checker.Type
+				fieldType := c.parseTypeAnnotation(field.Type)
+				fields[fieldName] = fieldType
 			}
-
-			moduleType := &ModuleType{
-				Name:    moduleName,
-				Members: make(map[string]Type),
-			}
-			c.env.Set(moduleName, moduleType)
-			currentModule = moduleType
-
-		case *ast.LetStatement:
-			// Handle struct definitions - always make them globally available
-			if structLit, ok := s.Value.(*ast.StructLiteral); ok {
-				fields := make(map[string]Type)
-				for _, field := range structLit.Fields {
-					fieldName := field.Name.Value
-					fieldType := c.parseTypeAnnotation(field.Type)
-					fields[fieldName] = fieldType
-				}
-				structType := &StructType{Name: s.Name.Value, Fields: fields}
-				// Add struct to global environment so it can be used everywhere
-				c.env.Set(s.Name.Value, structType)
-			} else if currentModule != nil {
-				// If we're in a module context and this is a function, add it to the module
-				if funcLit, ok := s.Value.(*ast.FunctionLiteral); ok {
-					// Create function type
-					paramTypes := make([]Type, len(funcLit.Parameters))
-					for i, param := range funcLit.Parameters {
-						paramTypes[i] = c.parseTypeAnnotation(param.Type)
-					}
-					var returnType Type = &NoneType{}
-					if funcLit.ReturnType != nil {
-						returnType = c.parseTypeAnnotation(funcLit.ReturnType)
-					}
-					funcType := &FunctionType{
-						Parameters: paramTypes,
-						ReturnType: returnType,
-						IsVariadic: funcLit.IsVariadic,
-					}
-
-					// Add to module
-					currentModule.Members[s.Name.Value] = funcType
-				}
-			} else {
-				// This is a regular let statement in the main program, reset module context
-				currentModule = nil
-			}
-
-		case *ast.ExternStatement:
-			// If we're in a module context, add extern function to the module
-			if currentModule != nil {
-				paramTypes := make([]Type, len(s.Parameters))
-				for i, p := range s.Parameters {
-					paramTypes[i] = c.parseTypeAnnotation(p.Type)
-				}
-				var returnType Type = &NoneType{}
-				if s.ReturnType != nil {
-					returnType = c.parseTypeAnnotation(s.ReturnType)
-				}
-				funcType := &FunctionType{
-					Parameters: paramTypes,
-					ReturnType: returnType,
-					IsVariadic: s.IsVariadic,
-				}
-
-				// Add to module
-				currentModule.Members[s.Function.Value] = funcType
-			}
-
-		case *ast.ExpressionStatement:
-			// Expression statements from main program, reset module context
-			currentModule = nil
+			structType := &StructType{Name: s.Name.Value, Fields: fields}
+			c.env.Set(s.Name.Value, structType)
 		}
+
+		// Handle enum definitions
+		if enumLit, ok := s.Value.(*ast.EnumLiteral); ok {
+			// This check might be better here rather than in checkLetStatement
+			enumType := c.checkEnumLiteral(enumLit)
+			if enumTypeVal, ok := enumType.(*EnumType); ok {
+				enumTypeVal.Name = s.Name.Value
+				c.env.Set(s.Name.Value, enumTypeVal)
+			}
+		}
+
+		// Handle function definitions
+		if funcLit, ok := s.Value.(*ast.FunctionLiteral); ok {
+			paramTypes := make([]Type, len(funcLit.Parameters))
+			for i, param := range funcLit.Parameters {
+				paramTypes[i] = c.parseTypeAnnotation(param.Type)
+			}
+			var returnType Type = &NoneType{}
+			if funcLit.ReturnType != nil {
+				returnType = c.parseTypeAnnotation(funcLit.ReturnType)
+			}
+			funcType := &FunctionType{
+				Parameters: paramTypes,
+				ReturnType: returnType,
+				IsVariadic: funcLit.IsVariadic,
+			}
+			c.env.Set(s.Name.Value, funcType)
+		}
+
+	case *ast.ExternStatement:
+		// Handle extern function declarations
+		paramTypes := make([]Type, len(s.Parameters))
+		for i, p := range s.Parameters {
+			paramTypes[i] = c.parseTypeAnnotation(p.Type)
+		}
+		var returnType Type = &NoneType{}
+		if s.ReturnType != nil {
+			returnType = c.parseTypeAnnotation(s.ReturnType)
+		}
+		funcType := &FunctionType{
+			Parameters: paramTypes,
+			ReturnType: returnType,
+			IsVariadic: s.IsVariadic,
+		}
+		c.env.Set(s.Function.Value, funcType)
 	}
 }
 
@@ -503,39 +482,35 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 		return &NoneType{}
 	}
 
-	// Special handling for function definitions to support recursion
+	// Structs and enums were fully defined in pass 1. We can skip them here.
+	if _, ok := node.Value.(*ast.StructLiteral); ok {
+		return &NoneType{}
+	}
+	if _, ok := node.Value.(*ast.EnumLiteral); ok {
+		return &NoneType{}
+	}
+
+	// For functions, the signature is already in the environment.
+	// Now, we check the body.
 	if funcLit, ok := node.Value.(*ast.FunctionLiteral); ok {
-		paramTypes := make([]Type, len(funcLit.Parameters))
-		for i, param := range funcLit.Parameters {
-			paramTypes[i] = c.parseTypeAnnotation(param.Type)
-		}
-		var returnType Type = &NoneType{}
-		if funcLit.ReturnType != nil {
-			returnType = c.parseTypeAnnotation(funcLit.ReturnType)
-		}
-		funcType := &FunctionType{
-			Parameters: paramTypes,
-			ReturnType: returnType,
-			IsVariadic: funcLit.IsVariadic,
-		}
-		c.env.Set(node.Name.Value, funcType)
+		// Retrieve the function type we stored in pass 1
+		funcTypeVal, _ := c.env.Get(node.Name.Value)
+		funcType := funcTypeVal.(*FunctionType)
 
 		// Check function body in a new scope
 		funcEnv := NewEnclosedTypeEnvironment(c.env)
 		for i, param := range funcLit.Parameters {
-			funcEnv.Set(param.Name.Value, paramTypes[i])
+			funcEnv.Set(param.Name.Value, funcType.Parameters[i])
 		}
 		savedEnv := c.env
 		c.env = funcEnv
-		bodyType := c.Check(funcLit.Body)
+		bodyType := c.Check(funcLit.Body) // This will recursively call checkNode
 		c.env = savedEnv
 
 		// If return type is explicit, check against inferred body type
 		if funcLit.ReturnType != nil {
-			// A block's type is its last expression. If it ends in a semicolon, it's NoneType.
-			// Allow functions to implicitly return.
-			if !c.isAssignable(bodyType, returnType) && bodyType.String() != "none" {
-				c.addError(fmt.Sprintf("function body returns %s but expected %s", bodyType.String(), returnType.String()), node.Token)
+			if !c.isAssignable(bodyType, funcType.ReturnType) && bodyType.String() != "none" {
+				c.addError(fmt.Sprintf("function body returns %s but expected %s", bodyType.String(), funcType.ReturnType.String()), node.Token)
 			}
 		} else { // Infer return type
 			funcType.ReturnType = bodyType
