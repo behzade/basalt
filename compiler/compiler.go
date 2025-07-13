@@ -55,6 +55,7 @@ type Compiler struct {
 	scopeStack          [][]value.Value // Stack of ARC-managed variables per scope
 	isNoGCContext       bool            // True if currently compiling inside a #[nogc] function
 	currentModulePrefix string
+	moduleAliasMap      map[string]string // Maps module alias to full module path
 }
 
 // New creates a new compiler instance
@@ -70,6 +71,7 @@ func New() *Compiler {
 		scopeStack:          make([][]value.Value, 0),
 		isNoGCContext:       false,
 		currentModulePrefix: "",
+		moduleAliasMap:      make(map[string]string),
 	}
 
 	return c
@@ -150,6 +152,12 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 	value, err := c.compileExpression(stmt.Value)
 	if err != nil {
 		return err
+	}
+
+	// Special handling for the underscore identifier - discard the value
+	if stmt.Name.Value == "_" {
+		// Just evaluate the expression for side effects, don't store it
+		return nil
 	}
 
 	// Determine the target type
@@ -954,9 +962,12 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 			moduleAlias := moduleIdent.Value
 			funcName := memberAccess.Right.Value
 
-			// This is a simplification. A more robust compiler would have a map
-			// from alias -> full_path_prefix.
-			modulePrefix := strings.ReplaceAll(moduleAlias, "::", "_")
+			// Look up the full module path from the alias
+			modulePrefix, aliasExists := c.moduleAliasMap[moduleAlias]
+			if !aliasExists {
+				// Fallback to the old behavior for backward compatibility
+				modulePrefix = strings.ReplaceAll(moduleAlias, "::", "_")
+			}
 
 			mangledName := fmt.Sprintf("%s_%s", modulePrefix, funcName)
 			fn, exists = c.functionTable[mangledName]
@@ -1191,6 +1202,9 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 		// Check if it's a struct type
 		if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists {
 			baseType = structInfo.LLVMType
+		} else if enumInfo, exists := c.enumRegistry[typeAnnotation.Value]; exists {
+			// Check if it's an enum type
+			baseType = enumInfo.LLVMType
 		} else {
 			// Default to i64 for unknown types
 			baseType = types.I64
@@ -1202,9 +1216,12 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 		return types.NewPointer(baseType)
 	}
 
-	// For struct types, we always return a pointer (unless it's already a pointer type)
+	// For struct and enum types, we always return a pointer (unless it's already a pointer type)
 	if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
 		return types.NewPointer(structInfo.LLVMType)
+	}
+	if enumInfo, exists := c.enumRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
+		return types.NewPointer(enumInfo.LLVMType)
 	}
 
 	return baseType
@@ -1270,6 +1287,10 @@ func (c *Compiler) compileModuleStatement(stmt *ast.ModuleStatement) error {
 		pathSegments[i] = segment.Value
 	}
 	prefix := strings.Join(pathSegments, "_")
+
+	// Register the module alias mapping
+	moduleAlias := stmt.Name.Value
+	c.moduleAliasMap[moduleAlias] = prefix
 
 	savedPrefix := c.currentModulePrefix
 	c.currentModulePrefix = prefix
@@ -1443,6 +1464,13 @@ func (c *Compiler) compileLetAssignment(stmt *ast.LetStatement) error {
 	if err != nil {
 		return err
 	}
+
+	// Special handling for the underscore identifier - discard the value
+	if stmt.Name.Value == "_" {
+		// Just evaluate the expression for side effects, don't store it
+		return nil
+	}
+
 	var targetType types.Type
 	if stmt.Type != nil {
 		targetType = c.typeAnnotationToLLVMType(stmt.Type)
@@ -1854,6 +1882,13 @@ func (c *Compiler) compileExternStatement(stmt *ast.ExternStatement) error {
 	}
 
 	c.functionTable[funcName] = fn // Register it for calls
+
+	// Also register with module prefix if we're inside a module
+	// This allows the function to be called as Module.function_name
+	if c.currentModulePrefix != "" {
+		mangledName := fmt.Sprintf("%s_%s", c.currentModulePrefix, funcName)
+		c.functionTable[mangledName] = fn
+	}
 
 	return nil
 }
