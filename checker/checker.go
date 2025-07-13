@@ -23,6 +23,23 @@ type (
 	NoneType    struct{}
 )
 
+// HashMapType represents a hash map type with key and value types
+type HashMapType struct {
+	KeyType   Type
+	ValueType Type
+}
+
+func (t *HashMapType) String() string {
+	return fmt.Sprintf("HashMap<%s, %s>", t.KeyType.String(), t.ValueType.String())
+}
+
+func (t *HashMapType) Equals(other Type) bool {
+	if otherHashMap, ok := other.(*HashMapType); ok {
+		return t.KeyType.Equals(otherHashMap.KeyType) && t.ValueType.Equals(otherHashMap.ValueType)
+	}
+	return false
+}
+
 // RawPointerType represents the special rawptr type for unsafe operations
 type RawPointerType struct{}
 
@@ -338,6 +355,8 @@ func (c *Checker) Check(node ast.Node) Type {
 		return &BooleanType{}
 	case *ast.ArrayLiteral:
 		return c.checkArrayLiteral(node)
+	case *ast.HashLiteral:
+		return c.checkHashLiteral(node)
 	case *ast.FunctionLiteral:
 		return c.checkFunctionLiteral(node)
 	case *ast.CallExpression:
@@ -603,6 +622,35 @@ func (c *Checker) checkArrayLiteral(node *ast.ArrayLiteral) Type {
 	return &ArrayType{ElementType: elemType}
 }
 
+func (c *Checker) checkHashLiteral(node *ast.HashLiteral) Type {
+	if len(node.Pairs) == 0 {
+		// Empty hash literal {} - type can only be determined by explicit type annotation
+		// Return a generic hash map type that will be resolved later
+		return &HashMapType{KeyType: &NoneType{}, ValueType: &NoneType{}}
+	}
+
+	// Infer types from the first key-value pair
+	firstPair := node.Pairs[0]
+	keyType := c.Check(firstPair.Key)
+	valueType := c.Check(firstPair.Value)
+
+	// Validate all subsequent pairs match the inferred types
+	for i, pair := range node.Pairs[1:] {
+		pairKeyType := c.Check(pair.Key)
+		pairValueType := c.Check(pair.Value)
+
+		if !c.isAssignable(pairKeyType, keyType) {
+			c.addError(fmt.Sprintf("hash key %d has type %s, expected %s", i+2, pairKeyType.String(), keyType.String()), node.Token)
+		}
+
+		if !c.isAssignable(pairValueType, valueType) {
+			c.addError(fmt.Sprintf("hash value %d has type %s, expected %s", i+2, pairValueType.String(), valueType.String()), node.Token)
+		}
+	}
+
+	return &HashMapType{KeyType: keyType, ValueType: valueType}
+}
+
 func (c *Checker) checkFunctionLiteral(node *ast.FunctionLiteral) Type {
 	paramTypes := make([]Type, len(node.Parameters))
 	for i, param := range node.Parameters {
@@ -765,6 +813,21 @@ func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 	}
 
 	if op == "=" {
+		// Special handling for hash map assignments: map["key"] = value
+		if indexExpr, ok := node.Left.(*ast.IndexExpression); ok {
+			mapType := c.Check(indexExpr.Left)
+			if hashMapType, ok := mapType.(*HashMapType); ok {
+				keyType := c.Check(indexExpr.Start)
+				if !c.isAssignable(keyType, hashMapType.KeyType) {
+					c.addError(fmt.Sprintf("hash map key must be %s, got %s", hashMapType.KeyType.String(), keyType.String()), node.Token)
+				}
+				if !c.isAssignable(rightType, hashMapType.ValueType) {
+					c.addError(fmt.Sprintf("cannot assign %s to hash map value of type %s", rightType.String(), hashMapType.ValueType.String()), node.Token)
+				}
+				return rightType
+			}
+		}
+
 		if !c.isAssignable(rightType, leftType) {
 			c.addError(fmt.Sprintf("cannot assign %s to %s", rightType.String(), leftType.String()), node.Token)
 		}
@@ -777,6 +840,7 @@ func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 
 func (c *Checker) checkIndexExpression(node *ast.IndexExpression) Type {
 	leftType := c.Check(node.Left)
+
 	if arrayType, ok := leftType.(*ArrayType); ok {
 		indexType := c.Check(node.Start)
 		if !indexType.Equals(&IntegerType{}) {
@@ -784,6 +848,15 @@ func (c *Checker) checkIndexExpression(node *ast.IndexExpression) Type {
 		}
 		return arrayType.ElementType
 	}
+
+	if hashMapType, ok := leftType.(*HashMapType); ok {
+		indexType := c.Check(node.Start)
+		if !c.isAssignable(indexType, hashMapType.KeyType) {
+			c.addError(fmt.Sprintf("hash map key must be %s, got %s", hashMapType.KeyType.String(), indexType.String()), node.Token)
+		}
+		return hashMapType.ValueType
+	}
+
 	c.addError(fmt.Sprintf("cannot index into %s", leftType.String()), node.Token)
 	return &NoneType{}
 }
@@ -818,6 +891,17 @@ func (c *Checker) isAssignable(from, to Type) bool {
 			return true
 		}
 	}
+
+	// Allow empty hash map {} to be assigned to any hash map type
+	if fromHashMap, ok := from.(*HashMapType); ok {
+		if _, ok := to.(*HashMapType); ok {
+			// Empty hash map can be assigned to any specific hash map type
+			if fromHashMap.KeyType.Equals(&NoneType{}) && fromHashMap.ValueType.Equals(&NoneType{}) {
+				return true
+			}
+		}
+	}
+
 	if from.Equals(&IntegerType{}) {
 		if _, ok := to.(*PointerType); ok {
 			return true
@@ -878,10 +962,13 @@ func (c *Checker) checkExternStatement(node *ast.ExternStatement) Type {
 func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 	var typeName string
 	var isPointer bool
+	var genericParams []*ast.TypeAnnotation
+
 	switch ta := typeAnnotation.(type) {
 	case *ast.TypeAnnotation:
 		typeName = ta.Value
 		isPointer = ta.IsPointer
+		genericParams = ta.GenericParams
 	case *ast.Identifier:
 		typeName = ta.Value
 		isPointer = false
@@ -892,7 +979,12 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 
 	var innerType Type
 
-	if strings.Contains(typeName, "::") {
+	// Handle HashMap<K, V> generic type
+	if typeName == "HashMap" && len(genericParams) == 2 {
+		keyType := c.parseTypeAnnotation(genericParams[0])
+		valueType := c.parseTypeAnnotation(genericParams[1])
+		innerType = &HashMapType{KeyType: keyType, ValueType: valueType}
+	} else if strings.Contains(typeName, "::") {
 		parts := strings.Split(typeName, "::")
 		if len(parts) != 2 {
 			c.addError(fmt.Sprintf("invalid qualified type: %s", typeName), token.Token{})
@@ -930,6 +1022,9 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 			innerType = &NoneType{}
 		case "rawptr":
 			innerType = &RawPointerType{}
+		case "HashMap":
+			c.addError("HashMap requires generic parameters: HashMap<KeyType, ValueType>", token.Token{Type: token.IDENT, Literal: typeName})
+			return &NoneType{}
 		default:
 			if typ, ok := c.env.Get(typeName); ok {
 				innerType = typ
