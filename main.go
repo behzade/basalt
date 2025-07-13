@@ -198,11 +198,17 @@ func compileBasalt(input string, outputPath string) error {
 
 	// Check for type errors
 	if len(typeChecker.Errors()) > 0 {
+		// Create a string slice to hold the error messages.
 		errorMessages := make([]string, len(typeChecker.Errors()))
+
+		// Iterate over the slice of TypeError pointers and format each error message.
 		for i, err := range typeChecker.Errors() {
-			errorMessages[i] = err.Error()
+			// Format the error message to include the token's position and the error description.
+			errorMessages[i] = fmt.Sprintf("Error at line %d, column %d: %s", err.Token.Line, err.Token.Column, err.Message)
 		}
-		return fmt.Errorf("type errors: %v", errorMessages)
+
+		// Join the error messages into a single string, separated by newlines, and return it as an error.
+		return fmt.Errorf("type errors:\n%s", strings.Join(errorMessages, "\n"))
 	}
 
 	// Create compiler and compile to executable
