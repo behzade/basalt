@@ -1,4 +1,5 @@
-// Test user-defined functions
+import Std::Fmt;
+
 let add = fn(x: int64, y: int64) -> int64 {
     x + y
 };
@@ -13,7 +14,7 @@ let factorial = fn(n: int64) -> int64 {
 
 // Test function calls
 let result1 = add(5, 3);
-print(result1);
+Fmt.print_int(result1);
 
 let result2 = factorial(5);
-print(result2); 
+Fmt.print_int(result2);
