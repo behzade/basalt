@@ -208,12 +208,19 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 		}
 	}
 
-	if !p.expectPeek(token.ASSIGN) {
-		return nil
+	// Assignment is optional if there's a type annotation
+	if p.peekTokenIs(token.ASSIGN) {
+		p.nextToken()
+		p.nextToken()
+		stmt.Value = p.parseExpression(LOWEST)
+	} else if stmt.Type == nil {
+		// If there's no type annotation, assignment is required
+		if !p.expectPeek(token.ASSIGN) {
+			return nil
+		}
+		p.nextToken()
+		stmt.Value = p.parseExpression(LOWEST)
 	}
-
-	p.nextToken()
-	stmt.Value = p.parseExpression(LOWEST)
 
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
@@ -1229,6 +1236,19 @@ func (p *Parser) parseEnumInstantiationPattern() *ast.EnumInstantiationExpressio
 }
 
 func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
+	// Temporarily remove LT and GT from infix operators to prevent them from being consumed
+	// as comparison operators when parsing generic parameters
+	ltInfix := p.infixParseFns[token.LT]
+	gtInfix := p.infixParseFns[token.GT]
+	delete(p.infixParseFns, token.LT)
+	delete(p.infixParseFns, token.GT)
+
+	// Restore LT and GT infix operators when we're done
+	defer func() {
+		p.infixParseFns[token.LT] = ltInfix
+		p.infixParseFns[token.GT] = gtInfix
+	}()
+
 	isPointer := false
 	if p.peekTokenIs(token.ASTERISK) {
 		isPointer = true
@@ -1245,9 +1265,10 @@ func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
 	// Handle rawptr as a special case
 	if p.curTokenIs(token.RAWPTR) {
 		return &ast.TypeAnnotation{
-			Token:     p.curToken,
-			Value:     "rawptr",
-			IsPointer: isPointer,
+			Token:         p.curToken,
+			Value:         "rawptr",
+			IsPointer:     isPointer,
+			GenericParams: nil,
 		}
 	}
 
@@ -1264,11 +1285,62 @@ func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
 		pathSegments[i] = seg.Value
 	}
 
-	return &ast.TypeAnnotation{
-		Token:     path.Token,
-		Value:     strings.Join(pathSegments, "::"),
-		IsPointer: isPointer,
+	typeAnnotation := &ast.TypeAnnotation{
+		Token:         path.Token,
+		Value:         strings.Join(pathSegments, "::"),
+		IsPointer:     isPointer,
+		GenericParams: nil,
 	}
+
+	// Check if this type has generic parameters
+	if p.peekTokenIs(token.LT) {
+		p.nextToken() // consume '<'
+
+		genericParams := p.parseGenericParameters()
+		if genericParams == nil {
+			return nil
+		}
+
+		typeAnnotation.GenericParams = genericParams
+	}
+
+	return typeAnnotation
+}
+
+// parseGenericParameters parses a comma-separated list of type annotations within < >
+func (p *Parser) parseGenericParameters() []*ast.TypeAnnotation {
+	var params []*ast.TypeAnnotation
+
+	// Handle empty generic parameters
+	if p.peekTokenIs(token.GT) {
+		p.nextToken() // consume '>'
+		return params
+	}
+
+	// Parse first parameter
+	param := p.parseTypeAnnotation()
+	if param == nil {
+		return nil
+	}
+	params = append(params, param)
+
+	// Parse remaining parameters
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // consume ','
+
+		param := p.parseTypeAnnotation()
+		if param == nil {
+			return nil
+		}
+		params = append(params, param)
+	}
+
+	// Expect closing '>'
+	if !p.expectPeek(token.GT) {
+		return nil
+	}
+
+	return params
 }
 
 func (p *Parser) parsePathExpression() *ast.PathExpression {

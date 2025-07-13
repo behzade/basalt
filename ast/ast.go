@@ -46,20 +46,37 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-// TypeAnnotation represents a type annotation like int64, string, [int64], *ArcHeader, etc.
+// TypeAnnotation represents a type annotation like int64, string, [int64], *ArcHeader, HashMap<string, int64>, etc.
 type TypeAnnotation struct {
-	Token     token.Token // The type token
-	Value     string      // The type name (e.g., "int64", "string", "bool", "ArcHeader")
-	IsPointer bool        // True if this is a pointer type (e.g., *ArcHeader)
+	Token         token.Token       // The type token
+	Value         string            // The type name (e.g., "int64", "string", "bool", "ArcHeader", "HashMap")
+	IsPointer     bool              // True if this is a pointer type (e.g., *ArcHeader)
+	GenericParams []*TypeAnnotation // For generic types like HashMap<string, int64>
 }
 
 func (ta *TypeAnnotation) expressionNode()      {}
 func (ta *TypeAnnotation) TokenLiteral() string { return ta.Token.Literal }
 func (ta *TypeAnnotation) String() string {
+	var result string
 	if ta.IsPointer {
-		return "*" + ta.Value
+		result = "*" + ta.Value
+	} else {
+		result = ta.Value
 	}
-	return ta.Value
+
+	// Add generic parameters if they exist
+	if len(ta.GenericParams) > 0 {
+		result += "<"
+		for i, param := range ta.GenericParams {
+			if i > 0 {
+				result += ", "
+			}
+			result += param.String()
+		}
+		result += ">"
+	}
+
+	return result
 }
 
 // Parameter represents a function parameter with optional type annotation
@@ -97,8 +114,8 @@ func (ls *LetStatement) String() string {
 		out.WriteString(": ")
 		out.WriteString(ls.Type.String())
 	}
-	out.WriteString(" = ")
 	if ls.Value != nil {
+		out.WriteString(" = ")
 		out.WriteString(ls.Value.String())
 	}
 	out.WriteString(";")
