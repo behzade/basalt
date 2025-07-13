@@ -1,12 +1,12 @@
 extern fn printf(format: string, ...) -> none;
 
 extern fn strlen(s: string) -> int64;
-extern fn strcpy(dest: array_ptr, src: string) -> none;
-extern fn strcat(dest: array_ptr, src: string) -> none;
+extern fn strcpy(dest: int64, src: string) -> none;
+extern fn strcat(dest: int64, src: string) -> none;
 extern fn strcmp(s1: string, s2: string) -> int64;
 
-extern fn malloc(size: int64) -> array_ptr;
-extern fn free(ptr: array_ptr) -> none;
+extern fn malloc(size: int64) -> int64;
+extern fn free(ptr: int64) -> none;
 
 // ARC header structure - stored before the actual allocated memory
 let ArcHeader = struct {
@@ -15,7 +15,7 @@ let ArcHeader = struct {
 };
 
 // Allocate memory with ARC tracking
-let arc_alloc = fn(size: int64) -> array_ptr {
+let arc_alloc = fn(size: int64) -> int64 {
     // Allocate space for header + actual data
     let header_size = 16; // sizeof(ArcHeader) - 8 bytes for ref_count + 8 bytes for size
     let total_size = header_size + size;
@@ -35,9 +35,9 @@ let arc_alloc = fn(size: int64) -> array_ptr {
 };
 
 // Increase reference count
-let arc_retain = fn(ptr: array_ptr) -> none {
+let arc_retain = fn(ptr: int64) -> none {
     if ptr == 0 {
-        return none;
+        return;
     }
     
     let header_size = 16;
@@ -48,9 +48,9 @@ let arc_retain = fn(ptr: array_ptr) -> none {
 };
 
 // Decrease reference count and free if needed
-let arc_release = fn(ptr: array_ptr) -> none {
+let arc_release = fn(ptr: int64) -> none {
     if ptr == 0 {
-        return none;
+        return;
     }
     
     let header_size = 16;
@@ -65,7 +65,7 @@ let arc_release = fn(ptr: array_ptr) -> none {
 };
 
 // Get reference count (for debugging)
-let arc_get_ref_count = fn(ptr: array_ptr) -> int64 {
+let arc_get_ref_count = fn(ptr: int64) -> int64 {
     if ptr == 0 {
         return 0;
     }

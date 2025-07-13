@@ -175,11 +175,29 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 		return err
 	}
 
-	// Use the actual type of the compiled value
-	llvmType := value.Type()
+	// Determine the target type
+	var targetType types.Type
+	if stmt.Type != nil {
+		// Use the declared type annotation
+		targetType = c.typeAnnotationToLLVMType(stmt.Type)
+		
+		// Handle type conversion if needed
+		if !value.Type().Equal(targetType) {
+			// Check if this is an int64 to pointer conversion
+			if value.Type().Equal(types.I64) {
+				if ptrType, ok := targetType.(*types.PointerType); ok {
+					// Convert int64 to pointer using inttoptr
+					value = c.currentBlock.NewIntToPtr(value, ptrType)
+				}
+			}
+		}
+	} else {
+		// Use the actual type of the compiled value
+		targetType = value.Type()
+	}
 
 	// Allocate stack space for the variable
-	alloca := c.currentBlock.NewAlloca(llvmType)
+	alloca := c.currentBlock.NewAlloca(targetType)
 
 	// Store the value in the allocated space
 	c.currentBlock.NewStore(value, alloca)
@@ -1104,8 +1122,6 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 		baseType = types.I8Ptr // String is represented as i8* (pointer to i8)
 	case "none":
 		baseType = types.Void
-	case "array_ptr":
-		baseType = types.I8Ptr // Array pointer is represented as i8* (pointer to i8)
 	default:
 		// Check if it's a struct type
 		if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists {

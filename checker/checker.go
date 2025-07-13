@@ -16,12 +16,11 @@ type Type interface {
 
 // Basic types
 type (
-	IntegerType  struct{}
-	FloatType    struct{}
-	BooleanType  struct{}
-	StringType   struct{}
-	NoneType     struct{}
-	ArrayPtrType struct{} // Represents a generic pointer, used for interop
+	IntegerType struct{}
+	FloatType   struct{}
+	BooleanType struct{}
+	StringType  struct{}
+	NoneType    struct{}
 )
 
 // PointerType represents a pointer to another type (e.g., *ArcHeader)
@@ -54,9 +53,6 @@ func (t *StringType) Equals(other Type) bool { _, ok := other.(*StringType); ret
 
 func (t *NoneType) String() string         { return "none" }
 func (t *NoneType) Equals(other Type) bool { _, ok := other.(*NoneType); return ok }
-
-func (t *ArrayPtrType) String() string         { return "array_ptr" }
-func (t *ArrayPtrType) Equals(other Type) bool { _, ok := other.(*ArrayPtrType); return ok }
 
 // Array type
 type ArrayType struct {
@@ -259,7 +255,7 @@ func (c *Checker) Errors() []*TypeError {
 }
 
 func (c *Checker) addError(message string, token token.Token) {
-	c.errors = append(c.errors, &TypeError{Message: message,  Token: token})
+	c.errors = append(c.errors, &TypeError{Message: message, Token: token})
 }
 
 func (c *Checker) addErrorWithLocation(message string, node ast.Node) {
@@ -402,8 +398,19 @@ func (c *Checker) collectModuleFunctions(program *ast.Program) {
 			currentModule = moduleType
 
 		case *ast.LetStatement:
-			// If we're in a module context and this is a function, add it to the module
-			if currentModule != nil {
+			// Handle struct definitions - always make them globally available
+			if structLit, ok := s.Value.(*ast.StructLiteral); ok {
+				fields := make(map[string]Type)
+				for _, field := range structLit.Fields {
+					fieldName := field.Name.Value
+					fieldType := c.parseTypeAnnotation(field.Type)
+					fields[fieldName] = fieldType
+				}
+				structType := &StructType{Name: s.Name.Value, Fields: fields}
+				// Add struct to global environment so it can be used everywhere
+				c.env.Set(s.Name.Value, structType)
+			} else if currentModule != nil {
+				// If we're in a module context and this is a function, add it to the module
 				if funcLit, ok := s.Value.(*ast.FunctionLiteral); ok {
 					// Create function type
 					paramTypes := make([]Type, len(funcLit.Parameters))
@@ -480,8 +487,10 @@ func (c *Checker) checkImportStatement(node *ast.ImportStatement) Type {
 
 func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 	// Special handling for struct definitions
-	if structLit, ok := node.Value.(*ast.StructLiteral); ok {
-		return c.checkStructDefinition(node.Name.Value, structLit)
+	if _, ok := node.Value.(*ast.StructLiteral); ok {
+		// Struct definitions are already processed in collectModuleFunctions
+		// Just return NoneType to avoid duplicate processing
+		return &NoneType{}
 	}
 
 	// Special handling for enum definitions
@@ -779,13 +788,10 @@ func (c *Checker) isAssignable(from, to Type) bool {
 			return true
 		}
 	}
-	// Safe conversion: allow assigning array_ptr to any pointer-to-struct type
-	if from.Equals(&ArrayPtrType{}) {
-		if ptrType, ok := to.(*PointerType); ok {
-			// Only allow conversion to pointer-to-struct types
-			if _, ok := ptrType.InnerType.(*StructType); ok {
-				return true
-			}
+	// Allow assigning int64 to any pointer type (for low-level pointer operations)
+	if from.Equals(&IntegerType{}) {
+		if _, ok := to.(*PointerType); ok {
+			return true
 		}
 	}
 	return false
@@ -882,8 +888,6 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 		innerType = &StringType{}
 	case "none":
 		innerType = &NoneType{}
-	case "array_ptr":
-		innerType = &ArrayPtrType{}
 	default:
 		if typ, ok := c.env.Get(typeName); ok {
 			innerType = typ
