@@ -1,17 +1,16 @@
-// Test enum types and pattern matching
+import Std::Fmt;
 
-// Define an Option enum
 let Option = enum {
     Some(int64),
     None,
-}
+};
 
 // Define a NetEvent enum  
 let NetEvent = enum {
     Connect,
     Disconnect,
     Message(string),
-}
+};
 
 // Test Option enum
 let some_val = Option::Some(100);
@@ -25,7 +24,7 @@ let result = match my_option {
     Option::None => 0,
 };
 
-print(result); // Should print 42
+Fmt.print_int(result); // Should print 42
 
 // Test NetEvent enum
 let msg = NetEvent::Message("hello");
@@ -38,7 +37,7 @@ let event_result = match msg {
     NetEvent::Message(s) => 3,
 };
 
-print(event_result); // Should print 3
+Fmt.print_int(event_result); // Should print 3
 
 // Test with None variant
 let none_result = match no_val {
@@ -46,4 +45,4 @@ let none_result = match no_val {
     Option::None => -1,
 };
 
-print(none_result); // Should print -1 
+Fmt.print_int(none_result); // Should print -1 
