@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/behzade/basalt/ast"
 	"github.com/behzade/basalt/lexer"
@@ -165,7 +166,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		stmt = p.parseExpressionStatement()
 	}
 
-	// Apply attributes to function definitions
+	// Apply attributes logic remains the same
 	if len(attributes) > 0 {
 		if letStmt, ok := stmt.(*ast.LetStatement); ok {
 			if fnLit, ok := letStmt.Value.(*ast.FunctionLiteral); ok {
@@ -185,10 +186,9 @@ func (p *Parser) parseStatement() ast.Statement {
 func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt := &ast.LetStatement{Token: p.curToken}
 
-	// Check if the next token is MUT
 	if p.peekTokenIs(token.MUT) {
 		stmt.Mutable = true
-		p.nextToken() // consume the MUT token
+		p.nextToken()
 	}
 
 	if !p.expectPeek(token.IDENT) {
@@ -197,9 +197,9 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 
 	stmt.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 
-	// Check for optional type annotation
 	if p.peekTokenIs(token.COLON) {
-		p.nextToken() // consume the colon
+		p.nextToken()
+		// MODIFIED: This now calls the more powerful type parser
 		stmt.Type = p.parseTypeAnnotation()
 		if stmt.Type == nil {
 			return nil
@@ -304,22 +304,20 @@ func (p *Parser) parseIdentifier() ast.Expression {
 
 // parseEnumInstantiation parses enum instantiation expressions like "Option::Some(42)"
 func (p *Parser) parseEnumInstantiation() ast.Expression {
-	// Parse the enum path (e.g., "Option")
-	enumPath := &ast.PathExpression{
-		Token:    p.curToken,
-		Segments: []*ast.Identifier{{Token: p.curToken, Value: p.curToken.Literal}},
+	enumPath := p.parsePathExpression()
+	if enumPath == nil {
+		return nil
 	}
-
-	if !p.expectPeek(token.COLONCOLON) {
+	// The path must have at least two parts (Enum::Variant)
+	if len(enumPath.Segments) < 2 {
+		p.errors = append(p.errors, ParserError{"enum instantiation requires a '::' separator", enumPath.Token.Line, enumPath.Token.Column})
 		return nil
 	}
 
-	if !p.expectPeek(token.IDENT) {
-		return nil
-	}
-
-	// Parse the variant name (e.g., "Some")
-	variant := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	// This logic is slightly adjusted to work with the pre-parsed path
+	variantIndex := len(enumPath.Segments) - 1
+	variant := enumPath.Segments[variantIndex]
+	enumPath.Segments = enumPath.Segments[:variantIndex] // The path is everything before the variant
 
 	exp := &ast.EnumInstantiationExpression{
 		Token:     enumPath.Token,
@@ -328,9 +326,8 @@ func (p *Parser) parseEnumInstantiation() ast.Expression {
 		Arguments: []ast.Expression{},
 	}
 
-	// Check for optional arguments
 	if p.peekTokenIs(token.LPAREN) {
-		p.nextToken() // consume '('
+		p.nextToken()
 		exp.Arguments = p.parseCallArguments()
 	}
 
@@ -831,44 +828,21 @@ func (p *Parser) parseAttributes() []string {
 	return attributes
 }
 
-// parseImportStatement parses import statements like "import std::io;" or "import std::fs as filesystem;"
 func (p *Parser) parseImportStatement() *ast.ImportStatement {
 	stmt := &ast.ImportStatement{Token: p.curToken}
 
-	// Move to the first identifier of the path
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
 
-	// Parse the module path (e.g., std::io::fs)
-	path := &ast.PathExpression{
-		Token:    p.curToken,
-		Segments: []*ast.Identifier{},
+	// Use the new helper to parse the qualified path
+	stmt.Path = p.parsePathExpression()
+	if stmt.Path == nil {
+		return nil
 	}
 
-	// Add the first identifier
-	path.Segments = append(path.Segments, &ast.Identifier{
-		Token: p.curToken,
-		Value: p.curToken.Literal,
-	})
-
-	// Parse additional path segments separated by ::
-	for p.peekTokenIs(token.COLONCOLON) {
-		p.nextToken() // consume ::
-		if !p.expectPeek(token.IDENT) {
-			return nil
-		}
-		path.Segments = append(path.Segments, &ast.Identifier{
-			Token: p.curToken,
-			Value: p.curToken.Literal,
-		})
-	}
-
-	stmt.Path = path
-
-	// Check for optional alias
 	if p.peekTokenIs(token.AS) {
-		p.nextToken() // consume 'as'
+		p.nextToken()
 		if !p.expectPeek(token.IDENT) {
 			return nil
 		}
@@ -878,7 +852,6 @@ func (p *Parser) parseImportStatement() *ast.ImportStatement {
 		}
 	}
 
-	// Expect semicolon
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
@@ -953,53 +926,46 @@ func (p *Parser) parseStructLiteral() ast.Expression {
 func (p *Parser) parseStructFields() []*ast.StructField {
 	fields := []*ast.StructField{}
 
-	if p.peekTokenIs(token.RBRACE) {
-		p.nextToken()
-		return fields
-	}
+	// On entry, curToken is '{'. We need to parse a list of `identifier: type`
+	// until we hit '}'.
 
-	p.nextToken()
+	// Loop until we see the closing brace.
+	for !p.peekTokenIs(token.RBRACE) {
+		p.nextToken() // Move to the field name (or first token)
 
-	// Parse struct fields
-	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
-		field := &ast.StructField{}
 		if !p.curTokenIs(token.IDENT) {
-			// Add an error or return nil if the field name is not an identifier
+			p.errors = append(p.errors, ParserError{
+				Msg:  fmt.Sprintf("expected field name identifier in struct definition, got %s", p.curToken.Type),
+				Line: p.curToken.Line,
+				Col:  p.curToken.Column,
+			})
 			return nil
 		}
-		field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+		field := &ast.StructField{
+			Name: &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal},
+		}
 
 		if !p.expectPeek(token.COLON) {
 			return nil
 		}
 
-		// Use the dedicated function to parse the type annotation.
+		// This correctly uses the powerful type annotation parser from before
 		field.Type = p.parseTypeAnnotation()
 		if field.Type == nil {
 			return nil
 		}
-
 		fields = append(fields, field)
 
-		// Expect a comma or the closing brace
-		if p.peekTokenIs(token.COMMA) {
-			p.nextToken() // consume comma
-			// Check if there's a trailing comma (comma followed by closing brace)
-			if p.peekTokenIs(token.RBRACE) {
-				// Trailing comma - we're done
-				break
+		// After a field, we must see a comma or the closing brace.
+		if !p.peekTokenIs(token.RBRACE) {
+			if !p.expectPeek(token.COMMA) { // Expect a comma to continue
+				return nil
 			}
-			p.nextToken() // move to the next field name
-		} else if p.peekTokenIs(token.RBRACE) {
-			// We've reached the end of the struct fields
-			break
-		} else {
-			// If it's not a comma or closing brace, it's an error
-			return nil
 		}
 	}
 
-	// This logic replaces your original for loop and final expectPeek
+	// Consume the final '}'
 	if !p.expectPeek(token.RBRACE) {
 		return nil
 	}
@@ -1211,27 +1177,20 @@ func (p *Parser) parseMatchArms() []*ast.MatchArm {
 }
 
 // parseEnumInstantiationPattern parses enum instantiation patterns like "Option::Some(x)"
+
 func (p *Parser) parseEnumInstantiationPattern() *ast.EnumInstantiationExpression {
 	if !p.curTokenIs(token.IDENT) {
 		return nil
 	}
 
-	// Parse the enum path (e.g., "Option")
-	enumPath := &ast.PathExpression{
-		Token:    p.curToken,
-		Segments: []*ast.Identifier{{Token: p.curToken, Value: p.curToken.Literal}},
-	}
-
-	if !p.expectPeek(token.COLONCOLON) {
+	path := p.parsePathExpression()
+	if path == nil || len(path.Segments) < 2 {
 		return nil
 	}
 
-	if !p.expectPeek(token.IDENT) {
-		return nil
-	}
-
-	// Parse the variant name (e.g., "Some")
-	variant := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	variantIndex := len(path.Segments) - 1
+	variant := path.Segments[variantIndex]
+	enumPath := &ast.PathExpression{Token: path.Token, Segments: path.Segments[:variantIndex]}
 
 	exp := &ast.EnumInstantiationExpression{
 		Token:     enumPath.Token,
@@ -1240,47 +1199,70 @@ func (p *Parser) parseEnumInstantiationPattern() *ast.EnumInstantiationExpressio
 		Arguments: []ast.Expression{},
 	}
 
-	// Check for optional arguments
 	if p.peekTokenIs(token.LPAREN) {
-		p.nextToken() // consume '('
-
-		// For patterns, we expect identifiers (pattern variables)
+		p.nextToken()
 		if !p.peekTokenIs(token.RPAREN) {
 			p.nextToken()
 			if p.curTokenIs(token.IDENT) {
 				exp.Arguments = append(exp.Arguments, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
 			}
 		}
-
 		if !p.expectPeek(token.RPAREN) {
 			return nil
 		}
 	}
-
 	return exp
 }
 
 func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
-	// Handle pointer syntax: *Type
+	isPointer := false
 	if p.peekTokenIs(token.ASTERISK) {
+		isPointer = true
 		p.nextToken() // consume '*'
-		if !p.expectPeek(token.IDENT) {
-			return nil
-		}
-		return &ast.TypeAnnotation{
-			Token:     p.curToken,
-			Value:     p.curToken.Literal,
-			IsPointer: true,
-		}
 	}
 
-	// Handle simple type
 	if !p.expectPeek(token.IDENT) {
 		return nil
 	}
-	return &ast.TypeAnnotation{
-		Token:     p.curToken,
-		Value:     p.curToken.Literal,
-		IsPointer: false,
+
+	// Use the path parsing helper to handle `MyModule::MyType`
+	path := p.parsePathExpression()
+	if path == nil {
+		return nil
 	}
+
+	// Serialize the path segments back into a single string for the AST node.
+	// This avoids changing the AST, but still allows the parser to understand the syntax.
+	pathSegments := make([]string, len(path.Segments))
+	for i, seg := range path.Segments {
+		pathSegments[i] = seg.Value
+	}
+
+	return &ast.TypeAnnotation{
+		Token:     path.Token,
+		Value:     strings.Join(pathSegments, "::"),
+		IsPointer: isPointer,
+	}
+}
+
+func (p *Parser) parsePathExpression() *ast.PathExpression {
+	path := &ast.PathExpression{
+		Token:    p.curToken,
+		Segments: []*ast.Identifier{},
+	}
+
+	if !p.curTokenIs(token.IDENT) {
+		return nil
+	}
+	path.Segments = append(path.Segments, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+
+	for p.peekTokenIs(token.COLONCOLON) {
+		p.nextToken() // consume ::
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		path.Segments = append(path.Segments, &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal})
+	}
+
+	return path
 }

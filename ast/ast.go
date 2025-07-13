@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 
 	"github.com/behzade/basalt/token"
@@ -730,4 +731,16 @@ func (me *MatchExpression) String() string {
 	out.WriteString(strings.Join(arms, ", "))
 	out.WriteString(" }")
 	return out.String()
+}
+
+type ModuleStatement struct {
+	Token  token.Token // The 'import' token
+	Name   *Identifier // The name the module is accessed by (e.g., Fmt)
+	Module *Program    // The AST of the entire imported module
+}
+
+func (ms *ModuleStatement) statementNode()       {}
+func (ms *ModuleStatement) TokenLiteral() string { return ms.Token.Literal }
+func (ms *ModuleStatement) String() string {
+	return fmt.Sprintf("module %s", ms.Name.Value)
 }

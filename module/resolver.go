@@ -11,91 +11,86 @@ import (
 	"github.com/behzade/basalt/parser" // Adjust to your project's path
 )
 
-// internalResolver holds the state for a single, top-level resolution pass.
-// It is kept internal to the package and is not exposed.
+// internalResolver remains the same.
 type internalResolver struct {
-	basePaths      []string                // Directories to search for modules, e.g., ["./", "std"].
-	loadedModules  map[string]*ast.Program // Caches fully resolved modules to prevent re-parsing. Key: "std/runtime".
-	resolvedInPass map[string]bool         // Tracks modules resolved in the current pass to prevent circular dependencies.
+	basePaths      []string
+	loadedModules  map[string]*ast.Program
+	resolvedInPass map[string]bool
 }
 
-// Resolve is the single function exposed by the module package.
-// It takes the main program's AST, finds all `import` statements, and replaces them
-// with the code from the corresponding modules.
+// Resolve remains the same.
 func Resolve(program *ast.Program) error {
 	resolver := &internalResolver{
-		// By default, search for modules in the current directory.
 		basePaths:      []string{"."},
 		loadedModules:  make(map[string]*ast.Program),
 		resolvedInPass: make(map[string]bool),
 	}
-
-	// For convenience, automatically add the 'std' directory to the search path if it exists.
 	if _, err := os.Stat("std"); err == nil {
 		resolver.basePaths = append(resolver.basePaths, "std")
 	}
-
-	// Begin the recursive resolution process.
 	finalStatements, err := resolver.resolveStatements(program.Statements)
 	if err != nil {
 		return err
 	}
-
-	// Replace the original program's statements with the fully resolved ones.
 	program.Statements = finalStatements
 	return nil
 }
 
-// resolveStatements is the core recursive function that processes a list of statements.
+// MODIFIED: This is the core logic change.
 func (r *internalResolver) resolveStatements(statements []ast.Statement) ([]ast.Statement, error) {
 	var expandedStatements []ast.Statement
 
 	for _, stmt := range statements {
 		importStmt, isImport := stmt.(*ast.ImportStatement)
 		if !isImport {
-			// Not an import, just keep the statement.
 			expandedStatements = append(expandedStatements, stmt)
 			continue
 		}
 
 		modulePath := convertAstPathToFSPath(importStmt.Path)
 
-		// If already processed in this pass, skip to avoid circular dependency loops.
 		if r.resolvedInPass[modulePath] {
+			// Circular dependency detected, but it's not an error.
+			// The module object will be created by the first import encountered.
+			// We just skip this import statement.
 			continue
 		}
-		// Mark as resolved for this pass *before* loading it.
 		r.resolvedInPass[modulePath] = true
 
-		// Load the module from disk (or cache). This handles nested resolution.
+		// Load the module from disk (or cache), which includes resolving its own imports.
 		moduleProgram, err := r.loadModule(importStmt.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load module '%s': %w", modulePath, err)
 		}
 
-		// Add the resolved statements from the imported module.
-		expandedStatements = append(expandedStatements, moduleProgram.Statements...)
+		// NEW: Instead of injecting statements, create a ModuleStatement.
+		// This wraps the entire module's AST under a single name.
+		moduleAlias := getAliasFromPath(importStmt)
+
+		moduleNode := &ast.ModuleStatement{
+			Token:  importStmt.Token, // Preserve the original import token for position info
+			Name:   moduleAlias,
+			Module: moduleProgram,
+		}
+
+		expandedStatements = append(expandedStatements, moduleNode)
 	}
 
 	return expandedStatements, nil
 }
 
-// loadModule finds, parses, and resolves a module based on its AST path.
+// loadModule remains largely the same.
 func (r *internalResolver) loadModule(path *ast.PathExpression) (*ast.Program, error) {
 	modulePath := convertAstPathToFSPath(path)
-
-	// 1. Check cache first to avoid re-doing work.
 	if program, exists := r.loadedModules[modulePath]; exists {
 		return program, nil
 	}
 
-	// 2. Find the module directory on disk by searching base paths.
 	moduleDir, err := r.findModuleDirectory(modulePath)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Read all .bst files in the directory and parse them into one program.
 	files, err := os.ReadDir(moduleDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read module directory '%s': %w", moduleDir, err)
@@ -103,7 +98,6 @@ func (r *internalResolver) loadModule(path *ast.PathExpression) (*ast.Program, e
 
 	var allStatements []ast.Statement
 	hasFiles := false
-
 	for _, file := range files {
 		if !strings.HasSuffix(file.Name(), ".bst") {
 			continue
@@ -130,38 +124,27 @@ func (r *internalResolver) loadModule(path *ast.PathExpression) (*ast.Program, e
 
 	combinedProgram := &ast.Program{Statements: allStatements}
 
-	// 4. IMPORTANT: Recursively resolve any imports *within* this new module.
+	// IMPORTANT: Recursively resolve imports within this module *before* caching.
 	resolvedStmts, err := r.resolveStatements(combinedProgram.Statements)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve nested imports in module '%s': %w", modulePath, err)
 	}
 	combinedProgram.Statements = resolvedStmts
 
-	// 5. Cache the fully resolved module and return it.
 	r.loadedModules[modulePath] = combinedProgram
 	return combinedProgram, nil
 }
 
-// findModuleDirectory searches for a module directory (e.g., "std/runtime") in the base paths.
+// findModuleDirectory remains the same.
 func (r *internalResolver) findModuleDirectory(modulePath string) (string, error) {
 	for _, basePath := range r.basePaths {
-		// If base path is "std", and module path is "std/runtime", we don't want "std/std/runtime".
-		// We can handle this by checking if the module path already starts with the base path.
-		// However, a simpler approach is to have distinct search roots.
-		// E.g. basePaths: [".", "std"]
-		// Module `My::App` -> `my/app`, found in `./my/app`
-		// Module `Std::Fmt` -> `std/fmt`, found in `std/std/fmt` (wrong).
-		// Let's adjust the logic slightly. The base path is a root.
-		// `Std` modules are special and should be found in the `std` root.
-
 		var fullPath string
-		if strings.HasPrefix(modulePath, "std"+string(filepath.Separator)) && basePath == "std" {
-			// This prevents `std/std/runtime`.
-			fullPath = modulePath
-		} else {
-			fullPath = filepath.Join(basePath, modulePath)
-		}
+		// This logic is slightly tricky. Let's simplify and make it robust.
+		// We join the base path and module path, then clean it.
+		fullPath = filepath.Join(basePath, modulePath)
 
+		// This handles cases like basePath="." and modulePath="std/runtime" -> "./std/runtime"
+		// And basePath="std" and modulePath="runtime" -> "std/runtime" (if you adjust the import path)
 		if _, err := os.Stat(fullPath); err == nil {
 			return fullPath, nil
 		}
@@ -169,16 +152,24 @@ func (r *internalResolver) findModuleDirectory(modulePath string) (string, error
 	return "", fmt.Errorf("module not found. Looked for '%s' in search paths %v", modulePath, r.basePaths)
 }
 
-// convertAstPathToFSPath converts an AST path like `Std::Runtime` to a file path like `std/runtime`.
+// convertAstPathToFSPath remains the same.
 func convertAstPathToFSPath(path *ast.PathExpression) string {
 	segments := make([]string, len(path.Segments))
 	for i, segment := range path.Segments {
-		// Special case for 'Std' -> 'std', otherwise lowercase everything.
-		if i == 0 && segment.Value == "Std" {
-			segments[i] = "std"
-		} else {
-			segments[i] = strings.ToLower(segment.Value)
-		}
+		segments[i] = strings.ToLower(segment.Value)
 	}
 	return filepath.Join(segments...)
+}
+
+// NEW: Helper to determine the module's name in the code.
+// Handles aliasing `import Std::Fmt as Formatter` -> `Formatter`
+// and default naming `import Std::Fmt` -> `Fmt`
+func getAliasFromPath(imp *ast.ImportStatement) *ast.Identifier {
+	if imp.Alias != nil {
+		return imp.Alias
+	}
+
+	// No alias, so use the last part of the path. e.g., Std::Fmt -> Fmt
+	lastSegment := imp.Path.Segments[len(imp.Path.Segments)-1]
+	return &ast.Identifier{Token: lastSegment.Token, Value: lastSegment.Value}
 }
