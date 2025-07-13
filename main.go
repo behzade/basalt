@@ -81,6 +81,10 @@ func compileBasalt(input string, outputPath string) error {
 		return fmt.Errorf("module resolution error: %v", err)
 	}
 
+	for _, stmt := range program.Statements {
+		fmt.Printf("DEBUG: %v\n", stmt.String())
+	}
+
 	// Create type checker and perform type checking
 	typeChecker := checker.New()
 	typeChecker.Check(program)
