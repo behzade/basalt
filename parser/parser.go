@@ -945,7 +945,27 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 
 	p.nextToken()
 
-	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+	// Parse first field
+	field := &ast.StructField{}
+	if !p.curTokenIs(token.IDENT) {
+		return nil
+	}
+	field.Name = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+
+	if !p.expectPeek(token.COLON) {
+		return nil
+	}
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	fields = append(fields, field)
+
+	// Parse additional fields
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // consume comma
+		p.nextToken() // move to next field
+
 		field := &ast.StructField{}
 		if !p.curTokenIs(token.IDENT) {
 			return nil
@@ -960,16 +980,9 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 		}
 		field.Type = &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
 		fields = append(fields, field)
-
-		if p.peekTokenIs(token.COMMA) {
-			p.nextToken()
-		} else if !p.peekTokenIs(token.RBRACE) {
-			return nil // Malformed
-		}
 	}
 
-	if !p.curTokenIs(token.RBRACE) {
-		p.peekError(token.RBRACE)
+	if !p.expectPeek(token.RBRACE) {
 		return nil
 	}
 
