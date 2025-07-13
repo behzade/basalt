@@ -281,13 +281,22 @@ type FunctionLiteral struct {
 	Parameters []*Parameter    // Parameters with type annotations
 	ReturnType *TypeAnnotation // Optional return type annotation
 	Body       *BlockStatement
-	IsVariadic bool // New flag for variadic functions
+	IsVariadic bool     // New flag for variadic functions
+	Attributes []string // New slice for attributes like "nogc"
 }
 
 func (fl *FunctionLiteral) expressionNode()      {}
 func (fl *FunctionLiteral) TokenLiteral() string { return fl.Token.Literal }
 func (fl *FunctionLiteral) String() string {
 	var out bytes.Buffer
+
+	// Add attributes if present
+	for _, attr := range fl.Attributes {
+		out.WriteString("#[")
+		out.WriteString(attr)
+		out.WriteString("] ")
+	}
+
 	params := []string{}
 	for _, p := range fl.Parameters {
 		params = append(params, p.String())
@@ -309,6 +318,16 @@ func (fl *FunctionLiteral) String() string {
 	out.WriteString(" ")
 	out.WriteString(fl.Body.String())
 	return out.String()
+}
+
+// IsNoGC checks if the function has the "nogc" attribute
+func (fl *FunctionLiteral) IsNoGC() bool {
+	for _, attr := range fl.Attributes {
+		if attr == "nogc" {
+			return true
+		}
+	}
+	return false
 }
 
 // CallExpression represents a function call.

@@ -53,6 +53,7 @@ const (
 	RBRACE     = "}"
 	LBRACKET   = "["
 	RBRACKET   = "]"
+	HASH       = "#"
 
 	// Keywords
 	FUNCTION  = "FUNCTION"

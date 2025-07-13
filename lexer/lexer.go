@@ -148,6 +148,8 @@ func (l *Lexer) NextToken() token.Token {
 		}
 	case '?':
 		tok = l.newToken(token.QUESTION, l.ch)
+	case '#':
+		tok = l.newToken(token.HASH, l.ch)
 	case '"':
 		tok.Type = token.STRING
 		tok.Literal = l.readString()

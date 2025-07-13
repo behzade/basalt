@@ -148,18 +148,38 @@ func (p *Parser) ParseProgram() *ast.Program {
 }
 
 func (p *Parser) parseStatement() ast.Statement {
+	// Consume all attribute tokens before parsing the statement itself.
+	attributes := p.parseAttributes()
+
+	var stmt ast.Statement
 	switch p.curToken.Type {
 	case token.LET:
-		return p.parseLetStatement()
+		stmt = p.parseLetStatement()
 	case token.RETURN:
-		return p.parseReturnStatement()
+		stmt = p.parseReturnStatement()
 	case token.IMPORT:
-		return p.parseImportStatement()
+		stmt = p.parseImportStatement()
 	case token.EXTERN:
-		return p.parseExternStatement()
+		stmt = p.parseExternStatement()
 	default:
-		return p.parseExpressionStatement()
+		stmt = p.parseExpressionStatement()
 	}
+
+	// Apply attributes to function definitions
+	if len(attributes) > 0 {
+		if letStmt, ok := stmt.(*ast.LetStatement); ok {
+			if fnLit, ok := letStmt.Value.(*ast.FunctionLiteral); ok {
+				fnLit.Attributes = attributes
+			} else {
+				msg := "attributes can only be applied to a function definition"
+				p.errors = append(p.errors, ParserError{msg, letStmt.Token.Line, letStmt.Token.Column})
+			}
+		} else {
+			msg := "attributes can only be applied to let statements containing functions"
+			p.errors = append(p.errors, ParserError{msg, p.curToken.Line, p.curToken.Column})
+		}
+	}
+	return stmt
 }
 
 func (p *Parser) parseLetStatement() *ast.LetStatement {
@@ -762,6 +782,47 @@ func (p *Parser) curPrecedence() int {
 		return p
 	}
 	return LOWEST
+}
+
+// parseAttributes parses attributes like #[nogc]. It consumes the tokens
+// and returns a slice of attribute names.
+func (p *Parser) parseAttributes() []string {
+	var attributes []string
+
+	// Loop to handle multiple attributes, e.g., #[inline] #[nogc]
+	for p.curTokenIs(token.HASH) {
+		if !p.peekTokenIs(token.LBRACKET) {
+			return attributes // Not a valid attribute, stop parsing.
+		}
+		p.nextToken() // consume '#'
+		p.nextToken() // consume '['
+
+		if p.curTokenIs(token.IDENT) {
+			attrName := p.curToken.Literal
+			if attrName == "nogc" {
+				attributes = append(attributes, attrName)
+			} else {
+				msg := "unsupported attribute: " + attrName
+				p.errors = append(p.errors, ParserError{Msg: msg, Line: p.curToken.Line, Col: p.curToken.Column})
+			}
+		} else {
+			msg := "expected attribute name"
+			p.errors = append(p.errors, ParserError{Msg: msg, Line: p.curToken.Line, Col: p.curToken.Column})
+		}
+
+		if !p.expectPeek(token.RBRACKET) {
+			return attributes // Malformed attribute.
+		}
+
+		// Position parser for the next token (either another '#' or the actual statement).
+		if p.peekTokenIs(token.HASH) {
+			p.nextToken()
+		} else {
+			p.nextToken() // Move to the next token after the attribute
+			break
+		}
+	}
+	return attributes
 }
 
 // parseImportStatement parses import statements like "import std::io;" or "import std::fs as filesystem;"
