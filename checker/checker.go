@@ -130,7 +130,7 @@ func (t *StructType) Equals(other Type) bool {
 // Module type represents an imported module
 type ModuleType struct {
 	Name    string
-	Members map[string]Type
+	Members *TypeEnvironment // Each module has its own scope
 }
 
 func (t *ModuleType) String() string {
@@ -309,8 +309,8 @@ func (c *Checker) Check(node ast.Node) Type {
 	switch node := node.(type) {
 	case *ast.Program:
 		return c.checkProgram(node)
-	case *ast.ImportStatement:
-		return c.checkImportStatement(node)
+	case *ast.ModuleStatement:
+		return c.checkModuleStatement(node)
 	case *ast.LetStatement:
 		return c.checkLetStatement(node)
 	case *ast.ReturnStatement:
@@ -366,28 +366,33 @@ func (c *Checker) Check(node ast.Node) Type {
 }
 
 func (c *Checker) checkProgram(program *ast.Program) Type {
-	// PASS 1: Collect all top-level struct, enum, and function definitions
-	for _, stmt := range program.Statements {
+	return c.checkStatements(program.Statements)
+}
+
+func (c *Checker) checkStatements(statements []ast.Statement) Type {
+	// PASS 1: Collect all top-level definitions in the current environment.
+	for _, stmt := range statements {
 		c.collectTopLevelDeclarations(stmt)
 	}
 
-	// PASS 2: Type-check the entire program
+	// PASS 2: Type-check the statements in the current environment.
 	var result Type = &NoneType{}
-	for _, stmt := range program.Statements {
-		result = c.Check(stmt) // Use a new helper for the actual checking logic
+	for _, stmt := range statements {
+		result = c.Check(stmt)
 	}
 	return result
 }
 
 func (c *Checker) collectTopLevelDeclarations(stmt ast.Statement) {
 	switch s := stmt.(type) {
+	case *ast.ModuleStatement:
+		// Module declarations are handled in the main check loop, not pre-collected
 	case *ast.LetStatement:
 		// Handle struct definitions
 		if structLit, ok := s.Value.(*ast.StructLiteral); ok {
 			fields := make(map[string]Type)
 			for _, field := range structLit.Fields {
 				fieldName := field.Name.Value
-				// Use parseTypeAnnotation to convert AST type to checker.Type
 				fieldType := c.parseTypeAnnotation(field.Type)
 				fields[fieldName] = fieldType
 			}
@@ -397,7 +402,6 @@ func (c *Checker) collectTopLevelDeclarations(stmt ast.Statement) {
 
 		// Handle enum definitions
 		if enumLit, ok := s.Value.(*ast.EnumLiteral); ok {
-			// This check might be better here rather than in checkLetStatement
 			enumType := c.checkEnumLiteral(enumLit)
 			if enumTypeVal, ok := enumType.(*EnumType); ok {
 				enumTypeVal.Name = s.Name.Value
@@ -442,46 +446,32 @@ func (c *Checker) collectTopLevelDeclarations(stmt ast.Statement) {
 	}
 }
 
-func (c *Checker) checkImportStatement(node *ast.ImportStatement) Type {
-	// Create module name from path
-	moduleName := node.Path.Segments[len(node.Path.Segments)-1].Value
-
-	// Use alias if provided, otherwise use the last segment of the path
-	if node.Alias != nil {
-		moduleName = node.Alias.Value
-	}
-
-	// Create a module type with empty members for now
-	// The members will be populated as functions are defined in the module
+func (c *Checker) checkModuleStatement(node *ast.ModuleStatement) Type {
+	// Create a new, isolated environment for the module's contents.
+	// It can see the outer scope (e.g., for global types if you had them) but only defines in its own scope.
+	moduleEnv := NewEnclosedTypeEnvironment(c.env)
 	moduleType := &ModuleType{
-		Name:    moduleName,
-		Members: make(map[string]Type),
+		Name:    node.Name.Value,
+		Members: moduleEnv, // The module's type points to its own environment
 	}
 
-	// Add the module to the environment
-	c.env.Set(moduleName, moduleType)
+	// Temporarily switch the checker's context to this new environment.
+	savedEnv := c.env
+	c.env = moduleEnv
+
+	// Recursively check the module's program using the isolated environment.
+	c.checkStatements(node.Module.Statements)
+
+	// Restore the original environment.
+	c.env = savedEnv
+
+	// Add the fully-checked module type to the current scope.
+	c.env.Set(node.Name.Value, moduleType)
 
 	return &NoneType{}
 }
 
 func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
-	// Special handling for struct definitions
-	if _, ok := node.Value.(*ast.StructLiteral); ok {
-		// Struct definitions are already processed in collectModuleFunctions
-		// Just return NoneType to avoid duplicate processing
-		return &NoneType{}
-	}
-
-	// Special handling for enum definitions
-	if enumLit, ok := node.Value.(*ast.EnumLiteral); ok {
-		enumType := c.checkEnumLiteral(enumLit)
-		if enumTypeVal, ok := enumType.(*EnumType); ok {
-			enumTypeVal.Name = node.Name.Value
-			c.env.Set(node.Name.Value, enumTypeVal)
-		}
-		return &NoneType{}
-	}
-
 	// Structs and enums were fully defined in pass 1. We can skip them here.
 	if _, ok := node.Value.(*ast.StructLiteral); ok {
 		return &NoneType{}
@@ -493,8 +483,12 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 	// For functions, the signature is already in the environment.
 	// Now, we check the body.
 	if funcLit, ok := node.Value.(*ast.FunctionLiteral); ok {
-		// Retrieve the function type we stored in pass 1
-		funcTypeVal, _ := c.env.Get(node.Name.Value)
+		funcTypeVal, ok := c.env.Get(node.Name.Value)
+		if !ok {
+			// This should not happen if pass 1 worked correctly
+			c.addError(fmt.Sprintf("internal error: function '%s' not found in pre-check pass", node.Name.Value), node.Token)
+			return &NoneType{}
+		}
 		funcType := funcTypeVal.(*FunctionType)
 
 		// Check function body in a new scope
@@ -504,7 +498,7 @@ func (c *Checker) checkLetStatement(node *ast.LetStatement) Type {
 		}
 		savedEnv := c.env
 		c.env = funcEnv
-		bodyType := c.Check(funcLit.Body) // This will recursively call checkNode
+		bodyType := c.Check(funcLit.Body)
 		c.env = savedEnv
 
 		// If return type is explicit, check against inferred body type
@@ -617,7 +611,6 @@ func (c *Checker) checkCallExpression(node *ast.CallExpression) Type {
 		}
 	}
 
-	// Type-check the non-variadic arguments
 	numFixedArgs := len(fnType.Parameters)
 	if len(node.Arguments) < numFixedArgs {
 		numFixedArgs = len(node.Arguments)
@@ -630,7 +623,6 @@ func (c *Checker) checkCallExpression(node *ast.CallExpression) Type {
 		}
 	}
 
-	// Type-check variadic arguments (for now, we just check them without a specific target type)
 	for i := len(fnType.Parameters); i < len(node.Arguments); i++ {
 		c.Check(node.Arguments[i])
 	}
@@ -647,9 +639,6 @@ func (c *Checker) checkIfExpression(node *ast.IfExpression) Type {
 	if node.Alternative != nil {
 		alternativeType := c.Check(node.Alternative)
 		if !consequenceType.Equals(alternativeType) {
-			// This might be okay if one branch returns a value and the other doesn't,
-			// making the whole expression have type NoneType.
-			// For now, let's be strict.
 			c.addError(fmt.Sprintf("if branches have different types: %s vs %s", consequenceType.String(), alternativeType.String()), node.Token)
 		}
 		return consequenceType
@@ -690,7 +679,6 @@ func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 	rightType := c.Check(node.Right)
 	op := node.Operator
 
-	// Handle numeric types
 	isLeftNum := leftType.Equals(&IntegerType{}) || leftType.Equals(&FloatType{})
 	isRightNum := rightType.Equals(&IntegerType{}) || rightType.Equals(&FloatType{})
 	if isLeftNum && isRightNum {
@@ -705,7 +693,6 @@ func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 		}
 	}
 
-	// Handle string types
 	isLeftString := leftType.Equals(&StringType{})
 	isRightString := rightType.Equals(&StringType{})
 	if isLeftString && isRightString {
@@ -717,14 +704,12 @@ func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 		}
 	}
 
-	// Handle boolean types
 	isLeftBool := leftType.Equals(&BooleanType{})
 	isRightBool := rightType.Equals(&BooleanType{})
 	if isLeftBool && isRightBool && (op == "==" || op == "!=") {
 		return &BooleanType{}
 	}
 
-	// Handle assignment
 	if op == "=" {
 		if !c.isAssignable(rightType, leftType) {
 			c.addError(fmt.Sprintf("cannot assign %s to %s", rightType.String(), leftType.String()), node.Token)
@@ -753,35 +738,20 @@ func (c *Checker) isAssignable(from, to Type) bool {
 	if from.Equals(to) {
 		return true
 	}
-	// Allow assigning int to float
 	if from.Equals(&IntegerType{}) && to.Equals(&FloatType{}) {
 		return true
 	}
-	// Allow assigning untyped array literal to any array type
 	if from.Equals(&ArrayType{ElementType: &NoneType{}}) {
 		if _, ok := to.(*ArrayType); ok {
 			return true
 		}
 	}
-	// Allow assigning int64 to any pointer type (for low-level pointer operations)
 	if from.Equals(&IntegerType{}) {
 		if _, ok := to.(*PointerType); ok {
 			return true
 		}
 	}
 	return false
-}
-
-func (c *Checker) checkStructDefinition(structName string, node *ast.StructLiteral) Type {
-	fields := make(map[string]Type)
-	for _, field := range node.Fields {
-		fieldName := field.Name.Value
-		fieldType := c.parseTypeAnnotation(field.Type)
-		fields[fieldName] = fieldType
-	}
-	structType := &StructType{Name: structName, Fields: fields}
-	c.env.Set(structName, structType)
-	return &NoneType{}
 }
 
 func (c *Checker) checkStructLiteral(node *ast.StructLiteral) Type {
@@ -796,7 +766,6 @@ func (c *Checker) checkStructInstanceExpression(node *ast.StructInstanceExpressi
 		c.addError(fmt.Sprintf("cannot instantiate non-struct type: %s", structTypeVal.String()), node.Token)
 		return &NoneType{}
 	}
-	// Check field existence and types
 	for name, expr := range node.Fields {
 		expectedType, ok := structDef.Fields[name]
 		if !ok {
@@ -808,7 +777,6 @@ func (c *Checker) checkStructInstanceExpression(node *ast.StructInstanceExpressi
 			c.addError(fmt.Sprintf("field '%s' expects type %s, got %s", name, expectedType.String(), actualType.String()), node.Token)
 		}
 	}
-	// Check for missing fields
 	for name := range structDef.Fields {
 		if _, ok := node.Fields[name]; !ok {
 			c.addError(fmt.Sprintf("missing field '%s' in instantiation of struct %s", name, structDef.Name), node.Token)
@@ -846,37 +814,61 @@ func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 		typeName = ta.Value
 		isPointer = false
 	default:
-		c.addError(fmt.Sprintf("invalid type annotation node: %T", typeAnnotation), token.Token{Type: token.IDENT, Literal: typeName})
+		c.addError(fmt.Sprintf("invalid type annotation node: %T", typeAnnotation), token.Token{})
 		return &NoneType{}
 	}
 
-	// First resolve the inner type
 	var innerType Type
-	switch typeName {
-	case "int64":
-		innerType = &IntegerType{}
-	case "float64":
-		innerType = &FloatType{}
-	case "bool":
-		innerType = &BooleanType{}
-	case "string":
-		innerType = &StringType{}
-	case "none":
-		innerType = &NoneType{}
-	default:
-		if typ, ok := c.env.Get(typeName); ok {
-			innerType = typ
-		} else {
-			c.addError(fmt.Sprintf("unknown type: %s", typeName), token.Token{Type: token.IDENT, Literal: typeName})
+
+	if strings.Contains(typeName, "::") {
+		parts := strings.Split(typeName, "::")
+		if len(parts) != 2 {
+			c.addError(fmt.Sprintf("invalid qualified type: %s", typeName), token.Token{})
 			return &NoneType{}
+		}
+		moduleName, memberName := parts[0], parts[1]
+
+		moduleVal, ok := c.env.Get(moduleName)
+		if !ok {
+			c.addError(fmt.Sprintf("unknown module: %s", moduleName), token.Token{})
+			return &NoneType{}
+		}
+		moduleType, ok := moduleVal.(*ModuleType)
+		if !ok {
+			c.addError(fmt.Sprintf("'%s' is not a module", moduleName), token.Token{})
+			return &NoneType{}
+		}
+		memberType, ok := moduleType.Members.Get(memberName)
+		if !ok {
+			c.addError(fmt.Sprintf("type '%s' not found in module '%s'", memberName, moduleName), token.Token{})
+			return &NoneType{}
+		}
+		innerType = memberType
+	} else {
+		switch typeName {
+		case "int64":
+			innerType = &IntegerType{}
+		case "float64":
+			innerType = &FloatType{}
+		case "bool":
+			innerType = &BooleanType{}
+		case "string":
+			innerType = &StringType{}
+		case "none":
+			innerType = &NoneType{}
+		default:
+			if typ, ok := c.env.Get(typeName); ok {
+				innerType = typ
+			} else {
+				c.addError(fmt.Sprintf("unknown type: %s", typeName), token.Token{Type: token.IDENT, Literal: typeName})
+				return &NoneType{}
+			}
 		}
 	}
 
-	// If it's a pointer type, wrap it in PointerType
 	if isPointer {
 		return &PointerType{InnerType: innerType}
 	}
-
 	return innerType
 }
 
@@ -893,7 +885,6 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 		return fieldType
 	}
 
-	// Handle pointer dereferencing: ptr.field automatically dereferences the pointer
 	if ptrType, ok := leftType.(*PointerType); ok {
 		if structType, ok := ptrType.InnerType.(*StructType); ok {
 			memberName := node.Right.Value
@@ -911,15 +902,8 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 
 	if moduleType, ok := leftType.(*ModuleType); ok {
 		memberName := node.Right.Value
-		memberType, exists := moduleType.Members[memberName]
+		memberType, exists := moduleType.Members.Get(memberName)
 		if !exists {
-			// Check if it's a function that might be defined later in the module
-			// For now, we'll look it up in the global environment
-			if typ, found := c.env.Get(memberName); found {
-				// Add the member to the module for future reference
-				moduleType.Members[memberName] = typ
-				return typ
-			}
 			c.addError(fmt.Sprintf("member '%s' not found in module %s", memberName, moduleType.Name), node.Token)
 			return &NoneType{}
 		}
@@ -930,7 +914,6 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 	return &NoneType{}
 }
 
-// checkEnumLiteral checks enum literal expressions and returns the enum type
 func (c *Checker) checkEnumLiteral(node *ast.EnumLiteral) Type {
 	variants := make(map[string]*EnumVariantType)
 
@@ -947,19 +930,15 @@ func (c *Checker) checkEnumLiteral(node *ast.EnumLiteral) Type {
 		variants[variant.Name.Value] = variantType
 	}
 
-	// For enum literals, we create an anonymous enum type
-	// The name will be set when it's assigned to a variable
 	enumType := &EnumType{
-		Name:     "", // Will be set during assignment
+		Name:     "",
 		Variants: variants,
 	}
 
 	return enumType
 }
 
-// checkEnumInstantiationExpression checks enum instantiation expressions
 func (c *Checker) checkEnumInstantiationExpression(node *ast.EnumInstantiationExpression) Type {
-	// Get the enum type from the environment
 	enumName := node.Enum.Segments[0].Value
 	enumTypeVal, ok := c.env.Get(enumName)
 	if !ok {
@@ -973,7 +952,6 @@ func (c *Checker) checkEnumInstantiationExpression(node *ast.EnumInstantiationEx
 		return &NoneType{}
 	}
 
-	// Check if the variant exists
 	variantName := node.Variant.Value
 	variant, ok := enumType.Variants[variantName]
 	if !ok {
@@ -981,7 +959,6 @@ func (c *Checker) checkEnumInstantiationExpression(node *ast.EnumInstantiationEx
 		return &NoneType{}
 	}
 
-	// Check arguments match the variant's payload
 	if variant.PayloadType == nil {
 		if len(node.Arguments) > 0 {
 			c.addError(fmt.Sprintf("variant %s::%s expects no arguments, got %d", enumName, variantName, len(node.Arguments)), node.Token)
@@ -1000,9 +977,7 @@ func (c *Checker) checkEnumInstantiationExpression(node *ast.EnumInstantiationEx
 	return enumType
 }
 
-// checkMatchExpression checks match expressions for exhaustiveness and type consistency
 func (c *Checker) checkMatchExpression(node *ast.MatchExpression) Type {
-	// Check the condition type
 	conditionType := c.Check(node.Condition)
 	enumType, ok := conditionType.(*EnumType)
 	if !ok {
@@ -1010,22 +985,18 @@ func (c *Checker) checkMatchExpression(node *ast.MatchExpression) Type {
 		return &NoneType{}
 	}
 
-	// Track which variants are covered
 	coveredVariants := make(map[string]bool)
 	var armTypes []Type
 
 	for _, arm := range node.Arms {
-		// Check the pattern
 		patternType := c.checkMatchPattern(arm.Pattern, enumType)
 		if patternType == nil {
 			continue
 		}
 
-		// Mark variant as covered
 		variantName := arm.Pattern.Variant.Value
 		coveredVariants[variantName] = true
 
-		// Check the consequence in a new scope with pattern variables
 		consequenceEnv := NewEnclosedTypeEnvironment(c.env)
 		c.addPatternVariables(arm.Pattern, enumType, consequenceEnv)
 
@@ -1037,14 +1008,12 @@ func (c *Checker) checkMatchExpression(node *ast.MatchExpression) Type {
 		armTypes = append(armTypes, armType)
 	}
 
-	// Check exhaustiveness
 	for variantName := range enumType.Variants {
 		if !coveredVariants[variantName] {
 			c.addError(fmt.Sprintf("match expression is not exhaustive: missing variant %s::%s", enumType.Name, variantName), node.Token)
 		}
 	}
 
-	// Check that all arms return the same type
 	if len(armTypes) == 0 {
 		return &NoneType{}
 	}
@@ -1059,16 +1028,13 @@ func (c *Checker) checkMatchExpression(node *ast.MatchExpression) Type {
 	return firstType
 }
 
-// checkMatchPattern checks a match pattern and returns the variant type
 func (c *Checker) checkMatchPattern(pattern *ast.EnumInstantiationExpression, enumType *EnumType) *EnumVariantType {
-	// Check if the pattern refers to the correct enum
 	patternEnumName := pattern.Enum.Segments[0].Value
 	if patternEnumName != enumType.Name {
 		c.addError(fmt.Sprintf("pattern uses enum %s, but matching against %s", patternEnumName, enumType.Name), pattern.Token)
 		return nil
 	}
 
-	// Check if the variant exists
 	variantName := pattern.Variant.Value
 	variant, ok := enumType.Variants[variantName]
 	if !ok {
@@ -1076,7 +1042,6 @@ func (c *Checker) checkMatchPattern(pattern *ast.EnumInstantiationExpression, en
 		return nil
 	}
 
-	// Check pattern arguments
 	if variant.PayloadType == nil {
 		if len(pattern.Arguments) > 0 {
 			c.addError(fmt.Sprintf("variant %s::%s has no payload, but pattern has %d arguments", enumType.Name, variantName, len(pattern.Arguments)), pattern.Token)
@@ -1085,7 +1050,6 @@ func (c *Checker) checkMatchPattern(pattern *ast.EnumInstantiationExpression, en
 		if len(pattern.Arguments) != 1 {
 			c.addError(fmt.Sprintf("variant %s::%s expects 1 pattern argument, got %d", enumType.Name, variantName, len(pattern.Arguments)), pattern.Token)
 		} else {
-			// Pattern arguments should be identifiers (pattern variables)
 			if node, ok := pattern.Arguments[0].(*ast.Identifier); !ok {
 				c.addError(
 					fmt.Sprintf("pattern argument must be an identifier, got %T", pattern.Arguments[0]),
@@ -1098,7 +1062,6 @@ func (c *Checker) checkMatchPattern(pattern *ast.EnumInstantiationExpression, en
 	return variant
 }
 
-// addPatternVariables adds pattern variables to the environment
 func (c *Checker) addPatternVariables(pattern *ast.EnumInstantiationExpression, enumType *EnumType, env *TypeEnvironment) {
 	variantName := pattern.Variant.Value
 	variant, ok := enumType.Variants[variantName]
