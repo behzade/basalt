@@ -77,13 +77,22 @@ func New() *Compiler {
 
 // Compile compiles the AST program to LLVM IR
 func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
+	// First pass for the main program to find all top-level declarations
+	for _, stmt := range program.Statements {
+		if err := c.collectDeclarations(stmt); err != nil {
+			return nil, err
+		}
+	}
+
+	// Now compile the main function and other implementations
 	mainFunc := c.module.NewFunc("main", types.I32)
 	c.currentFunc = mainFunc
 	entryBlock := mainFunc.NewBlock("entry")
 	c.currentBlock = entryBlock
 
+	// Second pass for the main program to compile bodies and statements
 	for _, stmt := range program.Statements {
-		if err := c.compileStatement(stmt); err != nil {
+		if err := c.compileImplementation(stmt); err != nil {
 			return nil, err
 		}
 	}
@@ -479,49 +488,36 @@ func (c *Compiler) compileForExpression(expr *ast.ForExpression) (value.Value, e
 
 // compileBlockStatement compiles a block statement and returns the value of the last expression
 func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value, error) {
-	var lastValue value.Value = constant.NewInt(types.I64, 0) // Default value
-
-	// Push new scope for ARC management
-	c.scopeStack = append(c.scopeStack, []value.Value{})
-
+	var lastVal value.Value = constant.NewInt(types.I64, 0)
 	for _, stmt := range block.Statements {
-		switch s := stmt.(type) {
-		case *ast.ExpressionStatement:
-			val, err := c.compileExpression(s.Expression)
-			if err != nil {
-				return nil, err
-			}
-			lastValue = val
-		case *ast.LetStatement:
-			err := c.compileLetStatement(s)
-			if err != nil {
-				return nil, err
-			}
-			// Let statements don't produce values
-		case *ast.ReturnStatement:
-			return nil, c.compileReturnStatement(s)
-		default:
-			return nil, fmt.Errorf("unsupported statement type in block: %T", stmt)
-		}
-	}
-
-	// Pop scope and release ARC-managed variables
-	if len(c.scopeStack) > 0 {
-		currentScope := c.scopeStack[len(c.scopeStack)-1]
-		c.scopeStack = c.scopeStack[:len(c.scopeStack)-1]
-
-		// Release variables in this scope only if not in nogc context
-		if !c.isNoGCContext {
-			arcReleaseFunc, ok := c.functionTable["arc_release"]
-			if ok {
-				for _, varPtr := range currentScope {
-					c.currentBlock.NewCall(arcReleaseFunc, varPtr)
+		if rs, ok := stmt.(*ast.ReturnStatement); ok {
+			if rs.ReturnValue != nil {
+				retVal, err := c.compileExpression(rs.ReturnValue)
+				if err != nil {
+					return nil, err
 				}
+				c.currentBlock.NewRet(retVal)
+			} else {
+				c.currentBlock.NewRet(nil)
+			}
+			return lastVal, nil // Return after terminator
+		}
+
+		// compileImplementation handles the logic of what to compile now.
+		if err := c.compileImplementation(stmt); err != nil {
+			return nil, err
+		}
+
+		// If it was an expression, capture its value.
+		if es, ok := stmt.(*ast.ExpressionStatement); ok {
+			var err error
+			lastVal, err = c.compileExpression(es.Expression)
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
-
-	return lastValue, nil
+	return lastVal, nil
 }
 
 // isARCManagedValue checks if a value is ARC-managed (allocated with arc_alloc)
@@ -863,41 +859,25 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 	var fn *ir.Func
 	var exists bool
 
-	// Case 1: Direct function call (e.g., my_func())
 	if ident, ok := expr.Function.(*ast.Identifier); ok {
 		funcName := ident.Value
-
-		// If we are currently compiling inside a module...
 		if c.currentModulePrefix != "" {
-			// ...first, try to find the function within the same module by checking the mangled name.
 			mangledName := fmt.Sprintf("%s_%s", c.currentModulePrefix, funcName)
 			fn, exists = c.functionTable[mangledName]
 		}
-
-		// If it wasn't found as a local module function (or we're not in a module),
-		// try finding it as a global/extern function (which are not mangled).
 		if !exists {
 			fn, exists = c.functionTable[funcName]
 		}
 	}
 
-	// Case 2: Module member call (e.g., Fmt.print_int())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
-		// This logic correctly handles calls to functions in OTHER modules.
 		if moduleIdent, ok := memberAccess.Left.(*ast.Identifier); ok {
 			moduleAlias := moduleIdent.Value
 			funcName := memberAccess.Right.Value
 
-			// This part is complex without full type info propagation from the checker.
-			// A robust solution would look up the alias in a table to find its full path prefix.
-			// For now, we assume a convention where the prefix can be derived.
-			// This logic remains a placeholder for a more advanced alias-to-path resolution.
-			var modulePrefix string
-			if moduleAlias == "Fmt" {
-				modulePrefix = "Std_Fmt"
-			} else {
-				modulePrefix = moduleAlias
-			}
+			// This is a simplification. A more robust compiler would have a map
+			// from alias -> full_path_prefix.
+			modulePrefix := strings.ReplaceAll(moduleAlias, "::", "_")
 
 			mangledName := fmt.Sprintf("%s_%s", modulePrefix, funcName)
 			fn, exists = c.functionTable[mangledName]
@@ -908,7 +888,20 @@ func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value,
 		return nil, fmt.Errorf("undefined function: %s", expr.Function.String())
 	}
 
-	return c.compileFunctionCall(expr, fn)
+	var args []value.Value
+	for _, arg := range expr.Arguments {
+		argValue, err := c.compileExpression(arg)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, argValue)
+	}
+
+	if !fn.Sig.Variadic && len(args) != len(fn.Params) {
+		return nil, fmt.Errorf("function %s expects %d arguments, but %d were provided", fn.Name(), len(fn.Params), len(args))
+	}
+
+	return c.currentBlock.NewCall(fn, args...), nil
 }
 
 // compileFunctionCall compiles a call to any function (user-defined or extern)
@@ -1189,26 +1182,194 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 	return nil
 }
 
+// compileModuleStatement is MODIFIED for the two-pass approach
 func (c *Compiler) compileModuleStatement(stmt *ast.ModuleStatement) error {
-	// Build the fully qualified path prefix (e.g., "Std_Fmt")
 	pathSegments := make([]string, len(stmt.FullPath.Segments))
 	for i, segment := range stmt.FullPath.Segments {
 		pathSegments[i] = segment.Value
 	}
 	prefix := strings.Join(pathSegments, "_")
 
-	// Set the current module context
+	savedPrefix := c.currentModulePrefix
 	c.currentModulePrefix = prefix
 
-	// Compile all statements within the module
+	// PASS 1: Collect all declarations within the module.
 	for _, modStmt := range stmt.Module.Statements {
-		if err := c.compileStatement(modStmt); err != nil {
+		if err := c.collectDeclarations(modStmt); err != nil {
 			return err
 		}
 	}
 
-	// Reset the module context
-	c.currentModulePrefix = ""
+	// PASS 2: Compile all implementations within the module.
+	for _, modStmt := range stmt.Module.Statements {
+		if err := c.compileImplementation(modStmt); err != nil {
+			return err
+		}
+	}
+
+	c.currentModulePrefix = savedPrefix
+	return nil
+}
+
+func (c *Compiler) compileImplementation(stmt ast.Statement) error {
+	switch s := stmt.(type) {
+	case *ast.ModuleStatement:
+		// Modules are self-contained; their implementation was handled in collectDeclarations.
+		return nil
+
+	case *ast.LetStatement:
+		// If it's a function, now we compile its body.
+		if funcLit, ok := s.Value.(*ast.FunctionLiteral); ok {
+			return c.compileFunctionBody(s.Name.Value, funcLit)
+		}
+		// Struct/Enum definitions have no "body" to compile, so we skip them.
+		if _, ok := s.Value.(*ast.StructLiteral); ok {
+			return nil
+		}
+		if _, ok := s.Value.(*ast.EnumLiteral); ok {
+			return nil
+		}
+		// Handle regular variable assignments.
+		return c.compileLetAssignment(s)
+
+	case *ast.ExpressionStatement:
+		_, err := c.compileExpression(s.Expression)
+		return err
+
+	case *ast.ReturnStatement:
+		// Return statements only appear inside function bodies, which are handled
+		// by compileFunctionBody, so we shouldn't see them at the top level.
+		return nil
+
+	case *ast.ExternStatement:
+		// Already handled in Pass 1.
+		return nil
+	default:
+		return fmt.Errorf("unsupported implementation statement type: %T", stmt)
+	}
+}
+
+func (c *Compiler) collectDeclarations(stmt ast.Statement) error {
+	switch s := stmt.(type) {
+	case *ast.ModuleStatement:
+		// Recursively collect declarations from sub-modules
+		return c.compileModuleStatement(s)
+
+	case *ast.LetStatement:
+		// Find function, struct, and enum declarations
+		if funcLit, ok := s.Value.(*ast.FunctionLiteral); ok {
+			return c.compileFunctionDeclaration(s.Name.Value, funcLit)
+		}
+		if structLit, ok := s.Value.(*ast.StructLiteral); ok {
+			return c.compileStructDefinition(s.Name.Value, structLit)
+		}
+		if enumLit, ok := s.Value.(*ast.EnumLiteral); ok {
+			return c.compileEnumDefinition(s.Name.Value, enumLit)
+		}
+		// Other let statements are implementations, ignore in this pass.
+		return nil
+
+	case *ast.ExternStatement:
+		// Externs are pure declarations.
+		return c.compileExternStatement(s)
+
+	default:
+		// All other statements are implementations, ignore in this pass.
+		return nil
+	}
+}
+
+func (c *Compiler) compileFunctionDeclaration(funcName string, expr *ast.FunctionLiteral) error {
+	llvmFuncName := funcName
+	if c.currentModulePrefix != "" {
+		llvmFuncName = fmt.Sprintf("%s_%s", c.currentModulePrefix, funcName)
+	}
+
+	// Avoid re-declaration
+	if _, exists := c.functionTable[llvmFuncName]; exists {
+		return nil
+	}
+
+	var paramTypes []types.Type
+	for _, param := range expr.Parameters {
+		paramTypes = append(paramTypes, c.typeAnnotationToLLVMType(param.Type))
+	}
+
+	var returnType types.Type = types.Void
+	if expr.ReturnType != nil {
+		returnType = c.typeAnnotationToLLVMType(expr.ReturnType)
+	}
+
+	var params []*ir.Param
+	for i, param := range expr.Parameters {
+		params = append(params, ir.NewParam(param.Name.Value, paramTypes[i]))
+	}
+
+	fn := c.module.NewFunc(llvmFuncName, returnType, params...)
+	c.functionTable[llvmFuncName] = fn
+	return nil
+}
+
+func (c *Compiler) compileFunctionBody(funcName string, expr *ast.FunctionLiteral) error {
+	llvmFuncName := funcName
+	if c.currentModulePrefix != "" {
+		llvmFuncName = fmt.Sprintf("%s_%s", c.currentModulePrefix, funcName)
+	}
+
+	fn, ok := c.functionTable[llvmFuncName]
+	if !ok {
+		return fmt.Errorf("internal compiler error: function %s not found in table", llvmFuncName)
+	}
+
+	// Function body is already compiled if it has blocks, skip re-compiling.
+	if len(fn.Blocks) > 0 {
+		return nil
+	}
+
+	savedFunc, savedBlock, savedSymbolTable := c.currentFunc, c.currentBlock, c.symbolTable
+	c.currentFunc = fn
+	c.symbolTable = make(map[string]value.Value)
+	entryBlock := fn.NewBlock("entry")
+	c.currentBlock = entryBlock
+
+	for i, param := range expr.Parameters {
+		alloca := c.currentBlock.NewAlloca(fn.Params[i].Typ)
+		c.currentBlock.NewStore(fn.Params[i], alloca)
+		c.symbolTable[param.Name.Value] = alloca
+	}
+
+	_, err := c.compileBlockStatement(expr.Body)
+	if err != nil {
+		return err
+	}
+
+	if c.currentBlock.Term == nil {
+		if fn.Sig.RetType.Equal(types.Void) {
+			c.currentBlock.NewRet(nil)
+		} else {
+			c.currentBlock.NewRet(constant.NewZeroInitializer(fn.Sig.RetType))
+		}
+	}
+
+	c.currentFunc, c.currentBlock, c.symbolTable = savedFunc, savedBlock, savedSymbolTable
+	return nil
+}
+
+func (c *Compiler) compileLetAssignment(stmt *ast.LetStatement) error {
+	val, err := c.compileExpression(stmt.Value)
+	if err != nil {
+		return err
+	}
+	var targetType types.Type
+	if stmt.Type != nil {
+		targetType = c.typeAnnotationToLLVMType(stmt.Type)
+	} else {
+		targetType = val.Type()
+	}
+
+	alloca := c.currentBlock.NewAlloca(targetType)
+	c.currentBlock.NewStore(val, alloca)
+	c.symbolTable[stmt.Name.Value] = alloca
 	return nil
 }
 
