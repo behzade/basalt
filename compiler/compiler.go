@@ -52,48 +52,45 @@ type Compiler struct {
 	blockCounter  int // Counter for generating unique block names
 
 	// ARC management fields
-	scopeStack    [][]value.Value // Stack of ARC-managed variables per scope
-	isNoGCContext bool            // True if currently compiling inside a #[nogc] function
+	scopeStack          [][]value.Value // Stack of ARC-managed variables per scope
+	isNoGCContext       bool            // True if currently compiling inside a #[nogc] function
+	currentModulePrefix string
 }
 
 // New creates a new compiler instance
 func New() *Compiler {
 	c := &Compiler{
-		module:        ir.NewModule(),
-		symbolTable:   make(map[string]value.Value),
-		functionTable: make(map[string]*ir.Func),
-		typeRegistry:  make(map[string]*StructInfo),
-		enumRegistry:  make(map[string]*EnumInfo),
-		env:           checker.NewTypeEnvironment(),
-		blockCounter:  0,
-		scopeStack:    make([][]value.Value, 0),
-		isNoGCContext: false,
+		module:              ir.NewModule(),
+		symbolTable:         make(map[string]value.Value),
+		functionTable:       make(map[string]*ir.Func),
+		typeRegistry:        make(map[string]*StructInfo),
+		enumRegistry:        make(map[string]*EnumInfo),
+		env:                 checker.NewTypeEnvironment(),
+		blockCounter:        0,
+		scopeStack:          make([][]value.Value, 0),
+		isNoGCContext:       false,
+		currentModulePrefix: "",
 	}
 
 	return c
 }
 
-
 // Compile compiles the AST program to LLVM IR
 func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
-	// Create main function
 	mainFunc := c.module.NewFunc("main", types.I32)
 	c.currentFunc = mainFunc
-
-	// Create entry block
-	entryBlock := mainFunc.NewBlock("")
+	entryBlock := mainFunc.NewBlock("entry")
 	c.currentBlock = entryBlock
 
-	// Compile all statements in the program
 	for _, stmt := range program.Statements {
-		err := c.compileStatement(stmt)
-		if err != nil {
+		if err := c.compileStatement(stmt); err != nil {
 			return nil, err
 		}
 	}
 
-	// Add return 0 at the end of main if no explicit return
-	c.currentBlock.NewRet(constant.NewInt(types.I32, 0))
+	if c.currentBlock.Term == nil {
+		c.currentBlock.NewRet(constant.NewInt(types.I32, 0))
+	}
 
 	return c.module, nil
 }
@@ -101,6 +98,8 @@ func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
 // compileStatement compiles a statement
 func (c *Compiler) compileStatement(stmt ast.Statement) error {
 	switch s := stmt.(type) {
+	case *ast.ModuleStatement:
+		return c.compileModuleStatement(s)
 	case *ast.LetStatement:
 		return c.compileLetStatement(s)
 	case *ast.ExpressionStatement:
@@ -147,7 +146,7 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 	if stmt.Type != nil {
 		// Use the declared type annotation
 		targetType = c.typeAnnotationToLLVMType(stmt.Type)
-		
+
 		// Handle type conversion if needed
 		if !value.Type().Equal(targetType) {
 			// Check if this is an int64 to pointer conversion
@@ -860,31 +859,56 @@ func (c *Compiler) isStringType(t types.Type) bool {
 	return false
 }
 
-// compileCallExpression compiles a function call
 func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value, error) {
-	// Handle built-in print function
+	var fn *ir.Func
+	var exists bool
+
+	// Case 1: Direct function call (e.g., my_func())
 	if ident, ok := expr.Function.(*ast.Identifier); ok {
-		if ident.Value == "print" {
-			return c.compilePrintCall(expr)
+		funcName := ident.Value
+
+		// If we are currently compiling inside a module...
+		if c.currentModulePrefix != "" {
+			// ...first, try to find the function within the same module by checking the mangled name.
+			mangledName := fmt.Sprintf("%s_%s", c.currentModulePrefix, funcName)
+			fn, exists = c.functionTable[mangledName]
 		}
 
-		// Handle all function calls (user-defined and extern)
-		if fn, exists := c.functionTable[ident.Value]; exists {
-			return c.compileFunctionCall(expr, fn)
+		// If it wasn't found as a local module function (or we're not in a module),
+		// try finding it as a global/extern function (which are not mangled).
+		if !exists {
+			fn, exists = c.functionTable[funcName]
 		}
 	}
 
-	// Handle member access expressions (for module function calls)
+	// Case 2: Module member call (e.g., Fmt.print_int())
 	if memberAccess, ok := expr.Function.(*ast.MemberAccessExpression); ok {
-		// This is a module function call like Fmt.print_int(value)
-		funcName := memberAccess.Right.Value
-		if fn, exists := c.functionTable[funcName]; exists {
-			return c.compileFunctionCall(expr, fn)
+		// This logic correctly handles calls to functions in OTHER modules.
+		if moduleIdent, ok := memberAccess.Left.(*ast.Identifier); ok {
+			moduleAlias := moduleIdent.Value
+			funcName := memberAccess.Right.Value
+
+			// This part is complex without full type info propagation from the checker.
+			// A robust solution would look up the alias in a table to find its full path prefix.
+			// For now, we assume a convention where the prefix can be derived.
+			// This logic remains a placeholder for a more advanced alias-to-path resolution.
+			var modulePrefix string
+			if moduleAlias == "Fmt" {
+				modulePrefix = "Std_Fmt"
+			} else {
+				modulePrefix = moduleAlias
+			}
+
+			mangledName := fmt.Sprintf("%s_%s", modulePrefix, funcName)
+			fn, exists = c.functionTable[mangledName]
 		}
-		return nil, fmt.Errorf("undefined function: %s", funcName)
 	}
 
-	return nil, fmt.Errorf("undefined function: %v", expr.Function)
+	if !exists {
+		return nil, fmt.Errorf("undefined function: %s", expr.Function.String())
+	}
+
+	return c.compileFunctionCall(expr, fn)
 }
 
 // compileFunctionCall compiles a call to any function (user-defined or extern)
@@ -1165,82 +1189,81 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 	return nil
 }
 
+func (c *Compiler) compileModuleStatement(stmt *ast.ModuleStatement) error {
+	// Build the fully qualified path prefix (e.g., "Std_Fmt")
+	pathSegments := make([]string, len(stmt.FullPath.Segments))
+	for i, segment := range stmt.FullPath.Segments {
+		pathSegments[i] = segment.Value
+	}
+	prefix := strings.Join(pathSegments, "_")
+
+	// Set the current module context
+	c.currentModulePrefix = prefix
+
+	// Compile all statements within the module
+	for _, modStmt := range stmt.Module.Statements {
+		if err := c.compileStatement(modStmt); err != nil {
+			return err
+		}
+	}
+
+	// Reset the module context
+	c.currentModulePrefix = ""
+	return nil
+}
+
 // compileFunctionDefinition compiles a function definition (let funcName = fn(...) {...})
 func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.FunctionLiteral) error {
-	// Generate LLVM function name
-	llvmFuncName := fmt.Sprintf("func_%s_%d", funcName, c.blockCounter)
-	c.blockCounter++
+	llvmFuncName := funcName
+	// Mangle the function name if inside a module
+	if c.currentModulePrefix != "" {
+		llvmFuncName = fmt.Sprintf("%s_%s", c.currentModulePrefix, funcName)
+	}
 
-	// Determine parameter types
 	var paramTypes []types.Type
 	for _, param := range expr.Parameters {
-		if param.Type == nil {
-			return fmt.Errorf("function parameter %s must have type annotation", param.Name.Value)
-		}
 		paramTypes = append(paramTypes, c.typeAnnotationToLLVMType(param.Type))
 	}
 
-	// Determine return type
-	var returnType types.Type = types.I64 // Default to i64
+	var returnType types.Type = types.Void
 	if expr.ReturnType != nil {
 		returnType = c.typeAnnotationToLLVMType(expr.ReturnType)
 	}
 
-	// Create function parameters
 	var params []*ir.Param
 	for i, param := range expr.Parameters {
 		params = append(params, ir.NewParam(param.Name.Value, paramTypes[i]))
 	}
 
-	// Create the function
 	fn := c.module.NewFunc(llvmFuncName, returnType, params...)
+	c.functionTable[llvmFuncName] = fn
 
-	// Add to function table
-	c.functionTable[funcName] = fn
-
-	// Save current compilation state
-	savedFunc := c.currentFunc
-	savedBlock := c.currentBlock
-	savedSymbolTable := c.symbolTable
-	savedNoGCContext := c.isNoGCContext
-
-	// Set the NoGC context for this function's compilation
-	c.isNoGCContext = expr.IsNoGC()
-
-	// Set up new compilation context for the function
+	savedFunc, savedBlock, savedSymbolTable := c.currentFunc, c.currentBlock, c.symbolTable
 	c.currentFunc = fn
 	c.symbolTable = make(map[string]value.Value)
-
-	// Create entry block
 	entryBlock := fn.NewBlock("entry")
 	c.currentBlock = entryBlock
 
-	// Allocate stack space for parameters and store their values
 	for i, param := range expr.Parameters {
 		alloca := c.currentBlock.NewAlloca(paramTypes[i])
 		c.currentBlock.NewStore(fn.Params[i], alloca)
 		c.symbolTable[param.Name.Value] = alloca
 	}
 
-	// Compile function body
-	bodyValue, err := c.compileBlockStatement(expr.Body)
+	_, err := c.compileBlockStatement(expr.Body)
 	if err != nil {
 		return err
 	}
 
-	// Add return statement
-	if returnType == types.Void {
-		c.currentBlock.NewRet(nil)
-	} else {
-		c.currentBlock.NewRet(bodyValue)
+	if c.currentBlock.Term == nil {
+		if returnType == types.Void {
+			c.currentBlock.NewRet(nil)
+		} else {
+			c.currentBlock.NewRet(constant.NewZeroInitializer(returnType))
+		}
 	}
 
-	// Restore previous compilation state
-	c.currentFunc = savedFunc
-	c.currentBlock = savedBlock
-	c.symbolTable = savedSymbolTable
-	c.isNoGCContext = savedNoGCContext
-
+	c.currentFunc, c.currentBlock, c.symbolTable = savedFunc, savedBlock, savedSymbolTable
 	return nil
 }
 

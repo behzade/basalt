@@ -734,9 +734,10 @@ func (me *MatchExpression) String() string {
 }
 
 type ModuleStatement struct {
-	Token  token.Token // The 'import' token
-	Name   *Identifier // The name the module is accessed by (e.g., Fmt)
-	Module *Program    // The AST of the entire imported module
+	Token    token.Token     // The 'import' token
+	Name     *Identifier     // The name the module is accessed by (e.g., Fmt)
+	FullPath *PathExpression // The full path to the module (e.g., std/fmt)
+	Module   *Program        // The AST of the entire imported module
 }
 
 func (ms *ModuleStatement) statementNode()       {}

@@ -71,6 +71,7 @@ func (r *internalResolver) resolveStatements(statements []ast.Statement) ([]ast.
 			Token:  importStmt.Token, // Preserve the original import token for position info
 			Name:   moduleAlias,
 			Module: moduleProgram,
+			FullPath: importStmt.Path,
 		}
 
 		expandedStatements = append(expandedStatements, moduleNode)
