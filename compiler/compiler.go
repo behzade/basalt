@@ -70,42 +70,9 @@ func New() *Compiler {
 		isNoGCContext: false,
 	}
 
-	// Declare ARC runtime functions
-	c.declareARCFunctions()
-
 	return c
 }
 
-// declareARCFunctions declares the ARC runtime functions in the function table
-func (c *Compiler) declareARCFunctions() {
-	// arc_alloc(size: int64) -> array_ptr
-	arcAllocParams := []*ir.Param{
-		ir.NewParam("size", types.I64),
-	}
-	arcAllocFunc := c.module.NewFunc("arc_alloc", types.I8Ptr, arcAllocParams...)
-	c.functionTable["arc_alloc"] = arcAllocFunc
-
-	// arc_retain(ptr: array_ptr) -> none
-	arcRetainParams := []*ir.Param{
-		ir.NewParam("ptr", types.I8Ptr),
-	}
-	arcRetainFunc := c.module.NewFunc("arc_retain", types.Void, arcRetainParams...)
-	c.functionTable["arc_retain"] = arcRetainFunc
-
-	// arc_release(ptr: array_ptr) -> none
-	arcReleaseParams := []*ir.Param{
-		ir.NewParam("ptr", types.I8Ptr),
-	}
-	arcReleaseFunc := c.module.NewFunc("arc_release", types.Void, arcReleaseParams...)
-	c.functionTable["arc_release"] = arcReleaseFunc
-
-	// arc_get_ref_count(ptr: array_ptr) -> int64 (for debugging)
-	arcGetRefCountParams := []*ir.Param{
-		ir.NewParam("ptr", types.I8Ptr),
-	}
-	arcGetRefCountFunc := c.module.NewFunc("arc_get_ref_count", types.I64, arcGetRefCountParams...)
-	c.functionTable["arc_get_ref_count"] = arcGetRefCountFunc
-}
 
 // Compile compiles the AST program to LLVM IR
 func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {

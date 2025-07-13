@@ -75,4 +75,4 @@ let arc_get_ref_count = fn(ptr: int64) -> int64 {
     let header: *ArcHeader = header_ptr;
     
     return header.ref_count;
-} 
+}; 
