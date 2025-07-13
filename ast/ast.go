@@ -45,15 +45,21 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-// TypeAnnotation represents a type annotation like int64, string, [int64], etc.
+// TypeAnnotation represents a type annotation like int64, string, [int64], *ArcHeader, etc.
 type TypeAnnotation struct {
-	Token token.Token // The type token
-	Value string      // The type name (e.g., "int64", "string", "bool")
+	Token     token.Token // The type token
+	Value     string      // The type name (e.g., "int64", "string", "bool", "ArcHeader")
+	IsPointer bool        // True if this is a pointer type (e.g., *ArcHeader)
 }
 
 func (ta *TypeAnnotation) expressionNode()      {}
 func (ta *TypeAnnotation) TokenLiteral() string { return ta.Token.Literal }
-func (ta *TypeAnnotation) String() string       { return ta.Value }
+func (ta *TypeAnnotation) String() string {
+	if ta.IsPointer {
+		return "*" + ta.Value
+	}
+	return ta.Value
+}
 
 // Parameter represents a function parameter with optional type annotation
 type Parameter struct {

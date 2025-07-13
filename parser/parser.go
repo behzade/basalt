@@ -200,10 +200,10 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	// Check for optional type annotation
 	if p.peekTokenIs(token.COLON) {
 		p.nextToken() // consume the colon
-		if !p.expectPeek(token.IDENT) {
+		stmt.Type = p.parseTypeAnnotation()
+		if stmt.Type == nil {
 			return nil
 		}
-		stmt.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 	}
 
 	if !p.expectPeek(token.ASSIGN) {
@@ -472,10 +472,10 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	// Check for return type annotation with ->
 	if p.peekTokenIs(token.ARROW) {
 		p.nextToken() // consume the ->
-		if !p.expectPeek(token.IDENT) {
+		lit.ReturnType = p.parseTypeAnnotation()
+		if lit.ReturnType == nil {
 			return nil
 		}
-		lit.ReturnType = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 	}
 
 	if !p.expectPeek(token.LBRACE) {
@@ -513,10 +513,10 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Parameter, bool) {
 	}
 	if p.peekTokenIs(token.COLON) {
 		p.nextToken()
-		if !p.expectPeek(token.IDENT) {
+		param.Type = p.parseTypeAnnotation()
+		if param.Type == nil {
 			return nil, false
 		}
-		param.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 	}
 	parameters = append(parameters, param)
 
@@ -535,10 +535,10 @@ func (p *Parser) parseFunctionParameters() ([]*ast.Parameter, bool) {
 		}
 		if p.peekTokenIs(token.COLON) {
 			p.nextToken()
-			if !p.expectPeek(token.IDENT) {
+			param.Type = p.parseTypeAnnotation()
+			if param.Type == nil {
 				return nil, false
 			}
-			param.Type = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 		}
 		parameters = append(parameters, param)
 	}
@@ -907,11 +907,11 @@ func (p *Parser) parseExternStatement() *ast.ExternStatement {
 
 	p.nextToken() // Consumes '->'
 
-	// The return type is the next token, which we expect to be an identifier.
-	if !p.expectPeek(token.IDENT) {
-		return nil // Consumes the return type identifier
+	// Parse the return type annotation
+	stmt.ReturnType = p.parseTypeAnnotation()
+	if stmt.ReturnType == nil {
+		return nil
 	}
-	stmt.ReturnType = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 
 	// Optionally consume a final semicolon.
 	if p.peekTokenIs(token.SEMICOLON) {
@@ -1093,10 +1093,10 @@ func (p *Parser) parseEnumVariants() []*ast.EnumVariant {
 		// Check for optional payload
 		if p.peekTokenIs(token.LPAREN) {
 			p.nextToken() // consume '('
-			if !p.expectPeek(token.IDENT) {
+			variant.Payload = p.parseTypeAnnotation()
+			if variant.Payload == nil {
 				return nil
 			}
-			variant.Payload = &ast.TypeAnnotation{Token: p.curToken, Value: p.curToken.Literal}
 			if !p.expectPeek(token.RPAREN) {
 				return nil
 			}
@@ -1240,4 +1240,29 @@ func (p *Parser) parseEnumInstantiationPattern() *ast.EnumInstantiationExpressio
 	}
 
 	return exp
+}
+
+func (p *Parser) parseTypeAnnotation() *ast.TypeAnnotation {
+	// Handle pointer syntax: *Type
+	if p.peekTokenIs(token.ASTERISK) {
+		p.nextToken() // consume '*'
+		if !p.expectPeek(token.IDENT) {
+			return nil
+		}
+		return &ast.TypeAnnotation{
+			Token:     p.curToken,
+			Value:     p.curToken.Literal,
+			IsPointer: true,
+		}
+	}
+
+	// Handle simple type
+	if !p.expectPeek(token.IDENT) {
+		return nil
+	}
+	return &ast.TypeAnnotation{
+		Token:     p.curToken,
+		Value:     p.curToken.Literal,
+		IsPointer: false,
+	}
 }

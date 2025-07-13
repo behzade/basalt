@@ -15,8 +15,8 @@ let arc_alloc = fn(size: int64) -> array_ptr {
         return 0; // Allocation failed
     }
     
-    // Initialize the header
-    let header = header_ptr as *ArcHeader;
+    // Initialize the header using typed pointer
+    let header: *ArcHeader = header_ptr;
     header.ref_count = 1;
     header.size = size;
     
@@ -27,12 +27,12 @@ let arc_alloc = fn(size: int64) -> array_ptr {
 // Increase reference count
 let arc_retain = fn(ptr: array_ptr) -> none {
     if ptr == 0 {
-        return;
+        return none;
     }
     
     let header_size = 16;
     let header_ptr = ptr - header_size;
-    let header = header_ptr as *ArcHeader;
+    let header: *ArcHeader = header_ptr;
     
     header.ref_count = header.ref_count + 1;
 };
@@ -40,12 +40,12 @@ let arc_retain = fn(ptr: array_ptr) -> none {
 // Decrease reference count and free if needed
 let arc_release = fn(ptr: array_ptr) -> none {
     if ptr == 0 {
-        return;
+        return none;
     }
     
     let header_size = 16;
     let header_ptr = ptr - header_size;
-    let header = header_ptr as *ArcHeader;
+    let header: *ArcHeader = header_ptr;
     
     header.ref_count = header.ref_count - 1;
     
@@ -62,7 +62,7 @@ let arc_get_ref_count = fn(ptr: array_ptr) -> int64 {
     
     let header_size = 16;
     let header_ptr = ptr - header_size;
-    let header = header_ptr as *ArcHeader;
+    let header: *ArcHeader = header_ptr;
     
     return header.ref_count;
 } 

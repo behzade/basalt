@@ -23,6 +23,22 @@ type (
 	ArrayPtrType struct{} // Represents a generic pointer, used for interop
 )
 
+// PointerType represents a pointer to another type (e.g., *ArcHeader)
+type PointerType struct {
+	InnerType Type
+}
+
+func (t *PointerType) String() string {
+	return "*" + t.InnerType.String()
+}
+
+func (t *PointerType) Equals(other Type) bool {
+	if otherPtr, ok := other.(*PointerType); ok {
+		return t.InnerType.Equals(otherPtr.InnerType)
+	}
+	return false
+}
+
 func (t *IntegerType) String() string         { return "int64" }
 func (t *IntegerType) Equals(other Type) bool { _, ok := other.(*IntegerType); return ok }
 
@@ -761,6 +777,15 @@ func (c *Checker) isAssignable(from, to Type) bool {
 			return true
 		}
 	}
+	// Safe conversion: allow assigning array_ptr to any pointer-to-struct type
+	if from.Equals(&ArrayPtrType{}) {
+		if ptrType, ok := to.(*PointerType); ok {
+			// Only allow conversion to pointer-to-struct types
+			if _, ok := ptrType.InnerType.(*StructType); ok {
+				return true
+			}
+		}
+	}
 	return false
 }
 
@@ -829,36 +854,49 @@ func (c *Checker) checkExternStatement(node *ast.ExternStatement) Type {
 
 func (c *Checker) parseTypeAnnotation(typeAnnotation ast.Node) Type {
 	var typeName string
+	var isPointer bool
 	switch ta := typeAnnotation.(type) {
 	case *ast.TypeAnnotation:
 		typeName = ta.Value
+		isPointer = ta.IsPointer
 	case *ast.Identifier:
 		typeName = ta.Value
+		isPointer = false
 	default:
 		c.addError(fmt.Sprintf("invalid type annotation node: %T", typeAnnotation))
 		return &NoneType{}
 	}
 
+	// First resolve the inner type
+	var innerType Type
 	switch typeName {
 	case "int64":
-		return &IntegerType{}
+		innerType = &IntegerType{}
 	case "float64":
-		return &FloatType{}
+		innerType = &FloatType{}
 	case "bool":
-		return &BooleanType{}
+		innerType = &BooleanType{}
 	case "string":
-		return &StringType{}
+		innerType = &StringType{}
 	case "none":
-		return &NoneType{}
+		innerType = &NoneType{}
 	case "array_ptr":
-		return &ArrayPtrType{}
+		innerType = &ArrayPtrType{}
 	default:
 		if typ, ok := c.env.Get(typeName); ok {
-			return typ
+			innerType = typ
+		} else {
+			c.addError(fmt.Sprintf("unknown type: %s", typeName))
+			return &NoneType{}
 		}
-		c.addError(fmt.Sprintf("unknown type: %s", typeName))
-		return &NoneType{}
 	}
+
+	// If it's a pointer type, wrap it in PointerType
+	if isPointer {
+		return &PointerType{InnerType: innerType}
+	}
+
+	return innerType
 }
 
 func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) Type {
@@ -872,6 +910,22 @@ func (c *Checker) checkMemberAccessExpression(node *ast.MemberAccessExpression) 
 			return &NoneType{}
 		}
 		return fieldType
+	}
+
+	// Handle pointer dereferencing: ptr.field automatically dereferences the pointer
+	if ptrType, ok := leftType.(*PointerType); ok {
+		if structType, ok := ptrType.InnerType.(*StructType); ok {
+			memberName := node.Right.Value
+			fieldType, exists := structType.Fields[memberName]
+			if !exists {
+				c.addError(fmt.Sprintf("field '%s' not found in struct %s", memberName, structType.Name))
+				return &NoneType{}
+			}
+			return fieldType
+		} else {
+			c.addError(fmt.Sprintf("cannot access field '%s' on pointer to non-struct type %s", node.Right.Value, ptrType.InnerType.String()))
+			return &NoneType{}
+		}
 	}
 
 	if moduleType, ok := leftType.(*ModuleType); ok {

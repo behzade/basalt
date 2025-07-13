@@ -1083,35 +1083,50 @@ func (c *Compiler) basaltTypeToLLVMType(expr ast.Expression) types.Type {
 
 // typeAnnotationToLLVMType converts a type annotation to LLVM type
 func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) types.Type {
+	var baseType types.Type
+
 	switch typeAnnotation.Value {
 	case "int64":
-		return types.I64
+		baseType = types.I64
 	case "int32":
-		return types.I32
+		baseType = types.I32
 	case "int16":
-		return types.I16
+		baseType = types.I16
 	case "int8":
-		return types.I8
+		baseType = types.I8
 	case "bool":
-		return types.I1
+		baseType = types.I1
 	case "float64":
-		return types.Double
+		baseType = types.Double
 	case "float32":
-		return types.Float
+		baseType = types.Float
 	case "string":
-		return types.I8Ptr // String is represented as i8* (pointer to i8)
+		baseType = types.I8Ptr // String is represented as i8* (pointer to i8)
 	case "none":
-		return types.Void
+		baseType = types.Void
 	case "array_ptr":
-		return types.I8Ptr // Array pointer is represented as i8* (pointer to i8)
+		baseType = types.I8Ptr // Array pointer is represented as i8* (pointer to i8)
 	default:
 		// Check if it's a struct type
 		if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists {
-			return types.NewPointer(structInfo.LLVMType)
+			baseType = structInfo.LLVMType
+		} else {
+			// Default to i64 for unknown types
+			baseType = types.I64
 		}
-		// Default to i64 for unknown types
-		return types.I64
 	}
+
+	// If it's a pointer type, wrap it in a pointer
+	if typeAnnotation.IsPointer {
+		return types.NewPointer(baseType)
+	}
+
+	// For struct types, we always return a pointer (unless it's already a pointer type)
+	if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
+		return types.NewPointer(structInfo.LLVMType)
+	}
+
+	return baseType
 }
 
 // CompileToExecutable compiles the program and creates an executable
@@ -1155,7 +1170,7 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 	}
 
 	// Link object file with runtime.c to executable using clang
-	clangCmd := exec.Command("clang", objFile, "-o", outputPath)
+	clangCmd := exec.Command("clang", objFile, "-o", outputPath, "-fsanitize=address")
 	var clangStdErr bytes.Buffer
 	var clangStdOut bytes.Buffer
 	clangCmd.Stdout = &clangStdOut
