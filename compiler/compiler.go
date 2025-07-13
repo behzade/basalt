@@ -272,6 +272,8 @@ func (c *Compiler) compileExpression(expr ast.Expression) (value.Value, error) {
 		return c.compileMatchExpression(e)
 	case *ast.EnumLiteral:
 		return c.compileEnumLiteral(e)
+	case *ast.HashLiteral:
+		return c.compileHashLiteral(e)
 	default:
 		return nil, fmt.Errorf("unsupported expression type: %T", expr)
 	}
@@ -624,8 +626,11 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 		} else if memberAccess, ok := expr.Left.(*ast.MemberAccessExpression); ok {
 			// Handle struct field assignment
 			return c.compileStructFieldAssignment(memberAccess, right)
+		} else if indexExpr, ok := expr.Left.(*ast.IndexExpression); ok {
+			// Handle HashMap or array element assignment
+			return c.compileIndexAssignment(indexExpr, right)
 		}
-		return nil, fmt.Errorf("assignment target must be an identifier or struct field")
+		return nil, fmt.Errorf("assignment target must be an identifier, struct field, or index expression")
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", expr.Operator)
 	}
@@ -1099,6 +1104,97 @@ func (c *Compiler) compileEnumLiteral(expr *ast.EnumLiteral) (value.Value, error
 	// Enum literals should not be compiled directly as expressions
 	// They are handled in let statements via compileEnumDefinition
 	return nil, fmt.Errorf("enum literals must be assigned to a variable")
+}
+
+// compileHashLiteral compiles hash map literals like {"key": value, 42: "answer"}
+func (c *Compiler) compileHashLiteral(expr *ast.HashLiteral) (value.Value, error) {
+	// For now, we'll create a simple HashMap for string->int64 or int64->string mappings
+	// In a full implementation, we'd need to determine the key and value types from the pairs
+
+	// Create a new HashMap by calling the Basalt HashMap::new function
+	// We need to determine the key and value types from the pairs
+	if len(expr.Pairs) == 0 {
+		// Empty hash map - we'll need type annotation to determine the types
+		// For now, return a placeholder pointer
+		return constant.NewIntToPtr(constant.NewInt(types.I64, 0), types.I8Ptr), nil
+	}
+
+	// Analyze the first pair to determine types
+	firstPair := expr.Pairs[0]
+	keyValue, err := c.compileExpression(firstPair.Key)
+	if err != nil {
+		return nil, err
+	}
+	valueValue, err := c.compileExpression(firstPair.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine the HashMap type based on key and value types
+	keyType := keyValue.Type()
+	valType := valueValue.Type()
+
+	// For now, we'll support string keys and int64 values, or int64 keys and string values
+	var hashmapNewFunc *ir.Func
+	var hashmapSetFunc *ir.Func
+	var ok bool
+
+	if c.isStringType(keyType) && valType.Equal(types.I64) {
+		// HashMap<string, int64>
+		hashmapNewFunc, ok = c.functionTable["std_collections_new"]
+		if !ok {
+			return nil, fmt.Errorf("Collections::new function not found")
+		}
+		hashmapSetFunc, ok = c.functionTable["std_collections_set"]
+		if !ok {
+			return nil, fmt.Errorf("Collections::set function not found")
+		}
+	} else if keyType.Equal(types.I64) && c.isStringType(valType) {
+		// HashMap<int64, string>
+		hashmapNewFunc, ok = c.functionTable["std_collections_new"]
+		if !ok {
+			return nil, fmt.Errorf("Collections::new function not found")
+		}
+		hashmapSetFunc, ok = c.functionTable["std_collections_set"]
+		if !ok {
+			return nil, fmt.Errorf("Collections::set function not found")
+		}
+	} else {
+		return nil, fmt.Errorf("unsupported HashMap key/value types: %s -> %s", keyType, valType)
+	}
+
+	// Create a new HashMap
+	hashMapPtr := c.currentBlock.NewCall(hashmapNewFunc)
+
+	// Set the first pair
+	c.currentBlock.NewCall(hashmapSetFunc, hashMapPtr, keyValue, valueValue)
+
+	// Set the remaining pairs
+	for i := 1; i < len(expr.Pairs); i++ {
+		pair := expr.Pairs[i]
+
+		keyVal, err := c.compileExpression(pair.Key)
+		if err != nil {
+			return nil, err
+		}
+		valVal, err := c.compileExpression(pair.Value)
+		if err != nil {
+			return nil, err
+		}
+
+		// Type check - ensure all keys and values have consistent types
+		if !keyVal.Type().Equal(keyType) {
+			return nil, fmt.Errorf("inconsistent key types in hash map literal: expected %s, got %s", keyType, keyVal.Type())
+		}
+		if !valVal.Type().Equal(valType) {
+			return nil, fmt.Errorf("inconsistent value types in hash map literal: expected %s, got %s", valType, valVal.Type())
+		}
+
+		// Set the key-value pair
+		c.currentBlock.NewCall(hashmapSetFunc, hashMapPtr, keyVal, valVal)
+	}
+
+	return hashMapPtr, nil
 }
 
 func unescapeString(raw string) (string, error) {
@@ -1597,8 +1693,8 @@ func (c *Compiler) compileArrayLiteral(expr *ast.ArrayLiteral) (value.Value, err
 
 // compileIndexExpression compiles array indexing arr[index]
 func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) (value.Value, error) {
-	// Compile the array expression
-	arrayValue, err := c.compileExpression(expr.Left)
+	// Compile the left expression (array or hashmap)
+	leftValue, err := c.compileExpression(expr.Left)
 	if err != nil {
 		return nil, err
 	}
@@ -1614,7 +1710,42 @@ func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) (value.Valu
 		return nil, err
 	}
 
-	// Index must be an integer
+	// Check if this is a HashMap access by looking at the left expression type
+	// For now, we'll assume any pointer type that's not an array is a HashMap
+	// In a full implementation, we'd need better type information
+	leftType := leftValue.Type()
+
+	// If the left side is a pointer and the index is not an integer, it might be a HashMap
+	if c.isPointerType(leftType) && !indexValue.Type().Equal(types.I64) {
+		// This is likely a HashMap with non-integer keys
+		hashmapGetFunc, ok := c.functionTable["std_collections_get"]
+		if !ok {
+			return nil, fmt.Errorf("Collections::get function not found")
+		}
+		return c.currentBlock.NewCall(hashmapGetFunc, leftValue, indexValue), nil
+	}
+
+	// If the left side is a pointer and the index is an integer, it could be either
+	// We'll try HashMap first, then fall back to array
+	if c.isPointerType(leftType) && indexValue.Type().Equal(types.I64) {
+		// Try HashMap first
+		hashmapGetFunc, ok := c.functionTable["std_collections_get"]
+		if ok {
+			// Check if this looks like a HashMap by trying to access it
+			// For now, we'll assume it's a HashMap if the function exists
+			return c.currentBlock.NewCall(hashmapGetFunc, leftValue, indexValue), nil
+		}
+
+		// Fall back to array access
+		arrayGetFunc, ok := c.functionTable["basalt_array_get"]
+		if ok {
+			return c.currentBlock.NewCall(arrayGetFunc, leftValue, indexValue), nil
+		}
+
+		return nil, fmt.Errorf("neither Collections::get nor basalt_array_get functions found")
+	}
+
+	// For non-pointer types, this should be an array access
 	if indexValue.Type() != types.I64 {
 		return nil, fmt.Errorf("array index must be integer, got %s", indexValue.Type())
 	}
@@ -1624,7 +1755,7 @@ func (c *Compiler) compileIndexExpression(expr *ast.IndexExpression) (value.Valu
 	if !ok {
 		return nil, fmt.Errorf("runtime function basalt_array_get not found")
 	}
-	return c.currentBlock.NewCall(arrayGetFunc, arrayValue, indexValue), nil
+	return c.currentBlock.NewCall(arrayGetFunc, leftValue, indexValue), nil
 }
 
 // compileMemberAccessExpression compiles member access like arr.len or struct.field
@@ -1842,6 +1973,41 @@ func (c *Compiler) compileStructFieldAssignment(memberAccess *ast.MemberAccessEx
 	}
 
 	return nil, fmt.Errorf("cannot assign to field '%s' on non-struct type", memberName)
+}
+
+// compileIndexAssignment compiles assignment to an index expression (e.g., map[key] = value or arr[index] = value)
+func (c *Compiler) compileIndexAssignment(indexExpr *ast.IndexExpression, value value.Value) (value.Value, error) {
+	// Compile the left expression (map or array)
+	leftValue, err := c.compileExpression(indexExpr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	// Compile the index/key expression
+	keyValue, err := c.compileExpression(indexExpr.Start)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if this is a HashMap assignment
+	leftType := leftValue.Type()
+
+	// For HashMap assignment, we need to call Collections::set
+	if c.isPointerType(leftType) {
+		// Try HashMap set first
+		hashmapSetFunc, ok := c.functionTable["std_collections_set"]
+		if ok {
+			// Call Collections::set(map, key, value)
+			c.currentBlock.NewCall(hashmapSetFunc, leftValue, keyValue, value)
+			return value, nil
+		}
+
+		// If Collections::set is not available, this might be array assignment
+		// For now, we don't support array element assignment
+		return nil, fmt.Errorf("array element assignment not yet implemented")
+	}
+
+	return nil, fmt.Errorf("unsupported index assignment target type: %s", leftType)
 }
 
 func (c *Compiler) compileImportStatement(stmt *ast.ImportStatement) error {
