@@ -495,7 +495,7 @@ func (c *Compiler) compileForExpression(expr *ast.ForExpression) (value.Value, e
 // compileBlockStatement compiles a block statement and returns the value of the last expression
 func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value, error) {
 	var lastVal value.Value = constant.NewInt(types.I64, 0)
-	for _, stmt := range block.Statements {
+	for i, stmt := range block.Statements {
 		if rs, ok := stmt.(*ast.ReturnStatement); ok {
 			if rs.ReturnValue != nil {
 				retVal, err := c.compileExpression(rs.ReturnValue)
@@ -514,12 +514,25 @@ func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value
 			return nil, err
 		}
 
-		// If it was an expression, capture its value.
+		// If it was an expression statement, capture its value only if it's the last statement
+		// and doesn't have a semicolon (for implicit return)
 		if es, ok := stmt.(*ast.ExpressionStatement); ok {
-			var err error
-			lastVal, err = c.compileExpression(es.Expression)
-			if err != nil {
-				return nil, err
+			isLastStatement := i == len(block.Statements)-1
+			if isLastStatement && !es.HasSemicolon {
+				// This is the last statement and it doesn't have a semicolon,
+				// so its value should be used for implicit return
+				var err error
+				lastVal, err = c.compileExpression(es.Expression)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				// Either not the last statement or has a semicolon,
+				// so just compile it but don't use its value
+				_, err := c.compileExpression(es.Expression)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -1442,7 +1455,7 @@ func (c *Compiler) compileFunctionBody(funcName string, expr *ast.FunctionLitera
 		c.symbolTable[param.Name.Value] = alloca
 	}
 
-	_, err := c.compileBlockStatement(expr.Body)
+	bodyValue, err := c.compileBlockStatement(expr.Body)
 	if err != nil {
 		return err
 	}
@@ -1451,7 +1464,7 @@ func (c *Compiler) compileFunctionBody(funcName string, expr *ast.FunctionLitera
 		if fn.Sig.RetType.Equal(types.Void) {
 			c.currentBlock.NewRet(nil)
 		} else {
-			c.currentBlock.NewRet(constant.NewZeroInitializer(fn.Sig.RetType))
+			c.currentBlock.NewRet(bodyValue)
 		}
 	}
 
@@ -1532,7 +1545,7 @@ func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.Function
 		c.symbolTable[param.Name.Value] = alloca
 	}
 
-	_, err := c.compileBlockStatement(expr.Body)
+	bodyValue, err := c.compileBlockStatement(expr.Body)
 	if err != nil {
 		return err
 	}
@@ -1541,7 +1554,7 @@ func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.Function
 		if returnType == types.Void {
 			c.currentBlock.NewRet(nil)
 		} else {
-			c.currentBlock.NewRet(constant.NewZeroInitializer(returnType))
+			c.currentBlock.NewRet(bodyValue)
 		}
 	}
 
