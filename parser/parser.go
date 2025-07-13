@@ -934,7 +934,15 @@ func (p *Parser) parseStructLiteral() ast.Expression {
 		return nil
 	}
 
+	// Temporarily remove LBRACE from infix operators to prevent it from being consumed
+	// by parseExpression when we return to parseLetStatement
+	lbraceInfix := p.infixParseFns[token.LBRACE]
+	delete(p.infixParseFns, token.LBRACE)
+
 	lit.Fields = p.parseStructFields()
+
+	// Restore LBRACE infix operator
+	p.infixParseFns[token.LBRACE] = lbraceInfix
 
 	// The RBRACE is consumed by parseStructFields
 	return lit
@@ -952,8 +960,7 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 
 	p.nextToken()
 
-	// This function body needs to be updated to handle multiple fields correctly.
-	// The key change is replacing the simple identifier parsing with parseTypeAnnotation.
+	// Parse struct fields
 	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
 		field := &ast.StructField{}
 		if !p.curTokenIs(token.IDENT) {
@@ -966,23 +973,28 @@ func (p *Parser) parseStructFields() []*ast.StructField {
 			return nil
 		}
 
-		// vvvvvvvvvvvv THE FIX vvvvvvvvvvvv
 		// Use the dedicated function to parse the type annotation.
-		// This replaces the incorrect 'expectPeek(token.IDENT)'.
 		field.Type = p.parseTypeAnnotation()
 		if field.Type == nil {
 			return nil
 		}
-		// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 		fields = append(fields, field)
 
 		// Expect a comma or the closing brace
 		if p.peekTokenIs(token.COMMA) {
 			p.nextToken() // consume comma
+			// Check if there's a trailing comma (comma followed by closing brace)
+			if p.peekTokenIs(token.RBRACE) {
+				// Trailing comma - we're done
+				break
+			}
 			p.nextToken() // move to the next field name
-		} else if !p.peekTokenIs(token.RBRACE) {
-			// If it's not a comma, it must be a closing brace, otherwise it's an error.
+		} else if p.peekTokenIs(token.RBRACE) {
+			// We've reached the end of the struct fields
+			break
+		} else {
+			// If it's not a comma or closing brace, it's an error
 			return nil
 		}
 	}
