@@ -621,12 +621,28 @@ func (c *Compiler) compileAddition(left, right value.Value) (value.Value, error)
 		return c.compileStringConcatenation(left, right)
 	}
 
+	// Pointer arithmetic: ptr + int or int + ptr
+	if c.isPointerType(leftType) && c.isIntegerType(rightType) {
+		return c.compilePointerArithmetic(left, right, "add")
+	}
+	if c.isIntegerType(leftType) && c.isPointerType(rightType) {
+		return c.compilePointerArithmetic(right, left, "add")
+	}
+
 	// Numeric addition with type promotion
 	return c.compileNumericOperation(left, right, "add")
 }
 
 // compileSubtraction handles subtraction with type conversions
 func (c *Compiler) compileSubtraction(left, right value.Value) (value.Value, error) {
+	leftType := left.Type()
+	rightType := right.Type()
+
+	// Pointer arithmetic: ptr - int
+	if c.isPointerType(leftType) && c.isIntegerType(rightType) {
+		return c.compilePointerArithmetic(left, right, "sub")
+	}
+
 	return c.compileNumericOperation(left, right, "sub")
 }
 
@@ -650,6 +666,14 @@ func (c *Compiler) compileEquality(left, right value.Value) (value.Value, error)
 		return c.compileStringComparison(left, right, true)
 	}
 
+	// Pointer comparison with null (0)
+	if c.isPointerType(leftType) && c.isIntegerType(rightType) {
+		return c.compilePointerComparison(left, right, "eq")
+	}
+	if c.isIntegerType(leftType) && c.isPointerType(rightType) {
+		return c.compilePointerComparison(right, left, "eq")
+	}
+
 	// Numeric comparison
 	return c.compileNumericComparison(left, right, "eq")
 }
@@ -662,6 +686,14 @@ func (c *Compiler) compileInequality(left, right value.Value) (value.Value, erro
 	// String comparison
 	if c.isStringType(leftType) && c.isStringType(rightType) {
 		return c.compileStringComparison(left, right, false)
+	}
+
+	// Pointer comparison with null (0)
+	if c.isPointerType(leftType) && c.isIntegerType(rightType) {
+		return c.compilePointerComparison(left, right, "ne")
+	}
+	if c.isIntegerType(leftType) && c.isPointerType(rightType) {
+		return c.compilePointerComparison(right, left, "ne")
 	}
 
 	// Numeric comparison
@@ -850,6 +882,55 @@ func (c *Compiler) isStringType(t types.Type) bool {
 		return ptrType.ElemType == types.I8
 	}
 	return false
+}
+
+// isPointerType checks if a type is a pointer type (including rawptr)
+func (c *Compiler) isPointerType(t types.Type) bool {
+	_, ok := t.(*types.PointerType)
+	return ok
+}
+
+// isIntegerType checks if a type is an integer type
+func (c *Compiler) isIntegerType(t types.Type) bool {
+	_, ok := t.(*types.IntType)
+	return ok
+}
+
+// compilePointerArithmetic handles pointer arithmetic operations (ptr + int, ptr - int)
+func (c *Compiler) compilePointerArithmetic(ptr, offset value.Value, op string) (value.Value, error) {
+	// For pointer arithmetic, we use getelementptr instruction
+	// This is the safe way to do pointer arithmetic in LLVM
+
+	// Convert offset to proper type if needed
+	offsetVal := offset
+	if offsetVal.Type() != types.I64 {
+		offsetVal = c.currentBlock.NewSExt(offsetVal, types.I64)
+	}
+
+	// For subtraction, negate the offset
+	if op == "sub" {
+		offsetVal = c.currentBlock.NewSub(constant.NewInt(types.I64, 0), offsetVal)
+	}
+
+	// Use getelementptr for pointer arithmetic
+	// Since rawptr is i8*, we can use byte-level arithmetic
+	return c.currentBlock.NewGetElementPtr(types.I8, ptr, offsetVal), nil
+}
+
+// compilePointerComparison handles pointer comparison with null (0)
+func (c *Compiler) compilePointerComparison(ptr, nullVal value.Value, op string) (value.Value, error) {
+	// Convert null value to pointer type
+	nullPtr := c.currentBlock.NewIntToPtr(nullVal, ptr.Type())
+
+	// Compare pointers
+	switch op {
+	case "eq":
+		return c.currentBlock.NewICmp(enum.IPredEQ, ptr, nullPtr), nil
+	case "ne":
+		return c.currentBlock.NewICmp(enum.IPredNE, ptr, nullPtr), nil
+	default:
+		return nil, fmt.Errorf("unsupported pointer comparison operator: %s", op)
+	}
 }
 
 func (c *Compiler) compileCallExpression(expr *ast.CallExpression) (value.Value, error) {

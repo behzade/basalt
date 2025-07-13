@@ -736,6 +736,34 @@ func (c *Checker) checkInfixExpression(node *ast.InfixExpression) Type {
 		return &BooleanType{}
 	}
 
+	// Handle pointer and rawptr operations in unsafe context
+	if c.isInUnsafeContext {
+		isLeftRaw := leftType.Equals(&RawPointerType{})
+		isRightRaw := rightType.Equals(&RawPointerType{})
+		_, isLeftPtr := leftType.(*PointerType)
+		_, isRightPtr := rightType.(*PointerType)
+
+		// Pointer/rawptr arithmetic: ptr + int or int + ptr
+		if op == "+" || op == "-" {
+			if (isLeftRaw || isLeftPtr) && isRightNum {
+				return leftType // Return the pointer type
+			}
+			if isLeftNum && (isRightRaw || isRightPtr) && op == "+" {
+				return rightType // Return the pointer type
+			}
+		}
+
+		// Pointer/rawptr comparison with null (0)
+		if op == "==" || op == "!=" {
+			if (isLeftRaw || isLeftPtr) && rightType.Equals(&IntegerType{}) {
+				return &BooleanType{}
+			}
+			if leftType.Equals(&IntegerType{}) && (isRightRaw || isRightPtr) {
+				return &BooleanType{}
+			}
+		}
+	}
+
 	if op == "=" {
 		if !c.isAssignable(rightType, leftType) {
 			c.addError(fmt.Sprintf("cannot assign %s to %s", rightType.String(), leftType.String()), node.Token)

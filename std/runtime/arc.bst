@@ -4,8 +4,8 @@ let ArcHeader = struct {
     size: int64,
 };
 
-// Allocate memory with ARC tracking
-let arc_alloc = fn(size: int64) -> *ArcHeader {
+// Allocate memory with ARC tracking - returns pointer to user data
+let arc_alloc = fn(size: int64) -> rawptr {
     unsafe {
         // Allocate space for header + actual data
         let header_size = 16;
@@ -13,7 +13,8 @@ let arc_alloc = fn(size: int64) -> *ArcHeader {
     
         let header_raw_ptr = malloc(total_size); // This is now a rawptr
         if header_raw_ptr == 0 {
-            return 0; // Allocation failed
+            let null_ptr: rawptr = 0;
+            return null_ptr; // Allocation failed
         }
     
         // Initialize the header using typed pointer
@@ -22,53 +23,57 @@ let arc_alloc = fn(size: int64) -> *ArcHeader {
         header.size = size;
     
         // Return pointer to the data section (after header)
-        // NOTE: This pointer arithmetic is also unsafe. For now, we assume the compiler handles it.
-        // A more advanced implementation might require an intrinsic.
         return header_raw_ptr + header_size;
     }
 };
 
 // Increase reference count
-let arc_retain = fn(ptr: *ArcHeader) -> none {
+let arc_retain = fn(ptr: rawptr) -> none {
     unsafe {
         if ptr == 0 {
             return;
         }
         
-        // In this new model, ptr IS the header pointer.
-        let header: *ArcHeader = ptr;
+        // Calculate header position (16 bytes before user data)
+        let header_size = 16;
+        let header_raw_ptr = ptr - header_size;
+        let header: *ArcHeader = header_raw_ptr;
         
         header.ref_count = header.ref_count + 1;
     }
 };
 
 // Decrease reference count and free if needed
-let arc_release = fn(ptr: *ArcHeader) -> none {
+let arc_release = fn(ptr: rawptr) -> none {
     unsafe {
         if ptr == 0 {
             return;
         }
     
-        // In this new model, ptr IS the header pointer.
-        let header: *ArcHeader = ptr;
+        // Calculate header position (16 bytes before user data)
+        let header_size = 16;
+        let header_raw_ptr = ptr - header_size;
+        let header: *ArcHeader = header_raw_ptr;
     
         header.ref_count = header.ref_count - 1;
     
         if header.ref_count == 0 {
-            free(header); // Pass the raw pointer to free
+            free(header_raw_ptr); // Free the entire allocation starting from header
         }
     }
 };
 
 // Get reference count (for debugging)
-let arc_get_ref_count = fn(ptr: *ArcHeader) -> int64 {
+let arc_get_ref_count = fn(ptr: rawptr) -> int64 {
     unsafe {
         if ptr == 0 {
             return 0;
         }
         
-        // In this new model, ptr IS the header pointer.
-        let header: *ArcHeader = ptr;
+        // Calculate header position (16 bytes before user data)
+        let header_size = 16;
+        let header_raw_ptr = ptr - header_size;
+        let header: *ArcHeader = header_raw_ptr;
         
         return header.ref_count;
     }

@@ -1,4 +1,4 @@
-extern fn printf(format: string, ...) -> none;
+extern fn printf(format: string, ...) -> int64;
 
 extern fn strlen(s: string) -> int64;
 extern fn strcpy(dest: int64, src: string) -> none;
