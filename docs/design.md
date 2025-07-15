@@ -186,3 +186,120 @@ A successful language requires a thriving ecosystem supported by first-class too
 * **Integrated Tooling:** The `basalt` tool will handle `build`, `run`, `test`, `fmt`, and `lint` commands.  
 * **Package Management:** The tool will manage dependencies using a **decentralized, Go-style model**, secured by a checksum database.
 
+
+### **Part 5: Design Extension \- Lexical Algebraic Effects**
+
+This document outlines the design and implementation strategy for integrating first-class, lexically-scoped algebraic effects into Basalt. This pivot is motivated by the goal of creating an exceptionally safe and expressive language, ideal for AI-assisted development where provable correctness is paramount.
+
+#### **1\. Core Philosophy & Syntax**
+
+We are shifting from ad-hoc solutions for side effects (like Result types or async/await) to a single, unified abstraction. Effects are defined as interfaces, performed by functions, and implemented by handlers.
+
+**New Keywords:**
+
+| Keyword | Purpose |
+| :---- | :---- |
+| effect | Defines a new effect interface, specifying its operations. |
+| handler | Provides an implementation for the operations of one or more effects. |
+| perform | Invokes an effect operation, transferring control to the nearest handler. |
+| resume | A capability passed to a handler to resume the original computation. |
+
+**Example Syntax: A** State **Effect**
+
+// 1\. Define the effect signature  
+effect State\<T\> {  
+    get() \-\> T,  
+    put(value: T) \-\> none,  
+}
+
+// 2\. A function that performs the effect.  
+// The signature explicitly declares that it requires the State\<int64\> effect.  
+let counter \= fn() \-\> none / {State\<int64\>} {  
+    let current \= perform State::get();  
+    Fmt.print\_int(current);  
+    perform State::put(current \+ 1);  
+};
+
+// 3\. Provide a handler to run the effectful code.  
+let main \= fn() \-\> none {  
+    // The handler provides the implementation for 'get' and 'put'.  
+    handler {  
+        perform State::put(0); // Initialize state  
+        counter();  
+        counter();  
+        let final \= perform State::get(); // final will be 2  
+        Fmt.print\_string("Final value: " \+ final);  
+    } with State\<int64\> (let mut state \= \-1) { // Handler has its own state  
+        get() \=\> {  
+            resume(state) // Resume the computation with the current state value  
+        },  
+        put(new\_value) \=\> {  
+            state \= new\_value;  
+            resume(()) // Resume the computation with no value  
+        },  
+    }  
+};
+
+#### **2\. Type System Integration**
+
+The type checker is the key to making effects safe. It will be enhanced to track an "effect row" for every expression.
+
+* **Effect-Polymorphic Signatures:** A function's type will now include the set of effects it may perform. The syntax is fn(Args) \-\> ReturnType / {Effect1, Effect2}. A function with no effects is pure: fn() \-\> int64 / {}.  
+* **Ambient Effect Tracking:** The checker will maintain the set of "handled" effects in the current scope.  
+  1. Inside a handler { ... } with State\<T\>, the State\<T\> effect is considered handled and available to be performed.  
+  2. A function's signature (e.g., fn() / {Log}) acts as a promise that its body will only perform effects from that set.  
+* **Validation Rules:**  
+  1. A perform E::op() expression is only valid if the effect E is present in the current function's effect signature.  
+  2. A handler with E block removes E from the effect signature of the resulting expression. The code *inside* the handler can perform E, but the code *after* it cannot (unless a parent handler also provides E).
+
+#### **3\. Compiler & Runtime Implementation Strategy**
+
+The magic behind effects is **delimited continuations**. Since we have a GC, we can safely allocate continuations on the heap.
+
+**The Execution Flow of** perform**:**
+
+1. **Capture:** When perform State::get() is executed, the compiler generates code to capture the current state of execution (the call stack, registers) up to the boundary of the handler with State. This captured state is the **continuation**.  
+2. **Heap Allocation:** The continuation is packaged into a struct on the heap. This struct contains a function pointer to the resumption point and any necessary context (captured local variables).
+
+// Simplified C representation of a continuation object  
+struct Continuation {  
+    void (\*resume\_point)(void\* env, void\* result);  
+    void\* environment; // Pointer to captured variables  
+};
+
+3.   
+4. **Stack Unwind:** The runtime unwinds the call stack, discarding frames until it reaches the handler's stack frame.  
+5. **Handler Invocation:** Control jumps to the appropriate operation clause in the handler (the get() clause). The Continuation object is passed as an implicit argument, which becomes the resume capability.  
+6. **Resumption:** When the handler calls resume(value), it's actually calling the function pointer inside the Continuation object. The runtime restores the captured stack, places value where the perform call was, and execution continues from there.
+
+Role of the C Runtime (Bootstrap Phase):
+
+Initially, you will need a small C library with low-level functions to:
+
+* capture\_stack(...): Copy the relevant portion of the stack to a heap buffer.  
+* restore\_stack(...): Restore a captured stack and jump to its execution point.
+
+Your Go compiler will generate LLVM IR that calls these C functions. In the self-hosted phase, Basalt will become powerful enough to generate this low-level code itself.
+
+#### **4\. Phased Implementation Plan**
+
+This is a large feature, best tackled in stages.
+
+* **Phase 1: Syntax & AST (1-2 days)**  
+  * Add the effect, handler, perform, and resume keywords to the lexer.  
+  * Create new AST nodes: EffectStatement, HandlerExpression, PerformExpression.  
+  * Update the parser to recognize and build these new AST nodes.  
+* **Phase 2: Type Checker (1-2 weeks)**  
+  * Modify FunctionType to include an EffectRow (a set of effect types).  
+  * Update the TypeEnvironment to track the ambient effects available in the current scope.  
+  * Implement the validation rules for perform and handler expressions. This is the most complex static analysis part.  
+* **Phase 3: Runtime & Compiler (2-4 weeks)**  
+  * **C Runtime:** Implement the basic stack manipulation functions (capture\_stack, restore\_stack). Start with **one-shot continuations** (which can only be resumed once) to simplify the initial logic.  
+  * **Compiler:**  
+    * When compiling a handler, generate the handler table and its logic.  
+    * When compiling perform, generate the calls to the C runtime to capture the continuation and jump to the handler.  
+    * When compiling resume, generate the call to restore the continuation.  
+* **Phase 4: Standard Library**  
+  * Once the core feature is working, re-implement Result as a Fail effect.  
+  * Add State, Reader, and other common effects to the standard library to showcase the power of the system.
+

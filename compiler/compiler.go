@@ -130,6 +130,23 @@ func (c *Compiler) compileStatement(stmt ast.Statement) error {
 	}
 }
 
+func (c *Compiler) createEntryAlloca(typ types.Type) *ir.InstAlloca {
+	// The entry block is always the first block of a function.
+	entryBlock := c.currentFunc.Blocks[0]
+
+	// We need to insert the alloca before the first non-alloca instruction.
+	// A simple and effective way is to insert it before the block's terminator.
+	terminator := entryBlock.Term
+	entryBlock.Term = nil // Temporarily remove the terminator
+
+	// Create the alloca in the entry block.
+	alloca := entryBlock.NewAlloca(typ)
+
+	entryBlock.Term = terminator // Re-add the terminator
+
+	return alloca
+}
+
 // compileLetStatement compiles a let statement
 func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 	// Special handling for function literals
@@ -176,20 +193,13 @@ func (c *Compiler) compileLetStatement(stmt *ast.LetStatement) error {
 		targetType = value.Type()
 	}
 
-	// Allocate stack space for the variable
-	alloca := c.currentBlock.NewAlloca(targetType)
+	alloca := c.createEntryAlloca(targetType)
 
 	// Store the value in the allocated space
 	c.currentBlock.NewStore(value, alloca)
 
 	// Add to symbol table
 	c.symbolTable[stmt.Name.Value] = alloca
-
-	// Track ARC-managed variables in current scope
-	if c.isARCManagedValue(value) && len(c.scopeStack) > 0 {
-		currentScopeIndex := len(c.scopeStack) - 1
-		c.scopeStack[currentScopeIndex] = append(c.scopeStack[currentScopeIndex], value)
-	}
 
 	return nil
 }
@@ -204,23 +214,6 @@ func (c *Compiler) compileReturnStatement(stmt *ast.ReturnStatement) error {
 	value, err := c.compileExpression(stmt.ReturnValue)
 	if err != nil {
 		return err
-	}
-
-	// If returning an ARC-managed value, remove it from current scope's release list
-	// to prevent it from being freed before the caller receives it
-	// This is only needed when not in nogc context
-	if !c.isNoGCContext && c.isARCManagedValue(value) && len(c.scopeStack) > 0 {
-		currentScopeIndex := len(c.scopeStack) - 1
-		currentScope := c.scopeStack[currentScopeIndex]
-
-		// Remove the returned value from the scope's release list
-		for i, scopeValue := range currentScope {
-			if scopeValue == value {
-				// Remove from slice
-				c.scopeStack[currentScopeIndex] = append(currentScope[:i], currentScope[i+1:]...)
-				break
-			}
-		}
 	}
 
 	// For now, assume main returns int
@@ -353,7 +346,7 @@ func (c *Compiler) compileFunctionLiteral(expr *ast.FunctionLiteral) (value.Valu
 
 	// Allocate stack space for parameters and store their values
 	for i, param := range expr.Parameters {
-		alloca := c.currentBlock.NewAlloca(paramTypes[i])
+		alloca := c.createEntryAlloca(paramTypes[i])
 		c.currentBlock.NewStore(fn.Params[i], alloca)
 		c.symbolTable[param.Name.Value] = alloca
 	}
@@ -496,8 +489,15 @@ func (c *Compiler) compileForExpression(expr *ast.ForExpression) (value.Value, e
 
 // compileBlockStatement compiles a block statement and returns the value of the last expression
 func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value, error) {
-	var lastVal value.Value = constant.NewInt(types.I64, 0)
+	var lastVal value.Value = constant.NewInt(types.I64, 0) // Default return value for the block
+
 	for i, stmt := range block.Statements {
+		// If a previous statement (like a return) has already terminated this block, stop.
+		if c.currentBlock.Term != nil {
+			break
+		}
+
+		// Handle ReturnStatement explicitly as it terminates the block.
 		if rs, ok := stmt.(*ast.ReturnStatement); ok {
 			if rs.ReturnValue != nil {
 				retVal, err := c.compileExpression(rs.ReturnValue)
@@ -508,45 +508,34 @@ func (c *Compiler) compileBlockStatement(block *ast.BlockStatement) (value.Value
 			} else {
 				c.currentBlock.NewRet(nil)
 			}
-			return lastVal, nil // Return after terminator
+			// After a return, no more statements in this block can be compiled.
+			return lastVal, nil
 		}
 
-		// compileImplementation handles the logic of what to compile now.
-		if err := c.compileImplementation(stmt); err != nil {
-			return nil, err
-		}
-
-		// If it was an expression statement, capture its value only if it's the last statement
-		// and doesn't have a semicolon (for implicit return)
+		// Handle ExpressionStatement to prevent double compilation.
 		if es, ok := stmt.(*ast.ExpressionStatement); ok {
+			// Compile the expression ONCE.
+			exprVal, err := c.compileExpression(es.Expression)
+			if err != nil {
+				return nil, err
+			}
+
+			// If it's the last statement and doesn't have a semicolon,
+			// it's the block's implicit return value.
 			isLastStatement := i == len(block.Statements)-1
 			if isLastStatement && !es.HasSemicolon {
-				// This is the last statement and it doesn't have a semicolon,
-				// so its value should be used for implicit return
-				var err error
-				lastVal, err = c.compileExpression(es.Expression)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				// Either not the last statement or has a semicolon,
-				// so just compile it but don't use its value
-				_, err := c.compileExpression(es.Expression)
-				if err != nil {
-					return nil, err
-				}
+				lastVal = exprVal
+			}
+		} else {
+			// For all other statement types (e.g., LetStatement), use the
+			// existing implementation logic.
+			if err := c.compileImplementation(stmt); err != nil {
+				return nil, err
 			}
 		}
 	}
-	return lastVal, nil
-}
 
-// isARCManagedValue checks if a value is ARC-managed (allocated with arc_alloc_internal)
-func (c *Compiler) isARCManagedValue(val value.Value) bool {
-	// For now, we consider string pointers as ARC-managed
-	// This is a simplified check - in a full implementation, we'd need to track
-	// which values were allocated with arc_alloc_internal
-	return c.isStringType(val.Type())
+	return lastVal, nil
 }
 
 // compileIdentifier compiles an identifier (variable lookup)
@@ -602,21 +591,6 @@ func (c *Compiler) compileInfixExpression(expr *ast.InfixExpression) (value.Valu
 			ptr, exists := c.symbolTable[ident.Value]
 			if !exists {
 				return nil, fmt.Errorf("undefined variable: %s", ident.Value)
-			}
-
-			// Handle ARC retain/release for assignment only if not in nogc context
-			if !c.isNoGCContext {
-				// If assigning an ARC-managed value, retain it
-				if c.isARCManagedValue(right) {
-					arcRetainFunc, ok := c.functionTable["arc_retain"]
-					if ok {
-						c.currentBlock.NewCall(arcRetainFunc, right)
-					}
-				}
-
-				// If the variable previously held an ARC-managed value, release it
-				// This is simplified - in a full implementation, we'd need to track
-				// what the variable previously contained
 			}
 
 			// Store the right-hand side value into the variable
@@ -833,10 +807,10 @@ func (c *Compiler) compileStringConcatenation(left, right value.Value) (value.Va
 		return nil, fmt.Errorf("strlen function not found - ensure libc functions are declared")
 	}
 
-	// Get malloc function
-	mallocFunc, ok := c.functionTable["malloc"]
+	// Get GC_malloc function
+	mallocFunc, ok := c.functionTable["GC_malloc"]
 	if !ok {
-		return nil, fmt.Errorf("malloc function not found - ensure libc functions are declared")
+		return nil, fmt.Errorf("GC_malloc function not found - ensure it is declared via extern")
 	}
 
 	// Get strcpy function
@@ -860,19 +834,8 @@ func (c *Compiler) compileStringConcatenation(left, right value.Value) (value.Va
 	one := constant.NewInt(types.I64, 1)
 	totalLenPlusOne := c.currentBlock.NewAdd(totalLen, one)
 
-	// Allocate memory for result
-	var result value.Value
-	if c.isNoGCContext {
-		// In nogc context, use regular malloc
-		result = c.currentBlock.NewCall(mallocFunc, totalLenPlusOne)
-	} else {
-		// In regular context, use ARC allocation
-		arcAllocFunc, ok := c.functionTable["arc_alloc_internal"]
-		if !ok {
-			return nil, fmt.Errorf("arc_alloc_internal function not found")
-		}
-		result = c.currentBlock.NewCall(arcAllocFunc, totalLenPlusOne)
-	}
+	// Allocate memory for the new string using the garbage collector.
+	result := c.currentBlock.NewCall(mallocFunc, totalLenPlusOne)
 
 	// Copy left string to result
 	c.currentBlock.NewCall(strcpyFunc, result, left)
@@ -1020,14 +983,6 @@ func (c *Compiler) compileFunctionCall(expr *ast.CallExpression, fn value.Value)
 		argValue, err := c.compileExpression(arg)
 		if err != nil {
 			return nil, err
-		}
-
-		// Retain ARC-managed arguments only if not in nogc context
-		if !c.isNoGCContext && c.isARCManagedValue(argValue) {
-			arcRetainFunc, ok := c.functionTable["arc_retain"]
-			if ok {
-				c.currentBlock.NewCall(arcRetainFunc, argValue)
-			}
 		}
 
 		args = append(args, argValue)
@@ -1268,20 +1223,6 @@ func (c *Compiler) compileStringLiteral(expr *ast.StringLiteral) (value.Value, e
 	return constant.NewGetElementPtr(charArrayType, global, zero, zero), nil
 }
 
-// basaltTypeToLLVMType converts a Basalt type to an LLVM type
-func (c *Compiler) basaltTypeToLLVMType(expr ast.Expression) types.Type {
-	switch expr.(type) {
-	case *ast.IntegerLiteral:
-		return types.I64
-	case *ast.Boolean:
-		return types.I1
-	case *ast.FloatLiteral:
-		return types.Double
-	default:
-		return types.I64 // Default to int64
-	}
-}
-
 // typeAnnotationToLLVMType converts a type annotation to LLVM type
 func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) types.Type {
 	var baseType types.Type
@@ -1326,11 +1267,11 @@ func (c *Compiler) typeAnnotationToLLVMType(typeAnnotation *ast.TypeAnnotation) 
 	}
 
 	// For struct and enum types, we always return a pointer (unless it's already a pointer type)
-	if structInfo, exists := c.typeRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
-		return types.NewPointer(structInfo.LLVMType)
+	if _, exists := c.typeRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
+		return types.NewPointer(baseType)
 	}
-	if enumInfo, exists := c.enumRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
-		return types.NewPointer(enumInfo.LLVMType)
+	if _, exists := c.enumRegistry[typeAnnotation.Value]; exists && !typeAnnotation.IsPointer {
+		return types.NewPointer(baseType)
 	}
 
 	return baseType
@@ -1546,7 +1487,7 @@ func (c *Compiler) compileFunctionBody(funcName string, expr *ast.FunctionLitera
 	c.currentBlock = entryBlock
 
 	for i, param := range expr.Parameters {
-		alloca := c.currentBlock.NewAlloca(fn.Params[i].Typ)
+		alloca := c.createEntryAlloca(fn.Params[i].Typ)
 		c.currentBlock.NewStore(fn.Params[i], alloca)
 		c.symbolTable[param.Name.Value] = alloca
 	}
@@ -1597,7 +1538,7 @@ func (c *Compiler) compileLetAssignment(stmt *ast.LetStatement) error {
 		targetType = val.Type()
 	}
 
-	alloca := c.currentBlock.NewAlloca(targetType)
+	alloca := c.createEntryAlloca(targetType)
 	c.currentBlock.NewStore(val, alloca)
 	c.symbolTable[stmt.Name.Value] = alloca
 	return nil
@@ -1636,7 +1577,7 @@ func (c *Compiler) compileFunctionDefinition(funcName string, expr *ast.Function
 	c.currentBlock = entryBlock
 
 	for i, param := range expr.Parameters {
-		alloca := c.currentBlock.NewAlloca(paramTypes[i])
+		alloca := c.createEntryAlloca(paramTypes[i])
 		c.currentBlock.NewStore(fn.Params[i], alloca)
 		c.symbolTable[param.Name.Value] = alloca
 	}
@@ -1873,6 +1814,17 @@ func (c *Compiler) compileStructLiteral(expr *ast.StructLiteral) (value.Value, e
 	return nil, fmt.Errorf("struct literals must be assigned to a variable")
 }
 
+// sizeOf returns the size of a given type in bytes as an i64 value.
+func (c *Compiler) sizeOf(typ types.Type) value.Value {
+	// To get the size of a type, we use a getelementptr instruction.
+	// GEP on a null pointer of type T* with an index of 1 gives a pointer
+	// to an address that is sizeof(T) bytes away from NULL.
+	// We then convert this pointer to an integer to get the size.
+	nullPtr := constant.NewNull(types.NewPointer(typ))
+	gep := c.currentBlock.NewGetElementPtr(typ, nullPtr, constant.NewInt(types.I64, 1))
+	return c.currentBlock.NewPtrToInt(gep, types.I64)
+}
+
 // compileStructInstanceExpression compiles struct instantiation (Point { x: 10, y: 20 })
 func (c *Compiler) compileStructInstanceExpression(expr *ast.StructInstanceExpression) (value.Value, error) {
 	// Get the struct type name from the left side (should be an identifier)
@@ -1880,7 +1832,6 @@ func (c *Compiler) compileStructInstanceExpression(expr *ast.StructInstanceExpre
 	if !ok {
 		return nil, fmt.Errorf("struct instantiation requires a struct type name")
 	}
-
 	structName := structIdent.Value
 
 	// Look up the struct info
@@ -1889,8 +1840,20 @@ func (c *Compiler) compileStructInstanceExpression(expr *ast.StructInstanceExpre
 		return nil, fmt.Errorf("undefined struct type: %s", structName)
 	}
 
-	// Allocate stack memory for the struct
-	structPtr := c.currentBlock.NewAlloca(structInfo.LLVMType)
+	// Get the GC memory allocator function.
+	gcMalloc, ok := c.functionTable["GC_malloc"]
+	if !ok {
+		return nil, fmt.Errorf("GC_malloc function not found. Ensure it's declared via an extern statement")
+	}
+
+	// Calculate the size of the struct.
+	structSize := c.sizeOf(structInfo.LLVMType)
+
+	// Allocate memory on the heap using the garbage collector.
+	mem := c.currentBlock.NewCall(gcMalloc, structSize)
+
+	// Cast the returned i8* to a pointer of the correct struct type.
+	structPtr := c.currentBlock.NewBitCast(mem, types.NewPointer(structInfo.LLVMType))
 
 	// Store field values
 	for fieldName, fieldExpr := range expr.Fields {
@@ -2138,8 +2101,20 @@ func (c *Compiler) compileEnumInstantiationExpression(expr *ast.EnumInstantiatio
 		return nil, fmt.Errorf("undefined variant: %s::%s", enumName, variantName)
 	}
 
-	// Allocate stack memory for the enum
-	enumPtr := c.currentBlock.NewAlloca(enumInfo.LLVMType)
+	// Get the GC memory allocator function.
+	gcMalloc, ok := c.functionTable["GC_malloc"]
+	if !ok {
+		return nil, fmt.Errorf("GC_malloc function not found. Ensure it's declared via an extern statement")
+	}
+
+	// Calculate the size of the enum struct.
+	enumSize := c.sizeOf(enumInfo.LLVMType)
+
+	// Allocate memory on the heap using the garbage collector.
+	mem := c.currentBlock.NewCall(gcMalloc, enumSize)
+
+	// Cast the returned i8* to a pointer of the correct enum type.
+	enumPtr := c.currentBlock.NewBitCast(mem, types.NewPointer(enumInfo.LLVMType))
 
 	// Store the tag
 	zero := constant.NewInt(types.I32, 0)
@@ -2257,7 +2232,7 @@ func (c *Compiler) compileMatchExpression(expr *ast.MatchExpression) (value.Valu
 			// Bind to pattern variable
 			if ident, ok := arm.Pattern.Arguments[0].(*ast.Identifier); ok {
 				// Allocate space for the pattern variable
-				patternVar := c.currentBlock.NewAlloca(variantInfo.PayloadType)
+				patternVar := c.createEntryAlloca(variantInfo.PayloadType)
 				c.currentBlock.NewStore(payloadValue, patternVar)
 
 				// Add to symbol table
