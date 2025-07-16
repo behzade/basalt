@@ -83,7 +83,7 @@ func (c *Compiler) Compile(program *ast.Program) (*ir.Module, error) {
 }
 
 // CompileToExecutable compiles the program and creates an executable
-func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) error {
+func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string, linkerFlags []string) error {
 	// Compile to LLVM IR
 	module, err := c.Compile(program)
 	if err != nil {
@@ -122,15 +122,28 @@ func (c *Compiler) CompileToExecutable(program *ast.Program, outputPath string) 
 		return fmt.Errorf("llc compilation failed: %w\n%v\n%v", err, llcStdOut.String(), llcStdErr.String())
 	}
 
-	// Link object file with runtime.c to executable using clang
-	clangCmd := exec.Command("clang", objFile, "-o", outputPath, "-fsanitize=address")
+	// Prepare the arguments for the clang command.
+	// We start with the basic input/output files and any static flags.
+	args := []string{objFile, "-o", outputPath, "-fsanitize=address"}
+
+	// Now, append the dynamic linker flags that were passed into this function.
+	// These flags come from pkg-config and tell the linker where to find libgc.
+	args = append(args, linkerFlags...)
+
+	// Create the clang command with the combined arguments.
+	clangCmd := exec.Command("clang", args...)
+
+	// Capture stderr to provide detailed error messages if linking fails.
 	var clangStdErr bytes.Buffer
-	var clangStdOut bytes.Buffer
-	clangCmd.Stdout = &clangStdOut
 	clangCmd.Stderr = &clangStdErr
+
 	if err := clangCmd.Run(); err != nil {
-		return fmt.Errorf("clang linking failed: %ww\n%v\n%v", err, clangStdOut.String(), clangStdErr.String())
+		// The original error from `Run()` is often just "exit status 1".
+		// The really useful information is what clang printed to its stderr.
+		return fmt.Errorf("clang linking failed: %w\n--- clang output ---\n%s", err, clangStdErr.String())
 	}
+
+	// --- End of updated section ---
 
 	return nil
 }
