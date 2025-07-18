@@ -1,360 +1,200 @@
-// parser.rs
-
+use crate::ast::*;
+use crate::token::{Token, Span};
 use chumsky::prelude::*;
 use chumsky::Parser;
+use std::collections::HashMap;
 
-use crate::ast::{
-    BlockStatement, Expression, FunctionDeclaration, Identifier, Path, Program, Statement, Type,
-};
-use crate::token::Token;
+// A type alias for the input stream: a slice of (Token, Span) tuples.
+type ParserInput<'a> = &'a [(Token<'a>, Span)];
+// The custom error type for the parser.
+pub type ParseError<'a> = extra::Err<Rich<'a, Token<'a>, Span>>;
 
-// The type of the input stream to the parser.
-// Note: Spans are not fully implemented yet and are placeholders.
-type Stream<'a> = chumsky::stream::Stream<'a, Token, SimpleSpan>;
-// The type for parser errors.
-type ParseError<'a> = Simple<'a, Token>;
-
-/// The main parser function that defines the entire grammar.
-pub fn parser<'a>() -> impl Parser<'a, Stream<'a>, Program, extra::Err<ParseError<'a>>> {
-    // --- Forward Declarations ---
-    // Expressions and statements can be recursive, so we need to declare them upfront.
+/// The main parser function that handles all items and constructs the Program AST.
+pub fn program_parser<'a>() -> impl Parser<'a, ParserInput<'a>, Program<'a>, ParseError<'a>> {
+    // Forward declarations for mutually recursive parsers.
     let mut expr = Recursive::declare();
-    let mut stmt = Recursive::declare();
-    let mut block = Recursive::declare();
+    let mut item = Recursive::declare();
 
-    // --- Basic Building Blocks ---
+    // A parser for an identifier string.
+    let ident = select! { Token::Identifier(s) => s }.labelled("identifier");
 
-    // A parser for identifiers.
-    let ident = select! { Token::Ident(s) => Identifier(s) }.labelled("identifier");
-
-    // A parser for paths like `MyModule::MyType`.
-    let path = ident
-        .clone()
-        .separated_by(just(Token::DoubleColon))
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .map(Path)
+    // A parser for a path, e.g., `my_mod::my_func`.
+    let path = ident.clone()
+        .map(Path::Identifier)
+        .map_with(|ident, e| Spanned(ident, e.span()))
+        .foldl(
+            select! { Token::DoubleColon => () }
+                .ignore_then(ident.clone().map_with(|ident, e| Spanned(ident, e.span())))
+                .repeated(),
+            |(acc_path, acc_span), (segment, seg_span)| {
+                let span = acc_span.start..seg_span.end;
+                let new_path = Path::Namespaced(Box::new((acc_path, acc_span)), segment);
+                (new_path, span)
+            },
+        )
         .labelled("path");
 
-    // A parser for type annotations.
+    // A helper for parsing comma-separated, optionally-trailed lists.
+    let comma_separated = |p| p.separated_by(select! { Token::Comma => () }).allow_trailing().collect();
+
+    // A parser for a type annotation.
     let type_parser = recursive(|type_p| {
-        let simple_type = ident.clone().map(Type::Ident);
+        let generic_args = comma_separated(type_p.clone())
+            .delimited_by(select! { Token::LessThan => () }, select! { Token::GreaterThan => () });
 
-        // A parser for generic types like `Array<i64>`.
-        let generic_type = ident.clone().then(
-            type_p
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::Lt), just(Token::Gt)),
-        )
-        .map(|(base, params)| Type::Generic { base, params });
-
-        generic_type.or(simple_type)
-    })
-    .labelled("type");
-
-    // --- Literals ---
-    let literal = select! {
-        Token::Int(i) => Expression::IntegerLiteral(i),
-        Token::Float(f) => Expression::FloatLiteral(f),
-        Token::String(s) => Expression::StringLiteral(s),
-        Token::Bool(b) => Expression::BooleanLiteral(b),
-    }
-    .labelled("literal");
-
-    // --- Expressions ---
-
-    // An atom is the smallest unit of an expression.
-    let atom = literal
-        .or(ident.clone().map(Expression::Identifier))
-        // Parenthesized expression, e.g., `(1 + 2)`.
-        .or(expr
-            .clone()
-            .delimited_by(just(Token::LParen), just(Token::RParen)))
-        // An `if-else` expression.
-        .or(just(Token::If)
-            .ignore_then(expr.clone().delimited_by(just(Token::LParen), just(Token::RParen)))
-            .then(block.clone())
-            .then(just(Token::Else).ignore_then(block.clone()).or_not())
-            .map(|((condition, consequence), alternative)| Expression::If {
-                condition: Box::new(condition),
-                consequence,
-                alternative,
-            }))
-        // A `while` loop expression.
-        .or(just(Token::While)
-            .ignore_then(expr.clone().delimited_by(just(Token::LParen), just(Token::RParen)))
-            .then(block.clone())
-            .map(|(condition, body)| Expression::While {
-                condition: Box::new(condition),
-                body,
-            }))
-        // A block expression.
-        .or(block.clone().map(Expression::Block))
-        // Array literal, e.g., `[1, 2, 3]`.
-        .or(expr
-            .clone()
-            .separated_by(just(Token::Comma))
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .delimited_by(just(Token::LBracket), just(Token::RBracket))
-            .map(|elements| Expression::ArrayLiteral { elements }))
-        // Struct literal, e.g., `MyStruct { a: 1, b: 2 }`.
-        .or(path
-            .clone()
-            .then(
-                ident
-                    .clone()
-                    .then_ignore(just(Token::Colon))
-                    .then(expr.clone())
-                    .separated_by(just(Token::Comma))
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-            )
-            .map(|(name, fields)| Expression::StructLiteral { name, fields }))
-        // Anonymous function literal.
-        .or(just(Token::Fn)
-            .ignore_then(
-                ident
-                    .clone()
-                    .then_ignore(just(Token::Colon))
-                    .then(type_parser.clone())
-                    .separated_by(just(Token::Comma))
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(just(Token::LParen), just(Token::RParen)),
-            )
-            .then(just(Token::Arrow).ignore_then(type_parser.clone()).or_not())
-            .then(
-                just(Token::Slash)
-                    .ignore_then(
-                        path.clone()
-                            .separated_by(just(Token::Comma))
-                            .collect::<Vec<_>>()
-                            .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-                    )
-                    .or_not(),
-            )
-            .then(block.clone())
-            .map(
-                |(((params, return_type), effects), body)| Expression::FunctionLiteral {
-                    params,
-                    return_type: return_type.unwrap_or(Type::Ident(Identifier("none".to_string()))), // Default to none
-                    effects,
-                    body,
-                },
-            ));
-
-    // Postfix operations like function calls and array indexing.
-    let call = atom
-        .clone()
-        .foldl(
-            // Function call, e.g., `my_func(a, b)`.
-            expr.clone()
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LParen), just(Token::RParen))
-                .map_with(|args, e| (args, e.span()))
-                .repeated()
-                .collect::<Vec<_>>(),
-            |f, (args, _span)| {
-                Expression::Call {
-                    function: Box::new(f),
-                    arguments: args,
+        let simple_type = select! {
+            Token::Identifier("i64") => Type::I64,
+            Token::Identifier("f64") => Type::F64,
+            Token::Identifier("bool") => Type::Bool,
+            Token::Identifier("string") => Type::StringType,
+            Token::Identifier("none") => Type::None,
+        };
+        
+        let custom_or_generic = path.clone()
+            .then(generic_args.or_not())
+            .map(|((p, _), generics)| {
+                match (p, generics) {
+                    (Path::Identifier("Array"), Some(mut args)) if args.len() == 1 => Type::Array(Box::new(args.pop().unwrap())),
+                    (Path::Identifier("Map"), Some(mut args)) if args.len() == 2 => {
+                        let val = args.pop().unwrap();
+                        let key = args.pop().unwrap();
+                        Type::Map(Box::new(key), Box::new(val))
+                    }
+                    (p, _) => Type::Custom(p),
                 }
-            },
-        )
-        .foldl(
-            // Array indexing, e.g., `my_array[i]`.
-            expr.clone()
-                .delimited_by(just(Token::LBracket), just(Token::RBracket))
-                .map_with(|index, e| (index, e.span()))
-                .repeated()
-                .collect::<Vec<_>>(),
-            |arr, (idx, _span)| {
-                Expression::Index {
-                    left: Box::new(arr),
-                    index: Box::new(idx),
-                }
-            },
-        );
+            });
 
-    // Prefix operators like `!` and `-`.
-    let op = |c| just(c);
-    let prefix = op(Token::Not)
-        .or(op(Token::Minus))
+        simple_type.or(custom_or_generic).map_with(|ident, e| Spanned(ident, e.span()))
+    }).labelled("type");
+
+    // Parser for a block of statements and an optional final expression.
+    let block = {
+        let stmt = item.clone().map(Stmt::Item)
+            .or(expr.clone().then_ignore(select!{ Token::Semicolon => () }).map(Stmt::Expr))
+            .map_with(|ident, e| Spanned(ident, e.span()));
+
+        stmt.repeated().collect::<Vec<_>>()
+            .then(expr.clone().or_not())
+            .delimited_by(select!{ Token::LBrace => () }, select!{ Token::RBrace => () })
+            .map(|(stmts, last_expr)| Expr::Block {
+                stmts,
+                last_expr: last_expr.map(Box::new),
+            })
+            .labelled("block")
+    };
+    
+    // An atom is the highest-precedence expression unit.
+    let atom = {
+        let literal = select! {
+            Token::I64(i) => Literal::I64(i),
+            Token::F64(f) => Literal::F64(f),
+            Token::Bool(b) => Literal::Bool(b),
+            Token::Str(s) => Literal::String(s),
+        }.labelled("literal");
+
+        let array_literal = comma_separated(expr.clone())
+            .delimited_by(select!{ Token::LBracket => () }, select!{ Token::RBracket => () })
+            .map(Literal::Array);
+
+        let map_field = expr.clone().then_ignore(select!{ Token::Colon => () }).then(expr.clone());
+        let map_literal = comma_separated(map_field)
+            .delimited_by(select!{ Token::LBrace => () }, select!{ Token::RBrace => () })
+            .map(Literal::Map);
+
+        let struct_field = ident.clone().then_ignore(select!{ Token::Colon => () }).then(expr.clone());
+        let struct_inst = path.clone()
+            .then(comma_separated(struct_field)
+                .delimited_by(select!{ Token::LBrace => () }, select!{ Token::RBrace => () })
+            )
+            .map(|(name, fields)| Expr::StructInstantiation(StructInstantiation {
+                name, generic_args: None, fields: fields.into_iter().collect::<HashMap<_, _>>(),
+            }));
+            
+        choice((
+            literal.map(Expr::Literal),
+            array_literal.map(Expr::Literal),
+            struct_inst,
+            map_literal.map(Expr::Literal), // Must come after struct instantiation to disambiguate `{}`
+            path.clone().map(|(p, _)| Expr::Path(p)),
+            expr.clone().delimited_by(select!{ Token::LParen => () }, select!{ Token::RParen => () }),
+            block,
+        )).map_with(|ident, e| Spanned(ident, e.span()))
+    };
+
+    // Postfix operators (function calls, indexing, member access).
+    let postfix = atom.clone().foldl(
+        choice((
+            comma_separated(expr.clone())
+                .delimited_by(select!{ Token::LParen => () }, select!{ Token::RParen => () })
+                .map_with(|ident, e| Spanned(ident, e.span()))
+                .map(|(args, args_span)| move |(callee, callee_span): Spanned<Expr<'a>>| {
+                    (Expr::FunctionCall(FunctionCall { callee: Box::new((callee, callee_span)), generic_args: None, args }), callee_span.start..args_span.end)
+                }),
+            expr.clone()
+                .delimited_by(select!{ Token::LBracket => () }, select!{ Token::RBracket => () })
+                .map_with(|ident, e| Spanned(ident, e.span()))
+                .map(|(index, index_span)| move |(left, left_span): Spanned<Expr<'a>>| {
+                    (Expr::Index { left: Box::new((left, left_span)), index: Box::new(index) }, left_span.start..index_span.end)
+                }),
+            select!{ Token::Dot => () }.ignore_then(ident.clone())
+                .map_with(|ident, e| Spanned(ident, e.span()))
+                .map(|(member, member_span)| move |(object, object_span): Spanned<Expr<'a>>| {
+                    (Expr::MemberAccess(MemberAccess { object: Box::new((object, object_span)), member }), object_span.start..member_span.end)
+                }),
+        )).repeated(),
+        |(callee, callee_span), op_func| op_func((callee, callee_span)),
+    );
+
+    let unary = select!{ Token::Minus => UnaryOp::Neg, Token::Not => UnaryOp::Not }
+        .map_with(|ident, e| Spanned(ident, e.span()))
         .repeated()
-        .foldr(call, |op, rhs| Expression::Prefix {
-            operator: op,
-            right: Box::new(rhs),
+        .then(postfix)
+        .foldr(|(op, op_span), (right_expr, right_span)| {
+            (Expr::Unary { op, right: Box::new((right_expr, right_span)) }, op_span.start..right_span.end)
         });
 
-    // Infix operators with precedence.
-    let infix = prefix
-        .clone()
-        .foldl(
-            // Precedence level 1: `**`
-            op(Token::Power).then(prefix.clone()).repeated().collect::<Vec<_>>(),
-            |lhs, (op, rhs)| Expression::Infix {
-                left: Box::new(lhs),
-                operator: op,
-                right: Box::new(rhs),
-            },
-        )
-        .foldl(
-            // Precedence level 2: `*`, `/`, `%`
-            op(Token::Star)
-                .or(op(Token::Slash))
-                .or(op(Token::Percent))
-                .then(prefix.clone())
-                .repeated().collect::<Vec<_>>(),
-            |lhs, (op, rhs)| Expression::Infix {
-                left: Box::new(lhs),
-                operator: op,
-                right: Box::new(rhs),
-            },
-        )
-        .foldl(
-            // Precedence level 3: `+`, `-`
-            op(Token::Plus).or(op(Token::Minus)).then(prefix.clone()).repeated().collect::<Vec<_>>(),
-            |lhs, (op, rhs)| Expression::Infix {
-                left: Box::new(lhs),
-                operator: op,
-                right: Box::new(rhs),
-            },
-        )
-        .foldl(
-            // Precedence level 4: Comparison operators
-            op(Token::Eq)
-                .or(op(Token::NotEq))
-                .or(op(Token::Lt))
-                .or(op(Token::LtEq))
-                .or(op(Token::Gt))
-                .or(op(Token::GtEq))
-                .then(prefix.clone())
-                .repeated().collect::<Vec<_>>(),
-            |lhs, (op, rhs)| Expression::Infix {
-                left: Box::new(lhs),
-                operator: op,
-                right: Box::new(rhs),
-            },
-        )
-        .foldl(
-            // Precedence level 5: `&&`
-            op(Token::And).then(prefix.clone()).repeated().collect::<Vec<_>>(),
-            |lhs, (op, rhs)| Expression::Infix {
-                left: Box::new(lhs),
-                operator: op,
-                right: Box::new(rhs),
-            },
-        )
-        .foldl(
-            // Precedence level 6: `||`
-            op(Token::Or).then(prefix).repeated().collect::<Vec<_>>(),
-            |lhs, (op, rhs)| Expression::Infix {
-                left: Box::new(lhs),
-                operator: op,
-                right: Box::new(rhs),
-            },
-        );
-
-    expr.define(infix.labelled("expression"));
-
-    // --- Statements ---
-
-    // A block of statements, enclosed in `{}`.
-    block.define(
-        stmt.clone()
-            .repeated()
-            .collect()
-            .delimited_by(just(Token::LBrace), just(Token::RBrace))
-            .map(|statements| BlockStatement { statements }),
+    let binary = |op, next| next.clone().foldl(
+        op.then(next).repeated(),
+        |(l, ls), (op, (r, rs))| (Expr::Binary(BinaryOperation { left: Box::new((l, ls)), op, right: Box::new((r, rs)) }), ls.start..rs.end)
     );
 
-    // `let` statement.
-    let let_stmt = just(Token::Let)
-        .ignore_then(just(Token::Mut).or_not())
-        .then(ident.clone())
-        .then_ignore(just(Token::Colon))
-        .then(type_parser.clone())
-        .then_ignore(just(Token::Assign))
-        .then(expr.clone())
-        .then_ignore(just(Token::Semicolon))
-        .map(|(((mutable, name), value_type), value)| Statement::Let {
-            name,
-            value_type,
-            value,
-            mutable: mutable.is_some(),
-        })
-        .labelled("let statement");
+    let product = binary(select!{ Token::Star => BinaryOp::Mul, Token::Slash => BinaryOp::Div }, unary.clone());
+    let sum = binary(select!{ Token::Plus => BinaryOp::Add, Token::Minus => BinaryOp::Sub }, product.clone());
+    let comparison = binary(select!{
+        Token::EqualEqual => BinaryOp::Eq, Token::NotEqual => BinaryOp::Neq,
+        Token::LessThan => BinaryOp::Lt, Token::LessThanOrEqual => BinaryOp::Lte,
+        Token::GreaterThan => BinaryOp::Gt, Token::GreaterThanOrEqual => BinaryOp::Gte,
+    }, sum.clone());
 
-    // `return` statement.
-    let return_stmt = just(Token::Return)
-        .ignore_then(expr.clone())
-        .then_ignore(just(Token::Semicolon))
-        .map(|return_value| Statement::Return { return_value })
-        .labelled("return statement");
-        
-    // Named `fn` definition.
-    let fn_def_stmt = just(Token::Fn)
-        .ignore_then(ident.clone())
-        .then(
-            ident
-                .clone()
-                .then_ignore(just(Token::Colon))
-                .then(type_parser.clone())
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LParen), just(Token::RParen)),
-        )
-        .then_ignore(just(Token::Arrow))
-        .then(type_parser.clone())
-        .then(
-            just(Token::Slash)
-                .ignore_then(
-                    path.clone()
-                        .separated_by(just(Token::Comma))
-                        .collect::<Vec<_>>()
-                        .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-                )
-                .or_not(),
-        )
-        .then(block.clone())
-        .map(|((((name, params), return_type), effects), body)| {
-            Statement::FnDef {
-                decl: FunctionDeclaration {
-                    name,
-                    params,
-                    return_type,
-                    effects,
-                    body,
-                }
-            }
-        })
-        .labelled("function definition");
+    expr.define(comparison);
 
-    // An expression statement.
-    let expr_stmt = expr
-        .clone()
-        .then_ignore(just(Token::Semicolon))
-        .map(|expression| Statement::Expression { expression })
-        .labelled("expression statement");
+    // Item parsers
+    let fn_sig = {
+        let param = ident.clone().then_ignore(select!{ Token::Colon => () }).then(type_parser.clone());
+        comma_separated(param).delimited_by(select!{ Token::LParen => () }, select!{ Token::RParen => () })
+            .then_ignore(select!{ Token::Arrow => () })
+            .then(type_parser.clone())
+            .then(select!{ Token::Slash => () }.ignore_then(comma_separated(path.clone()).delimited_by(select!{ Token::LBrace => () }, select!{ Token::RBrace => () })).or_not())
+            .map(|((params, return_type), effects)| FunctionSignature { params, return_type, effects })
+    };
 
-    stmt.define(
-        let_stmt
-            .or(return_stmt)
-            .or(fn_def_stmt)
-            // Add other statement types here
-            .or(expr_stmt), // Must be last, as it's a fallback.
-    );
+    let fn_def = ident.clone()
+        .then(fn_sig.clone())
+        .then(atom.clone().delimited_by(select!{ Token::LBrace => () }, select!{ Token::RBrace => () }).or_not())
+        .map(|((name, signature), body)| FunctionDef { name, is_extern: false, signature, body });
 
-    // The full program is a sequence of statements, ending with an EOF token.
-    stmt.repeated()
-        .collect::<Vec<_>>()
-        .map(|statements| Program { statements })
-        .then_ignore(just(Token::Eof).recover_with(skip_then_retry_until([])))
+    let item_def = choice((
+        select!{ Token::Struct => () }.ignore_then(ident.clone())
+            .then(comma_separated(ident.clone().then_ignore(select!{ Token::Colon => () }).then(type_parser.clone()))
+                .delimited_by(select!{ Token::LBrace => () }, select!{ Token::RBrace => () }))
+            .map(|(name, fields)| Item::Struct(StructDef { name, generic_params: None, fields })),
+        select!{ Token::Fn => () }.ignore_then(fn_def.clone()).map(Item::Function),
+        select!{ Token::Extern => () }.ignore_then(select!{ Token::Fn => () }).ignore_then(
+            ident.clone().then(fn_sig.clone()).then_ignore(select!{ Token::Semicolon => () })
+        ).map(|(name, signature)| Item::Function(FunctionDef { name, is_extern: true, signature, body: None })),
+    ));
+    
+    item.define(item_def);
+
+    item.map_with(|ident, e| Spanned(ident, e.span())).repeated().collect().map(|items| Program { items }).then_ignore(end())
 }
