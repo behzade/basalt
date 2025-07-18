@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.2/.schema/devbox.schema.json",
+  "packages": [
+    "rustup@1.28.2"
+  ],
+  "shell": {
+    "init_hook": [
+      "rustup default nightly",
+      "rustup component add rust-analyzer"
+    ],
+    "scripts": {
+      "test": [
+        "cargo test"
+      ],
+      "fmt": [
+        "cargo fmt"
+      ],
+      "clippy": [
+        "cargo clippy"
+      ],
+      "build": [
+        "cargo build"
+      ],
+      "watch": [
+        "cargo watch -x 'test'"
+      ]
+    }
+  }
+}
+
