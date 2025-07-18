@@ -1,10 +1,10 @@
 use chumsky::span::SimpleSpan;
 
-use crate::token::Span;
 use std::collections::HashMap;
 
+pub type Span = SimpleSpan;
 #[derive(Debug, PartialEq, Clone)]
-pub struct Spanned<T>(pub T, pub SimpleSpan<usize>);
+pub struct Spanned<T>(pub T, pub Span);
 
 //==================================================================================================
 //
@@ -284,7 +284,7 @@ pub enum Literal<'src> {
     I64(i64),
     F64(f64),
     Bool(bool),
-    String(&'src str),
+    Str(&'src str),
     Array(Vec<Spanned<Expr<'src>>>),
     Map(Vec<(Spanned<Expr<'src>>, Spanned<Expr<'src>>)>),
 }

@@ -8,6 +8,7 @@ pub type Span = SimpleSpan;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token<'src> {
     // Literals
+    None,
     I64(i64),
     F64(f64),
     Bool(bool),

@@ -7,10 +7,16 @@ pub fn lexer<'src>()
     let float = text::int(10)
         .then(just('.').then(text::digits(10)))
         .to_slice()
-        .map(|s: &str| Token::F64(s.parse().unwrap()));
+        .from_str()
+        .unwrapped()
+        .map(Token::F64);
 
     // A parser for integers.
-    let int = text::int(10).map(|s: &str| Token::I64(s.parse().unwrap()));
+    let int = text::int(10)
+        .to_slice()
+        .from_str()
+        .unwrapped()
+        .map(Token::I64);
 
     // A parser for string literals.
     let string = just('"')
