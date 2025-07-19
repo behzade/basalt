@@ -1,20 +1,10 @@
-use chumsky::span::SimpleSpan;
 use std::fmt;
 
-/// A `Span` represents a range in the source code, used for error reporting.
-pub type Span = SimpleSpan;
-
-/// The `Token` enum represents all possible tokens in the language.
+/// Represents the different kinds of tokens recognized by the lexer and used by the parser.
+/// The `'src` lifetime parameter is used for tokens that borrow directly from the source code,
+/// such as identifiers, strings, and comments, allowing for zero-copy parsing.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token<'src> {
-    // Literals
-    None,
-    I64(i64),
-    F64(f64),
-    Bool(bool),
-    Str(&'src str),
-    Identifier(&'src str),
-
     // Keywords
     Let,
     Mut,
@@ -24,59 +14,54 @@ pub enum Token<'src> {
     Impl,
     For,
     Fn,
+    Extern,
+    Import,
+    As,
+    While,
     Return,
-    If,
-    Else,
-    Match,
     Effect,
     Handler,
     Perform,
     Handle,
     With,
-    Extern,
-    Import,
-    As,
+    Match,
+    If,
+    Else,
 
-    // Operators
-    Not,
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Equal,
-    EqualEqual,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanOrEqual,
-    GreaterThanOrEqual,
+    // Literals
+    Bool(bool),
+    I64(i64),
+    F64(f64),
+    Str(&'src str),
 
-    // Delimiters & Punctuation
-    LParen,
-    RParen,
-    LBrace,
-    RBrace,
-    LBracket,
-    RBracket,
-    Comma,
-    Colon,
-    DoubleColon,
-    Semicolon,
-    Dot,
-    Arrow,    // ->
-    FatArrow, // =>
-    Scope,    // ::
-    Pipe,     // |
+    // Identifier
+    Ident(&'src str),
+
+    // Operators and Punctuation
+    Op(String),  // For operators like +, -, *, /, <, >, ==, =
+    DoubleColon, // ::
+    Colon,       // :
+    Semi,        // ;
+    Comma,       // ,
+    Arrow,       // ->
+    FatArrow,    // =>
+    LParen,      // (
+    RParen,      // )
+    LBrace,      // {
+    RBrace,      // }
+    LBracket,    // [
+    RBracket,    // ]
+
+    // Ignored token
+    Comment(&'src str),
 }
 
-impl fmt::Display for Token<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+/// Implementation of the `Display` trait for `Token`.
+/// This is useful for debugging and for generating more readable error messages.
+impl<'src> fmt::Display for Token<'src> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::I64(n) => write!(f, "{}", n),
-            Token::F64(n) => write!(f, "{}", n),
-            Token::Bool(b) => write!(f, "{}", b),
-            Token::Str(s) => write!(f, "\"{}\"", s),
-            Token::Identifier(s) => write!(f, "{}", s),
+            // Keywords
             Token::Let => write!(f, "let"),
             Token::Mut => write!(f, "mut"),
             Token::Struct => write!(f, "struct"),
@@ -85,45 +70,46 @@ impl fmt::Display for Token<'_> {
             Token::Impl => write!(f, "impl"),
             Token::For => write!(f, "for"),
             Token::Fn => write!(f, "fn"),
+            Token::Extern => write!(f, "extern"),
+            Token::Import => write!(f, "import"),
+            Token::As => write!(f, "as"),
+            Token::While => write!(f, "while"),
             Token::Return => write!(f, "return"),
-            Token::If => write!(f, "if"),
-            Token::Else => write!(f, "else"),
-            Token::Match => write!(f, "match"),
             Token::Effect => write!(f, "effect"),
             Token::Handler => write!(f, "handler"),
             Token::Perform => write!(f, "perform"),
             Token::Handle => write!(f, "handle"),
             Token::With => write!(f, "with"),
-            Token::Extern => write!(f, "extern"),
-            Token::Import => write!(f, "import"),
-            Token::As => write!(f, "as"),
-            Token::Not => write!(f, "!"),
-            Token::Plus => write!(f, "+"),
-            Token::Minus => write!(f, "-"),
-            Token::Star => write!(f, "*"),
-            Token::Slash => write!(f, "/"),
-            Token::Equal => write!(f, "="),
-            Token::EqualEqual => write!(f, "=="),
-            Token::NotEqual => write!(f, "!="),
-            Token::LessThan => write!(f, "<"),
-            Token::GreaterThan => write!(f, ">"),
-            Token::LessThanOrEqual => write!(f, "<="),
-            Token::GreaterThanOrEqual => write!(f, ">="),
+            Token::Match => write!(f, "match"),
+            Token::If => write!(f, "if"),
+            Token::Else => write!(f, "else"),
+
+            // Literals
+            Token::Bool(b) => write!(f, "{}", b),
+            Token::I64(i) => write!(f, "{}", i),
+            Token::F64(fl) => write!(f, "{}", fl),
+            Token::Str(s) => write!(f, "\"{}\"", s),
+
+            // Identifier
+            Token::Ident(ident) => write!(f, "{}", ident),
+
+            // Operators and Punctuation
+            Token::Op(op) => write!(f, "{}", op),
+            Token::DoubleColon => write!(f, "::"),
+            Token::Colon => write!(f, ":"),
+            Token::Semi => write!(f, ";"),
+            Token::Comma => write!(f, ","),
+            Token::Arrow => write!(f, "->"),
+            Token::FatArrow => write!(f, "=>"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBrace => write!(f, "{{"),
             Token::RBrace => write!(f, "}}"),
             Token::LBracket => write!(f, "["),
             Token::RBracket => write!(f, "]"),
-            Token::Comma => write!(f, ","),
-            Token::Colon => write!(f, ":"),
-            Token::DoubleColon => write!(f, "::"),
-            Token::Semicolon => write!(f, ";"),
-            Token::Dot => write!(f, "."),
-            Token::Arrow => write!(f, "->"),
-            Token::FatArrow => write!(f, "=>"),
-            Token::Scope => write!(f, "::"),
-            Token::Pipe => write!(f, "|"),
+
+            // Comment
+            Token::Comment(c) => write!(f, "//{}", c),
         }
     }
 }

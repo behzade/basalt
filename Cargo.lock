@@ -22,6 +22,7 @@ name = "basalt"
 version = "0.1.0"
 dependencies = [
  "chumsky",
+ "either",
 ]
 
 [[package]]
@@ -45,6 +46,7 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14377e276b2c8300513dff55ba4cc4142b44e5d6de6d00eb5b2307d650bb4ec1"
 dependencies = [
+ "either",
  "hashbrown",
  "regex-automata",
  "serde",
@@ -52,6 +54,12 @@ dependencies = [
  "unicode-ident",
  "unicode-segmentation",
 ]
+
+[[package]]
+name = "either"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "equivalent"

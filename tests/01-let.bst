@@ -6,7 +6,7 @@ let f: Array<i64> = [1, 2, 3];
 let g: Array<Array<i64>> = [[1, 2, 3], [4, 5, 6]];
 let h: Map<string, i64> = {"a": 1, "b": 2};
 
-let s = struct {
+struct s {
     a: i64,
     b: f64,
 };
@@ -16,7 +16,7 @@ let instance = s {
     b: 2.0,
 };
 
-let tr = trait {
+trait tr {
     add(a: i64, b: f64) -> f64;
 };
 
@@ -26,7 +26,7 @@ impl tr for s {
     }
 }
 
-let genericStruct = struct<T,F> {
+struct genericStruct<T,F> {
     a: T,
     b: F,
 };
@@ -60,26 +60,26 @@ Std::Collections::Map::New();
 
 let mut counter = 0;
 
-for counter < 10 {
+while counter < 10 {
     counter = counter + 1;
 };
 
 // comments
-let basicFn = fn(a: i64, b: f64) -> f64 {
+fn basicFn(a: i64, b: f64) -> f64 {
     return a + b;
 };
 
-let eff = effect {
+effect eff {
     Write(string) -> none,
 };
 
-let effHandler = handler for eff {
+handler effHandler{eff} {
     Write(input:string) -> none {
         printf("writing %s\n", input);
     }
 };
 
-let myFn = fn(input: string) -> string / {eff} {
+fn myFn(input: string) -> string / {eff} {
     perform eff.Write(input);
     return input;
 };
@@ -92,10 +92,8 @@ let handleResult2 = handle myFn with {
     }
 };
 
-
 // external functions linked at compile time
-let externalFn = extern fn strlen(s: string) -> int64;
-
+extern fn strlen(s: string) -> int64;
 
 let expressionResult = {
     let a = 1;
@@ -115,4 +113,10 @@ let matchResult = match myEnumInstance {
     A => 1,
     B(a) => a,
     C(a) => a,
+};
+
+let ifResult = if true {
+    1
+} else {
+    2
 };
