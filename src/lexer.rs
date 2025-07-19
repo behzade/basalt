@@ -52,7 +52,8 @@ pub fn lexer<'src>()
         // Parser for strings, correctly handling escaped characters
         let string = just('"')
             .ignore_then(
-                any().filter(|c: &char| *c != '\\' && *c != '"')
+                // CORRECTED: Use `filter` directly instead of `any().filter(...)`
+                none_of("\"\\")
                     .or(just('\\').ignore_then(any()))
                     .repeated()
                     .to_slice(),
