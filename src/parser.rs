@@ -3,11 +3,9 @@
 //! descent and Pratt parsing to handle the language's syntax, including expressions,
 //! statements, and top-level items.
 
+use chumsky::pratt::{infix, left, postfix, prefix};
 use chumsky::prelude::*;
-use chumsky::pratt::{self, infix, left, prefix, postfix};
 use chumsky::select;
-use either::Either;
-use std::vec;
 
 // These are assumed to be defined in `ast.rs` and `token.rs` respectively.
 // Make sure these paths are correct in your project structure.
@@ -18,22 +16,21 @@ use crate::token::Token;
 
 /// The main parser function for the entire language.
 /// It parses a sequence of top-level items, ignoring comments, until the end of input.
-pub fn file_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
-    // A parser for any comments, which are ignored.
-    let comment = select! { Token::Comment(_) => () }.padded();
+pub fn file_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
+    // A parser for one or more comment tokens, which we will ignore.
+    let comments = select! { Token::Comment(_) => () }.repeated().at_least(1);
 
-    // The core item parser, surrounded by ignored comments.
-    item_parser()
-        .padded_by(comment.repeated())
-        .repeated()
-        .collect()
-        .then_ignore(end())
+    // An item is surrounded by optional comments.
+    let item = item_parser().padded_by(comments.or_not());
+
+    // The file is a series of items, ending at the end of input.
+    item.repeated().collect::<Vec<_>>().then_ignore(end())
 }
 
 /// Parses a single top-level item.
-fn item_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn item_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     // An item can be one of many constructs. We use `choice` to try each in order.
     choice((
         import_parser(),
@@ -69,14 +66,14 @@ fn item_parser<'src>(
 // --- Helper Parsers (Identifiers, Paths, Types) ---
 
 /// Parses an identifier token.
-fn ident_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err<Rich<'src, Token<'src>>>>
-{
+fn ident_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err<Rich<'src, Token<'src>>>> {
     select! { Token::Ident(ident) => ident }.labelled("identifier")
 }
 
 /// Parses a path, e.g., `myEnum::A` or `Std::Collections::Map`
-fn path_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Path<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn path_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Path<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     ident_parser()
         .separated_by(just(Token::DoubleColon))
         .at_least(1)
@@ -85,16 +82,20 @@ fn path_parser<'src>(
 }
 
 /// Parses a type annotation, e.g., `i64`, `Array<i64>`, `Map<string, i64>`
-fn type_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn type_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     recursive(|type_p| {
         path_parser()
+            .boxed()
             .then(
                 type_p
                     .separated_by(just(Token::Comma))
                     .allow_trailing()
                     .collect::<Vec<_>>()
-                    .delimited_by(just(Token::Op("<".to_string())), just(Token::Op(">".to_string())))
+                    .delimited_by(
+                        just(Token::Op("<".to_string())),
+                        just(Token::Op(">".to_string())),
+                    )
                     .or_not(),
             )
             .map(|(path, generics)| Type {
@@ -108,8 +109,8 @@ fn type_parser<'src>(
 // --- Item Parsers ---
 
 /// Parses an import statement, e.g., `import Std::Collections::Map;` or `import Std::Collections::Map as MyMap;`
-fn import_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn import_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     just(Token::Import)
         .ignore_then(path_parser())
         .then(just(Token::As).ignore_then(ident_parser()).or_not())
@@ -119,8 +120,8 @@ fn import_parser<'src>(
 }
 
 /// Parses a function declaration.
-fn fn_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn fn_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let params = ident_parser()
         .then_ignore(just(Token::Colon))
         .then(type_parser())
@@ -157,8 +158,8 @@ fn fn_parser<'src>(
 }
 
 /// Parses an `extern fn` declaration.
-fn extern_fn_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn extern_fn_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let params = ident_parser()
         .then_ignore(just(Token::Colon))
         .then(type_parser())
@@ -184,8 +185,8 @@ fn extern_fn_parser<'src>(
 }
 
 /// Parses a struct definition.
-fn struct_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn struct_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let field = ident_parser()
         .then_ignore(just(Token::Colon))
         .then(type_parser())
@@ -195,7 +196,10 @@ fn struct_parser<'src>(
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
-        .delimited_by(just(Token::Op("<".to_string())), just(Token::Op(">".to_string())))
+        .delimited_by(
+            just(Token::Op("<".to_string())),
+            just(Token::Op(">".to_string())),
+        )
         .or_not();
 
     just(Token::Struct)
@@ -218,8 +222,8 @@ fn struct_parser<'src>(
 }
 
 /// Parses an enum definition.
-fn enum_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn enum_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let variant = ident_parser()
         .then(
             type_parser()
@@ -244,8 +248,8 @@ fn enum_parser<'src>(
 }
 
 /// Parses a trait definition.
-fn trait_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn trait_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     // A trait method is just a function signature without a body.
     let method_sig = just(Token::Fn)
         .ignore_then(ident_parser())
@@ -261,7 +265,11 @@ fn trait_parser<'src>(
         )
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
         .then_ignore(just(Token::Semi))
-        .map(|((name, params), ret_type)| TraitMethod { name, params, ret_type });
+        .map(|((name, params), ret_type)| TraitMethod {
+            name,
+            params,
+            ret_type,
+        });
 
     just(Token::Trait)
         .ignore_then(ident_parser())
@@ -276,8 +284,8 @@ fn trait_parser<'src>(
 }
 
 /// Parses an `impl` block.
-fn impl_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn impl_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     just(Token::Impl)
         .ignore_then(ident_parser()) // Trait name
         .then_ignore(just(Token::For))
@@ -299,8 +307,8 @@ fn impl_parser<'src>(
 }
 
 /// Parses an effect definition.
-fn effect_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn effect_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let operation = ident_parser()
         .then(
             type_parser()
@@ -312,7 +320,11 @@ fn effect_parser<'src>(
         .then_ignore(just(Token::Arrow))
         .then(type_parser())
         .then_ignore(just(Token::Comma).or_not())
-        .map(|((name, params), ret_type)| EffectOp { name, params, ret_type });
+        .map(|((name, params), ret_type)| EffectOp {
+            name,
+            params,
+            ret_type,
+        });
 
     just(Token::Effect)
         .ignore_then(ident_parser())
@@ -327,8 +339,8 @@ fn effect_parser<'src>(
 }
 
 /// Parses a handler definition.
-fn handler_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn handler_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let effect_list = ident_parser()
         .separated_by(just(Token::Comma))
         .allow_trailing()
@@ -359,8 +371,8 @@ fn handler_parser<'src>(
 // --- Statement Parsers ---
 
 /// Parses a statement.
-fn stmt_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Stmt<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn stmt_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Stmt<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     choice((
         let_decl_parser(),
         just(Token::Return)
@@ -386,8 +398,8 @@ fn stmt_parser<'src>(
 }
 
 /// Parses a `let` declaration.
-fn let_decl_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Stmt<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn let_decl_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Stmt<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     just(Token::Let)
         .ignore_then(just(Token::Mut).or_not())
         .then(ident_parser())
@@ -405,8 +417,8 @@ fn let_decl_parser<'src>(
 }
 
 /// Parses a block of statements, which is also an expression.
-fn block_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn block_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     stmt_parser()
         .repeated()
         .collect::<Vec<_>>()
@@ -422,8 +434,8 @@ fn block_parser<'src>(
 // --- Expression Parsers ---
 
 /// Parses expressions, handling operator precedence with a Pratt parser.
-fn expr_parser<'src>(
-) -> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn expr_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     recursive(|expr| {
         let atom = choice((
             // Literals
@@ -454,7 +466,10 @@ fn expr_parser<'src>(
                         .separated_by(just(Token::Comma))
                         .allow_trailing()
                         .collect::<Vec<_>>()
-                        .delimited_by(just(Token::Op("<".to_string())), just(Token::Op(">".to_string())))
+                        .delimited_by(
+                            just(Token::Op("<".to_string())),
+                            just(Token::Op(">".to_string())),
+                        )
                         .or_not(),
                 )
                 .then(
@@ -472,7 +487,8 @@ fn expr_parser<'src>(
                     fields,
                 }),
             // Grouped expression or block
-            expr.clone().delimited_by(just(Token::LParen), just(Token::RParen)),
+            expr.clone()
+                .delimited_by(just(Token::LParen), just(Token::RParen)),
             block_parser(),
             // Control flow
             if_parser(expr.clone()),
@@ -480,11 +496,12 @@ fn expr_parser<'src>(
             while_parser(expr.clone()),
             handle_parser(expr.clone()),
             // Other constructs
-            just(Token::Perform).ignore_then(path_parser()).map(Expr::Perform),
+            just(Token::Perform)
+                .ignore_then(path_parser())
+                .map(Expr::Perform),
             // Variable/path
             path_parser().map(Expr::Path),
-        ))
-        .padded();
+        ));
 
         // Operator precedence parser using Pratt's algorithm
         atom.pratt((
@@ -499,76 +516,97 @@ fn expr_parser<'src>(
                             .collect::<Vec<_>>(),
                     )
                     .then_ignore(just(Token::RParen)),
-                |lhs, args| Expr::Call { fun: Box::new(lhs), args },
+                |lhs, args| Expr::Call {
+                    fun: Box::new(lhs),
+                    args,
+                },
             ),
             // Infix operators (note that field access `.` is often handled here too)
-            infix(
-                left(6),
-                just(Token::Op("*".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Mul, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
-            infix(
-                left(6),
-                just(Token::Op("/".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Div, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
-            infix(
-                left(5),
-                just(Token::Op("+".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Add, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
-            infix(
-                left(5),
-                just(Token::Op("-".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Sub, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
-            infix(
-                left(4),
-                just(Token::Op("<".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Lt, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
-            infix(
-                left(4),
-                just(Token::Op(">".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Gt, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
-            infix(
-                left(3),
-                just(Token::Op("==".to_string())),
-                |l, _, r| Expr::Binary { op: BinaryOp::Eq, lhs: Box::new(l), rhs: Box::new(r) },
-            ),
+            infix(left(6), just(Token::Op("*".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Mul,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
+            infix(left(6), just(Token::Op("/".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Div,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
+            infix(left(5), just(Token::Op("+".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Add,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
+            infix(left(5), just(Token::Op("-".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Sub,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
+            infix(left(4), just(Token::Op("<".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Lt,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
+            infix(left(4), just(Token::Op(">".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Gt,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
+            infix(left(3), just(Token::Op("==".to_string())), |l, _, r| {
+                Expr::Binary {
+                    op: BinaryOp::Eq,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                }
+            }),
             // Prefix operators
-             prefix(
-                7,
-                just(Token::Op("-".to_string())),
-                |_, rhs| Expr::Unary { op: UnaryOp::Neg, rhs: Box::new(rhs) },
-            ),
+            prefix(7, just(Token::Op("-".to_string())), |_, rhs| Expr::Unary {
+                op: UnaryOp::Neg,
+                rhs: Box::new(rhs),
+            }),
         ))
         .labelled("expression")
     })
 }
 
 fn if_parser<'src>(
-    expr: impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
+    expr: impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>>
+    + Clone,
 ) -> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    just(Token::If)
-        .ignore_then(expr.clone())
-        .then(block_parser())
-        .then(
-            just(Token::Else)
-                .ignore_then(block_parser().or(if_parser(expr)))
-                .or_not(),
-        )
-        .map(|((cond, then_block), else_block)| Expr::If {
-            cond: Box::new(cond),
-            then_block: Box::new(then_block),
-            else_block: else_block.map(Box::new),
-        })
-        .labelled("if expression")
+    recursive(|if_p| {
+        // Wrap in recursive
+        just(Token::If)
+            .ignore_then(expr.clone())
+            .then(block_parser())
+            .then(
+                just(Token::Else)
+                    .ignore_then(block_parser().or(if_parser(expr)))
+                    .or_not(),
+            )
+            .map(|((cond, then_block), else_block)| Expr::If {
+                cond: Box::new(cond),
+                then_block: Box::new(then_block),
+                else_block: else_block.map(Box::new),
+            })
+            .labelled("if expression")
+    })
 }
 
 fn match_parser<'src>(
-    expr: impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
+    expr: impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>>
+    + Clone,
 ) -> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let pattern = path_parser()
         .then(
@@ -586,7 +624,7 @@ fn match_parser<'src>(
 
     let arm = pattern
         .then_ignore(just(Token::FatArrow))
-        .then(expr)
+        .then(expr.clone())
         .then_ignore(just(Token::Comma).or_not());
 
     just(Token::Match)
