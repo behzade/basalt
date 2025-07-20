@@ -438,8 +438,121 @@ fn type_parser<'src>()
                 generics: generics.unwrap_or_default(),
             })
     })
-    .labelled("type")
-    .boxed()
+            .labelled("type")
+        .boxed()
+}
+
+fn trait_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    // Trait method parser - methods end with semicolon, not comma
+    let method = ident
+        .then_ignore(just(Token::LParen))
+        .then(
+            ident
+                .then_ignore(just(Token::Colon))
+                .then(type_parser())
+                .map(|(name, ty)| (Some(name), ty))
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+        )
+        .then_ignore(just(Token::RParen))
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+        .then_ignore(just(Token::Semi))
+        .map(|((name, params), ret_type)| TraitMethod {
+            name,
+            params,
+            ret_type,
+        });
+    
+    let methods = method
+        .repeated()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    just(Token::Trait)
+        .ignore_then(ident)
+        .then(methods)
+        .map(|(name, methods)| TraitDef {
+            name,
+            methods,
+        })
+        .labelled("trait declaration")
+}
+
+fn enum_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], EnumDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    // Generic parameters for enum
+    let generics = ident
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(
+            select! { Token::Op(op) if op == "<" => () },
+            select! { Token::Op(op) if op == ">" => () },
+        )
+        .or_not()
+        .map(|g| g.unwrap_or_default());
+    
+    // Enum variant parser
+    let variant = ident
+        .then(
+            // Optional payload types
+            type_parser()
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LParen), just(Token::RParen))
+                .or_not()
+        )
+        .map(|(name, payload)| (name, payload));
+    
+    let variants = variant
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    just(Token::Enum)
+        .ignore_then(ident)
+        .then(generics)
+        .then(variants)
+        .map(|((name, _generics), variants)| EnumDef {
+            name: Some(name),
+            variants,
+        })
+        .labelled("enum declaration")
+}
+
+fn impl_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    // Parse trait name and target type
+    let trait_name = ident;
+    let target_type = type_parser();
+    
+    // Parse methods (functions)
+    let methods = fn_parser()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    just(Token::Impl)
+        .ignore_then(trait_name)
+        .then(target_type)
+        .then(methods)
+        .map(|((trait_name, target_type), methods)| ImplBlock {
+            trait_name,
+            target_type,
+            methods,
+        })
+        .labelled("impl block")
 }
 
 /// The main parser function for the entire language.
@@ -467,9 +580,18 @@ fn item_parser<'src>()
     // Import parser
     let import_parser = import_parser();
 
-    choice((fn_decl, struct_parser, import_parser, stmt_item))
+    // Trait parser
+    let trait_parser = trait_parser().map(Item::Trait);
+    
+    // Enum parser
+    let enum_parser = enum_parser().map(Item::Enum);
+    
+    // Impl parser
+    let impl_parser = impl_parser().map(Item::Impl);
+
+    choice((fn_decl, struct_parser, trait_parser, enum_parser, impl_parser, import_parser, stmt_item))
         .recover_with(skip_then_retry_until(
             any().ignored(),
-            one_of([Token::Fn, Token::Struct, Token::Import, Token::Let]).ignored(),
+            one_of([Token::Fn, Token::Struct, Token::Trait, Token::Enum, Token::Impl, Token::Import, Token::Let]).ignored(),
         ))
 }
