@@ -4,3 +4,6 @@ dist/
 # Added by cargo
 
 /target
+
+# Test temporary files
+tests/temp/

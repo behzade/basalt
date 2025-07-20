@@ -1,0 +1,193 @@
+[
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "a",
+            ty: None,
+            value: Binary {
+                op: Add,
+                lhs: Literal(
+                    I64(
+                        1,
+                    ),
+                ),
+                rhs: Binary {
+                    op: Mul,
+                    lhs: Literal(
+                        I64(
+                            2,
+                        ),
+                    ),
+                    rhs: Literal(
+                        I64(
+                            3,
+                        ),
+                    ),
+                },
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "b",
+            ty: None,
+            value: Binary {
+                op: Mul,
+                lhs: Binary {
+                    op: Add,
+                    lhs: Literal(
+                        I64(
+                            1,
+                        ),
+                    ),
+                    rhs: Literal(
+                        I64(
+                            2,
+                        ),
+                    ),
+                },
+                rhs: Literal(
+                    I64(
+                        3,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "c",
+            ty: None,
+            value: Binary {
+                op: Div,
+                lhs: Literal(
+                    I64(
+                        10,
+                    ),
+                ),
+                rhs: Literal(
+                    I64(
+                        2,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "d",
+            ty: None,
+            value: Binary {
+                op: Sub,
+                lhs: Literal(
+                    I64(
+                        5,
+                    ),
+                ),
+                rhs: Literal(
+                    I64(
+                        3,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "e",
+            ty: None,
+            value: Binary {
+                op: Lt,
+                lhs: Literal(
+                    I64(
+                        1,
+                    ),
+                ),
+                rhs: Literal(
+                    I64(
+                        2,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "f",
+            ty: None,
+            value: Binary {
+                op: Gt,
+                lhs: Literal(
+                    I64(
+                        3,
+                    ),
+                ),
+                rhs: Literal(
+                    I64(
+                        1,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "g",
+            ty: None,
+            value: Binary {
+                op: Eq,
+                lhs: Literal(
+                    I64(
+                        1,
+                    ),
+                ),
+                rhs: Literal(
+                    I64(
+                        1,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "h",
+            ty: None,
+            value: Binary {
+                op: Ne,
+                lhs: Literal(
+                    I64(
+                        2,
+                    ),
+                ),
+                rhs: Literal(
+                    I64(
+                        3,
+                    ),
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "i",
+            ty: None,
+            value: Unary {
+                op: Neg,
+                rhs: Literal(
+                    I64(
+                        5,
+                    ),
+                ),
+            },
+        },
+    ),
+]

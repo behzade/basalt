@@ -1,0 +1,170 @@
+[
+    Effect(
+        EffectDef {
+            name: "IO",
+            operations: [
+                EffectOp {
+                    name: "Read",
+                    params: [],
+                    ret_type: Type {
+                        path: [
+                            "string",
+                        ],
+                        generics: [],
+                    },
+                },
+                EffectOp {
+                    name: "Write",
+                    params: [
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                    ret_type: Type {
+                        path: [
+                            "none",
+                        ],
+                        generics: [],
+                    },
+                },
+            ],
+        },
+    ),
+    Handler(
+        HandlerDef {
+            name: "ConsoleIO",
+            effects: [
+                "IO",
+            ],
+            functions: [
+                Function {
+                    name: "Read",
+                    params: [],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                    effects: [],
+                    body: Block {
+                        stmts: [
+                            Return(
+                                Some(
+                                    Literal(
+                                        Str(
+                                            "input",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ],
+                        last_expr: None,
+                    },
+                },
+                Function {
+                    name: "Write",
+                    params: [
+                        (
+                            Some(
+                                "msg",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                    ],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "none",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                    effects: [],
+                    body: Block {
+                        stmts: [],
+                        last_expr: None,
+                    },
+                },
+            ],
+        },
+    ),
+    Fn(
+        Function {
+            name: "greetUser",
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "string",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [
+                "IO",
+            ],
+            body: Block {
+                stmts: [
+                    Expr(
+                        Call {
+                            fun: Path(
+                                [
+                                    "Write",
+                                ],
+                            ),
+                            args: [
+                                Literal(
+                                    Str(
+                                        "What's your name?",
+                                    ),
+                                ),
+                            ],
+                        },
+                    ),
+                    Let {
+                        is_mut: false,
+                        name: "name",
+                        ty: None,
+                        value: Call {
+                            fun: Path(
+                                [
+                                    "Read",
+                                ],
+                            ),
+                            args: [],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Binary {
+                                op: Add,
+                                lhs: Literal(
+                                    Str(
+                                        "Hello ",
+                                    ),
+                                ),
+                                rhs: Path(
+                                    [
+                                        "name",
+                                    ],
+                                ),
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+        },
+    ),
+]

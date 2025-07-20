@@ -1,0 +1,138 @@
+[
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "a",
+            ty: None,
+            value: Array(
+                [
+                    Literal(
+                        I64(
+                            1,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            2,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            3,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "b",
+            ty: Some(
+                Type {
+                    path: [
+                        "Array",
+                    ],
+                    generics: [
+                        Type {
+                            path: [
+                                "i64",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                },
+            ),
+            value: Array(
+                [
+                    Literal(
+                        I64(
+                            1,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            2,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            3,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "c",
+            ty: Some(
+                Type {
+                    path: [
+                        "Array",
+                    ],
+                    generics: [
+                        Type {
+                            path: [
+                                "Array",
+                            ],
+                            generics: [
+                                Type {
+                                    path: [
+                                        "i64",
+                                    ],
+                                    generics: [],
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ),
+            value: Array(
+                [
+                    Array(
+                        [
+                            Literal(
+                                I64(
+                                    1,
+                                ),
+                            ),
+                            Literal(
+                                I64(
+                                    2,
+                                ),
+                            ),
+                        ],
+                    ),
+                    Array(
+                        [
+                            Literal(
+                                I64(
+                                    3,
+                                ),
+                            ),
+                            Literal(
+                                I64(
+                                    4,
+                                ),
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "d",
+            ty: None,
+            value: Array(
+                [],
+            ),
+        },
+    ),
+]

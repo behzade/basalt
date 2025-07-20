@@ -1,0 +1,107 @@
+[
+    Enum(
+        EnumDef {
+            name: Some(
+                "Option",
+            ),
+            variants: [
+                (
+                    "Some",
+                    Some(
+                        [
+                            Type {
+                                path: [
+                                    "T",
+                                ],
+                                generics: [],
+                            },
+                        ],
+                    ),
+                ),
+                (
+                    "None",
+                    None,
+                ),
+            ],
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "someValue",
+            ty: None,
+            value: Call {
+                fun: Path(
+                    [
+                        "Option",
+                        "Some",
+                    ],
+                ),
+                args: [
+                    Literal(
+                        I64(
+                            42,
+                        ),
+                    ),
+                ],
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "noneValue",
+            ty: None,
+            value: Path(
+                [
+                    "Option",
+                    "None",
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "result",
+            ty: None,
+            value: Match {
+                scrutinee: Path(
+                    [
+                        "someValue",
+                    ],
+                ),
+                arms: [
+                    (
+                        Pattern {
+                            path: [
+                                "Some",
+                            ],
+                            args: [
+                                "x",
+                            ],
+                        },
+                        Path(
+                            [
+                                "x",
+                            ],
+                        ),
+                    ),
+                    (
+                        Pattern {
+                            path: [
+                                "None",
+                            ],
+                            args: [],
+                        },
+                        Literal(
+                            I64(
+                                0,
+                            ),
+                        ),
+                    ),
+                ],
+            },
+        },
+    ),
+]

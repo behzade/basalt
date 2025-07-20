@@ -1,0 +1,101 @@
+[
+    Struct(
+        StructDef {
+            name: "Pair",
+            generics: [
+                "T",
+                "U",
+            ],
+            fields: [
+                (
+                    "first",
+                    Type {
+                        path: [
+                            "T",
+                        ],
+                        generics: [],
+                    },
+                ),
+                (
+                    "second",
+                    Type {
+                        path: [
+                            "U",
+                        ],
+                        generics: [],
+                    },
+                ),
+            ],
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "intPair",
+            ty: None,
+            value: Map(
+                [
+                    (
+                        Path(
+                            [
+                                "first",
+                            ],
+                        ),
+                        Literal(
+                            I64(
+                                42,
+                            ),
+                        ),
+                    ),
+                    (
+                        Path(
+                            [
+                                "second",
+                            ],
+                        ),
+                        Literal(
+                            Str(
+                                "hello",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "floatPair",
+            ty: None,
+            value: Map(
+                [
+                    (
+                        Path(
+                            [
+                                "first",
+                            ],
+                        ),
+                        Literal(
+                            F64(
+                                3.14,
+                            ),
+                        ),
+                    ),
+                    (
+                        Path(
+                            [
+                                "second",
+                            ],
+                        ),
+                        Literal(
+                            Bool(
+                                true,
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+]

@@ -1,0 +1,15 @@
+ERROR: [31mError:[0m Unexpected token, expected something else or if expression or while loop or match expression or perform expression or typed map literal or map literal or struct instantiation or path or ''('' or block or array literal
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:6:1[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m6 │[0m [31m/[0m[31m/[0m[31m [0m[31mI[0m[31mn[0m[31mc[0m[31mo[0m[31mm[0m[31mp[0m[31ml[0m[31me[0m[31mt[0m[31me[0m[31m [0m[31me[0m[31mx[0m[31mp[0m[31mr[0m[31me[0m[31ms[0m[31ms[0m[31mi[0m[31mo[0m[31mn[0m
+ [38;5;240m  │[0m [31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m  
+ [38;5;240m  │[0m             [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Found [31m// Incomplete expression[0m but expected [32msomething else or if expression or while loop or match expression or perform expression or typed map literal or map literal or struct instantiation or path or ''('' or block or array literal[0m
+[38;5;246m───╯[0m
+[31mError:[0m Unexpected token, expected something else or if expression or while loop or match expression or perform expression or typed map literal or map literal or struct instantiation or path or ''('' or block or array literal
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:6:1[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m6 │[0m [31m/[0m[31m/[0m[31m [0m[31mI[0m[31mn[0m[31mc[0m[31mo[0m[31mm[0m[31mp[0m[31ml[0m[31me[0m[31mt[0m[31me[0m[31m [0m[31me[0m[31mx[0m[31mp[0m[31mr[0m[31me[0m[31ms[0m[31ms[0m[31mi[0m[31mo[0m[31mn[0m
+ [38;5;240m  │[0m [31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m  
+ [38;5;240m  │[0m             [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Found [31m// Incomplete expression[0m but expected [32msomething else or if expression or while loop or match expression or perform expression or typed map literal or map literal or struct instantiation or path or ''('' or block or array literal[0m
+[38;5;246m───╯[0m
+Error: Custom { kind: InvalidData, error: "Parsing errors occurred" }

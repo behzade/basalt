@@ -1,0 +1,125 @@
+[
+    ExternFn {
+        name: "strlen",
+        params: [
+            (
+                Some(
+                    "s",
+                ),
+                Type {
+                    path: [
+                        "string",
+                    ],
+                    generics: [],
+                },
+            ),
+        ],
+        ret_type: Type {
+            path: [
+                "i64",
+            ],
+            generics: [],
+        },
+    },
+    ExternFn {
+        name: "printf",
+        params: [
+            (
+                Some(
+                    "format",
+                ),
+                Type {
+                    path: [
+                        "string",
+                    ],
+                    generics: [],
+                },
+            ),
+            (
+                None,
+                Type {
+                    path: [
+                        "...",
+                    ],
+                    generics: [],
+                },
+            ),
+        ],
+        ret_type: Type {
+            path: [
+                "i64",
+            ],
+            generics: [],
+        },
+    },
+    ExternFn {
+        name: "malloc",
+        params: [
+            (
+                Some(
+                    "size",
+                ),
+                Type {
+                    path: [
+                        "i64",
+                    ],
+                    generics: [],
+                },
+            ),
+        ],
+        ret_type: Type {
+            path: [
+                "rawptr",
+            ],
+            generics: [],
+        },
+    },
+    Fn(
+        Function {
+            name: "useExtern",
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i64",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "len",
+                        ty: None,
+                        value: Call {
+                            fun: Path(
+                                [
+                                    "strlen",
+                                ],
+                            ),
+                            args: [
+                                Literal(
+                                    Str(
+                                        "hello",
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Path(
+                                [
+                                    "len",
+                                ],
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+        },
+    ),
+]

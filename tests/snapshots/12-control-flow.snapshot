@@ -1,0 +1,114 @@
+[
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "x",
+            ty: None,
+            value: Literal(
+                I64(
+                    10,
+                ),
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "y",
+            ty: None,
+            value: If {
+                cond: Binary {
+                    op: Gt,
+                    lhs: Path(
+                        [
+                            "x",
+                        ],
+                    ),
+                    rhs: Literal(
+                        I64(
+                            5,
+                        ),
+                    ),
+                },
+                then_block: Block {
+                    stmts: [],
+                    last_expr: Some(
+                        Literal(
+                            I64(
+                                100,
+                            ),
+                        ),
+                    ),
+                },
+                else_block: Some(
+                    Block {
+                        stmts: [],
+                        last_expr: Some(
+                            Literal(
+                                I64(
+                                    200,
+                                ),
+                            ),
+                        ),
+                    },
+                ),
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: true,
+            name: "counter",
+            ty: None,
+            value: Literal(
+                I64(
+                    0,
+                ),
+            ),
+        },
+    ),
+    Stmt(
+        Expr(
+            While {
+                cond: Binary {
+                    op: Lt,
+                    lhs: Path(
+                        [
+                            "counter",
+                        ],
+                    ),
+                    rhs: Literal(
+                        I64(
+                            5,
+                        ),
+                    ),
+                },
+                body: Block {
+                    stmts: [
+                        Assign(
+                            Path(
+                                [
+                                    "counter",
+                                ],
+                            ),
+                            Binary {
+                                op: Add,
+                                lhs: Path(
+                                    [
+                                        "counter",
+                                    ],
+                                ),
+                                rhs: Literal(
+                                    I64(
+                                        1,
+                                    ),
+                                ),
+                            },
+                        ),
+                    ],
+                    last_expr: None,
+                },
+            },
+        ),
+    ),
+]

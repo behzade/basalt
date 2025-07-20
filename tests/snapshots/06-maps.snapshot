@@ -1,0 +1,90 @@
+[
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "a",
+            ty: None,
+            value: Map(
+                [
+                    (
+                        Literal(
+                            Str(
+                                "key",
+                            ),
+                        ),
+                        Literal(
+                            Str(
+                                "value",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "b",
+            ty: Some(
+                Type {
+                    path: [
+                        "Map",
+                    ],
+                    generics: [
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                        Type {
+                            path: [
+                                "i64",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                },
+            ),
+            value: Map(
+                [
+                    (
+                        Literal(
+                            Str(
+                                "a",
+                            ),
+                        ),
+                        Literal(
+                            I64(
+                                1,
+                            ),
+                        ),
+                    ),
+                    (
+                        Literal(
+                            Str(
+                                "b",
+                            ),
+                        ),
+                        Literal(
+                            I64(
+                                2,
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "c",
+            ty: None,
+            value: Map(
+                [],
+            ),
+        },
+    ),
+]
