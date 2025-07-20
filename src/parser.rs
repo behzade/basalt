@@ -678,6 +678,70 @@ fn effect_parser<'src>()
         .labelled("effect definition")
 }
 
+fn handler_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let (expr, stmt) = expression_parsers();
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    // Handler method parser (similar to impl methods)
+    let handler_method = ident
+        .then_ignore(just(Token::LParen))
+        .then(
+            ident
+                .then_ignore(just(Token::Colon))
+                .then(type_parser())
+                .map(|(name, ty)| (Some(name), ty))
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+        )
+        .then_ignore(just(Token::RParen))
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+        .then(
+            // Function body (block)
+            stmt
+                .repeated()
+                .collect::<Vec<_>>()
+                .then(expr.or_not())
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                .map(|(stmts, last_expr)| Expr::Block {
+                    stmts,
+                    last_expr: last_expr.map(Box::new),
+                })
+        )
+        .map(|(((name, params), ret_type), body)| Function {
+            name,
+            params,
+            ret_type,
+            effects: Vec::new(),
+            body,
+        });
+    
+    let methods = handler_method
+        .repeated()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    // Parse handler name and effects
+    let handler_name = ident;
+    let effects = ident
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    just(Token::Handler)
+        .ignore_then(handler_name)
+        .then(effects)
+        .then(methods)
+        .map(|((name, effects), functions)| HandlerDef {
+            name,
+            effects,
+            functions,
+        })
+        .labelled("handler definition")
+}
+
 fn extern_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ident = select! { Token::Ident(ident) => ident };
@@ -757,8 +821,7 @@ fn impl_parser<'src>()
         });
     
     let methods = impl_method
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
+        .repeated()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace));
     
@@ -809,15 +872,18 @@ fn item_parser<'src>()
     // Effect parser
     let effect_parser = effect_parser().map(Item::Effect);
     
+    // Handler parser
+    let handler_parser = handler_parser().map(Item::Handler);
+    
     // Extern parser
     let extern_parser = extern_parser();
     
     // Impl parser
     let impl_parser = impl_parser().map(Item::Impl);
 
-    choice((fn_decl, struct_parser, trait_parser, enum_parser, impl_parser, effect_parser, extern_parser, import_parser, stmt_item))
+    choice((fn_decl, struct_parser, trait_parser, enum_parser, impl_parser, effect_parser, handler_parser, extern_parser, import_parser, stmt_item))
         .recover_with(skip_then_retry_until(
             any().ignored(),
-            one_of([Token::Fn, Token::Struct, Token::Trait, Token::Enum, Token::Impl, Token::Effect, Token::Extern, Token::Import, Token::Let]).ignored(),
+            one_of([Token::Fn, Token::Struct, Token::Trait, Token::Enum, Token::Impl, Token::Effect, Token::Handler, Token::Extern, Token::Import, Token::Let]).ignored(),
         ))
 }
