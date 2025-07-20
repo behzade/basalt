@@ -18,6 +18,7 @@ pub fn lexer<'src>()
         just("!=").to(Token::Op("!=".to_string())),
         just(">=").to(Token::Op(">=".to_string())),
         just("<=").to(Token::Op("<=".to_string())),
+        just("...").to(Token::Op("...".to_string())),
         one_of("+-*/<>=!")
             .repeated()
             .exactly(1)
@@ -39,6 +40,7 @@ pub fn lexer<'src>()
         just("}").to(Token::RBrace),
         just("[").to(Token::LBracket),
         just("]").to(Token::RBracket),
+        just(".").to(Token::Op(".".to_string())),
     ));
 
     // A parser for literals

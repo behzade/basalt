@@ -331,8 +331,16 @@ fn expression_parsers<'src>() -> (
             value,
         });
 
+    // Assignment statement parser
+    let assign_stmt = path.clone()
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(expr.clone())
+        .then_ignore(just(Token::Semi))
+        .map(|(lhs, rhs)| Stmt::Assign(Expr::Path(lhs), rhs));
+
     let stmt_parser = choice((
         let_decl,
+        assign_stmt,
         just(Token::Return)
             .ignore_then(expr.clone().or_not())
             .then_ignore(just(Token::Semi))
