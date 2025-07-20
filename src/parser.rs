@@ -30,14 +30,15 @@ fn expression_parsers<'src>() -> (
     let ty = recursive(|type_p| {
         path.clone()
             .then(
-                type_p
-                    .separated_by(just(Token::Comma))
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(
-                        select! { Token::Op(op) if op == "<" => () },
-                        select! { Token::Op(op) if op == ">" => () },
+                // Custom generic parameter parser that handles nested generics
+                select! { Token::Op(op) if op == "<" => () }
+                    .ignore_then(
+                        type_p
+                            .separated_by(just(Token::Comma))
+                            .allow_trailing()
+                            .collect::<Vec<_>>()
                     )
+                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
                     .or_not(),
             )
             .map(|(path, generics)| Type {
@@ -253,14 +254,15 @@ fn fn_parser<'src>()
     let ty = recursive(|type_p| {
         path.clone()
             .then(
-                type_p
-                    .separated_by(just(Token::Comma))
-                    .allow_trailing()
-                    .collect::<Vec<_>>()
-                    .delimited_by(
-                        select! { Token::Op(op) if op == "<" => () },
-                        select! { Token::Op(op) if op == ">" => () },
+                // Custom generic parameter parser that handles nested generics
+                select! { Token::Op(op) if op == "<" => () }
+                    .ignore_then(
+                        type_p
+                            .separated_by(just(Token::Comma))
+                            .allow_trailing()
+                            .collect::<Vec<_>>()
                     )
+                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
                     .or_not(),
             )
             .map(|(path, generics)| Type {

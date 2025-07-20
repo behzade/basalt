@@ -13,11 +13,17 @@ use crate::token::Token;
 pub fn lexer<'src>()
 -> impl Parser<'src, &'src str, Vec<(Token<'src>, SimpleSpan)>, extra::Err<Rich<'src, char>>> {
     // A parser for operators
-    let op = one_of("+-*/<>=!")
-        .repeated()
-        .at_least(1)
-        .to_slice()
-        .map(|s: &str| Token::Op(s.to_string()));
+    let op = choice((
+        just("==").to(Token::Op("==".to_string())),
+        just("!=").to(Token::Op("!=".to_string())),
+        just(">=").to(Token::Op(">=".to_string())),
+        just("<=").to(Token::Op("<=".to_string())),
+        one_of("+-*/<>=!")
+            .repeated()
+            .exactly(1)
+            .to_slice()
+            .map(|s: &str| Token::Op(s.to_string())),
+    ));
 
     // A parser for punctuation
     let punc = choice((
