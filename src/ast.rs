@@ -204,6 +204,7 @@ pub enum BinaryOp {
     Mul, // *
     Div, // /
     Eq,  // ==
+    Ne,  // !=
     Lt,  // <
     Gt,  // >
 }

@@ -19,6 +19,8 @@ ERROR_TESTS=0
 echo -e "${BLUE}=== Basalt Parser Test Suite ===${NC}"
 echo
 
+devbox run -- cargo build
+
 # Function to run a test
 run_test() {
     local test_file="$1"
@@ -35,7 +37,7 @@ run_test() {
     # Run the parser and capture exit code
     local exit_code=0
     local output=""
-    output=$(cargo run -- parse < "$test_file" 2>&1) || exit_code=$?
+    output=$(./target/debug/basalt parse < "$test_file" 2>&1) || exit_code=$?
     
     if [ $exit_code -eq 0 ]; then
         if [ "$expected_to_fail" = true ]; then
@@ -84,7 +86,7 @@ run_test_detailed() {
     # Run the parser and capture exit code
     local exit_code=0
     local output=""
-    output=$(cargo run -- parse < "$test_file" 2>&1) || exit_code=$?
+    output=$(./target/debug/basalt parse < "$test_file" 2>&1) || exit_code=$?
     
     echo "Parser output:"
     if [ $exit_code -eq 0 ]; then

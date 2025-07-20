@@ -61,6 +61,33 @@ fn expression_parsers<'src>() -> (
         .labelled("block")
         .boxed();
 
+    // Array literal parser
+    let array_literal = expr
+        .clone()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBracket), just(Token::RBracket))
+        .map(Expr::Array)
+        .labelled("array literal")
+        .boxed();
+
+    // Map literal parser
+    let map_literal = expr
+        .clone()
+        .then_ignore(just(Token::Colon))
+        .then(expr.clone())
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        .map(|pairs| {
+            let map_pairs = pairs.into_iter().collect();
+            Expr::Map(map_pairs)
+        })
+        .labelled("map literal")
+        .boxed();
+
     let atom = choice((
         // Literals
         select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
@@ -74,6 +101,10 @@ fn expression_parsers<'src>() -> (
             .delimited_by(just(Token::LParen), just(Token::RParen)),
         // Block
         block.clone(),
+        // Array literal
+        array_literal.clone(),
+        // Map literal
+        map_literal.clone(),
     ))
     .boxed();
 
@@ -160,6 +191,15 @@ fn expression_parsers<'src>() -> (
                 select! { Token::Op(op) if op == "==" => () },
                 |l, _op, r, _extra| Expr::Binary {
                     op: BinaryOp::Eq,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                },
+            ),
+            infix(
+                left(3),
+                select! { Token::Op(op) if op == "!=" => () },
+                |l, _op, r, _extra| Expr::Binary {
+                    op: BinaryOp::Ne,
                     lhs: Box::new(l),
                     rhs: Box::new(r),
                 },

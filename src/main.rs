@@ -1,6 +1,5 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
-use chumsky::input::Stream;
 use clap::Parser as ClapParser;
 use std::fs;
 use std::io::{self, Read};
