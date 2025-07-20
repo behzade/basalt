@@ -401,6 +401,18 @@ fn expression_parsers<'src>() -> (
         .then_ignore(just(Token::Semi))
         .map(|(lhs, rhs)| Stmt::Assign(Expr::Path(lhs), rhs));
 
+    // Control flow expressions that don't need semicolons (but can have them)
+    let control_flow_stmt = choice((
+        if_expr.clone(),
+        while_expr.clone(),
+        match_expr.clone(),
+    ))
+    .then(just(Token::Semi).or_not())
+    .map(|(expr, _semi)| Stmt::Expr(expr));
+
+    // Regular expressions that need semicolons
+    let expr_stmt = expr.clone().then_ignore(just(Token::Semi)).map(Stmt::Expr);
+
     let stmt_parser = choice((
         let_decl,
         assign_stmt,
@@ -408,7 +420,8 @@ fn expression_parsers<'src>() -> (
             .ignore_then(expr.clone().or_not())
             .then_ignore(just(Token::Semi))
             .map(Stmt::Return),
-        expr.clone().then_ignore(just(Token::Semi)).map(Stmt::Expr),
+        control_flow_stmt,
+        expr_stmt,
     ))
     .labelled("statement");
 
@@ -460,7 +473,7 @@ fn fn_parser<'src>()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
-    // Function body should be a block that can contain statements
+    // Use the same block parser from expression_parsers
     let block = stmt
         .clone()
         .repeated()
@@ -470,8 +483,7 @@ fn fn_parser<'src>()
         .map(|(stmts, last_expr)| Expr::Block {
             stmts,
             last_expr: last_expr.map(Box::new),
-        })
-        .recover_with(via_parser(empty().to(Expr::Error))); // Basic block recovery
+        });
 
     // Parse effects list: / {effect1, effect2}
     let effects = just(Token::Op("/".to_string()))
