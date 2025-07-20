@@ -49,7 +49,12 @@ fn main() -> io::Result<()> {
 
             // --- Lexing ---
             let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
-            report_lexer_errors(&source_code, &source_id, lex_errs);
+            report_lexer_errors(&source_code, &source_id, &lex_errs);
+
+            // If there are lexing errors, exit with error code
+            if !lex_errs.is_empty() {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Lexing errors occurred"));
+            }
 
             if let Some(tokens) = tokens {
                 // --- Parsing ---
@@ -58,11 +63,22 @@ fn main() -> io::Result<()> {
                 let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
                 let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
 
-                report_parser_errors(&source_code, &source_id, parse_errs, &tokens);
+                report_parser_errors(&source_code, &source_id, &parse_errs, &tokens);
+
+                // If there are parsing errors, exit with error code
+                if !parse_errs.is_empty() {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Parsing errors occurred"));
+                }
 
                 if let Some(ast) = ast {
                     println!("{:#?}", ast);
+                } else {
+                    // If no AST was produced, exit with error code
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to parse input"));
                 }
+            } else {
+                // If no tokens were produced, exit with error code
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to tokenize input"));
             }
         }
         Action::TypeCheck { .. } => {
@@ -76,7 +92,7 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn report_lexer_errors(source_code: &str, source_id: &str, errors: Vec<Rich<char>>) {
+fn report_lexer_errors(source_code: &str, source_id: &str, errors: &[Rich<char>]) {
     for e in errors {
         let report = Report::build(ReportKind::Error, source_id, e.span().start);
         
@@ -102,7 +118,7 @@ fn report_lexer_errors(source_code: &str, source_id: &str, errors: Vec<Rich<char
     }
 }
 
-fn report_parser_errors(source_code: &str, source_id: &str, errors: Vec<Rich<Token>>, tokens_with_spans: &[(Token, chumsky::span::SimpleSpan)]) {
+fn report_parser_errors(source_code: &str, source_id: &str, errors: &[Rich<Token>], tokens_with_spans: &[(Token, chumsky::span::SimpleSpan)]) {
     for e in errors {
         let report_span = if let Some((_, span)) = tokens_with_spans.get(e.span().start) {
             span.into_range()

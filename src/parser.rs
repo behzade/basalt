@@ -275,17 +275,21 @@ pub fn file_parser<'src>()
 
     let item = item_parser().padded_by(comment);
 
-    item.repeated().collect::<Vec<_>>().then_ignore(end())
+    comment
+        .ignore_then(item.repeated().collect::<Vec<_>>())
+        .then_ignore(end())
 }
 
 /// Parses a single top-level item.
 fn item_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let (expr, stmt) = expression_parsers();
     let fn_decl = fn_parser().map(Item::Fn);
+    let stmt_item = stmt.map(Item::Stmt);
 
-    choice((fn_decl,)) // Add other item parsers here
+    choice((fn_decl, stmt_item)) // Add other item parsers here
         .recover_with(skip_then_retry_until(
             any().ignored(),
-            one_of([Token::Fn /* other item keywords */]).ignored(),
+            one_of([Token::Fn, Token::Let /* other item keywords */]).ignored(),
         ))
 }

@@ -98,11 +98,11 @@ pub fn lexer<'src>()
         .map(Token::Comment);
 
     // A single token parser, combining all the smaller parsers
-    let token = literal
+    let token = comment
+        .or(literal)
         .or(ident)
         .or(punc)
         .or(op)
-        .or(comment)
         // We use `recover_with` and `skip_then_retry_until` to handle errors gracefully.
         // This strategy skips characters one by one until it finds a character that can
         // be considered the start of a new token (here, whitespace or the end of input),
