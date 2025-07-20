@@ -1,43 +1,627 @@
-ERROR: [31mError:[0m Unexpected token, expected ''else'' or ''('' or ''['' or ''.'' or something else or '';'' or ''}''
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:35:5[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m35 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[31ml[0m[31me[0m[31mt[0m[38;5;249m [0m[38;5;249mm[0m[38;5;249mu[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mu[0m[38;5;249mm[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m0[0m[38;5;249m;[0m
- [38;5;240m   │[0m     [31m─[0m[31m┬[0m[31m─[0m  
- [38;5;240m   │[0m      [31m╰[0m[31m─[0m[31m─[0m[31m─[0m Found [31mlet[0m but expected [32m''else'' or ''('' or ''['' or ''.'' or something else or '';'' or ''}''[0m
-[38;5;246m────╯[0m
-[31mError:[0m Unexpected token, expected ''else'' or ''('' or ''['' or ''.'' or something else or '';'' or ''}'' or '':''
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:35:5[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m35 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[31ml[0m[31me[0m[31mt[0m[38;5;249m [0m[38;5;249mm[0m[38;5;249mu[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mu[0m[38;5;249mm[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m0[0m[38;5;249m;[0m
- [38;5;240m   │[0m     [31m─[0m[31m┬[0m[31m─[0m  
- [38;5;240m   │[0m      [31m╰[0m[31m─[0m[31m─[0m[31m─[0m Found [31mlet[0m but expected [32m''else'' or ''('' or ''['' or ''.'' or something else or '';'' or ''}'' or '':''[0m
-[38;5;246m────╯[0m
-[31mError:[0m Unexpected token, expected something else or function declaration or struct declaration or trait declaration or enum declaration or impl block or effect definition or handler definition or extern function declaration or import declaration or statement
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:33:5[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m33 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[31m}[0m
- [38;5;240m   │[0m     [31m┬[0m  
- [38;5;240m   │[0m     [31m╰[0m[31m─[0m[31m─[0m Found [31m}[0m but expected [32msomething else or function declaration or struct declaration or trait declaration or enum declaration or impl block or effect definition or handler definition or extern function declaration or import declaration or statement[0m
-[38;5;246m────╯[0m
-[31mError:[0m Unexpected token, expected ''('' or ''['' or ''.'' or something else or '';''
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:42:5[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m42 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[31mr[0m[31me[0m[31mt[0m[31mu[0m[31mr[0m[31mn[0m[38;5;249m [0m[38;5;249mR[0m[38;5;249me[0m[38;5;249ms[0m[38;5;249mu[0m[38;5;249ml[0m[38;5;249mt[0m[38;5;249m:[0m[38;5;249m:[0m[38;5;249mO[0m[38;5;249mk[0m[38;5;249m([0m[38;5;249ms[0m[38;5;249mu[0m[38;5;249mm[0m[38;5;249m)[0m[38;5;249m;[0m
- [38;5;240m   │[0m     [31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m  
- [38;5;240m   │[0m        [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Found [31mreturn[0m but expected [32m''('' or ''['' or ''.'' or something else or '';''[0m
-[38;5;246m────╯[0m
-[31mError:[0m Unexpected token, expected something else or function declaration or struct declaration or trait declaration or enum declaration or impl block or effect definition or handler definition or extern function declaration or import declaration or statement
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:40:5[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m40 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[31m}[0m
- [38;5;240m   │[0m     [31m┬[0m  
- [38;5;240m   │[0m     [31m╰[0m[31m─[0m[31m─[0m Found [31m}[0m but expected [32msomething else or function declaration or struct declaration or trait declaration or enum declaration or impl block or effect definition or handler definition or extern function declaration or import declaration or statement[0m
-[38;5;246m────╯[0m
-[31mError:[0m Unexpected token, expected something else or function declaration or struct declaration or trait declaration or enum declaration or impl block or effect definition or handler definition or extern function declaration or import declaration or statement
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mstdin:43:1[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m43 │[0m [31m}[0m
- [38;5;240m   │[0m [31m┬[0m  
- [38;5;240m   │[0m [31m╰[0m[31m─[0m[31m─[0m Found [31m}[0m but expected [32msomething else or function declaration or struct declaration or trait declaration or enum declaration or impl block or effect definition or handler definition or extern function declaration or import declaration or statement[0m
-[38;5;246m────╯[0m
-Error: Custom { kind: InvalidData, error: "Parsing errors occurred" }
+[
+    Import {
+        path: [
+            "Std",
+            "Collections",
+            "Map",
+        ],
+        alias: None,
+    },
+    Struct(
+        StructDef {
+            name: "Database",
+            generics: [
+                "T",
+            ],
+            fields: [
+                (
+                    "data",
+                    Type {
+                        path: [
+                            "Map",
+                        ],
+                        generics: [
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                            Type {
+                                path: [
+                                    "T",
+                                ],
+                                generics: [],
+                            },
+                        ],
+                    },
+                ),
+                (
+                    "count",
+                    Type {
+                        path: [
+                            "i64",
+                        ],
+                        generics: [],
+                    },
+                ),
+            ],
+        },
+    ),
+    Trait(
+        TraitDef {
+            name: "Storage",
+            methods: [
+                TraitMethod {
+                    name: "get",
+                    params: [
+                        (
+                            Some(
+                                "key",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                    ],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                },
+                TraitMethod {
+                    name: "set",
+                    params: [
+                        (
+                            Some(
+                                "key",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                        (
+                            Some(
+                                "value",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                    ],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "none",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                },
+            ],
+        },
+    ),
+    Impl(
+        ImplBlock {
+            trait_name: "Storage",
+            target_type: Type {
+                path: [
+                    "Database",
+                ],
+                generics: [
+                    Type {
+                        path: [
+                            "string",
+                        ],
+                        generics: [],
+                    },
+                ],
+            },
+            methods: [
+                Function {
+                    name: "get",
+                    params: [
+                        (
+                            Some(
+                                "key",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                    ],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                    effects: [],
+                    body: Block {
+                        stmts: [
+                            Return(
+                                Some(
+                                    Literal(
+                                        Str(
+                                            "stored_value",
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ],
+                        last_expr: None,
+                    },
+                },
+                Function {
+                    name: "set",
+                    params: [
+                        (
+                            Some(
+                                "key",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                        (
+                            Some(
+                                "value",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                    ],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "none",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                    effects: [],
+                    body: Block {
+                        stmts: [],
+                        last_expr: None,
+                    },
+                },
+            ],
+        },
+    ),
+    Enum(
+        EnumDef {
+            name: Some(
+                "Result",
+            ),
+            variants: [
+                (
+                    "Ok",
+                    Some(
+                        [
+                            Type {
+                                path: [
+                                    "T",
+                                ],
+                                generics: [],
+                            },
+                        ],
+                    ),
+                ),
+                (
+                    "Err",
+                    Some(
+                        [
+                            Type {
+                                path: [
+                                    "E",
+                                ],
+                                generics: [],
+                            },
+                        ],
+                    ),
+                ),
+            ],
+        },
+    ),
+    Fn(
+        Function {
+            name: "processData",
+            params: [
+                (
+                    Some(
+                        "data",
+                    ),
+                    Type {
+                        path: [
+                            "Array",
+                        ],
+                        generics: [
+                            Type {
+                                path: [
+                                    "i64",
+                                ],
+                                generics: [],
+                            },
+                        ],
+                    },
+                ),
+            ],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "Result",
+                    ],
+                    generics: [
+                        Type {
+                            path: [
+                                "i64",
+                            ],
+                            generics: [],
+                        },
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Expr(
+                        If {
+                            cond: Binary {
+                                op: Eq,
+                                lhs: Call {
+                                    fun: Path(
+                                        [
+                                            "length",
+                                        ],
+                                    ),
+                                    args: [],
+                                },
+                                rhs: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            },
+                            then_block: Block {
+                                stmts: [
+                                    Return(
+                                        Some(
+                                            Call {
+                                                fun: Path(
+                                                    [
+                                                        "Result",
+                                                        "Err",
+                                                    ],
+                                                ),
+                                                args: [
+                                                    Literal(
+                                                        Str(
+                                                            "empty data",
+                                                        ),
+                                                    ),
+                                                ],
+                                            },
+                                        ),
+                                    ),
+                                ],
+                                last_expr: None,
+                            },
+                            else_block: None,
+                        },
+                    ),
+                    Let {
+                        is_mut: true,
+                        name: "sum",
+                        ty: None,
+                        value: Literal(
+                            I64(
+                                0,
+                            ),
+                        ),
+                    },
+                    Let {
+                        is_mut: true,
+                        name: "i",
+                        ty: None,
+                        value: Literal(
+                            I64(
+                                0,
+                            ),
+                        ),
+                    },
+                    Expr(
+                        While {
+                            cond: Binary {
+                                op: Lt,
+                                lhs: Path(
+                                    [
+                                        "i",
+                                    ],
+                                ),
+                                rhs: Call {
+                                    fun: Path(
+                                        [
+                                            "length",
+                                        ],
+                                    ),
+                                    args: [],
+                                },
+                            },
+                            body: Block {
+                                stmts: [
+                                    Assign(
+                                        Path(
+                                            [
+                                                "sum",
+                                            ],
+                                        ),
+                                        Binary {
+                                            op: Add,
+                                            lhs: Path(
+                                                [
+                                                    "sum",
+                                                ],
+                                            ),
+                                            rhs: Call {
+                                                fun: Path(
+                                                    [
+                                                        "get",
+                                                    ],
+                                                ),
+                                                args: [
+                                                    Path(
+                                                        [
+                                                            "data",
+                                                        ],
+                                                    ),
+                                                    Path(
+                                                        [
+                                                            "i",
+                                                        ],
+                                                    ),
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                    Assign(
+                                        Path(
+                                            [
+                                                "i",
+                                            ],
+                                        ),
+                                        Binary {
+                                            op: Add,
+                                            lhs: Path(
+                                                [
+                                                    "i",
+                                                ],
+                                            ),
+                                            rhs: Literal(
+                                                I64(
+                                                    1,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                ],
+                                last_expr: None,
+                            },
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Call {
+                                fun: Path(
+                                    [
+                                        "Result",
+                                        "Ok",
+                                    ],
+                                ),
+                                args: [
+                                    Path(
+                                        [
+                                            "sum",
+                                        ],
+                                    ),
+                                ],
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "db",
+            ty: None,
+            value: Map(
+                [
+                    (
+                        Path(
+                            [
+                                "data",
+                            ],
+                        ),
+                        Map(
+                            [
+                                (
+                                    Literal(
+                                        Str(
+                                            "key1",
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "value1",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        Str(
+                                            "key2",
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "value2",
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                    (
+                        Path(
+                            [
+                                "count",
+                            ],
+                        ),
+                        Literal(
+                            I64(
+                                2,
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "numbers",
+            ty: None,
+            value: Array(
+                [
+                    Literal(
+                        I64(
+                            1,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            2,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            3,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            4,
+                        ),
+                    ),
+                    Literal(
+                        I64(
+                            5,
+                        ),
+                    ),
+                ],
+            ),
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "result",
+            ty: None,
+            value: Call {
+                fun: Path(
+                    [
+                        "processData",
+                    ],
+                ),
+                args: [
+                    Path(
+                        [
+                            "numbers",
+                        ],
+                    ),
+                ],
+            },
+        },
+    ),
+    Stmt(
+        Let {
+            is_mut: false,
+            name: "finalResult",
+            ty: None,
+            value: Match {
+                scrutinee: Path(
+                    [
+                        "result",
+                    ],
+                ),
+                arms: [
+                    (
+                        Pattern {
+                            path: [
+                                "Ok",
+                            ],
+                            args: [
+                                "sum",
+                            ],
+                        },
+                        Path(
+                            [
+                                "sum",
+                            ],
+                        ),
+                    ),
+                    (
+                        Pattern {
+                            path: [
+                                "Err",
+                            ],
+                            args: [
+                                "msg",
+                            ],
+                        },
+                        Literal(
+                            I64(
+                                0,
+                            ),
+                        ),
+                    ),
+                ],
+            },
+        },
+    ),
+]
