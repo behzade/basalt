@@ -123,12 +123,83 @@ fn expression_parsers<'src>() -> (
         .labelled("struct instantiation")
         .boxed();
 
+    // Pattern parser for match expressions
+    let pattern = path.clone()
+        .then(
+            // Optional arguments (like Some(x))
+            ident
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LParen), just(Token::RParen))
+                .or_not()
+        )
+        .map(|(path, args)| Pattern {
+            path,
+            args: args.unwrap_or_default(),
+        })
+        .labelled("pattern");
+
+    // If expression parser
+    let if_expr = just(Token::If)
+        .ignore_then(expr.clone())
+        .then(block.clone())
+        .then(
+            just(Token::Else)
+                .ignore_then(choice((block.clone(), expr.clone())))
+                .or_not()
+        )
+        .map(|((condition, then_block), else_expr)| Expr::If {
+            cond: Box::new(condition),
+            then_block: Box::new(then_block),
+            else_block: else_expr.map(Box::new),
+        })
+        .labelled("if expression")
+        .boxed();
+
+    // While loop parser
+    let while_expr = just(Token::While)
+        .ignore_then(expr.clone())
+        .then(block.clone())
+        .map(|(condition, body)| Expr::While {
+            cond: Box::new(condition),
+            body: Box::new(body),
+        })
+        .labelled("while loop")
+        .boxed();
+
+    // Match expression parser
+    let match_arm = pattern
+        .then_ignore(just(Token::FatArrow))
+        .then(expr.clone())
+        .map(|(pattern, body)| (pattern, body));
+    
+    let match_expr = just(Token::Match)
+        .ignore_then(expr.clone())
+        .then(
+            match_arm
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .map(|(value, arms)| Expr::Match {
+            scrutinee: Box::new(value),
+            arms,
+        })
+        .labelled("match expression")
+        .boxed();
+
     let atom = choice((
         // Literals
         select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
         select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
         select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
         select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+        // Control flow expressions
+        if_expr.clone(),
+        while_expr.clone(),
+        match_expr.clone(),
         // Struct instantiation (must come before path to avoid conflicts)
         struct_init.clone(),
         // Variable/path
