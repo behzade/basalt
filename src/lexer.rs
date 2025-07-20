@@ -19,6 +19,8 @@ pub fn lexer<'src>()
         just(">=").to(Token::Op(">=".to_string())),
         just("<=").to(Token::Op("<=".to_string())),
         just("...").to(Token::Op("...".to_string())),
+        just("->").to(Token::Arrow),
+        just("=>").to(Token::FatArrow),
         one_of("+-*/<>=!")
             .repeated()
             .exactly(1)
@@ -32,8 +34,6 @@ pub fn lexer<'src>()
         just(":").to(Token::Colon),
         just(";").to(Token::Semi),
         just(",").to(Token::Comma),
-        just("->").to(Token::Arrow),
-        just("=>").to(Token::FatArrow),
         just("(").to(Token::LParen),
         just(")").to(Token::RParen),
         just("{").to(Token::LBrace),
@@ -109,8 +109,8 @@ pub fn lexer<'src>()
     let token = comment
         .or(literal)
         .or(ident)
+        .or(op)  // Operators must come before punctuation to handle "..." correctly
         .or(punc)
-        .or(op)
         // We use `recover_with` and `skip_then_retry_until` to handle errors gracefully.
         // This strategy skips characters one by one until it finds a character that can
         // be considered the start of a new token (here, whitespace or the end of input),

@@ -641,6 +641,78 @@ fn enum_parser<'src>()
         .labelled("enum declaration")
 }
 
+fn effect_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    // Effect operation parser
+    let effect_op = ident
+        .then_ignore(just(Token::LParen))
+        .then(
+            type_parser()
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+        )
+        .then_ignore(just(Token::RParen))
+        .then(just(Token::Arrow).ignore_then(type_parser()))
+        .map(|((name, params), ret_type)| EffectOp {
+            name,
+            params,
+            ret_type,
+        });
+    
+    let operations = effect_op
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    just(Token::Effect)
+        .ignore_then(ident)
+        .then(operations)
+        .map(|(name, operations)| EffectDef {
+            name,
+            operations,
+        })
+        .labelled("effect definition")
+}
+
+fn extern_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    let param = choice((
+        // Regular parameter: name: type
+        ident
+            .then_ignore(just(Token::Colon))
+            .then(type_parser())
+            .map(|(name, ty)| (Some(name), ty)),
+        // Variadic parameter: ...
+        just(Token::Op("...".to_string()))
+            .map(|_| (None, Type { path: vec!["..."], generics: vec![] })),
+    ));
+    
+    let params = param
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LParen), just(Token::RParen));
+    
+    just(Token::Extern)
+        .ignore_then(just(Token::Fn))
+        .ignore_then(ident)
+        .then(params)
+        .then(just(Token::Arrow).ignore_then(type_parser()))
+        .then_ignore(just(Token::Semi))
+        .map(|((name, params), ret_type)| Item::ExternFn {
+            name,
+            params,
+            ret_type,
+        })
+        .labelled("extern function declaration")
+}
+
 fn impl_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, stmt) = expression_parsers();
@@ -734,12 +806,18 @@ fn item_parser<'src>()
     // Enum parser
     let enum_parser = enum_parser().map(Item::Enum);
     
+    // Effect parser
+    let effect_parser = effect_parser().map(Item::Effect);
+    
+    // Extern parser
+    let extern_parser = extern_parser();
+    
     // Impl parser
     let impl_parser = impl_parser().map(Item::Impl);
 
-    choice((fn_decl, struct_parser, trait_parser, enum_parser, impl_parser, import_parser, stmt_item))
+    choice((fn_decl, struct_parser, trait_parser, enum_parser, impl_parser, effect_parser, extern_parser, import_parser, stmt_item))
         .recover_with(skip_then_retry_until(
             any().ignored(),
-            one_of([Token::Fn, Token::Struct, Token::Trait, Token::Enum, Token::Impl, Token::Import, Token::Let]).ignored(),
+            one_of([Token::Fn, Token::Struct, Token::Trait, Token::Enum, Token::Impl, Token::Effect, Token::Extern, Token::Import, Token::Let]).ignored(),
         ))
 }
