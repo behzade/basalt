@@ -232,6 +232,11 @@ fn expression_parsers<'src>() -> (
         if_expr.clone(),
         while_expr.clone(),
         match_expr.clone(),
+        // Perform expression
+        just(Token::Perform)
+            .ignore_then(path.clone())
+            .map(Expr::Perform)
+            .labelled("perform expression"),
         // Typed map literal (must come before struct instantiation to avoid conflicts)
         typed_map_literal.clone(),
         // Map literal
@@ -264,6 +269,14 @@ fn expression_parsers<'src>() -> (
                 |lhs, args, _extra| Expr::Call {
                     fun: Box::new(lhs),
                     args,
+                },
+            ),
+            postfix(
+                8,
+                expr.clone().delimited_by(just(Token::LBracket), just(Token::RBracket)),
+                |lhs, index, _extra| Expr::Call {
+                    fun: Box::new(Expr::Path(vec!["get"])),
+                    args: vec![lhs, index],
                 },
             ),
             postfix(
@@ -460,16 +473,29 @@ fn fn_parser<'src>()
         })
         .recover_with(via_parser(empty().to(Expr::Error))); // Basic block recovery
 
+    // Parse effects list: / {effect1, effect2}
+    let effects = just(Token::Op("/".to_string()))
+        .ignore_then(
+            ident
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .or_not()
+        .map(|e| e.unwrap_or_default());
+
     just(Token::Fn)
         .ignore_then(ident)
         .then(params)
         .then(just(Token::Arrow).ignore_then(ty).or_not())
+        .then(effects)
         .then(block)
-        .map(|(((name, params), ret_type), body)| Function {
+        .map(|((((name, params), ret_type), effects), body)| Function {
             name,
             params,
             ret_type,
-            effects: Vec::new(), // Simplified for now
+            effects,
             body,
         })
         .labelled("function declaration")
