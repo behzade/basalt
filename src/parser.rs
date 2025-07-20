@@ -260,10 +260,26 @@ fn expression_parsers<'src>() -> (
         .pratt((
             postfix(
                 8,
-                call_args.delimited_by(just(Token::LParen), just(Token::RParen)),
+                call_args.clone().delimited_by(just(Token::LParen), just(Token::RParen)),
                 |lhs, args, _extra| Expr::Call {
                     fun: Box::new(lhs),
                     args,
+                },
+            ),
+            postfix(
+                8,
+                just(Token::Op(".".to_string()))
+                    .ignore_then(ident)
+                    .then(call_args.delimited_by(just(Token::LParen), just(Token::RParen)))
+                    .map(|(method_name, args)| (method_name, args)),
+                |lhs, (method_name, args), _extra| {
+                    // Method call - create a path with the method name
+                    let method_path = vec![method_name];
+                    let method_expr = Expr::Path(method_path);
+                    Expr::Call {
+                        fun: Box::new(method_expr),
+                        args,
+                    }
                 },
             ),
             prefix(
@@ -698,15 +714,31 @@ fn handler_parser<'src>()
         .then_ignore(just(Token::RParen))
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
         .then(
-            // Function body (block)
-            stmt
-                .repeated()
-                .collect::<Vec<_>>()
-                .then(expr.or_not())
-                .delimited_by(just(Token::LBrace), just(Token::RBrace))
-                .map(|(stmts, last_expr)| Expr::Block {
-                    stmts,
-                    last_expr: last_expr.map(Box::new),
+            // Function body (block) - can be empty
+            just(Token::LBrace)
+                .ignore_then(
+                    stmt
+                        .or(select! { Token::Comment(_) => Stmt::Error })
+                        .repeated()
+                        .collect::<Vec<_>>()
+                        .then(expr.or_not())
+                )
+                .then_ignore(just(Token::RBrace))
+                .map(|(stmts, last_expr)| {
+                    // Filter out comment statements (Error statements)
+                    let filtered_stmts: Vec<_> = stmts.into_iter().filter(|s| !matches!(s, Stmt::Error)).collect();
+                    // If no statements and no expression, create an empty block
+                    if filtered_stmts.is_empty() && last_expr.is_none() {
+                        Expr::Block {
+                            stmts: vec![],
+                            last_expr: None,
+                        }
+                    } else {
+                        Expr::Block {
+                            stmts: filtered_stmts,
+                            last_expr: last_expr.map(Box::new),
+                        }
+                    }
                 })
         )
         .map(|(((name, params), ret_type), body)| Function {
@@ -801,15 +833,31 @@ fn impl_parser<'src>()
         .then_ignore(just(Token::RParen))
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
         .then(
-            // Function body (block)
-            stmt
-                .repeated()
-                .collect::<Vec<_>>()
-                .then(expr.or_not())
-                .delimited_by(just(Token::LBrace), just(Token::RBrace))
-                .map(|(stmts, last_expr)| Expr::Block {
-                    stmts,
-                    last_expr: last_expr.map(Box::new),
+            // Function body (block) - can be empty
+            just(Token::LBrace)
+                .ignore_then(
+                    stmt
+                        .or(select! { Token::Comment(_) => Stmt::Error })
+                        .repeated()
+                        .collect::<Vec<_>>()
+                        .then(expr.or_not())
+                )
+                .then_ignore(just(Token::RBrace))
+                .map(|(stmts, last_expr)| {
+                    // Filter out comment statements (Error statements)
+                    let filtered_stmts: Vec<_> = stmts.into_iter().filter(|s| !matches!(s, Stmt::Error)).collect();
+                    // If no statements and no expression, create an empty block
+                    if filtered_stmts.is_empty() && last_expr.is_none() {
+                        Expr::Block {
+                            stmts: vec![],
+                            last_expr: None,
+                        }
+                    } else {
+                        Expr::Block {
+                            stmts: filtered_stmts,
+                            last_expr: last_expr.map(Box::new),
+                        }
+                    }
                 })
         )
         .map(|(((name, params), ret_type), body)| Function {
