@@ -200,7 +200,7 @@ fn expression_parsers<'src>() -> (
 
 fn fn_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, _) = expression_parsers();
+    let (expr, stmt) = expression_parsers();
 
     let ident = select! { Token::Ident(ident) => ident };
 
@@ -240,8 +240,17 @@ fn fn_parser<'src>()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
-    let block = expr
+    // Function body should be a block that can contain statements
+    let block = stmt
+        .clone()
+        .repeated()
+        .collect::<Vec<_>>()
+        .then(expr.clone().or_not())
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        .map(|(stmts, last_expr)| Expr::Block {
+            stmts,
+            last_expr: last_expr.map(Box::new),
+        })
         .recover_with(via_parser(empty().to(Expr::Error))); // Basic block recovery
 
     just(Token::Fn)
