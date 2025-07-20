@@ -73,7 +73,39 @@ fn expression_parsers<'src>() -> (
         .labelled("array literal")
         .boxed();
 
-    // Map literal parser
+    // Typed map literal parser (e.g., Map<string, i64> {"a": 1, "b": 2})
+    let typed_map_literal = path.clone()
+        .then(
+            // Generic parameters
+            ident
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(
+                    select! { Token::Op(op) if op == "<" => () },
+                    select! { Token::Op(op) if op == ">" => () },
+                )
+                .or_not()
+                .map(|g| g.unwrap_or_default().into_iter().map(|id| Type { path: vec![id], generics: vec![] }).collect::<Vec<_>>())
+        )
+        .then(
+            // Map content
+            expr.clone()
+                .then_ignore(just(Token::Colon))
+                .then(expr.clone())
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .map(|((_path, _generics), pairs)| {
+            let map_pairs = pairs.into_iter().collect();
+            Expr::Map(map_pairs)
+        })
+        .labelled("typed map literal")
+        .boxed();
+
+    // Regular map literal parser
     let map_literal = expr
         .clone()
         .then_ignore(just(Token::Colon))
@@ -200,7 +232,11 @@ fn expression_parsers<'src>() -> (
         if_expr.clone(),
         while_expr.clone(),
         match_expr.clone(),
-        // Struct instantiation (must come before path to avoid conflicts)
+        // Typed map literal (must come before struct instantiation to avoid conflicts)
+        typed_map_literal.clone(),
+        // Map literal
+        map_literal.clone(),
+        // Struct instantiation
         struct_init.clone(),
         // Variable/path
         path.clone().map(Expr::Path),
@@ -211,8 +247,6 @@ fn expression_parsers<'src>() -> (
         block.clone(),
         // Array literal
         array_literal.clone(),
-        // Map literal
-        map_literal.clone(),
     ))
     .boxed();
 
