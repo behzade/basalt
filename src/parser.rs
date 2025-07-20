@@ -530,14 +530,48 @@ fn enum_parser<'src>()
 
 fn impl_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let (expr, stmt) = expression_parsers();
     let ident = select! { Token::Ident(ident) => ident };
     
     // Parse trait name and target type
     let trait_name = ident;
     let target_type = type_parser();
     
-    // Parse methods (functions)
-    let methods = fn_parser()
+    // Parse impl methods (without fn keyword)
+    let impl_method = ident
+        .then_ignore(just(Token::LParen))
+        .then(
+            ident
+                .then_ignore(just(Token::Colon))
+                .then(type_parser())
+                .map(|(name, ty)| (Some(name), ty))
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+        )
+        .then_ignore(just(Token::RParen))
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+        .then(
+            // Function body (block)
+            stmt
+                .repeated()
+                .collect::<Vec<_>>()
+                .then(expr.or_not())
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                .map(|(stmts, last_expr)| Expr::Block {
+                    stmts,
+                    last_expr: last_expr.map(Box::new),
+                })
+        )
+        .map(|(((name, params), ret_type), body)| Function {
+            name,
+            params,
+            ret_type,
+            effects: Vec::new(),
+            body,
+        });
+    
+    let methods = impl_method
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
@@ -545,6 +579,7 @@ fn impl_parser<'src>()
     
     just(Token::Impl)
         .ignore_then(trait_name)
+        .then_ignore(just(Token::For))
         .then(target_type)
         .then(methods)
         .map(|((trait_name, target_type), methods)| ImplBlock {
