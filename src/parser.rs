@@ -89,12 +89,48 @@ fn expression_parsers<'src>() -> (
         .labelled("map literal")
         .boxed();
 
+    // Struct instantiation parser
+    let struct_init = path.clone()
+        .then(
+            // Generic parameters - convert identifiers to types
+            ident
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(
+                    select! { Token::Op(op) if op == "<" => () },
+                    select! { Token::Op(op) if op == ">" => () },
+                )
+                .or_not()
+                .map(|g| g.unwrap_or_default().into_iter().map(|id| Type { path: vec![id], generics: vec![] }).collect())
+        )
+        .then(
+            // Field initializers: name: value
+            ident
+                .then_ignore(just(Token::Colon))
+                .then(expr.clone())
+                .map(|(name, value)| (name, value))
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .map(|((path, generics), fields)| Expr::StructInit {
+            path,
+            generics,
+            fields,
+        })
+        .labelled("struct instantiation")
+        .boxed();
+
     let atom = choice((
         // Literals
         select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
         select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
         select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
         select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+        // Struct instantiation (must come before path to avoid conflicts)
+        struct_init.clone(),
         // Variable/path
         path.clone().map(Expr::Path),
         // Grouped expression
@@ -310,6 +346,102 @@ fn fn_parser<'src>()
         .labelled("function declaration")
 }
 
+fn struct_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], StructDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    // Generic parameters
+    let generics = ident
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(
+            select! { Token::Op(op) if op == "<" => () },
+            select! { Token::Op(op) if op == ">" => () },
+        )
+        .or_not()
+        .map(|g| g.unwrap_or_default());
+    
+    // Field definitions: name: type
+    let field = ident
+        .then_ignore(just(Token::Colon))
+        .then(type_parser())
+        .map(|(name, ty)| (name, ty));
+    
+    let fields = field
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    
+    just(Token::Struct)
+        .ignore_then(ident)
+        .then(generics)
+        .then(fields)
+        .map(|((name, generics), fields)| StructDef {
+            name,
+            generics,
+            fields,
+        })
+        .labelled("struct declaration")
+}
+
+fn import_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    let path = ident
+        .separated_by(just(Token::DoubleColon))
+        .at_least(1)
+        .collect::<Vec<_>>();
+    
+    let alias = just(Token::As)
+        .ignore_then(ident)
+        .or_not();
+    
+    just(Token::Import)
+        .ignore_then(path)
+        .then(alias)
+        .then_ignore(just(Token::Semi))
+        .map(|(path, alias)| Item::Import {
+            path,
+            alias,
+        })
+        .labelled("import declaration")
+}
+
+fn type_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+    
+    let path = ident
+        .separated_by(just(Token::DoubleColon))
+        .at_least(1)
+        .collect::<Vec<_>>();
+    
+    recursive(|type_p| {
+        path.clone()
+            .then(
+                // Custom generic parameter parser that handles nested generics
+                select! { Token::Op(op) if op == "<" => () }
+                    .ignore_then(
+                        type_p
+                            .separated_by(just(Token::Comma))
+                            .allow_trailing()
+                            .collect::<Vec<_>>()
+                    )
+                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
+                    .or_not(),
+            )
+            .map(|(path, generics)| Type {
+                path,
+                generics: generics.unwrap_or_default(),
+            })
+    })
+    .labelled("type")
+    .boxed()
+}
+
 /// The main parser function for the entire language.
 pub fn file_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
@@ -328,10 +460,16 @@ fn item_parser<'src>()
     let (expr, stmt) = expression_parsers();
     let fn_decl = fn_parser().map(Item::Fn);
     let stmt_item = stmt.map(Item::Stmt);
+    
+    // Struct parser
+    let struct_parser = struct_parser().map(Item::Struct);
+    
+    // Import parser
+    let import_parser = import_parser();
 
-    choice((fn_decl, stmt_item)) // Add other item parsers here
+    choice((fn_decl, struct_parser, import_parser, stmt_item))
         .recover_with(skip_then_retry_until(
             any().ignored(),
-            one_of([Token::Fn, Token::Let /* other item keywords */]).ignored(),
+            one_of([Token::Fn, Token::Struct, Token::Import, Token::Let]).ignored(),
         ))
 }
