@@ -8,8 +8,9 @@ mod ast;
 mod lexer;
 mod parser;
 mod token;
+mod typechecker;
 // This assumes your lib is named 'basalt'. If it's different, change this line.
-use crate::{lexer::lexer, parser::file_parser, token::Token};
+use crate::{lexer::lexer, parser::file_parser, token::Token, typechecker::type_check_file};
 
 #[derive(ClapParser)]
 #[command(version, about, long_about = None)]
@@ -80,8 +81,61 @@ fn main() -> io::Result<()> {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to tokenize input"));
             }
         }
-        Action::TypeCheck { .. } => {
-            println!("Type checking is not yet implemented.");
+        Action::TypeCheck { path } => {
+            let source_code = fs::read_to_string(&path)?;
+            let source_id = path.clone();
+
+            // --- Lexing ---
+            let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
+            report_lexer_errors(&source_code, &source_id, &lex_errs);
+
+            // If there are lexing errors, exit with error code
+            if !lex_errs.is_empty() {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Lexing errors occurred"));
+            }
+
+            if let Some(tokens) = tokens {
+                // --- Parsing ---
+                let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
+                let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
+
+                report_parser_errors(&source_code, &source_id, &parse_errs, &tokens);
+
+                // If there are parsing errors, exit with error code
+                if !parse_errs.is_empty() {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Parsing errors occurred"));
+                }
+
+                if let Some(ast) = ast {
+                    // --- Type Checking ---
+                    match type_check_file(&ast) {
+                        Ok(()) => {
+                            println!("Type checking completed successfully!");
+                        }
+                        Err(type_errors) => {
+                            // Report type errors
+                            for error in &type_errors {
+                                let report = Report::build(ReportKind::Error, &source_id, 0);
+                                let report = report
+                                    .with_message("Type error")
+                                    .with_label(
+                                        Label::new((&source_id, 0..1))
+                                            .with_message(&error.message)
+                                            .with_color(Color::Red),
+                                    );
+                                report.finish().print((&source_id, Source::from(&source_code))).unwrap();
+                            }
+                            return Err(io::Error::new(io::ErrorKind::InvalidData, "Type checking errors occurred"));
+                        }
+                    }
+                } else {
+                    // If no AST was produced, exit with error code
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to parse input"));
+                }
+            } else {
+                // If no tokens were produced, exit with error code
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to tokenize input"));
+            }
         }
         Action::Compile { .. } => {
             println!("Compilation is not yet implemented.");
