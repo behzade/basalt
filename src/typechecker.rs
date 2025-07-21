@@ -517,7 +517,6 @@ impl<'src> TypeChecker<'src> {
                 }
             }
             Expr::Call { fun, args } => {
-                let fun_type = self.check_expr(fun);
                 
                 // Check if this is an enum variant call (e.g., Option::Some(42))
                 if let Expr::Path(path) = fun.as_ref() {
