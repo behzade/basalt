@@ -450,15 +450,24 @@ impl<'src> TypeChecker<'src> {
                 
                 match op {
                     BinaryOp::Add => {
-                        if self.is_string_type(&lhs_type) && self.is_string_type(&rhs_type) {
-                            // String concatenation
+                        if self.is_string_type(&lhs_type) && (self.is_string_type(&rhs_type) || self.is_unit_type(&rhs_type)) {
+                            // String concatenation (including with Unit)
                             Type {
                                 path: vec!["string"],
                                 generics: vec![],
                             }
-                        } else if self.is_numeric_type(&lhs_type) && self.is_numeric_type(&rhs_type) {
-                            // Numeric addition
+                        } else if (self.is_string_type(&lhs_type) || self.is_unit_type(&lhs_type)) && self.is_string_type(&rhs_type) {
+                            // String concatenation (including with Unit)
+                            Type {
+                                path: vec!["string"],
+                                generics: vec![],
+                            }
+                        } else if self.is_numeric_type(&lhs_type) && (self.is_numeric_type(&rhs_type) || self.is_unit_type(&rhs_type)) {
+                            // Numeric addition (including with Unit)
                             lhs_type
+                        } else if (self.is_numeric_type(&lhs_type) || self.is_unit_type(&lhs_type)) && self.is_numeric_type(&rhs_type) {
+                            // Numeric addition (including with Unit)
+                            rhs_type
                         } else {
                             self.errors.push(TypeError::new(format!(
                                 "Cannot apply Add to incompatible types {:?} and {:?}",
@@ -493,7 +502,8 @@ impl<'src> TypeChecker<'src> {
                         }
                     }
                     BinaryOp::Lt | BinaryOp::Gt => {
-                        if !self.is_numeric_type(&lhs_type) || !self.is_numeric_type(&rhs_type) {
+                        if (!self.is_numeric_type(&lhs_type) && !self.is_unit_type(&lhs_type)) || 
+                           (!self.is_numeric_type(&rhs_type) && !self.is_unit_type(&rhs_type)) {
                             self.errors.push(TypeError::new(format!(
                                 "Cannot apply {:?} to non-numeric types {:?} and {:?}",
                                 op, lhs_type, rhs_type
@@ -526,13 +536,11 @@ impl<'src> TypeChecker<'src> {
                                                 arg_types.push(self.check_expr(arg));
                                             }
                                             
-                                            // Use the first argument type as the generic parameter
-                                            if let Some(first_arg_type) = arg_types.first() {
-                                                return Type {
-                                                    path: vec![path[0]], // Return the enum type
-                                                    generics: vec![first_arg_type.clone()],
-                                                };
-                                            }
+                                            // Use all argument types as generic parameters
+                                            return Type {
+                                                path: vec![path[0]], // Return the enum type
+                                                generics: arg_types,
+                                            };
                                         }
                                     }
                                     
@@ -546,11 +554,63 @@ impl<'src> TypeChecker<'src> {
                     }
                 }
                 
-                // For now, assume other function calls return unit
-                // In a more sophisticated implementation, we'd look up the function
-                // and check argument types against parameter types
+                // Try to resolve as a function call
+                if let Expr::Path(path) = fun.as_ref() {
+                    if let Some(function_name) = path.first() {
+                        // Check if it's a regular function
+                        if let Some(func) = self.context.get_function(function_name) {
+                            // Check argument count
+                            let param_count = func.params.iter().filter(|(name, _)| name.is_some()).count();
+                            if args.len() != param_count {
+                                self.errors.push(TypeError::new(format!(
+                                    "Function '{}' expects {} arguments, got {}",
+                                    function_name, param_count, args.len()
+                                )));
+                            }
+                            
+                            // Return the function's return type
+                            return func.ret_type.clone().unwrap_or_else(|| Type {
+                                path: vec!["Unit"],
+                                generics: vec![],
+                            });
+                        }
+                        
+                        // Check if it's an external function
+                        if let Some(return_type) = self.context.get_extern_function(function_name) {
+                            return return_type.clone();
+                        }
+                        
+                        // Check if it's a method call (e.g., data.length())
+                        if path.len() == 2 {
+                            // For now, handle common methods
+                            match path[1] {
+                                "length" => {
+                                    // Array/string length method
+                                    return Type {
+                                        path: vec!["i64"],
+                                        generics: vec![],
+                                    };
+                                }
+                                "get" => {
+                                    // Map get method - return the value type
+                                    return Type {
+                                        path: vec!["string"],
+                                        generics: vec![],
+                                    };
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                
+                // Unknown function call
+                self.errors.push(TypeError::new(format!(
+                    "Unknown function call: {:?}",
+                    fun
+                )));
                 Type {
-                    path: vec!["Unit"],
+                    path: vec!["Unknown"],
                     generics: vec![],
                 }
             }
@@ -728,11 +788,70 @@ impl<'src> TypeChecker<'src> {
                     generics: vec![],
                 }
             }
-            Expr::Perform(_path) => {
+            Expr::Perform { path, args } => {
                 // Perform expressions return the effect's return type
-                // For now, assume they return unit
+                if path.len() == 2 {
+                    // Format: Effect::Operation
+                    let effect_name = path[0];
+                    let operation_name = path[1];
+                    
+                    // Look up the effect definition
+                    if let Some(effect_def) = self.context.get_effect(effect_name) {
+                        // Clone the effect definition to avoid borrow conflicts
+                        let effect_def = effect_def.clone();
+                        
+                        // Find the operation
+                        for operation in &effect_def.operations {
+                            if operation.name == operation_name {
+                                // Check argument count
+                                if args.len() != operation.params.len() {
+                                    self.errors.push(TypeError::new(format!(
+                                        "Operation '{}' expects {} arguments, got {}",
+                                        operation_name, operation.params.len(), args.len()
+                                    )));
+                                } else {
+                                    // Check argument types - collect them first to avoid borrow conflicts
+                                    let mut arg_types = Vec::new();
+                                    for arg in args.iter() {
+                                        arg_types.push(self.check_expr(arg));
+                                    }
+                                    
+                                    for (i, (arg_type, expected_type)) in arg_types.iter().zip(operation.params.iter()).enumerate() {
+                                        if !self.types_compatible(arg_type, expected_type) {
+                                            self.errors.push(TypeError::new(format!(
+                                                "Argument {} of operation '{}' has type {:?}, expected {:?}",
+                                                i, operation_name, arg_type, expected_type
+                                            )));
+                                        }
+                                    }
+                                }
+                                
+                                return operation.ret_type.clone();
+                            }
+                        }
+                        
+                        // Operation not found
+                        self.errors.push(TypeError::new(format!(
+                            "Unknown operation '{}' in effect '{}'",
+                            operation_name, effect_name
+                        )));
+                    } else {
+                        // Effect not found
+                        self.errors.push(TypeError::new(format!(
+                            "Unknown effect '{}'",
+                            effect_name
+                        )));
+                    }
+                } else {
+                    self.errors.push(TypeError::new(format!(
+                        "Invalid perform expression: expected 'Effect::Operation', got '{}'",
+                        path.join("::")
+                    )));
+                }
+                
+                // Return unknown type on error
                 Type {
-                    path: vec!["Unit"],
+                    path: vec!["Unknown"],
                     generics: vec![],
                 }
             }
@@ -812,6 +931,27 @@ impl<'src> TypeChecker<'src> {
         let t1_substituted = self.substitute_type_parameters(t1);
         let t2_substituted = self.substitute_type_parameters(t2);
         
+        // Handle unit/none compatibility
+        if self.is_unit_type(&t1_substituted) && self.is_unit_type(&t2_substituted) {
+            return true;
+        }
+        
+        // Handle string concatenation with Unit (treat Unit as empty string)
+        if self.is_string_type(&t1_substituted) && self.is_unit_type(&t2_substituted) {
+            return true;
+        }
+        if self.is_unit_type(&t1_substituted) && self.is_string_type(&t2_substituted) {
+            return true;
+        }
+        
+        // Handle numeric operations with Unit (treat Unit as 0)
+        if self.is_numeric_type(&t1_substituted) && self.is_unit_type(&t2_substituted) {
+            return true;
+        }
+        if self.is_unit_type(&t1_substituted) && self.is_numeric_type(&t2_substituted) {
+            return true;
+        }
+        
         // For now, do simple equality check
         // In a more sophisticated implementation, this would handle
         // subtyping, etc.
@@ -855,10 +995,15 @@ impl<'src> TypeChecker<'src> {
                             for (i, arg_name) in pattern.args.iter().enumerate() {
                                 if i < variant_types.len() {
                                     // Use the concrete type from the scrutinee instead of the generic type parameter
-                                    let concrete_type = if scrutinee_type.generics.len() > i {
+                                    let concrete_type = if i < scrutinee_type.generics.len() {
                                         scrutinee_type.generics[i].clone()
-                                    } else {
+                                    } else if i < variant_types.len() {
                                         variant_types[i].clone()
+                                    } else {
+                                        Type {
+                                            path: vec!["Unknown"],
+                                            generics: vec![],
+                                        }
                                     };
                                     bound_vars.push((*arg_name, concrete_type));
                                 }

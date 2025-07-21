@@ -238,11 +238,6 @@ fn expression_parsers<'src>() -> (
         if_expr.clone(),
         while_expr.clone(),
         match_expr.clone(),
-        // Perform expression
-        just(Token::Perform)
-            .ignore_then(path.clone())
-            .map(Expr::Perform)
-            .labelled("perform expression"),
         // Typed map literal (must come before struct instantiation to avoid conflicts)
         typed_map_literal.clone(),
         // Map literal
@@ -267,7 +262,51 @@ fn expression_parsers<'src>() -> (
         .allow_trailing()
         .collect::<Vec<_>>();
 
-    let expr_parser = atom
+    // Perform expression (must be defined after call_args)
+    // Support both :: and . separators for effect operations
+    let effect_path = ident
+        .then(just(Token::Op(".".to_string())).ignore_then(ident))
+        .map(|(effect_name, operation_name)| vec![effect_name, operation_name])
+        .labelled("effect path");
+    
+    let perform_expr = just(Token::Perform)
+        .ignore_then(effect_path)
+        .then(call_args.clone().delimited_by(just(Token::LParen), just(Token::RParen)))
+        .map(|(path, args)| Expr::Perform { path, args })
+        .labelled("perform expression");
+
+    // Add perform expression to atom choices
+    let atom_with_perform = choice((
+        // Literals
+        select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
+        select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
+        select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
+        select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+        // Control flow expressions
+        if_expr.clone(),
+        while_expr.clone(),
+        match_expr.clone(),
+        // Typed map literal (must come before struct instantiation to avoid conflicts)
+        typed_map_literal.clone(),
+        // Map literal
+        map_literal.clone(),
+        // Struct instantiation
+        struct_init.clone(),
+        // Variable/path
+        path.clone().map(Expr::Path),
+        // Grouped expression
+        expr.clone()
+            .delimited_by(just(Token::LParen), just(Token::RParen)),
+        // Block
+        block.clone(),
+        // Perform expression
+        perform_expr.clone(),
+        // Array literal
+        array_literal.clone(),
+    ))
+    .boxed();
+
+    let expr_parser = atom_with_perform
         .pratt((
             postfix(
                 8,

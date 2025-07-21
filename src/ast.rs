@@ -88,7 +88,10 @@ pub enum Expr<'src> {
         cond: Box<Expr<'src>>,
         body: Box<Expr<'src>>, // Block expression
     },
-    Perform(Path<'src>),
+    Perform {
+        path: Path<'src>,
+        args: Vec<Expr<'src>>,
+    },
     Handle {
         body: Box<Expr<'src>>,
         handler: HandlerBody<'src>,
