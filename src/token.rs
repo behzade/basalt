@@ -27,6 +27,7 @@ pub enum Token<'src> {
     Match,
     If,
     Else,
+    Pub,
 
     // Literals
     Bool(bool),
@@ -83,6 +84,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Match => write!(f, "match"),
             Token::If => write!(f, "if"),
             Token::Else => write!(f, "else"),
+            Token::Pub => write!(f, "pub"),
 
             // Literals
             Token::Bool(b) => write!(f, "{}", b),

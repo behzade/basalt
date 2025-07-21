@@ -95,6 +95,7 @@ pub fn lexer<'src>()
         "match" => Token::Match,
         "if" => Token::If,
         "else" => Token::Else,
+        "pub" => Token::Pub,
         "true" => Token::Bool(true),
         "false" => Token::Bool(false),
         _ => Token::Ident(ident),

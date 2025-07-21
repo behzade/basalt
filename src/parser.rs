@@ -544,18 +544,23 @@ fn fn_parser<'src>()
         .or_not()
         .map(|e| e.unwrap_or_default());
 
+    // Optional pub keyword
+    let pub_keyword = just(Token::Pub).or_not().map(|_| true);
+    
     just(Token::Fn)
-        .ignore_then(ident)
+        .ignore_then(pub_keyword)
+        .then(ident)
         .then(params)
         .then(just(Token::Arrow).ignore_then(ty).or_not())
         .then(effects)
         .then(block)
-        .map(|((((name, params), ret_type), effects), body)| Function {
+        .map(|(((((is_public, name), params), ret_type), effects), body)| Function {
             name,
             params,
             ret_type,
             effects,
             body,
+            is_public,
         })
         .labelled("function declaration")
 }
@@ -588,14 +593,19 @@ fn struct_parser<'src>()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace));
     
+    // Optional pub keyword
+    let pub_keyword = just(Token::Pub).or_not().map(|_| true);
+    
     just(Token::Struct)
-        .ignore_then(ident)
+        .ignore_then(pub_keyword)
+        .then(ident)
         .then(generics)
         .then(fields)
-        .map(|((name, generics), fields)| StructDef {
+        .map(|(((is_public, name), generics), fields)| StructDef {
             name,
             generics,
             fields,
+            is_public,
         })
         .labelled("struct declaration")
 }
@@ -679,6 +689,7 @@ fn trait_parser<'src>()
             name,
             params,
             ret_type,
+            is_public: true, // Trait methods are always public
         });
     
     let methods = method
@@ -692,6 +703,7 @@ fn trait_parser<'src>()
         .map(|(name, methods)| TraitDef {
             name,
             methods,
+            is_public: true, // Traits are always public
         })
         .labelled("trait declaration")
 }
@@ -738,6 +750,7 @@ fn enum_parser<'src>()
         .map(|((name, _generics), variants)| EnumDef {
             name: Some(name),
             variants,
+            is_public: true, // Enums are always public
         })
         .labelled("enum declaration")
 }
@@ -761,6 +774,7 @@ fn effect_parser<'src>()
             name,
             params,
             ret_type,
+            is_public: true, // Effect operations are always public
         });
     
     let operations = effect_op
@@ -775,6 +789,7 @@ fn effect_parser<'src>()
         .map(|(name, operations)| EffectDef {
             name,
             operations,
+            is_public: true, // Effects are always public
         })
         .labelled("effect definition")
 }
@@ -832,6 +847,7 @@ fn handler_parser<'src>()
             ret_type,
             effects: Vec::new(),
             body,
+            is_public: true, // Handler methods are always public
         });
     
     let methods = handler_method
@@ -855,6 +871,7 @@ fn handler_parser<'src>()
             name,
             effects,
             functions,
+            is_public: true, // Handlers are always public
         })
         .labelled("handler definition")
 }
@@ -951,6 +968,7 @@ fn impl_parser<'src>()
             ret_type,
             effects: Vec::new(),
             body,
+            is_public: true, // Impl methods are always public
         });
     
     let methods = impl_method

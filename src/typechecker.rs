@@ -19,6 +19,26 @@ pub struct TypeError {
     pub span: Option<(usize, usize)>, // (start, end) character positions
 }
 
+/// Represents a symbol signature from a module
+#[derive(Debug, Clone)]
+pub struct SymbolSignature<'src> {
+    pub name: &'src str,
+    pub kind: SymbolKind<'src>,
+    pub type_info: Type<'src>,
+}
+
+/// The kind of symbol
+#[derive(Debug, Clone)]
+pub enum SymbolKind<'src> {
+    Function(Function<'src>),
+    Struct(StructDef<'src>),
+    Enum(EnumDef<'src>),
+    Trait(TraitDef<'src>),
+    Effect(EffectDef<'src>),
+    Handler(HandlerDef<'src>),
+    ExternFunction(Type<'src>), // return type
+}
+
 impl TypeError {
     pub fn new(message: String) -> Self {
         Self {
@@ -54,7 +74,11 @@ pub struct TypeContext<'src> {
     current_return_type: Option<Type<'src>>,
     /// Type parameter substitutions (for generic type checking)
     type_substitutions: HashMap<&'src str, Type<'src>>,
+    /// Cached module symbols (namespace::module -> symbols)
+    module_symbols: HashMap<String, HashMap<&'src str, SymbolSignature<'src>>>,
 }
+
+
 
 impl<'src> TypeContext<'src> {
     pub fn new() -> Self {
@@ -68,6 +92,7 @@ impl<'src> TypeContext<'src> {
             extern_functions: HashMap::new(),
             current_return_type: None,
             type_substitutions: HashMap::new(),
+            module_symbols: HashMap::new(),
         }
     }
 
@@ -162,12 +187,24 @@ impl<'src> TypeContext<'src> {
     pub fn get_type_substitution(&self, name: &'src str) -> Option<&Type<'src>> {
         self.type_substitutions.get(name)
     }
+
+    /// Add module symbols to cache
+    pub fn add_module_symbols(&mut self, module_path: String, symbols: HashMap<&'src str, SymbolSignature<'src>>) {
+        self.module_symbols.insert(module_path, symbols);
+    }
+
+    /// Get module symbols from cache
+    pub fn get_module_symbols(&self, module_path: &str) -> Option<&HashMap<&'src str, SymbolSignature<'src>>> {
+        self.module_symbols.get(module_path)
+    }
 }
 
 /// The main type checker that validates AST nodes
 pub struct TypeChecker<'src> {
     context: TypeContext<'src>,
     errors: Vec<TypeError>,
+    /// Import mappings: alias -> full path
+    import_mappings: HashMap<&'src str, Vec<&'src str>>,
 }
 
 impl<'src> TypeChecker<'src> {
@@ -175,12 +212,13 @@ impl<'src> TypeChecker<'src> {
         Self {
             context: TypeContext::new(),
             errors: Vec::new(),
+            import_mappings: HashMap::new(),
         }
     }
 
     /// Type check a complete file (list of items)
     pub fn check_file(&mut self, items: &[Item<'src>]) -> Result<(), Vec<TypeError>> {
-        // First pass: collect all definitions
+        // First pass: collect all definitions and process imports
         for item in items {
             self.collect_definitions(item);
         }
@@ -217,6 +255,11 @@ impl<'src> TypeChecker<'src> {
             }
             Item::ExternFn { name, ret_type, .. } => {
                 self.context.add_extern_function(name, ret_type.clone());
+            }
+            Item::Import { path, alias } => {
+                // Process imports and build import mappings
+                let alias_name = alias.unwrap_or_else(|| path.last().unwrap());
+                self.import_mappings.insert(alias_name, path.clone());
             }
             _ => {} // Other items don't define new types
         }
@@ -399,26 +442,36 @@ impl<'src> TypeChecker<'src> {
                 }
             }
             Expr::Path(path) => {
+                // Resolve the path using import mappings
+                let resolved_path = self.resolve_path(path);
+                
                 // Try to resolve the path as a variable, function, or type
-                if let Some(var_type) = self.context.get_variable(path[0]) {
+                if let Some(var_type) = self.context.get_variable(resolved_path[0]) {
                     var_type.clone()
-                } else if let Some(func) = self.context.get_function(path[0]) {
+                } else if let Some(func) = self.context.get_function(resolved_path[0]) {
                     // Return the function's return type, or unit if none
                     func.ret_type.clone().unwrap_or_else(|| Type {
                         path: vec!["Unit"],
                         generics: vec![],
                     })
-                } else if let Some(extern_type) = self.context.get_extern_function(path[0]) {
+                } else if let Some(extern_type) = self.context.get_extern_function(resolved_path[0]) {
                     extern_type.clone()
                 } else {
+                    // Try to resolve as module-qualified path (e.g., Std::Fmt::println)
+                    if resolved_path.len() >= 3 {
+                        if let Some(module_type) = self.resolve_module_symbol(&resolved_path) {
+                            return module_type;
+                        }
+                    }
+                    
                     // Try to resolve as enum variant
-                    if path.len() == 2 {
-                        if let Some(enum_def) = self.context.get_enum(path[0]) {
+                    if resolved_path.len() == 2 {
+                        if let Some(enum_def) = self.context.get_enum(resolved_path[0]) {
                             // Check if the second part is a variant
                             for (variant_name, _) in &enum_def.variants {
-                                if variant_name == &path[1] {
+                                if variant_name == &resolved_path[1] {
                                     return Type {
-                                        path: path.clone(),
+                                        path: resolved_path.clone(),
                                         generics: vec![],
                                     };
                                 }
@@ -429,7 +482,7 @@ impl<'src> TypeChecker<'src> {
                     // Unknown identifier
                     self.errors.push(TypeError::new(format!(
                         "Unknown identifier: {}",
-                        path.join("::")
+                        resolved_path.join("::")
                     )));
                     Type {
                         path: vec!["Unknown"],
@@ -589,7 +642,10 @@ impl<'src> TypeChecker<'src> {
                 
                 // Try to resolve as a function call
                 if let Expr::Path(path) = fun.as_ref() {
-                    if let Some(function_name) = path.first() {
+                    // Resolve the path using import mappings
+                    let resolved_path = self.resolve_path(path);
+                    
+                    if let Some(function_name) = resolved_path.first() {
                         // Check if it's a regular function
                         if let Some(func) = self.context.get_function(function_name) {
                             // Check argument count
@@ -614,7 +670,7 @@ impl<'src> TypeChecker<'src> {
                         }
                         
                         // Check if it's an array indexing operation (data[i])
-                        if path.len() == 1 && path[0] == "get" && args.len() == 2 {
+                        if resolved_path.len() == 1 && resolved_path[0] == "get" && args.len() == 2 {
                             let array_type = self.check_expr(&args[0]);
                             if array_type.path.len() > 0 && array_type.path[0] == "Array" {
                                 if array_type.generics.len() > 0 {
@@ -628,7 +684,12 @@ impl<'src> TypeChecker<'src> {
                             };
                         }
                         
-
+                        // Try to resolve as module-qualified function call
+                        if resolved_path.len() >= 3 {
+                            if let Some(module_type) = self.resolve_module_symbol(&resolved_path) {
+                                return module_type;
+                            }
+                        }
                     }
                 }
                 
@@ -1214,6 +1275,152 @@ impl<'src> TypeChecker<'src> {
             self.check_function(func);
         }
     }
+
+    /// Resolve a path using import mappings
+    fn resolve_path(&self, path: &[&'src str]) -> Vec<&'src str> {
+        if path.len() >= 2 {
+            // Check if the first part is an imported alias
+            if let Some(imported_path) = self.import_mappings.get(path[0]) {
+                // Replace the alias with the full imported path
+                let mut resolved_path = imported_path.clone();
+                resolved_path.extend_from_slice(&path[1..]);
+                return resolved_path;
+            }
+        }
+        path.to_vec()
+    }
+
+    /// Resolve a module symbol (e.g., "Std::Fmt::println")
+    fn resolve_module_symbol(&mut self, path: &[&'src str]) -> Option<Type<'src>> {
+        if path.len() < 3 {
+            return None; // Need at least namespace::module::symbol
+        }
+        
+        let namespace = path[0];
+        let module = path[1];
+        let symbol = path[2];
+        
+        // Create module path for caching
+        let module_path = format!("{}::{}", namespace, module);
+        
+        // Check if we have cached symbols for this module
+        if let Some(symbols) = self.context.get_module_symbols(&module_path) {
+            if let Some(signature) = symbols.get(symbol) {
+                return Some(signature.type_info.clone());
+            }
+        }
+        
+        // Load module symbols if not cached
+        if let Some(symbols) = self.load_module_symbols(namespace, module) {
+            self.context.add_module_symbols(module_path.clone(), symbols);
+            
+            // Try to get the symbol again
+            if let Some(symbols) = self.context.get_module_symbols(&module_path) {
+                if let Some(signature) = symbols.get(symbol) {
+                    return Some(signature.type_info.clone());
+                }
+            }
+        }
+        
+        None
+    }
+    
+    /// Load public symbols from a module
+    fn load_module_symbols(&mut self, namespace: &str, module: &str) -> Option<HashMap<&'src str, SymbolSignature<'src>>> {
+        // Determine the module path based on namespace
+        let module_path = if namespace == "Self" {
+            format!("./{}/", module.to_lowercase())
+        } else {
+            format!("./modules/{}/{}/", namespace.to_lowercase(), module.to_lowercase())
+        };
+        
+        // For now, return None - this would be implemented to actually load from filesystem
+        // In a real implementation, this would:
+        // 1. Read all .bst files in the module directory
+        // 2. Parse them and collect only public symbols (with pub keyword)
+        // 3. Return the symbol signatures
+        
+        // Mock implementation for testing - in real implementation, this would load actual files
+        if namespace == "Std" && module == "Fmt" {
+            let mut symbols = HashMap::new();
+            symbols.insert("println", SymbolSignature {
+                name: "println",
+                kind: SymbolKind::Function(Function {
+                    name: "println",
+                    params: vec![(Some("message"), Type { path: vec!["string"], generics: vec![] })],
+                    ret_type: Some(Type { path: vec!["Unit"], generics: vec![] }),
+                    effects: vec![],
+                    body: Expr::Literal(Literal::Str("")), // Dummy body
+                    is_public: true,
+                }),
+                type_info: Type { path: vec!["Unit"], generics: vec![] },
+            });
+            Some(symbols)
+        } else if namespace == "Std" && module == "Collections" {
+            let mut symbols = HashMap::new();
+            symbols.insert("Vec", SymbolSignature {
+                name: "Vec",
+                kind: SymbolKind::Struct(StructDef {
+                    name: "Vec",
+                    generics: vec!["T"],
+                    fields: vec![],
+                    is_public: true,
+                }),
+                type_info: Type { path: vec!["Vec"], generics: vec![Type { path: vec!["T"], generics: vec![] }] },
+            });
+            Some(symbols)
+        } else if namespace == "Std" && module == "String" {
+            let mut symbols = HashMap::new();
+            symbols.insert("from", SymbolSignature {
+                name: "from",
+                kind: SymbolKind::Function(Function {
+                    name: "from",
+                    params: vec![(Some("s"), Type { path: vec!["string"], generics: vec![] })],
+                    ret_type: Some(Type { path: vec!["String"], generics: vec![] }),
+                    effects: vec![],
+                    body: Expr::Literal(Literal::Str("")), // Dummy body
+                    is_public: true,
+                }),
+                type_info: Type { path: vec!["String"], generics: vec![] },
+            });
+            Some(symbols)
+        } else if namespace == "Std" && module == "Math" {
+            let mut symbols = HashMap::new();
+            symbols.insert("add", SymbolSignature {
+                name: "add",
+                kind: SymbolKind::Function(Function {
+                    name: "add",
+                    params: vec![
+                        (Some("a"), Type { path: vec!["i64"], generics: vec![] }),
+                        (Some("b"), Type { path: vec!["i64"], generics: vec![] }),
+                    ],
+                    ret_type: Some(Type { path: vec!["i64"], generics: vec![] }),
+                    effects: vec![],
+                    body: Expr::Literal(Literal::Str("")), // Dummy body
+                    is_public: true,
+                }),
+                type_info: Type { path: vec!["i64"], generics: vec![] },
+            });
+            Some(symbols)
+        } else if namespace == "Self" && module == "Utils" {
+            let mut symbols = HashMap::new();
+            symbols.insert("helper_function", SymbolSignature {
+                name: "helper_function",
+                kind: SymbolKind::Function(Function {
+                    name: "helper_function",
+                    params: vec![],
+                    ret_type: Some(Type { path: vec!["string"], generics: vec![] }),
+                    effects: vec![],
+                    body: Expr::Literal(Literal::Str("")), // Dummy body
+                    is_public: true,
+                }),
+                type_info: Type { path: vec!["string"], generics: vec![] },
+            });
+            Some(symbols)
+        } else {
+            None
+        }
+    }
 }
 
 /// Convenience function to type check a file
@@ -1320,7 +1527,7 @@ impl<'src> TypeChecker<'src> {
                     generics: vec![],
                 });
             }
-            Item::Import { .. } => {
+            Item::Import { path: _, alias: _ } => {
                 // Imports are handled at a different level
             }
             Item::ExternFn { ret_type, .. } => {

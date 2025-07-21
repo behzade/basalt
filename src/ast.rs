@@ -139,6 +139,7 @@ pub struct Function<'src> {
     pub ret_type: Option<Type<'src>>,
     pub effects: Vec<&'src str>,
     pub body: Expr<'src>, // Block expression
+    pub is_public: bool, // Whether this function is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -146,18 +147,21 @@ pub struct StructDef<'src> {
     pub name: &'src str,
     pub generics: Vec<&'src str>,
     pub fields: Vec<(&'src str, Type<'src>)>,
+    pub is_public: bool, // Whether this struct is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumDef<'src> {
     pub name: Option<&'src str>, // Enums can be anonymous
     pub variants: Vec<(&'src str, Option<Vec<Type<'src>>>)>,
+    pub is_public: bool, // Whether this enum is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TraitDef<'src> {
     pub name: &'src str,
     pub methods: Vec<TraitMethod<'src>>,
+    pub is_public: bool, // Whether this trait is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -165,6 +169,7 @@ pub struct TraitMethod<'src> {
     pub name: &'src str,
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
+    pub is_public: bool, // Whether this method is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -178,6 +183,7 @@ pub struct ImplBlock<'src> {
 pub struct EffectDef<'src> {
     pub name: &'src str,
     pub operations: Vec<EffectOp<'src>>,
+    pub is_public: bool, // Whether this effect is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -185,6 +191,7 @@ pub struct EffectOp<'src> {
     pub name: &'src str,
     pub params: Vec<Type<'src>>,
     pub ret_type: Type<'src>,
+    pub is_public: bool, // Whether this operation is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -192,6 +199,7 @@ pub struct HandlerDef<'src> {
     pub name: &'src str,
     pub effects: Vec<&'src str>,
     pub functions: Vec<Function<'src>>,
+    pub is_public: bool, // Whether this handler is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]
