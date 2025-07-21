@@ -765,18 +765,37 @@ impl<'src> TypeChecker<'src> {
     fn check_function_body(&mut self, body: &Expr<'src>) -> Type<'src> {
         match body {
             Expr::Block { stmts, last_expr } => {
+                let mut return_type = None;
+                
                 // Check all statements
                 for stmt in stmts {
-                    self.check_stmt(stmt);
+                    if let Stmt::Return(expr) = stmt {
+                        if let Some(expr) = expr {
+                            return_type = Some(self.check_expr(expr));
+                        } else {
+                            return_type = Some(Type {
+                                path: vec!["Unit"],
+                                generics: vec![],
+                            });
+                        }
+                        break; // First return statement determines the type
+                    } else {
+                        self.check_stmt(stmt);
+                    }
                 }
                 
-                // Check the last expression (if any)
-                if let Some(expr) = last_expr {
-                    self.check_expr(expr)
+                // If we found a return statement, use its type
+                if let Some(rt) = return_type {
+                    rt
                 } else {
-                    Type {
-                        path: vec!["Unit"],
-                        generics: vec![],
+                    // Check the last expression (if any)
+                    if let Some(expr) = last_expr {
+                        self.check_expr(expr)
+                    } else {
+                        Type {
+                            path: vec!["Unit"],
+                            generics: vec![],
+                        }
                     }
                 }
             }
