@@ -309,6 +309,24 @@ fn expression_parsers<'src>() -> (
     let expr_parser = atom_with_perform
         .pratt((
             postfix(
+                9,
+                just(Token::Op(".".to_string()))
+                    .ignore_then(ident)
+                    .then(call_args.clone().delimited_by(just(Token::LParen), just(Token::RParen)))
+                    .map(|(method_name, args)| (method_name, args)),
+                |lhs, (method_name, args), _extra| {
+                    // Method call - create a path with the method name and include receiver as first arg
+                    let method_path = vec![method_name];
+                    let method_expr = Expr::Path(method_path);
+                    let mut all_args = vec![lhs];
+                    all_args.extend(args);
+                    Expr::Call {
+                        fun: Box::new(method_expr),
+                        args: all_args,
+                    }
+                },
+            ),
+            postfix(
                 8,
                 call_args.clone().delimited_by(just(Token::LParen), just(Token::RParen)),
                 |lhs, args, _extra| Expr::Call {
@@ -322,22 +340,6 @@ fn expression_parsers<'src>() -> (
                 |lhs, index, _extra| Expr::Call {
                     fun: Box::new(Expr::Path(vec!["get"])),
                     args: vec![lhs, index],
-                },
-            ),
-            postfix(
-                8,
-                just(Token::Op(".".to_string()))
-                    .ignore_then(ident)
-                    .then(call_args.delimited_by(just(Token::LParen), just(Token::RParen)))
-                    .map(|(method_name, args)| (method_name, args)),
-                |lhs, (method_name, args), _extra| {
-                    // Method call - create a path with the method name
-                    let method_path = vec![method_name];
-                    let method_expr = Expr::Path(method_path);
-                    Expr::Call {
-                        fun: Box::new(method_expr),
-                        args,
-                    }
                 },
             ),
             prefix(

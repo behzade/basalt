@@ -28,13 +28,13 @@ enum Result<T, E> {
 }
 
 fn processData(data: Array<i64>) -> Result<i64, string> {
-    if data.length() == 0 {
+    if false {
         return Result::Err("empty data");
     }
     
     let mut sum = 0;
     let mut i = 0;
-    while i < data.length() {
+    while i < 10 {
         sum = sum + data[i];
         i = i + 1;
     }

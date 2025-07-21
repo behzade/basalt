@@ -537,9 +537,36 @@ impl<'src> TypeChecker<'src> {
                                             }
                                             
                                             // Use all argument types as generic parameters
+                                            // For multi-parameter generics, we need to infer missing parameters
+                                            let mut final_generics = arg_types.clone();
+                                            
+                                            // If we have an expected return type, use it to fill missing parameters
+                                            if let Some(expected_return_type) = self.context.get_return_type() {
+                                                if expected_return_type.path.len() > 0 && expected_return_type.path[0] == path[0] {
+                                                    // This is the expected enum type
+                                                    if expected_return_type.generics.len() > final_generics.len() {
+                                                        // Fill in missing generic parameters from expected type
+                                                        for i in final_generics.len()..expected_return_type.generics.len() {
+                                                            final_generics.push(expected_return_type.generics[i].clone());
+                                                        }
+                                                    } else if expected_return_type.generics.len() == final_generics.len() {
+                                                        // Same number of parameters - use expected type for better inference
+                                                        final_generics = expected_return_type.generics.clone();
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Always use expected return type if available and it's the same enum
+                                            if let Some(expected_return_type) = self.context.get_return_type() {
+                                                if expected_return_type.path.len() > 0 && expected_return_type.path[0] == path[0] {
+                                                    // Use the expected return type's generics for better inference
+                                                    final_generics = expected_return_type.generics.clone();
+                                                }
+                                            }
+                                            
                                             return Type {
                                                 path: vec![path[0]], // Return the enum type
-                                                generics: arg_types,
+                                                generics: final_generics,
                                             };
                                         }
                                     }
@@ -580,27 +607,22 @@ impl<'src> TypeChecker<'src> {
                             return return_type.clone();
                         }
                         
-                        // Check if it's a method call (e.g., data.length())
-                        if path.len() == 2 {
-                            // For now, handle common methods
-                            match path[1] {
-                                "length" => {
-                                    // Array/string length method
-                                    return Type {
-                                        path: vec!["i64"],
-                                        generics: vec![],
-                                    };
+                        // Check if it's an array indexing operation (data[i])
+                        if path.len() == 1 && path[0] == "get" && args.len() == 2 {
+                            let array_type = self.check_expr(&args[0]);
+                            if array_type.path.len() > 0 && array_type.path[0] == "Array" {
+                                if array_type.generics.len() > 0 {
+                                    return array_type.generics[0].clone();
                                 }
-                                "get" => {
-                                    // Map get method - return the value type
-                                    return Type {
-                                        path: vec!["string"],
-                                        generics: vec![],
-                                    };
-                                }
-                                _ => {}
                             }
+                            // For other types, return unknown
+                            return Type {
+                                path: vec!["Unknown"],
+                                generics: vec![],
+                            };
                         }
+                        
+
                     }
                 }
                 
