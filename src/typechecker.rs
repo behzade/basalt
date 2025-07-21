@@ -41,6 +41,10 @@ pub struct TypeContext<'src> {
     traits: HashMap<&'src str, TraitDef<'src>>,
     /// Effect definitions available in the current scope
     effects: HashMap<&'src str, EffectDef<'src>>,
+    /// External functions available in the current scope
+    extern_functions: HashMap<&'src str, Type<'src>>, // name -> return type
+    /// Current function's return type (for return statement validation)
+    current_return_type: Option<Type<'src>>,
 }
 
 impl<'src> TypeContext<'src> {
@@ -52,6 +56,8 @@ impl<'src> TypeContext<'src> {
             enums: HashMap::new(),
             traits: HashMap::new(),
             effects: HashMap::new(),
+            extern_functions: HashMap::new(),
+            current_return_type: None,
         }
     }
 
@@ -116,6 +122,26 @@ impl<'src> TypeContext<'src> {
     pub fn get_effect(&self, name: &'src str) -> Option<&EffectDef<'src>> {
         self.effects.get(name)
     }
+
+    /// Add an external function to the current scope
+    pub fn add_extern_function(&mut self, name: &'src str, return_type: Type<'src>) {
+        self.extern_functions.insert(name, return_type);
+    }
+
+    /// Get an external function by name
+    pub fn get_extern_function(&self, name: &'src str) -> Option<&Type<'src>> {
+        self.extern_functions.get(name)
+    }
+
+    /// Set the current function's return type
+    pub fn set_return_type(&mut self, return_type: Option<Type<'src>>) {
+        self.current_return_type = return_type;
+    }
+
+    /// Get the current function's return type
+    pub fn get_return_type(&self) -> Option<&Type<'src>> {
+        self.current_return_type.as_ref()
+    }
 }
 
 /// The main type checker that validates AST nodes
@@ -169,6 +195,9 @@ impl<'src> TypeChecker<'src> {
             Item::Effect(effect_def) => {
                 self.context.add_effect(effect_def.clone());
             }
+            Item::ExternFn { name, ret_type, .. } => {
+                self.context.add_extern_function(name, ret_type.clone());
+            }
             _ => {} // Other items don't define new types
         }
     }
@@ -204,7 +233,7 @@ impl<'src> TypeChecker<'src> {
                 // Imports are handled at a different level
             }
             Item::ExternFn { .. } => {
-                // Extern functions are assumed to be correct
+                // Extern functions are already collected
             }
         }
     }
@@ -226,7 +255,25 @@ impl<'src> TypeChecker<'src> {
             }
             Stmt::Return(expr) => {
                 if let Some(expr) = expr {
-                    self.check_expr(expr);
+                    let expr_type = self.check_expr(expr);
+                    if let Some(expected_return_type) = self.context.get_return_type() {
+                        if !self.types_compatible(&expr_type, expected_return_type) {
+                            self.errors.push(TypeError::new(format!(
+                                "Return type mismatch: expected {:?}, got {:?}",
+                                expected_return_type, expr_type
+                            )));
+                        }
+                    }
+                } else {
+                    // Return without expression - check if we expect Unit
+                    if let Some(expected_return_type) = self.context.get_return_type() {
+                        if !self.is_unit_type(expected_return_type) {
+                            self.errors.push(TypeError::new(format!(
+                                "Function expects return type {:?}, but return statement has no value",
+                                expected_return_type
+                            )));
+                        }
+                    }
                 }
             }
             Stmt::Assign(lhs, rhs) => {
@@ -341,7 +388,24 @@ impl<'src> TypeChecker<'src> {
                         path: vec!["Unit"],
                         generics: vec![],
                     })
+                } else if let Some(extern_type) = self.context.get_extern_function(path[0]) {
+                    extern_type.clone()
                 } else {
+                    // Try to resolve as enum variant
+                    if path.len() == 2 {
+                        if let Some(enum_def) = self.context.get_enum(path[0]) {
+                            // Check if the second part is a variant
+                            for (variant_name, _) in &enum_def.variants {
+                                if variant_name == &path[1] {
+                                    return Type {
+                                        path: path.clone(),
+                                        generics: vec![],
+                                    };
+                                }
+                            }
+                        }
+                    }
+                    
                     // Unknown identifier
                     self.errors.push(TypeError::new(format!(
                         "Unknown identifier: {}",
@@ -372,7 +436,28 @@ impl<'src> TypeChecker<'src> {
                 let rhs_type = self.check_expr(rhs);
                 
                 match op {
-                    BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
+                    BinaryOp::Add => {
+                        if self.is_string_type(&lhs_type) && self.is_string_type(&rhs_type) {
+                            // String concatenation
+                            Type {
+                                path: vec!["string"],
+                                generics: vec![],
+                            }
+                        } else if self.is_numeric_type(&lhs_type) && self.is_numeric_type(&rhs_type) {
+                            // Numeric addition
+                            lhs_type
+                        } else {
+                            self.errors.push(TypeError::new(format!(
+                                "Cannot apply Add to incompatible types {:?} and {:?}",
+                                lhs_type, rhs_type
+                            )));
+                            Type {
+                                path: vec!["Unknown"],
+                                generics: vec![],
+                            }
+                        }
+                    }
+                    BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
                         if !self.is_numeric_type(&lhs_type) || !self.is_numeric_type(&rhs_type) {
                             self.errors.push(TypeError::new(format!(
                                 "Cannot apply {:?} to non-numeric types {:?} and {:?}",
@@ -627,6 +712,16 @@ impl<'src> TypeChecker<'src> {
         matches!(ty.path.as_slice(), ["bool"])
     }
 
+    /// Check if a type is string
+    fn is_string_type(&self, ty: &Type<'src>) -> bool {
+        matches!(ty.path.as_slice(), ["string"])
+    }
+
+    /// Check if a type is unit
+    fn is_unit_type(&self, ty: &Type<'src>) -> bool {
+        matches!(ty.path.as_slice(), ["Unit"] | ["none"])
+    }
+
     /// Check if two types are compatible
     fn types_compatible(&self, t1: &Type<'src>, t2: &Type<'src>) -> bool {
         // For now, do simple equality check
@@ -640,6 +735,9 @@ impl<'src> TypeChecker<'src> {
         // Create a new context for the function body
         let mut func_context = self.context.clone();
         
+        // Set the return type for this function
+        func_context.set_return_type(func.ret_type.clone());
+        
         // Add parameters to the context
         for (name, param_type) in &func.params {
             if let Some(name) = name {
@@ -649,7 +747,7 @@ impl<'src> TypeChecker<'src> {
         
         // Swap contexts and check the body
         std::mem::swap(&mut self.context, &mut func_context);
-        let body_type = self.check_expr(&func.body);
+        let body_type = self.check_function_body(&func.body);
         std::mem::swap(&mut self.context, &mut func_context);
         
         // Check that the body type matches the return type
@@ -659,6 +757,32 @@ impl<'src> TypeChecker<'src> {
                     "Function '{}' body has type {:?}, expected {:?}",
                     func.name, body_type, return_type
                 )));
+            }
+        }
+    }
+
+    /// Type check a function body and return its type
+    fn check_function_body(&mut self, body: &Expr<'src>) -> Type<'src> {
+        match body {
+            Expr::Block { stmts, last_expr } => {
+                // Check all statements
+                for stmt in stmts {
+                    self.check_stmt(stmt);
+                }
+                
+                // Check the last expression (if any)
+                if let Some(expr) = last_expr {
+                    self.check_expr(expr)
+                } else {
+                    Type {
+                        path: vec!["Unit"],
+                        generics: vec![],
+                    }
+                }
+            }
+            _ => {
+                // If the body is not a block, check it as a regular expression
+                self.check_expr(body)
             }
         }
     }

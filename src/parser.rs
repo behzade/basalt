@@ -74,7 +74,7 @@ fn expression_parsers<'src>() -> (
         .boxed();
 
     // Typed map literal parser (e.g., Map<string, i64> {"a": 1, "b": 2})
-    let typed_map_literal = path.clone()
+    let typed_map_literal = select! { Token::Ident("Map") => vec!["Map"] }
         .then(
             // Generic parameters
             ident
@@ -89,14 +89,20 @@ fn expression_parsers<'src>() -> (
                 .map(|g| g.unwrap_or_default().into_iter().map(|id| Type { path: vec![id], generics: vec![] }).collect::<Vec<_>>())
         )
         .then(
-            // Map content
-            expr.clone()
-                .then_ignore(just(Token::Colon))
-                .then(expr.clone())
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+            // Map content - must be a literal or path as key, not just any expression
+            choice((
+                select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+                select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
+                select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
+                select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
+                path.clone().map(Expr::Path),
+            ))
+            .then_ignore(just(Token::Colon))
+            .then(expr.clone())
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LBrace), just(Token::RBrace))
         )
         .map(|((_path, _generics), pairs)| {
             let map_pairs = pairs.into_iter().collect();
