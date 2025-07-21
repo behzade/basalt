@@ -5,6 +5,13 @@
 use std::collections::HashMap;
 use crate::ast::*;
 
+/// A typed top-level item
+#[derive(Debug, Clone)]
+pub struct TypedItem<'src> {
+    pub item: Item<'src>,
+    pub inferred_types: Vec<Type<'src>>, // Types inferred for this item
+}
+
 /// Represents a type error that occurred during type checking
 #[derive(Debug, Clone)]
 pub struct TypeError {
@@ -1213,4 +1220,114 @@ impl<'src> TypeChecker<'src> {
 pub fn type_check_file<'src>(items: &[Item<'src>]) -> Result<(), Vec<TypeError>> {
     let mut checker = TypeChecker::new();
     checker.check_file(items)
+}
+
+/// Type check a file and return a typed AST
+pub fn type_check_file_with_ast<'src>(items: &[Item<'src>]) -> Result<Vec<TypedItem<'src>>, Vec<TypeError>> {
+    let mut checker = TypeChecker::new();
+    checker.check_file_with_ast(items)
+}
+
+impl<'src> TypeChecker<'src> {
+    /// Type check a file and return a typed AST
+    pub fn check_file_with_ast(&mut self, items: &[Item<'src>]) -> Result<Vec<TypedItem<'src>>, Vec<TypeError>> {
+        // First pass: collect all definitions
+        for item in items {
+            self.collect_definitions(item);
+        }
+
+        // Second pass: type check all items and collect typed AST
+        let mut typed_items = Vec::new();
+        for item in items {
+            let inferred_types = self.check_item_with_types(item);
+            typed_items.push(TypedItem {
+                item: item.clone(),
+                inferred_types,
+            });
+        }
+
+        if self.errors.is_empty() {
+            Ok(typed_items)
+        } else {
+            Err(self.errors.clone())
+        }
+    }
+
+    /// Type check an item and return inferred types
+    fn check_item_with_types(&mut self, item: &Item<'src>) -> Vec<Type<'src>> {
+        let mut types = Vec::new();
+        
+        match item {
+            Item::Stmt(stmt) => {
+                self.check_stmt(stmt);
+                // For statements, we don't typically have return types
+            }
+            Item::Fn(func) => {
+                self.check_function(func);
+                if let Some(ret_type) = &func.ret_type {
+                    types.push(ret_type.clone());
+                } else {
+                    types.push(Type {
+                        path: vec!["Unit"],
+                        generics: vec![],
+                    });
+                }
+            }
+            Item::Struct(struct_def) => {
+                self.check_struct(struct_def);
+                types.push(Type {
+                    path: vec![struct_def.name],
+                    generics: struct_def.generics.iter().map(|g| Type {
+                        path: vec![g],
+                        generics: vec![],
+                    }).collect(),
+                });
+            }
+            Item::Enum(enum_def) => {
+                self.check_enum(enum_def);
+                if let Some(name) = &enum_def.name {
+                    types.push(Type {
+                        path: vec![name],
+                        generics: vec![],
+                    });
+                }
+            }
+            Item::Trait(trait_def) => {
+                self.check_trait(trait_def);
+                types.push(Type {
+                    path: vec![trait_def.name],
+                    generics: vec![],
+                });
+            }
+            Item::Effect(effect_def) => {
+                self.check_effect(effect_def);
+                types.push(Type {
+                    path: vec![effect_def.name],
+                    generics: vec![],
+                });
+            }
+            Item::Impl(impl_block) => {
+                self.check_impl(impl_block);
+                types.push(Type {
+                    path: vec!["Unit"],
+                    generics: vec![],
+                });
+            }
+            Item::Handler(handler_def) => {
+                self.check_handler(handler_def);
+                types.push(Type {
+                    path: vec![handler_def.name],
+                    generics: vec![],
+                });
+            }
+            Item::Import { .. } => {
+                // Imports are handled at a different level
+            }
+            Item::ExternFn { ret_type, .. } => {
+                types.push(ret_type.clone());
+            }
+        }
+        
+        types
+    }
 } 
