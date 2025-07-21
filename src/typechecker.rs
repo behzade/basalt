@@ -45,6 +45,8 @@ pub struct TypeContext<'src> {
     extern_functions: HashMap<&'src str, Type<'src>>, // name -> return type
     /// Current function's return type (for return statement validation)
     current_return_type: Option<Type<'src>>,
+    /// Type parameter substitutions (for generic type checking)
+    type_substitutions: HashMap<&'src str, Type<'src>>,
 }
 
 impl<'src> TypeContext<'src> {
@@ -58,6 +60,7 @@ impl<'src> TypeContext<'src> {
             effects: HashMap::new(),
             extern_functions: HashMap::new(),
             current_return_type: None,
+            type_substitutions: HashMap::new(),
         }
     }
 
@@ -141,6 +144,16 @@ impl<'src> TypeContext<'src> {
     /// Get the current function's return type
     pub fn get_return_type(&self) -> Option<&Type<'src>> {
         self.current_return_type.as_ref()
+    }
+
+    /// Add a type parameter substitution
+    pub fn add_type_substitution(&mut self, name: &'src str, ty: Type<'src>) {
+        self.type_substitutions.insert(name, ty);
+    }
+
+    /// Get a type parameter substitution
+    pub fn get_type_substitution(&self, name: &'src str) -> Option<&Type<'src>> {
+        self.type_substitutions.get(name)
     }
 }
 
@@ -493,10 +506,47 @@ impl<'src> TypeChecker<'src> {
                     }
                 }
             }
-            Expr::Call { fun, args: _args } => {
-                let _fun_type = self.check_expr(fun);
+            Expr::Call { fun, args } => {
+                let fun_type = self.check_expr(fun);
                 
-                // For now, assume function calls return unit
+                // Check if this is an enum variant call (e.g., Option::Some(42))
+                if let Expr::Path(path) = fun.as_ref() {
+                    if path.len() == 2 {
+                        // Check if this is an enum variant
+                        if let Some(enum_def) = self.context.get_enum(path[0]) {
+                            for (variant_name, variant_types) in &enum_def.variants {
+                                if variant_name == &path[1] {
+                                    // This is an enum variant call
+                                    if let Some(variant_types) = variant_types {
+                                        // Variant has data - check argument types
+                                        if args.len() == variant_types.len() {
+                                            // Collect argument types first to avoid borrow conflicts
+                                            let mut arg_types = Vec::new();
+                                            for arg in args.iter() {
+                                                arg_types.push(self.check_expr(arg));
+                                            }
+                                            
+                                            // Use the first argument type as the generic parameter
+                                            if let Some(first_arg_type) = arg_types.first() {
+                                                return Type {
+                                                    path: vec![path[0]], // Return the enum type
+                                                    generics: vec![first_arg_type.clone()],
+                                                };
+                                            }
+                                        }
+                                    }
+                                    
+                                    return Type {
+                                        path: vec![path[0]], // Return the enum type
+                                        generics: vec![],
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // For now, assume other function calls return unit
                 // In a more sophisticated implementation, we'd look up the function
                 // and check argument types against parameter types
                 Type {
@@ -509,6 +559,17 @@ impl<'src> TypeChecker<'src> {
                 if let Some(struct_def) = self.context.get_struct(path[0]) {
                     // Clone the struct definition to avoid borrowing issues
                     let struct_def = struct_def.clone();
+                    
+                    // Set up type parameter substitutions
+                    let mut struct_context = self.context.clone();
+                    for (i, generic_type) in generics.iter().enumerate() {
+                        if i < struct_def.generics.len() {
+                            struct_context.add_type_substitution(struct_def.generics[i], generic_type.clone());
+                        }
+                    }
+                    
+                    // Temporarily swap contexts to use the substitutions
+                    std::mem::swap(&mut self.context, &mut struct_context);
                     
                     // Check that all required fields are provided
                     for (field_name, _field_type) in &struct_def.fields {
@@ -537,6 +598,9 @@ impl<'src> TypeChecker<'src> {
                             )));
                         }
                     }
+                    
+                    // Restore the original context
+                    std::mem::swap(&mut self.context, &mut struct_context);
                     
                     Type {
                         path: path.clone(),
@@ -602,7 +666,7 @@ impl<'src> TypeChecker<'src> {
                 }
             }
             Expr::Match { scrutinee, arms } => {
-                let _scrutinee_type = self.check_expr(scrutinee);
+                let scrutinee_type = self.check_expr(scrutinee);
                 
                 if arms.is_empty() {
                     self.errors.push(TypeError::new("Match expression must have at least one arm".to_string()));
@@ -611,7 +675,27 @@ impl<'src> TypeChecker<'src> {
                         generics: vec![],
                     }
                 } else {
-                    let arm_types: Vec<_> = arms.iter().map(|(_, expr)| self.check_expr(expr)).collect();
+                    let mut arm_types = Vec::new();
+                    
+                    for (pattern, expr) in arms {
+                        // Create a new context for this match arm
+                        let mut arm_context = self.context.clone();
+                        
+                        // Bind pattern variables
+                        if let Some(bound_vars) = self.bind_pattern_variables(pattern, &scrutinee_type) {
+                            for (var_name, var_type) in bound_vars {
+                                arm_context.add_variable(var_name, var_type);
+                            }
+                        }
+                        
+                        // Temporarily swap contexts to use the arm context
+                        std::mem::swap(&mut self.context, &mut arm_context);
+                        let arm_type = self.check_expr(expr);
+                        std::mem::swap(&mut self.context, &mut arm_context);
+                        
+                        arm_types.push(arm_type);
+                    }
+                    
                     let first_arm_type = &arm_types[0];
                     
                     // Check that all arms have the same type
@@ -724,10 +808,72 @@ impl<'src> TypeChecker<'src> {
 
     /// Check if two types are compatible
     fn types_compatible(&self, t1: &Type<'src>, t2: &Type<'src>) -> bool {
+        // First, try to substitute type parameters
+        let t1_substituted = self.substitute_type_parameters(t1);
+        let t2_substituted = self.substitute_type_parameters(t2);
+        
         // For now, do simple equality check
         // In a more sophisticated implementation, this would handle
-        // subtyping, type parameters, etc.
-        t1 == t2
+        // subtyping, etc.
+        t1_substituted == t2_substituted
+    }
+
+    /// Substitute type parameters in a type
+    fn substitute_type_parameters(&self, ty: &Type<'src>) -> Type<'src> {
+        if ty.path.len() == 1 {
+            // Check if this is a type parameter
+            if let Some(substitution) = self.context.get_type_substitution(ty.path[0]) {
+                return substitution.clone();
+            }
+        }
+        
+        // Recursively substitute in generics
+        let substituted_generics: Vec<_> = ty.generics.iter()
+            .map(|g| self.substitute_type_parameters(g))
+            .collect();
+        
+        Type {
+            path: ty.path.clone(),
+            generics: substituted_generics,
+        }
+    }
+
+    /// Bind pattern variables and return their types
+    fn bind_pattern_variables(&self, pattern: &Pattern<'src>, scrutinee_type: &Type<'src>) -> Option<Vec<(&'src str, Type<'src>)>> {
+        // For now, handle simple patterns like Some(x) or None
+        if pattern.path.len() == 1 {
+            let variant_name = pattern.path[0];
+            
+            // Check if this is a variant of the scrutinee type
+            if let Some(enum_def) = self.context.get_enum(scrutinee_type.path[0]) {
+                for (enum_variant, variant_types) in &enum_def.variants {
+                    if enum_variant == &variant_name {
+                        // This is a valid variant
+                        if let Some(variant_types) = variant_types {
+                            // Variant has data - bind the pattern variables
+                            let mut bound_vars = Vec::new();
+                            for (i, arg_name) in pattern.args.iter().enumerate() {
+                                if i < variant_types.len() {
+                                    // Use the concrete type from the scrutinee instead of the generic type parameter
+                                    let concrete_type = if scrutinee_type.generics.len() > i {
+                                        scrutinee_type.generics[i].clone()
+                                    } else {
+                                        variant_types[i].clone()
+                                    };
+                                    bound_vars.push((*arg_name, concrete_type));
+                                }
+                            }
+                            return Some(bound_vars);
+                        } else {
+                            // Variant has no data (like None)
+                            return Some(Vec::new());
+                        }
+                    }
+                }
+            }
+        }
+        
+        None
     }
 
     /// Type check a function definition
