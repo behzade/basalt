@@ -1,8 +1,8 @@
 // Test 13: Enums
 // Testing enum definitions and pattern matching
 
-enum Option<T> {
-    Some(T),
+enum Option {
+    Some(i64),
     None,
 }
 

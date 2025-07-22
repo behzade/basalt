@@ -127,6 +127,16 @@ impl<'src> TypeContext<'src> {
     pub fn get_enum(&self, name: &'src str) -> Option<&ast::EnumDef<'src>> {
         self.enums.get(name)
     }
+
+    /// Finds an enum that contains a specific variant.
+    pub fn find_enum_by_variant(&self, variant_name: &'src str) -> Option<(&'src str, &ast::EnumDef<'src>)> {
+        for (name, enum_def) in &self.enums {
+            if enum_def.variants.iter().any(|(v, _)| v == &variant_name) {
+                return Some((name, enum_def));
+            }
+        }
+        None
+    }
 }
 
 // Default implementation for convenience.

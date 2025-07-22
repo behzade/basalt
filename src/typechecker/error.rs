@@ -35,6 +35,9 @@ pub enum TypeError<'src> {
         op: String,
         ty: hir::Ty<'src>,
     },
+    InvalidPattern {
+        pattern: String,
+    },
     UnificationError(hir::Ty<'src>, hir::Ty<'src>),
 }
 

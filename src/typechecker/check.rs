@@ -379,7 +379,47 @@ impl<'src> TypeChecker<'src> {
                 // This is a simplification. A real implementation would unify against
                 // a function type, but for now we check for function names.
                 if let hir::ExprKind::Path(path) = &hir_fun.kind {
-                    // First check for regular functions
+                                    // First check for enum variant construction (e.g., Option::Some(42))
+                if path.len() == 2 {
+                    if let Some(enum_def) = self.context.get_enum(path[0]) {
+                        // Check if the second part is a variant of this enum
+                        if let Some(variant_info) = enum_def.variants.iter().find(|(name, _)| name == &path[1]) {
+                            let empty_vec = Vec::new();
+                            let variant_types = variant_info.1.as_ref().unwrap_or(&empty_vec);
+                            
+                            // Check that the number of arguments matches the variant fields
+                                if args.len() != variant_types.len() {
+                                    return Err(TypeError::WrongArgumentCount {
+                                        expected: variant_types.len(),
+                                        found: args.len(),
+                                    });
+                                }
+
+                                // Check each argument and collect their types
+                                let mut hir_args = Vec::new();
+                                for arg in args {
+                                    let hir_arg = self.check_expr(arg)?;
+                                    hir_args.push(hir_arg);
+                                }
+
+                                // For now, use a simple enum type without generics
+                                let enum_ty = Ty::Adt {
+                                    name: vec![path[0]],
+                                    generics: vec![],
+                                };
+
+                                let kind = hir::ExprKind::Call {
+                                    fun: Box::new(hir_fun),
+                                    args: hir_args,
+                                };
+                                return Ok(hir::Expr { kind, ty: enum_ty });
+                            }
+                        } else {
+                            println!("DEBUG: Enum not found: {}", path[0]);
+                        }
+                    }
+
+                    // Then check for regular functions
                     if let Some(func_def) = self.context.get_function(path[0]) {
                         let func_def = func_def.clone(); // Clone to avoid borrow conflict
                         if func_def.params.len() != args.len() {
@@ -512,10 +552,151 @@ impl<'src> TypeChecker<'src> {
                     ty,
                 )
             }
+            ast::Expr::Match { scrutinee, arms } => {
+                // Type-check the scrutinee expression
+                let hir_scrutinee = self.check_expr(scrutinee)?;
+                let scrutinee_ty = self.resolve_type(&hir_scrutinee.ty);
+
+                // Initialize result type variable for the match expression
+                let overall_result_ty = self.new_infer_ty();
+                let mut hir_arms = Vec::new();
+
+                // Process each match arm
+                for (ast_pattern, arm_expr) in arms {
+                    // Enter a new scope for this arm
+                    self.context.enter_scope();
+
+                    // Check the pattern and add bindings to scope
+                    let hir_pattern = self.check_pattern(ast_pattern, &scrutinee_ty)?;
+
+                    // Check the arm expression with the overall result type as hint
+                    let hir_arm_expr = self.check_expr_with_hint(arm_expr, &overall_result_ty)?;
+
+                    // Unify the arm expression type with the overall result type
+                    self.unify(&hir_arm_expr.ty, &overall_result_ty)?;
+
+                    // Leave the scope for this arm
+                    self.context.leave_scope();
+
+                    // Add the processed arm to our collection
+                    hir_arms.push((hir_pattern, hir_arm_expr));
+                }
+
+                // The final type is the resolved overall result type
+                let final_ty = self.resolve_type(&overall_result_ty);
+
+                let kind = hir::ExprKind::Match {
+                    scrutinee: Box::new(hir_scrutinee),
+                    arms: hir_arms,
+                };
+                (kind, final_ty)
+            }
             _ => (hir::ExprKind::Literal(ast::Literal::Bool(true)), Ty::Error),
         };
 
         Ok(hir::Expr { kind, ty })
+    }
+
+    /// Checks a pattern and converts it to a `hir::Pattern`.
+    /// This function handles pattern matching and adds bindings to the current scope.
+    fn check_pattern(
+        &mut self,
+        pattern: &ast::Pattern<'src>,
+        expected_ty: &hir::Ty<'src>,
+    ) -> Result<hir::Pattern<'src>, TypeError<'src>> {
+        // Unify the pattern's expected type with the scrutinee type
+        let pattern_ty = expected_ty.clone();
+
+        let kind = match (&pattern.path[..], &pattern.args[..]) {
+            // Wildcard pattern: `_`
+            (["_"], []) => {
+                hir::PatternKind::Wildcard
+            }
+            // Binding pattern: `x` (single identifier)
+            ([name], []) => {
+                // Add the variable to the current scope
+                self.context.add_variable(name, pattern_ty.clone());
+                hir::PatternKind::Binding {
+                    name,
+                    is_mut: false, // For now, assume all bindings are immutable
+                }
+            }
+            // ADT variant pattern: `Option::Some(x)` or `Some(x)`
+            (path, args) => {
+                // Handle both qualified (Option::Some) and unqualified (Some) paths
+                let (enum_name, variant_name) = if path.len() == 2 {
+                    (path[0], path[1])
+                } else if path.len() == 1 {
+                    // For unqualified paths like `Some(x)`, search through all known enums
+                    // to find the one containing this variant
+                    let variant_name = path[0];
+                    let (enum_name, _) = self.context
+                        .find_enum_by_variant(variant_name)
+                        .ok_or(TypeError::UnknownEnumVariant {
+                            enum_name: "unknown",
+                            variant_name,
+                        })?;
+                    (enum_name, variant_name)
+                } else {
+                    return Err(TypeError::InvalidPattern {
+                        pattern: format!("{:?}", pattern),
+                    });
+                };
+
+                // Look up the enum definition
+                let enum_def = self
+                    .context
+                    .get_enum(enum_name)
+                    .ok_or(TypeError::UnknownEnum(enum_name))?;
+
+                // Find the variant and get its field types
+                let variant_info = enum_def
+                    .variants
+                    .iter()
+                    .find(|(name, _)| name == &variant_name)
+                    .ok_or(TypeError::UnknownEnumVariant {
+                        enum_name,
+                        variant_name,
+                    })?;
+                let empty_vec = Vec::new();
+                let variant_types = variant_info.1.as_ref().unwrap_or(&empty_vec);
+
+                // Check that the number of pattern arguments matches the variant fields
+                if args.len() != variant_types.len() {
+                    return Err(TypeError::WrongArgumentCount {
+                        expected: variant_types.len(),
+                        found: args.len(),
+                    });
+                }
+
+                // Convert variant types to HIR types first to avoid borrow issues
+                let hir_variant_types: Vec<hir::Ty<'src>> = variant_types
+                    .iter()
+                    .map(|ty| self.lower_type(ty))
+                    .collect();
+
+                // Recursively check each sub-pattern
+                let mut fields = Vec::new();
+                for (arg_name, field_ty) in args.iter().zip(hir_variant_types.iter()) {
+                    let field_pattern = ast::Pattern {
+                        path: vec![arg_name],
+                        args: vec![],
+                    };
+                    let hir_field_pattern = self.check_pattern(&field_pattern, field_ty)?;
+                    fields.push(hir_field_pattern);
+                }
+
+                hir::PatternKind::AdtVariant {
+                    path: path.to_vec(),
+                    fields,
+                }
+            }
+        };
+
+        Ok(hir::Pattern {
+            kind,
+            ty: pattern_ty,
+        })
     }
 
     /// Lowers an `ast::Type` to an `hir::Ty`.

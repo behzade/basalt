@@ -268,6 +268,9 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             TypeError::InvalidOperator { op, ty } => {
                 format!("Cannot apply operator `{}` to type `{}`", op, ty)
             }
+            TypeError::InvalidPattern { pattern } => {
+                format!("Invalid pattern: {}", pattern)
+            }
             TypeError::UnificationError(t1, t2) => {
                 format!("Cannot unify types `{}` and `{}`", t1, t2)
             }
