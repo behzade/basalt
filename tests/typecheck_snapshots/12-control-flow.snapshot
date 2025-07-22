@@ -1,0 +1,110 @@
+Stmt(
+    Let {
+        name: "x",
+        is_mut: false,
+        value_ty: I64,
+        value: Expr {
+            kind: Literal(
+                I64(
+                    10,
+                ),
+            ),
+            ty: I64,
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "y",
+        is_mut: false,
+        value_ty: I64,
+        value: Expr {
+            kind: If {
+                cond: Expr {
+                    kind: Binary {
+                        op: Gt,
+                        lhs: Expr {
+                            kind: Path(
+                                [
+                                    "x",
+                                ],
+                            ),
+                            ty: I64,
+                        },
+                        rhs: Expr {
+                            kind: Literal(
+                                I64(
+                                    5,
+                                ),
+                            ),
+                            ty: I64,
+                        },
+                    },
+                    ty: Bool,
+                },
+                then_block: Expr {
+                    kind: Block {
+                        stmts: [],
+                        last_expr: Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        100,
+                                    ),
+                                ),
+                                ty: I64,
+                            },
+                        ),
+                    },
+                    ty: I64,
+                },
+                else_block: Some(
+                    Expr {
+                        kind: Block {
+                            stmts: [],
+                            last_expr: Some(
+                                Expr {
+                                    kind: Literal(
+                                        I64(
+                                            200,
+                                        ),
+                                    ),
+                                    ty: I64,
+                                },
+                            ),
+                        },
+                        ty: I64,
+                    },
+                ),
+            },
+            ty: I64,
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "counter",
+        is_mut: true,
+        value_ty: I64,
+        value: Expr {
+            kind: Literal(
+                I64(
+                    0,
+                ),
+            ),
+            ty: I64,
+        },
+    },
+)
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Error,
+        },
+    ),
+)

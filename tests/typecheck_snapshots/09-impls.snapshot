@@ -1,0 +1,37 @@
+Struct(
+    StructDef {
+        name: "Calculator",
+        generics: [],
+        fields: [
+            (
+                "base",
+                I64,
+            ),
+        ],
+        is_public: true,
+    },
+)
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Unit,
+        },
+    ),
+)
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Unit,
+        },
+    ),
+)

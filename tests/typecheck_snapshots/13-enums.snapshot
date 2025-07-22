@@ -1,0 +1,95 @@
+Enum(
+    EnumDef {
+        name: Some(
+            "Option",
+        ),
+        variants: [
+            (
+                "Some",
+                Some(
+                    [
+                        Adt {
+                            name: [
+                                "T",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                ),
+            ),
+            (
+                "None",
+                None,
+            ),
+        ],
+        is_public: true,
+    },
+)
+Stmt(
+    Let {
+        name: "someValue",
+        is_mut: false,
+        value_ty: Error,
+        value: Expr {
+            kind: Call {
+                fun: Expr {
+                    kind: Path(
+                        [
+                            "Option",
+                            "Some",
+                        ],
+                    ),
+                    ty: Adt {
+                        name: [
+                            "Option",
+                        ],
+                        generics: [],
+                    },
+                },
+                args: [],
+            },
+            ty: Error,
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "noneValue",
+        is_mut: false,
+        value_ty: Adt {
+            name: [
+                "Option",
+            ],
+            generics: [],
+        },
+        value: Expr {
+            kind: Path(
+                [
+                    "Option",
+                    "None",
+                ],
+            ),
+            ty: Adt {
+                name: [
+                    "Option",
+                ],
+                generics: [],
+            },
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "result",
+        is_mut: false,
+        value_ty: Error,
+        value: Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Error,
+        },
+    },
+)

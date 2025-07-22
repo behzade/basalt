@@ -1,0 +1,60 @@
+Stmt(
+    Let {
+        name: "a",
+        is_mut: false,
+        value_ty: I64,
+        value: Expr {
+            kind: Literal(
+                I64(
+                    42,
+                ),
+            ),
+            ty: I64,
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "b",
+        is_mut: false,
+        value_ty: F64,
+        value: Expr {
+            kind: Literal(
+                F64(
+                    3.14,
+                ),
+            ),
+            ty: F64,
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "c",
+        is_mut: false,
+        value_ty: Bool,
+        value: Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Bool,
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "d",
+        is_mut: false,
+        value_ty: Str,
+        value: Expr {
+            kind: Literal(
+                Str(
+                    "hello world",
+                ),
+            ),
+            ty: Str,
+        },
+    },
+)

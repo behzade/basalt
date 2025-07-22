@@ -1,0 +1,32 @@
+Import {
+    path: [
+        "Std",
+        "Collections",
+        "Map",
+    ],
+    alias: None,
+}
+Import {
+    path: [
+        "Std",
+        "IO",
+    ],
+    alias: Some(
+        "IO",
+    ),
+}
+Stmt(
+    Let {
+        name: "map",
+        is_mut: false,
+        value_ty: Error,
+        value: Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Error,
+        },
+    },
+)

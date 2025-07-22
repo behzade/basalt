@@ -1,0 +1,24 @@
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Unit,
+        },
+    ),
+)
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Unit,
+        },
+    ),
+)

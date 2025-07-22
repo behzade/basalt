@@ -1,0 +1,128 @@
+Struct(
+    StructDef {
+        name: "Pair",
+        generics: [
+            "T",
+            "U",
+        ],
+        fields: [
+            (
+                "first",
+                Adt {
+                    name: [
+                        "T",
+                    ],
+                    generics: [],
+                },
+            ),
+            (
+                "second",
+                Adt {
+                    name: [
+                        "U",
+                    ],
+                    generics: [],
+                },
+            ),
+        ],
+        is_public: true,
+    },
+)
+Stmt(
+    Let {
+        name: "intPair",
+        is_mut: false,
+        value_ty: Adt {
+            name: [
+                "Pair",
+            ],
+            generics: [
+                I64,
+                Str,
+            ],
+        },
+        value: Expr {
+            kind: StructInit {
+                path: [
+                    "Pair",
+                ],
+                fields: {
+                    "second": Expr {
+                        kind: Literal(
+                            Str(
+                                "hello",
+                            ),
+                        ),
+                        ty: Str,
+                    },
+                    "first": Expr {
+                        kind: Literal(
+                            I64(
+                                42,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                },
+            },
+            ty: Adt {
+                name: [
+                    "Pair",
+                ],
+                generics: [
+                    I64,
+                    Str,
+                ],
+            },
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "floatPair",
+        is_mut: false,
+        value_ty: Adt {
+            name: [
+                "Pair",
+            ],
+            generics: [
+                F64,
+                Bool,
+            ],
+        },
+        value: Expr {
+            kind: StructInit {
+                path: [
+                    "Pair",
+                ],
+                fields: {
+                    "first": Expr {
+                        kind: Literal(
+                            F64(
+                                3.14,
+                            ),
+                        ),
+                        ty: F64,
+                    },
+                    "second": Expr {
+                        kind: Literal(
+                            Bool(
+                                true,
+                            ),
+                        ),
+                        ty: Bool,
+                    },
+                },
+            },
+            ty: Adt {
+                name: [
+                    "Pair",
+                ],
+                generics: [
+                    F64,
+                    Bool,
+                ],
+            },
+        },
+    },
+)

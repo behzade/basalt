@@ -81,11 +81,11 @@ fn main() -> io::Result<()> {
         }
         Action::TypeCheck { path } => {
             let (source_id, source_code) = read_source(Some(path))?;
-            run_type_checker(&source_code, &source_id, false)?;
+            run_type_checker(&source_code, &source_id)?;
         }
         Action::TypeCheckAst { path } => {
             let (source_id, source_code) = read_source(Some(path))?;
-            run_type_checker(&source_code, &source_id, true)?;
+            run_type_checker(&source_code, &source_id)?;
         }
         Action::Compile { .. } => {
             println!("Compilation is not yet implemented.");
@@ -96,7 +96,7 @@ fn main() -> io::Result<()> {
 }
 
 /// A helper function to encapsulate the full lex, parse, and type-check pipeline.
-fn run_type_checker(source_code: &str, source_id: &str, print_hir: bool) -> io::Result<()> {
+fn run_type_checker(source_code: &str, source_id: &str) -> io::Result<()> {
     // --- Lexing ---
     let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
     if report_errors(source_code, source_id, &lex_errs, |e| {
@@ -127,12 +127,9 @@ fn run_type_checker(source_code: &str, source_id: &str, print_hir: bool) -> io::
     if let Some(ast) = ast {
         match TypeChecker::new().check_file(&ast) {
             Ok(hir_items) => {
-                println!("Type checking completed successfully!");
-                if print_hir {
-                    println!("\n=== Typed HIR ===");
-                    for item in hir_items {
-                        println!("{:#?}", item);
-                    }
+                // Always print the typed HIR for snapshot testing compatibility
+                for item in hir_items {
+                    println!("{:#?}", item);
                 }
             }
             Err(type_errors) => {

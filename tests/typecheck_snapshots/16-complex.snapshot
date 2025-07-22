@@ -1,0 +1,419 @@
+Import {
+    path: [
+        "Std",
+        "Collections",
+        "Map",
+    ],
+    alias: None,
+}
+Struct(
+    StructDef {
+        name: "Database",
+        generics: [
+            "T",
+        ],
+        fields: [
+            (
+                "data",
+                Map {
+                    key: Str,
+                    value: Adt {
+                        name: [
+                            "T",
+                        ],
+                        generics: [],
+                    },
+                },
+            ),
+            (
+                "count",
+                I64,
+            ),
+        ],
+        is_public: true,
+    },
+)
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Unit,
+        },
+    ),
+)
+Stmt(
+    Expr(
+        Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Unit,
+        },
+    ),
+)
+Enum(
+    EnumDef {
+        name: Some(
+            "Result",
+        ),
+        variants: [
+            (
+                "Ok",
+                Some(
+                    [
+                        Adt {
+                            name: [
+                                "T",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                ),
+            ),
+            (
+                "Err",
+                Some(
+                    [
+                        Adt {
+                            name: [
+                                "E",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                ),
+            ),
+        ],
+        is_public: true,
+    },
+)
+Fn(
+    Function {
+        name: "processData",
+        params: [
+            (
+                Some(
+                    "data",
+                ),
+                Array(
+                    I64,
+                ),
+            ),
+        ],
+        ret_type: Adt {
+            name: [
+                "Result",
+            ],
+            generics: [
+                I64,
+                Str,
+            ],
+        },
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Expr(
+                        Expr {
+                            kind: If {
+                                cond: Expr {
+                                    kind: Literal(
+                                        Bool(
+                                            false,
+                                        ),
+                                    ),
+                                    ty: Bool,
+                                },
+                                then_block: Expr {
+                                    kind: Block {
+                                        stmts: [
+                                            Return(
+                                                Some(
+                                                    Expr {
+                                                        kind: Call {
+                                                            fun: Expr {
+                                                                kind: Path(
+                                                                    [
+                                                                        "Result",
+                                                                        "Err",
+                                                                    ],
+                                                                ),
+                                                                ty: Adt {
+                                                                    name: [
+                                                                        "Result",
+                                                                    ],
+                                                                    generics: [],
+                                                                },
+                                                            },
+                                                            args: [],
+                                                        },
+                                                        ty: Error,
+                                                    },
+                                                ),
+                                            ),
+                                        ],
+                                        last_expr: None,
+                                    },
+                                    ty: Error,
+                                },
+                                else_block: None,
+                            },
+                            ty: Unit,
+                        },
+                    ),
+                    Let {
+                        name: "sum",
+                        is_mut: true,
+                        value_ty: I64,
+                        value: Expr {
+                            kind: Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                            ty: I64,
+                        },
+                    },
+                    Let {
+                        name: "i",
+                        is_mut: true,
+                        value_ty: I64,
+                        value: Expr {
+                            kind: Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                            ty: I64,
+                        },
+                    },
+                    Expr(
+                        Expr {
+                            kind: Literal(
+                                Bool(
+                                    true,
+                                ),
+                            ),
+                            ty: Error,
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Call {
+                                    fun: Expr {
+                                        kind: Path(
+                                            [
+                                                "Result",
+                                                "Ok",
+                                            ],
+                                        ),
+                                        ty: Adt {
+                                            name: [
+                                                "Result",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                    args: [],
+                                },
+                                ty: Error,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: Error,
+        },
+        is_public: true,
+    },
+)
+Stmt(
+    Let {
+        name: "db",
+        is_mut: false,
+        value_ty: Adt {
+            name: [
+                "Database",
+            ],
+            generics: [
+                Str,
+            ],
+        },
+        value: Expr {
+            kind: StructInit {
+                path: [
+                    "Database",
+                ],
+                fields: {
+                    "data": Expr {
+                        kind: Literal(
+                            Bool(
+                                true,
+                            ),
+                        ),
+                        ty: Error,
+                    },
+                    "count": Expr {
+                        kind: Literal(
+                            I64(
+                                2,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                },
+            },
+            ty: Adt {
+                name: [
+                    "Database",
+                ],
+                generics: [
+                    Str,
+                ],
+            },
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "numbers",
+        is_mut: false,
+        value_ty: Array(
+            I64,
+        ),
+        value: Expr {
+            kind: Array(
+                [
+                    Expr {
+                        kind: Literal(
+                            I64(
+                                1,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                    Expr {
+                        kind: Literal(
+                            I64(
+                                2,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                    Expr {
+                        kind: Literal(
+                            I64(
+                                3,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                    Expr {
+                        kind: Literal(
+                            I64(
+                                4,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                    Expr {
+                        kind: Literal(
+                            I64(
+                                5,
+                            ),
+                        ),
+                        ty: I64,
+                    },
+                ],
+            ),
+            ty: Array(
+                I64,
+            ),
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "result",
+        is_mut: false,
+        value_ty: Adt {
+            name: [
+                "Result",
+            ],
+            generics: [
+                I64,
+                Str,
+            ],
+        },
+        value: Expr {
+            kind: Call {
+                fun: Expr {
+                    kind: Path(
+                        [
+                            "processData",
+                        ],
+                    ),
+                    ty: Function {
+                        param_types: [
+                            Array(
+                                I64,
+                            ),
+                        ],
+                        ret_type: Adt {
+                            name: [
+                                "Result",
+                            ],
+                            generics: [
+                                I64,
+                                Str,
+                            ],
+                        },
+                    },
+                },
+                args: [
+                    Expr {
+                        kind: Path(
+                            [
+                                "numbers",
+                            ],
+                        ),
+                        ty: Array(
+                            I64,
+                        ),
+                    },
+                ],
+            },
+            ty: Adt {
+                name: [
+                    "Result",
+                ],
+                generics: [
+                    I64,
+                    Str,
+                ],
+            },
+        },
+    },
+)
+Stmt(
+    Let {
+        name: "finalResult",
+        is_mut: false,
+        value_ty: Error,
+        value: Expr {
+            kind: Literal(
+                Bool(
+                    true,
+                ),
+            ),
+            ty: Error,
+        },
+    },
+)
