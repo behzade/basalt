@@ -169,6 +169,10 @@ pub enum ExprKind<'src> {
         scrutinee: Box<Expr<'src>>,
         arms: Vec<(Pattern<'src>, Expr<'src>)>,
     },
+    While {
+        cond: Box<Expr<'src>>,
+        body: Box<Expr<'src>>,
+    },
     // ... other expression kinds would follow
 }
 

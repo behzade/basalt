@@ -43,6 +43,9 @@ impl<'src> TypeChecker<'src> {
             ast::Expr::Match { scrutinee, arms } => {
                 self.check_match(scrutinee, arms, type_hint)?
             }
+            ast::Expr::While { cond, body } => {
+                self.check_while(cond, body)?
+            }
             _ => return Ok(hir::Expr {
                 kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
                 ty: Ty::Error,
@@ -200,16 +203,17 @@ impl<'src> TypeChecker<'src> {
         let mut has_return = false;
 
         for stmt in stmts {
-            // If we find a return, its type defines the rest of the block.
+            // Check if this is a return statement
             if let ast::Stmt::Return(Some(expr)) = stmt {
                 let hir_expr = self.check_expr_with_hint(expr, type_hint)?;
                 self.unify(&hir_expr.ty, type_hint)?;
                 block_ty = hir_expr.ty.clone();
                 hir_stmts.push(hir::Stmt::Return(Some(hir_expr)));
                 has_return = true;
-                break; // No more statements matter
+                // Don't break here - continue processing to find the last reachable return
+            } else {
+                hir_stmts.push(self.check_stmt(stmt)?);
             }
-            hir_stmts.push(self.check_stmt(stmt)?);
         }
 
         let (hir_last, final_ty) = if has_return {
@@ -467,5 +471,26 @@ impl<'src> TypeChecker<'src> {
             arms: hir_arms,
         };
         Ok((kind, final_ty))
+    }
+
+    fn check_while(
+        &mut self,
+        cond: &ast::Expr<'src>,
+        body: &ast::Expr<'src>,
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        // Check the condition - it must be boolean
+        let hir_cond = self.check_expr(cond)?;
+        self.unify(&hir_cond.ty, &Ty::Bool)?;
+
+        // Check the body - while loops don't produce a value, so they return unit
+        let hir_body = self.check_expr(body)?;
+
+        let kind = hir::ExprKind::While {
+            cond: Box::new(hir_cond),
+            body: Box::new(hir_body),
+        };
+
+        // While loops return unit type
+        Ok((kind, Ty::Unit))
     }
 } 
