@@ -1,16 +1,24 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
+// FIX: Removed `use chumsky::Parser;` as it's no longer needed.
 use clap::Parser as ClapParser;
 use std::fs;
 use std::io::{self, Read};
 
+// --- Module Declarations ---
 mod ast;
+mod hir;
 mod lexer;
 mod parser;
 mod token;
 mod typechecker;
-// This assumes your lib is named 'basalt'. If it's different, change this line.
-use crate::{lexer::lexer, parser::file_parser, token::Token, typechecker::{type_check_file, type_check_file_with_ast}};
+
+use crate::{
+    lexer::lexer,
+    parser::file_parser,
+    token::Token,
+    typechecker::{TypeChecker, TypeError},
+};
 
 #[derive(ClapParser)]
 #[command(version, about, long_about = None)]
@@ -28,180 +36,56 @@ enum Action {
     },
     /// Type-check a file
     TypeCheck { path: String },
-    /// Type-check a file and show typed AST
+    /// Type-check a file and print the typed HIR (Hierarchical IR)
     TypeCheckAst { path: String },
     /// (Coming soon) Compile a file
     Compile { path: String },
 }
 
 fn main() -> io::Result<()> {
-    // FIX: Changed `Cli.parse()` to the correct `Cli::parse()` for the associated function.
     let cli = Cli::parse();
 
     match cli.action {
         Action::Parse { path } => {
-            let (source_id, source_code) = match path {
-                Some(path) => (path.clone(), fs::read_to_string(&path)?),
-                None => {
-                    let mut buf = String::new();
-                    io::stdin().read_to_string(&mut buf)?;
-                    ("stdin".to_string(), buf)
-                }
-            };
-
-            // --- Lexing ---
+            let (source_id, source_code) = read_source(path)?;
             let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
-            report_lexer_errors(&source_code, &source_id, &lex_errs);
 
-            // If there are lexing errors, exit with error code
-            if !lex_errs.is_empty() {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Lexing errors occurred"));
+            if report_errors(&source_code, &source_id, &lex_errs, |e| {
+                (
+                    e.span().into_range(),
+                    format!("Unexpected character: {}", e.reason()),
+                )
+            }) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Lexing errors occurred",
+                ));
             }
 
             if let Some(tokens) = tokens {
-                // --- Parsing ---
-                // FIX: The parser expects a slice `&[Token]`, so we pass that directly
-                // instead of creating a `Stream`.
+                // FIX: Reverted to the original parser invocation.
                 let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
                 let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
 
-                report_parser_errors(&source_code, &source_id, &parse_errs, &tokens);
-
-                // If there are parsing errors, exit with error code
-                if !parse_errs.is_empty() {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Parsing errors occurred"));
+                if report_parser_errors(&source_code, &source_id, &parse_errs, &tokens) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Parsing errors occurred",
+                    ));
                 }
 
                 if let Some(ast) = ast {
                     println!("{:#?}", ast);
-                } else {
-                    // If no AST was produced, exit with error code
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to parse input"));
                 }
-            } else {
-                // If no tokens were produced, exit with error code
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to tokenize input"));
             }
         }
         Action::TypeCheck { path } => {
-            let source_code = fs::read_to_string(&path)?;
-            let source_id = path.clone();
-
-            // --- Lexing ---
-            let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
-            report_lexer_errors(&source_code, &source_id, &lex_errs);
-
-            // If there are lexing errors, exit with error code
-            if !lex_errs.is_empty() {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Lexing errors occurred"));
-            }
-
-            if let Some(tokens) = tokens {
-                // --- Parsing ---
-                let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-                let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
-
-                report_parser_errors(&source_code, &source_id, &parse_errs, &tokens);
-
-                // If there are parsing errors, exit with error code
-                if !parse_errs.is_empty() {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Parsing errors occurred"));
-                }
-
-                if let Some(ast) = ast {
-                    // --- Type Checking ---
-                    match type_check_file(&ast) {
-                        Ok(()) => {
-                            println!("Type checking completed successfully!");
-                        }
-                        Err(type_errors) => {
-                            // Report type errors
-                            for error in &type_errors {
-                                let report = Report::build(ReportKind::Error, &source_id, 0);
-                                let report = report
-                                    .with_message("Type error")
-                                    .with_label(
-                                        Label::new((&source_id, 0..1))
-                                            .with_message(&error.message)
-                                            .with_color(Color::Red),
-                                    );
-                                report.finish().print((&source_id, Source::from(&source_code))).unwrap();
-                            }
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, "Type checking errors occurred"));
-                        }
-                    }
-                } else {
-                    // If no AST was produced, exit with error code
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to parse input"));
-                }
-            } else {
-                // If no tokens were produced, exit with error code
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to tokenize input"));
-            }
+            let (source_id, source_code) = read_source(Some(path))?;
+            run_type_checker(&source_code, &source_id, false)?;
         }
         Action::TypeCheckAst { path } => {
-            let source_code = fs::read_to_string(&path)?;
-            let source_id = path.clone();
-
-            // --- Lexing ---
-            let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
-            report_lexer_errors(&source_code, &source_id, &lex_errs);
-
-            // If there are lexing errors, exit with error code
-            if !lex_errs.is_empty() {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Lexing errors occurred"));
-            }
-
-            if let Some(tokens) = tokens {
-                // --- Parsing ---
-                let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-                let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
-
-                report_parser_errors(&source_code, &source_id, &parse_errs, &tokens);
-
-                // If there are parsing errors, exit with error code
-                if !parse_errs.is_empty() {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Parsing errors occurred"));
-                }
-
-                if let Some(ast) = ast {
-                    // --- Type Checking with AST ---
-                    match type_check_file_with_ast(&ast) {
-                        Ok(typed_items) => {
-                            println!("Type checking completed successfully!");
-                            println!("\n=== Typed AST ===");
-                            for (i, typed_item) in typed_items.iter().enumerate() {
-                                println!("Item {}: {:?}", i, typed_item.item);
-                                if !typed_item.inferred_types.is_empty() {
-                                    println!("  Inferred types: {:?}", typed_item.inferred_types);
-                                }
-                                println!();
-                            }
-                        }
-                        Err(type_errors) => {
-                            // Report type errors
-                            for error in &type_errors {
-                                let report = Report::build(ReportKind::Error, &source_id, 0);
-                                let report = report
-                                    .with_message("Type error")
-                                    .with_label(
-                                        Label::new((&source_id, 0..1))
-                                            .with_message(&error.message)
-                                            .with_color(Color::Red),
-                                    );
-                                report.finish().print((&source_id, Source::from(&source_code))).unwrap();
-                            }
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, "Type checking errors occurred"));
-                        }
-                    }
-                } else {
-                    // If no AST was produced, exit with error code
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to parse input"));
-                }
-            } else {
-                // If no tokens were produced, exit with error code
-                return Err(io::Error::new(io::ErrorKind::InvalidData, "Failed to tokenize input"));
-            }
+            let (source_id, source_code) = read_source(Some(path))?;
+            run_type_checker(&source_code, &source_id, true)?;
         }
         Action::Compile { .. } => {
             println!("Compilation is not yet implemented.");
@@ -211,62 +95,181 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn report_lexer_errors(source_code: &str, source_id: &str, errors: &[Rich<char>]) {
-    for e in errors {
-        let report = Report::build(ReportKind::Error, source_id, e.span().start);
-        
-        let report = match e.reason() {
-            chumsky::error::RichReason::ExpectedFound { found, .. } => report
-                .with_message("Unexpected character in input")
-                .with_label(
-                    Label::new((source_id, e.span().into_range()))
-                        .with_message(format!(
-                            "Unexpected character {}",
-                            found.map(|c| c.to_string()).unwrap_or_else(|| "end of file".to_string()).fg(Color::Red)
-                        ))
-                        .with_color(Color::Red),
-                ),
-            chumsky::error::RichReason::Custom(msg) => report.with_message(msg).with_label(
-                Label::new((source_id, e.span().into_range()))
-                    .with_message(format!("{}", msg.fg(Color::Red)))
-                    .with_color(Color::Red),
-            ),
-            // FIX: Removed unreachable `_` pattern. The two patterns above cover all variants of `RichReason`.
-        };
-        report.finish().print((source_id, Source::from(source_code))).unwrap();
+/// A helper function to encapsulate the full lex, parse, and type-check pipeline.
+fn run_type_checker(source_code: &str, source_id: &str, print_hir: bool) -> io::Result<()> {
+    // --- Lexing ---
+    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
+    if report_errors(source_code, source_id, &lex_errs, |e| {
+        (
+            e.span().into_range(),
+            format!("Unexpected character: {}", e.reason()),
+        )
+    }) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Lexing errors occurred",
+        ));
+    }
+
+    // --- Parsing ---
+    let tokens = tokens.unwrap(); // Safe to unwrap due to check above
+    // FIX: Reverted to the original parser invocation.
+    let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
+    let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
+    if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Parsing errors occurred",
+        ));
+    }
+
+    // --- Type Checking ---
+    if let Some(ast) = ast {
+        match TypeChecker::new().check_file(&ast) {
+            Ok(hir_items) => {
+                println!("Type checking completed successfully!");
+                if print_hir {
+                    println!("\n=== Typed HIR ===");
+                    for item in hir_items {
+                        println!("{:#?}", item);
+                    }
+                }
+            }
+            Err(type_errors) => {
+                report_type_errors(source_code, source_id, &type_errors);
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "Type checking errors occurred",
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Reads source code from a file path or from stdin.
+fn read_source(path: Option<String>) -> io::Result<(String, String)> {
+    match path {
+        Some(path) => Ok((path.clone(), fs::read_to_string(&path)?)),
+        None => {
+            let mut buf = String::new();
+            io::stdin().read_to_string(&mut buf)?;
+            Ok(("stdin".to_string(), buf))
+        }
     }
 }
 
-fn report_parser_errors(source_code: &str, source_id: &str, errors: &[Rich<Token>], tokens_with_spans: &[(Token, chumsky::span::SimpleSpan)]) {
+/// A generic error reporting function for lexer errors.
+fn report_errors<T: std::fmt::Display>(
+    source_code: &str,
+    source_id: &str,
+    errors: &[Rich<T>],
+    map_fn: impl Fn(&Rich<T>) -> (std::ops::Range<usize>, String),
+) -> bool {
     for e in errors {
-        let report_span = if let Some((_, span)) = tokens_with_spans.get(e.span().start) {
+        let (span, msg) = map_fn(e);
+        Report::build(ReportKind::Error, source_id, span.start)
+            .with_message("Lexing error")
+            .with_label(
+                Label::new((source_id, span))
+                    .with_message(msg)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .print((source_id, Source::from(source_code)))
+            .unwrap();
+    }
+    !errors.is_empty()
+}
+
+/// A dedicated error reporting function for parser errors.
+fn report_parser_errors(
+    source_code: &str,
+    source_id: &str,
+    errors: &[Rich<Token>],
+    tokens: &[(Token, SimpleSpan)],
+) -> bool {
+    for e in errors {
+        let report_span = if let Some((_, span)) = tokens.get(e.span().start) {
             span.into_range()
         } else {
             let end = source_code.chars().count();
-            end..end+1
+            end..end + 1
         };
 
         let report = Report::build(ReportKind::Error, source_id, report_span.start);
-        
         let report = match e.reason() {
             chumsky::error::RichReason::ExpectedFound { expected, found } => {
-                let expected_str = expected.iter().map(|e| e.to_string()).collect::<Vec<_>>().join(" or ");
-                let found_str = found.as_ref().map(|f| f.to_string()).unwrap_or_else(|| "end of input".to_string());
+                let expected_str = expected
+                    .iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" or ");
+                let found_str = found
+                    .as_ref()
+                    .map(|f| f.to_string())
+                    .unwrap_or_else(|| "end of input".to_string());
                 report
                     .with_message(format!("Unexpected token, expected {}", expected_str))
                     .with_label(
                         Label::new((source_id, report_span))
-                            .with_message(format!("Found {} but expected {}", found_str.fg(Color::Red), expected_str.fg(Color::Green)))
+                            .with_message(format!(
+                                "Found {} but expected {}",
+                                found_str.fg(Color::Red),
+                                expected_str.fg(Color::Green)
+                            ))
                             .with_color(Color::Red),
                     )
-            },
+            }
             chumsky::error::RichReason::Custom(msg) => report.with_message(msg).with_label(
                 Label::new((source_id, report_span))
                     .with_message(format!("{}", msg.fg(Color::Red)))
                     .with_color(Color::Red),
             ),
-            // FIX: Removed unreachable `_` pattern.
         };
-        report.finish().print((source_id, Source::from(source_code))).unwrap();
+        report
+            .finish()
+            .print((source_id, Source::from(source_code)))
+            .unwrap();
+    }
+    !errors.is_empty()
+}
+
+/// A new, dedicated error reporting function for our structured type errors.
+fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) {
+    for e in errors {
+        // NOTE: Spans are not yet implemented in our TypeError, so we report at the top of the file.
+        // This is a key area for future improvement.
+        let span = 0..1;
+        let msg = match e {
+            TypeError::MismatchedTypes { expected, found } => {
+                format!(
+                    "Mismatched types: expected `{}`, found `{}`",
+                    expected, found
+                )
+            }
+            TypeError::UnknownVariable(name) => format!("Unknown variable: `{}`", name),
+            TypeError::UnknownFunction(name) => format!("Unknown function: `{}`", name),
+            TypeError::InvalidOperator { op, ty } => {
+                format!("Cannot apply operator `{}` to type `{}`", op, ty)
+            }
+            TypeError::UnificationError(t1, t2) => {
+                format!("Cannot unify types `{}` and `{}`", t1, t2)
+            }
+            // Add other error types here...
+            _ => "An unknown type error occurred".to_string(),
+        };
+
+        Report::build(ReportKind::Error, source_id, span.start)
+            .with_message("Type Error")
+            .with_label(
+                Label::new((source_id, span))
+                    .with_message(msg.fg(Color::Red))
+                    .with_color(Color::Red),
+            )
+            .finish()
+            .print((source_id, Source::from(source_code)))
+            .unwrap();
     }
 }

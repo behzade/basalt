@@ -139,7 +139,7 @@ pub struct Function<'src> {
     pub ret_type: Option<Type<'src>>,
     pub effects: Vec<&'src str>,
     pub body: Expr<'src>, // Block expression
-    pub is_public: bool, // Whether this function is public/exported
+    pub is_public: bool,  // Whether this function is public/exported
 }
 
 #[derive(Debug, PartialEq, Clone)]

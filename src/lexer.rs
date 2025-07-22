@@ -110,7 +110,7 @@ pub fn lexer<'src>()
     let token = comment
         .or(literal)
         .or(ident)
-        .or(op)  // Operators must come before punctuation to handle "..." correctly
+        .or(op) // Operators must come before punctuation to handle "..." correctly
         .or(punc)
         // We use `recover_with` and `skip_then_retry_until` to handle errors gracefully.
         // This strategy skips characters one by one until it finds a character that can
