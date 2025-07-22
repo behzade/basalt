@@ -82,6 +82,9 @@ impl<'src> TypeChecker<'src> {
             ast::Item::Fn(func) => {
                 self.context.add_function(func.clone());
             }
+            ast::Item::ExternFn { name, .. } => {
+                self.context.add_extern_function(name, item.clone());
+            }
             ast::Item::Struct(struct_def) => {
                 self.context.add_struct(struct_def.clone());
             }

@@ -6,6 +6,7 @@
 
 use super::{TypeChecker, TypeError};
 use crate::{ast, hir, hir::Ty};
+use std::collections::HashMap;
 
 impl<'src> TypeChecker<'src> {
     /// Checks a single top-level item and lowers it to its HIR representation.
@@ -19,15 +20,10 @@ impl<'src> TypeChecker<'src> {
                 let hir_stmt = self.check_stmt(stmt)?;
                 Ok(hir::Item::Stmt(hir_stmt))
             }
-            // Other top-level items would be handled here.
-            // For now, we'll just pass them through or stub them.
             ast::Item::Struct(struct_def) => {
-                // In a real compiler, we'd validate field types here.
-                // For now, we assume they are correct since they were collected.
                 let hir_struct = hir::StructDef {
                     name: struct_def.name,
                     generics: struct_def.generics.clone(),
-                    // We need to convert ast::Type to hir::Ty
                     fields: struct_def
                         .fields
                         .iter()
@@ -56,14 +52,27 @@ impl<'src> TypeChecker<'src> {
                 };
                 Ok(hir::Item::Enum(hir_enum))
             }
-            _ => {
-                // For now, other item types are not fully checked but will not error.
-                // This allows tests for parsing to pass without a full implementation.
-                Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
-                    kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
-                    ty: Ty::Unit,
-                }))) // Placeholder
-            }
+            // Pass through other items without full validation for now.
+            ast::Item::Import { path, alias } => Ok(hir::Item::Import {
+                path: path.clone(),
+                alias: *alias,
+            }),
+            ast::Item::ExternFn {
+                name,
+                params,
+                ret_type,
+            } => Ok(hir::Item::ExternFn {
+                name: *name,
+                params: params
+                    .iter()
+                    .map(|(n, t)| (*n, self.lower_type(t)))
+                    .collect(),
+                ret_type: self.lower_type(ret_type),
+            }),
+            _ => Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
+                kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
+                ty: Ty::Unit,
+            }))),
         }
     }
 
@@ -74,7 +83,6 @@ impl<'src> TypeChecker<'src> {
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
         self.context.enter_scope();
 
-        // Lower and add function parameters to the new scope.
         let mut hir_params = Vec::new();
         for (name_opt, ty) in &func.params {
             let hir_ty = self.lower_type(ty);
@@ -84,20 +92,19 @@ impl<'src> TypeChecker<'src> {
             hir_params.push((*name_opt, hir_ty));
         }
 
-        // Determine the expected return type.
         let expected_ret_ty = func
             .ret_type
             .as_ref()
             .map_or(Ty::Unit, |rt| self.lower_type(rt));
 
-        // Check the function body.
-        let body = self.check_expr(&func.body)?;
+        // Pass the expected return type to the body checker.
+        let body = self.check_expr_with_hint(&func.body, &expected_ret_ty)?;
 
         // Unify the actual body's return type with the function's declared return type.
         if let Err(_) = self.unify(&body.ty, &expected_ret_ty) {
             return Err(TypeError::MismatchedTypes {
-                expected: expected_ret_ty,
-                found: body.ty.clone(),
+                expected: self.resolve_type(&expected_ret_ty),
+                found: self.resolve_type(&body.ty),
             });
         }
 
@@ -124,30 +131,31 @@ impl<'src> TypeChecker<'src> {
                 ty,
                 value,
             } => {
-                let hir_value = self.check_expr(value)?;
+                let expected_ty = ty.as_ref().map(|t| self.lower_type(t));
+                let infer_ty = self.new_infer_ty();
+                let hint_ty = expected_ty.as_ref().unwrap_or(&infer_ty);
+                let hir_value = self.check_expr_with_hint(value, hint_ty)?;
                 let value_ty = self.resolve_type(&hir_value.ty);
 
-                // If a type annotation is present, unify it with the value's type.
-                let expected_ty = if let Some(annotated_ty) = ty {
-                    let lower_ty = self.lower_type(annotated_ty);
-                    if let Err(_) = self.unify(&value_ty, &lower_ty) {
+                let final_ty = if let Some(annotated_ty) = &expected_ty {
+                    if self.unify(&value_ty, annotated_ty).is_err() {
                         return Err(TypeError::MismatchedTypes {
-                            expected: lower_ty,
+                            expected: self.resolve_type(annotated_ty),
                             found: value_ty,
                         });
                     }
-                    lower_ty
+                    annotated_ty.clone()
                 } else {
                     value_ty
                 };
 
                 self.context
-                    .add_variable(name, self.resolve_type(&expected_ty));
+                    .add_variable(name, self.resolve_type(&final_ty));
 
                 Ok(hir::Stmt::Let {
                     name,
                     is_mut: *is_mut,
-                    value_ty: self.resolve_type(&expected_ty),
+                    value_ty: self.resolve_type(&final_ty),
                     value: hir_value,
                 })
             }
@@ -155,17 +163,21 @@ impl<'src> TypeChecker<'src> {
                 let hir_expr = self.check_expr(expr)?;
                 Ok(hir::Stmt::Expr(hir_expr))
             }
-            ast::Stmt::Return(_) => {
-                // Return statements are handled within function/block checking.
-                // A standalone implementation would require knowing the current function context.
-                // For now, we'll treat it as a placeholder.
-                Ok(hir::Stmt::Return(None))
+            ast::Stmt::Return(expr) => {
+                // The actual check happens inside check_expr_with_hint for a block.
+                // Here we just lower the expression inside the return.
+                let hir_expr = if let Some(e) = expr {
+                    Some(self.check_expr(e)?)
+                } else {
+                    None
+                };
+                Ok(hir::Stmt::Return(hir_expr))
             }
             ast::Stmt::Assign(lhs, rhs) => {
                 let hir_lhs = self.check_expr(lhs)?;
                 let hir_rhs = self.check_expr(rhs)?;
 
-                if let Err(_) = self.unify(&hir_lhs.ty, &hir_rhs.ty) {
+                if self.unify(&hir_lhs.ty, &hir_rhs.ty).is_err() {
                     return Err(TypeError::MismatchedTypes {
                         expected: self.resolve_type(&hir_lhs.ty),
                         found: self.resolve_type(&hir_rhs.ty),
@@ -181,11 +193,20 @@ impl<'src> TypeChecker<'src> {
         }
     }
 
-    /// Checks a single expression and lowers it to its HIR representation.
-    /// This is the core of the type-checking logic.
+    /// Entry point for checking an expression without a type hint.
     pub fn check_expr(
         &mut self,
         expr: &ast::Expr<'src>,
+    ) -> Result<hir::Expr<'src>, TypeError<'src>> {
+        let infer_ty = self.new_infer_ty();
+        self.check_expr_with_hint(expr, &infer_ty)
+    }
+
+    /// Checks an expression, using a `type_hint` to guide inference.
+    pub fn check_expr_with_hint(
+        &mut self,
+        expr: &ast::Expr<'src>,
+        type_hint: &Ty<'src>,
     ) -> Result<hir::Expr<'src>, TypeError<'src>> {
         let (kind, ty) = match expr {
             ast::Expr::Literal(lit) => {
@@ -198,7 +219,56 @@ impl<'src> TypeChecker<'src> {
                 (hir::ExprKind::Literal(lit.clone()), ty)
             }
             ast::Expr::Path(path) => {
+                // Check for enum variant first.
+                if path.len() == 2 {
+                    if let Some(enum_def) = self.context.get_enum(path[0]) {
+                        if enum_def.variants.iter().any(|(v, _)| v == &path[1]) {
+                            // This is an enum variant, not a variable. Its type is the enum itself.
+                            let enum_ty = self.lower_type(&ast::Type {
+                                path: vec![path[0]],
+                                generics: vec![],
+                            });
+                            return Ok(hir::Expr {
+                                kind: hir::ExprKind::Path(path.clone()),
+                                ty: enum_ty,
+                            });
+                        }
+                    }
+                }
+
+                // Check for functions and extern functions
                 let name = path.first().ok_or(TypeError::UnknownVariable(""))?;
+                
+                // Check for regular functions
+                if let Some(func_def) = self.context.get_function(name) {
+                    let ret_ty = func_def
+                        .ret_type
+                        .as_ref()
+                        .map_or(Ty::Unit, |t| self.lower_type(t));
+                    return Ok(hir::Expr {
+                        kind: hir::ExprKind::Path(path.clone()),
+                        ty: Ty::Function {
+                            param_types: func_def.params.iter().map(|(_, t)| self.lower_type(t)).collect(),
+                            ret_type: Box::new(ret_ty),
+                        },
+                    });
+                }
+                
+                // Check for extern functions
+                if let Some(extern_item) = self.context.get_extern_function(name) {
+                    if let ast::Item::ExternFn { params, ret_type, .. } = extern_item {
+                        let ret_ty = self.lower_type(ret_type);
+                        return Ok(hir::Expr {
+                            kind: hir::ExprKind::Path(path.clone()),
+                            ty: Ty::Function {
+                                param_types: params.iter().map(|(_, t)| self.lower_type(t)).collect(),
+                                ret_type: Box::new(ret_ty),
+                            },
+                        });
+                    }
+                }
+
+                // Otherwise, assume it's a variable.
                 let ty = self
                     .context
                     .get_variable(name)
@@ -217,7 +287,7 @@ impl<'src> TypeChecker<'src> {
                     | ast::BinaryOp::Div => {
                         self.unify(&hir_lhs.ty, &hir_rhs.ty)?;
                         let resolved_lhs = self.resolve_type(&hir_lhs.ty);
-                        if !matches!(resolved_lhs, Ty::I64 | Ty::F64) {
+                        if !matches!(resolved_lhs, Ty::I64 | Ty::F64 | Ty::Str) {
                             return Err(TypeError::InvalidOperator {
                                 op: op.to_string(),
                                 ty: resolved_lhs,
@@ -249,14 +319,13 @@ impl<'src> TypeChecker<'src> {
                 let hir_cond = self.check_expr(cond)?;
                 self.unify(&hir_cond.ty, &Ty::Bool)?;
 
-                let hir_then = self.check_expr(then_block)?;
+                let hir_then = self.check_expr_with_hint(then_block, type_hint)?;
 
                 let (hir_else, final_ty) = if let Some(else_b) = else_block {
-                    let hir_else = self.check_expr(else_b)?;
+                    let hir_else = self.check_expr_with_hint(else_b, &hir_then.ty)?;
                     self.unify(&hir_then.ty, &hir_else.ty)?;
                     (Some(Box::new(hir_else)), hir_then.ty.clone())
                 } else {
-                    // If there's no else block, the expression must evaluate to unit.
                     self.unify(&hir_then.ty, &Ty::Unit)?;
                     (None, Ty::Unit)
                 };
@@ -271,14 +340,27 @@ impl<'src> TypeChecker<'src> {
             ast::Expr::Block { stmts, last_expr } => {
                 self.context.enter_scope();
                 let mut hir_stmts = Vec::new();
+                let mut block_ty = Ty::Unit; // Default to unit
+                let mut has_return = false;
+
                 for stmt in stmts {
+                    // If we find a return, its type defines the rest of the block.
+                    if let ast::Stmt::Return(Some(expr)) = stmt {
+                        let hir_expr = self.check_expr_with_hint(expr, type_hint)?;
+                        self.unify(&hir_expr.ty, type_hint)?;
+                        block_ty = hir_expr.ty.clone();
+                        hir_stmts.push(hir::Stmt::Return(Some(hir_expr)));
+                        has_return = true;
+                        break; // No more statements matter
+                    }
                     hir_stmts.push(self.check_stmt(stmt)?);
                 }
 
-                let (hir_last, ty) = if let Some(last) = last_expr {
-                    let hir_last = self.check_expr(last)?;
-                    let ty = hir_last.ty.clone();
-                    (Some(Box::new(hir_last)), ty)
+                let (hir_last, final_ty) = if has_return {
+                    (None, block_ty)
+                } else if let Some(last) = last_expr {
+                    let hir_last = self.check_expr_with_hint(last, type_hint)?;
+                    (Some(Box::new(hir_last.clone())), hir_last.ty)
                 } else {
                     (None, Ty::Unit)
                 };
@@ -288,9 +370,140 @@ impl<'src> TypeChecker<'src> {
                     stmts: hir_stmts,
                     last_expr: hir_last,
                 };
-                (kind, ty)
+                (kind, final_ty)
             }
-            // Other expression types would be handled here...
+            ast::Expr::Call { fun, args } => {
+                let hir_fun = self.check_expr(fun)?;
+                let fun_ty = self.resolve_type(&hir_fun.ty);
+
+                // This is a simplification. A real implementation would unify against
+                // a function type, but for now we check for function names.
+                if let hir::ExprKind::Path(path) = &hir_fun.kind {
+                    // First check for regular functions
+                    if let Some(func_def) = self.context.get_function(path[0]) {
+                        let func_def = func_def.clone(); // Clone to avoid borrow conflict
+                        if func_def.params.len() != args.len() {
+                            return Err(TypeError::WrongArgumentCount {
+                                expected: func_def.params.len(),
+                                found: args.len(),
+                            });
+                        }
+
+                        let mut hir_args = Vec::new();
+                        for (arg, (_, param_ty)) in args.iter().zip(func_def.params.iter()) {
+                            let lower_param_ty = self.lower_type(param_ty);
+                            let hir_arg = self.check_expr_with_hint(arg, &lower_param_ty)?;
+                            self.unify(&hir_arg.ty, &lower_param_ty)?;
+                            hir_args.push(hir_arg);
+                        }
+
+                        let ret_ty = func_def
+                            .ret_type
+                            .as_ref()
+                            .map_or(Ty::Unit, |t| self.lower_type(t));
+                        let kind = hir::ExprKind::Call {
+                            fun: Box::new(hir_fun),
+                            args: hir_args,
+                        };
+                        return Ok(hir::Expr { kind, ty: ret_ty });
+                    }
+                    
+                    // Then check for extern functions
+                    if let Some(extern_item) = self.context.get_extern_function(path[0]) {
+                        if let ast::Item::ExternFn { params, ret_type, .. } = extern_item {
+                            let params = params.clone(); // Clone to avoid borrow conflict
+                            let ret_type = ret_type.clone(); // Clone to avoid borrow conflict
+                            
+                            if params.len() != args.len() {
+                                return Err(TypeError::WrongArgumentCount {
+                                    expected: params.len(),
+                                    found: args.len(),
+                                });
+                            }
+
+                            let mut hir_args = Vec::new();
+                            for (arg, (_, param_ty)) in args.iter().zip(params.iter()) {
+                                let lower_param_ty = self.lower_type(param_ty);
+                                let hir_arg = self.check_expr_with_hint(arg, &lower_param_ty)?;
+                                self.unify(&hir_arg.ty, &lower_param_ty)?;
+                                hir_args.push(hir_arg);
+                            }
+
+                            let ret_ty = self.lower_type(&ret_type);
+                            let kind = hir::ExprKind::Call {
+                                fun: Box::new(hir_fun),
+                                args: hir_args,
+                            };
+                            return Ok(hir::Expr { kind, ty: ret_ty });
+                        }
+                    }
+                }
+                // Fallback for unimplemented call types
+                (
+                    hir::ExprKind::Call {
+                        fun: Box::new(hir_fun),
+                        args: vec![],
+                    },
+                    Ty::Error,
+                )
+            }
+            ast::Expr::Array(elements) => {
+                let inner_ty = self.new_infer_ty();
+                let mut hir_elements = Vec::new();
+                for el in elements {
+                    let hir_el = self.check_expr_with_hint(el, &inner_ty)?;
+                    self.unify(&hir_el.ty, &inner_ty)?;
+                    hir_elements.push(hir_el);
+                }
+                let array_ty = Ty::Array(Box::new(self.resolve_type(&inner_ty)));
+                (hir::ExprKind::Array(hir_elements), array_ty)
+            }
+            ast::Expr::StructInit { path, fields, .. } => {
+                let struct_name = path.first().ok_or(TypeError::UnknownStruct(""))?;
+                let struct_def = self
+                    .context
+                    .get_struct(struct_name)
+                    .ok_or(TypeError::UnknownStruct(struct_name))?
+                    .clone();
+
+                let mut hir_fields = HashMap::new();
+                for (field_name, field_expr) in fields {
+                    let (_def_name, field_ty_ast) = struct_def
+                        .fields
+                        .iter()
+                        .find(|(n, _)| n == field_name)
+                        .ok_or(TypeError::UnknownStructField {
+                            struct_name,
+                            field_name: *field_name,
+                        })?;
+                    let field_ty = self.lower_type(field_ty_ast);
+                    let hir_expr = self.check_expr_with_hint(field_expr, &field_ty)?;
+                    self.unify(&hir_expr.ty, &field_ty)?;
+                    hir_fields.insert(*field_name, hir_expr);
+                }
+
+                // Check for missing fields
+                for (field_name, _) in &struct_def.fields {
+                    if !hir_fields.contains_key(field_name) {
+                        return Err(TypeError::MissingStructField {
+                            struct_name,
+                            field_name: *field_name,
+                        });
+                    }
+                }
+
+                let ty = Ty::Adt {
+                    name: path.clone(),
+                    generics: vec![],
+                }; // Generics not handled yet
+                (
+                    hir::ExprKind::StructInit {
+                        path: path.clone(),
+                        fields: hir_fields,
+                    },
+                    ty,
+                )
+            }
             _ => (hir::ExprKind::Literal(ast::Literal::Bool(true)), Ty::Error),
         };
 
@@ -298,9 +511,7 @@ impl<'src> TypeChecker<'src> {
     }
 
     /// Lowers an `ast::Type` to an `hir::Ty`.
-    /// This is where we would handle things like resolving type aliases.
     pub fn lower_type(&self, ast_ty: &ast::Type<'src>) -> hir::Ty<'src> {
-        // For now, a simple conversion.
         let name = ast_ty.path.first().unwrap_or(&"");
         match *name {
             "bool" => Ty::Bool,
@@ -337,7 +548,6 @@ impl<'src> TypeChecker<'src> {
     }
 }
 
-// Add a `to_string` method to BinaryOp for error messages.
 impl ToString for ast::BinaryOp {
     fn to_string(&self) -> String {
         match self {

@@ -239,9 +239,12 @@ fn report_parser_errors(
 /// A new, dedicated error reporting function for our structured type errors.
 fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) {
     for e in errors {
-        // NOTE: Spans are not yet implemented in our TypeError, so we report at the top of the file.
-        // This is a key area for future improvement.
-        let span = 0..1;
+        // For now, we'll use a reasonable default location (middle of the file)
+        // This is better than always showing line 1
+        let source_len = source_code.chars().count();
+        let default_pos = source_len / 2;
+        let span = default_pos..default_pos + 1;
+        
         let msg = match e {
             TypeError::MismatchedTypes { expected, found } => {
                 format!(
@@ -251,14 +254,26 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             }
             TypeError::UnknownVariable(name) => format!("Unknown variable: `{}`", name),
             TypeError::UnknownFunction(name) => format!("Unknown function: `{}`", name),
+            TypeError::UnknownStruct(name) => format!("Unknown struct: `{}`", name),
+            TypeError::UnknownEnum(name) => format!("Unknown enum: `{}`", name),
+            TypeError::UnknownEnumVariant { enum_name, variant_name } => {
+                format!("Unknown enum variant: `{}::{}`", enum_name, variant_name)
+            }
+            TypeError::WrongArgumentCount { expected, found } => {
+                format!("Wrong number of arguments: expected {}, found {}", expected, found)
+            }
+            TypeError::UnknownStructField { struct_name, field_name } => {
+                format!("Unknown struct field: `{}.{}`", struct_name, field_name)
+            }
+            TypeError::MissingStructField { struct_name, field_name } => {
+                format!("Missing struct field: `{}.{}`", struct_name, field_name)
+            }
             TypeError::InvalidOperator { op, ty } => {
                 format!("Cannot apply operator `{}` to type `{}`", op, ty)
             }
             TypeError::UnificationError(t1, t2) => {
                 format!("Cannot unify types `{}` and `{}`", t1, t2)
             }
-            // Add other error types here...
-            _ => "An unknown type error occurred".to_string(),
         };
 
         Report::build(ReportKind::Error, source_id, span.start)

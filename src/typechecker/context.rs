@@ -28,6 +28,8 @@ pub struct TypeContext<'src> {
     // --- Global Definitions ---
     /// Functions available in the global scope.
     functions: HashMap<&'src str, ast::Function<'src>>,
+    /// Extern functions available in the global scope.
+    extern_functions: HashMap<&'src str, ast::Item<'src>>,
     /// Struct definitions available in the global scope.
     structs: HashMap<&'src str, ast::StructDef<'src>>,
     /// Enum definitions available in the global scope.
@@ -41,6 +43,7 @@ impl<'src> TypeContext<'src> {
         Self {
             scopes: vec![Scope::default()], // Start with the global scope.
             functions: HashMap::new(),
+            extern_functions: HashMap::new(),
             structs: HashMap::new(),
             enums: HashMap::new(),
         }
@@ -91,6 +94,16 @@ impl<'src> TypeContext<'src> {
     /// Retrieves a function definition from the global context.
     pub fn get_function(&self, name: &'src str) -> Option<&ast::Function<'src>> {
         self.functions.get(name)
+    }
+
+    /// Adds an extern function to the global context.
+    pub fn add_extern_function(&mut self, name: &'src str, item: ast::Item<'src>) {
+        self.extern_functions.insert(name, item);
+    }
+
+    /// Retrieves an extern function from the global context.
+    pub fn get_extern_function(&self, name: &'src str) -> Option<&ast::Item<'src>> {
+        self.extern_functions.get(name)
     }
 
     /// Adds a struct definition to the global context.
