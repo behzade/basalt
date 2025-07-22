@@ -458,13 +458,19 @@ impl<'src> TypeChecker<'src> {
                 let array_ty = Ty::Array(Box::new(self.resolve_type(&inner_ty)));
                 (hir::ExprKind::Array(hir_elements), array_ty)
             }
-            ast::Expr::StructInit { path, fields, .. } => {
+            ast::Expr::StructInit { path, generics, fields } => {
                 let struct_name = path.first().ok_or(TypeError::UnknownStruct(""))?;
                 let struct_def = self
                     .context
                     .get_struct(struct_name)
                     .ok_or(TypeError::UnknownStruct(struct_name))?
                     .clone();
+
+                // Create a substitution mapping from generic parameters to concrete types
+                let mut substitution = HashMap::new();
+                for (generic_param, concrete_type) in struct_def.generics.iter().zip(generics.iter()) {
+                    substitution.insert(*generic_param, self.lower_type(concrete_type));
+                }
 
                 let mut hir_fields = HashMap::new();
                 for (field_name, field_expr) in fields {
@@ -476,7 +482,9 @@ impl<'src> TypeChecker<'src> {
                             struct_name,
                             field_name: *field_name,
                         })?;
-                    let field_ty = self.lower_type(field_ty_ast);
+                    
+                    // Apply generic substitution to the field type
+                    let field_ty = self.substitute_generics(field_ty_ast, &substitution);
                     let hir_expr = self.check_expr_with_hint(field_expr, &field_ty)?;
                     self.unify(&hir_expr.ty, &field_ty)?;
                     hir_fields.insert(*field_name, hir_expr);
@@ -494,8 +502,8 @@ impl<'src> TypeChecker<'src> {
 
                 let ty = Ty::Adt {
                     name: path.clone(),
-                    generics: vec![],
-                }; // Generics not handled yet
+                    generics: generics.iter().map(|t| self.lower_type(t)).collect(),
+                };
                 (
                     hir::ExprKind::StructInit {
                         path: path.clone(),
@@ -544,6 +552,55 @@ impl<'src> TypeChecker<'src> {
                 name: ast_ty.path.clone(),
                 generics: ast_ty.generics.iter().map(|t| self.lower_type(t)).collect(),
             },
+        }
+    }
+
+    /// Substitutes generic type parameters in an `ast::Type` with concrete types.
+    fn substitute_generics(&self, ast_ty: &ast::Type<'src>, substitution: &HashMap<&'src str, hir::Ty<'src>>) -> hir::Ty<'src> {
+        let name = ast_ty.path.first().unwrap_or(&"");
+        
+        // Check if this is a generic parameter that needs substitution
+        if substitution.contains_key(name) {
+            return substitution[name].clone();
+        }
+        
+        match *name {
+            "bool" => Ty::Bool,
+            "i64" => Ty::I64,
+            "f64" => Ty::F64,
+            "string" => Ty::Str,
+            "none" => Ty::Unit,
+            "Array" => {
+                let inner = ast_ty
+                    .generics
+                    .first()
+                    .map_or(Ty::Error, |t| self.substitute_generics(t, substitution));
+                Ty::Array(Box::new(inner))
+            }
+            "Map" => {
+                let key = ast_ty
+                    .generics
+                    .get(0)
+                    .map_or(Ty::Error, |t| self.substitute_generics(t, substitution));
+                let value = ast_ty
+                    .generics
+                    .get(1)
+                    .map_or(Ty::Error, |t| self.substitute_generics(t, substitution));
+                Ty::Map {
+                    key: Box::new(key),
+                    value: Box::new(value),
+                }
+            }
+            _ => {
+                let mut generics = Vec::new();
+                for generic_param in &ast_ty.generics {
+                    generics.push(self.substitute_generics(generic_param, substitution));
+                }
+                Ty::Adt {
+                    name: ast_ty.path.clone(),
+                    generics,
+                }
+            }
         }
     }
 }
