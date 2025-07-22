@@ -124,10 +124,20 @@ pub enum Literal<'src> {
 }
 
 /// A pattern used in `match` expressions.
+/// A pattern used in `match` expressions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Pattern<'src> {
-    pub path: Path<'src>,
-    pub args: Vec<&'src str>,
+pub enum Pattern<'src> {
+    /// A literal pattern, e.g., `1`, `"hello"`, `true`.
+    Literal(Literal<'src>),
+    /// An identifier that binds the matched value, e.g., `x`.
+    Identifier(&'src str),
+    /// A path to an enum variant, e.g., `Option::Some(x)`.
+    Path {
+        path: Path<'src>,
+        args: Vec<Pattern<'src>>, // Note: args are now nested patterns
+    },
+    /// The wildcard pattern `_`.
+    Wildcard,
 }
 
 // --- Item Definitions ---

@@ -604,16 +604,38 @@ impl<'src> TypeChecker<'src> {
         pattern: &ast::Pattern<'src>,
         expected_ty: &hir::Ty<'src>,
     ) -> Result<hir::Pattern<'src>, TypeError<'src>> {
+        // Debug: Print the pattern being checked
+        println!("DEBUG: Checking pattern: {:?}", pattern);
+        
         // Unify the pattern's expected type with the scrutinee type
         let pattern_ty = expected_ty.clone();
 
-        let kind = match (&pattern.path[..], &pattern.args[..]) {
-            // Wildcard pattern: `_`
-            (["_"], []) => {
+        let kind = match pattern {
+            // Case ast::Pattern::Literal(lit):
+            ast::Pattern::Literal(lit) => {
+                // Determine the type of the literal
+                let literal_ty = match lit {
+                    ast::Literal::Bool(_) => hir::Ty::Bool,
+                    ast::Literal::I64(_) => hir::Ty::I64,
+                    ast::Literal::F64(_) => hir::Ty::F64,
+                    ast::Literal::Str(_) => hir::Ty::Str,
+                };
+                
+                // Unify this literal type with the scrutinee's type
+                self.unify(&literal_ty, expected_ty)?;
+                
+                hir::PatternKind::Literal(lit.clone())
+            }
+            
+            // Case ast::Pattern::Wildcard:
+            ast::Pattern::Wildcard => {
+                // This pattern matches anything. It doesn't add bindings.
                 hir::PatternKind::Wildcard
             }
-            // Single identifier pattern: could be binding or nullary variant
-            ([name], []) => {
+            
+            // Case ast::Pattern::Identifier(name):
+            ast::Pattern::Identifier(name) => {
+                // This is the existing logic for variable bindings
                 // First, check if this could be a nullary enum variant
                 if let hir::Ty::Adt { name: enum_name, .. } = expected_ty {
                     // Check if the scrutinee type is an ADT and if this name matches a variant
@@ -641,8 +663,10 @@ impl<'src> TypeChecker<'src> {
                     is_mut: false, // For now, assume all bindings are immutable
                 }
             }
-            // ADT variant pattern: `Option::Some(x)` or `Some(x)` (with arguments)
-            (path, args) => {
+            
+            // Case ast::Pattern::Path { .. }:
+            ast::Pattern::Path { path, args } => {
+                // This is the existing logic for AdtVariant patterns
                 // Handle both qualified (Option::Some) and unqualified (Some) paths
                 let (enum_name, variant_name) = if path.len() == 2 {
                     (path[0], path[1])
@@ -697,12 +721,8 @@ impl<'src> TypeChecker<'src> {
 
                 // Recursively check each sub-pattern
                 let mut fields = Vec::new();
-                for (arg_name, field_ty) in args.iter().zip(hir_variant_types.iter()) {
-                    let field_pattern = ast::Pattern {
-                        path: vec![arg_name],
-                        args: vec![],
-                    };
-                    let hir_field_pattern = self.check_pattern(&field_pattern, field_ty)?;
+                for (arg_pattern, field_ty) in args.iter().zip(hir_variant_types.iter()) {
+                    let hir_field_pattern = self.check_pattern(arg_pattern, field_ty)?;
                     fields.push(hir_field_pattern);
                 }
 
