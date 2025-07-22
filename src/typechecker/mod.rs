@@ -8,9 +8,13 @@
 pub use self::context::TypeContext;
 pub use self::error::TypeError;
 
-mod check;
 mod context;
 mod error;
+mod expressions;
+mod items;
+mod patterns;
+mod statements;
+mod types;
 mod unification;
 
 use crate::ast;

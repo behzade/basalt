@@ -236,3 +236,18 @@ pub enum BinaryOp {
     Lt,  // <
     Gt,  // >
 }
+
+impl std::fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryOp::Add => write!(f, "+"),
+            BinaryOp::Sub => write!(f, "-"),
+            BinaryOp::Mul => write!(f, "*"),
+            BinaryOp::Div => write!(f, "/"),
+            BinaryOp::Eq => write!(f, "=="),
+            BinaryOp::Ne => write!(f, "!="),
+            BinaryOp::Lt => write!(f, "<"),
+            BinaryOp::Gt => write!(f, ">"),
+        }
+    }
+}
