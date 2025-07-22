@@ -612,16 +612,36 @@ impl<'src> TypeChecker<'src> {
             (["_"], []) => {
                 hir::PatternKind::Wildcard
             }
-            // Binding pattern: `x` (single identifier)
+            // Single identifier pattern: could be binding or nullary variant
             ([name], []) => {
-                // Add the variable to the current scope
+                // First, check if this could be a nullary enum variant
+                if let hir::Ty::Adt { name: enum_name, .. } = expected_ty {
+                    // Check if the scrutinee type is an ADT and if this name matches a variant
+                    if let Some(enum_def) = self.context.get_enum(enum_name.first().unwrap_or(&"")) {
+                        if let Some(variant_info) = enum_def.variants.iter().find(|(v, _)| v == name) {
+                            // Check if this variant has no fields (nullary variant)
+                            if variant_info.1.is_none() || variant_info.1.as_ref().unwrap().is_empty() {
+                                // This is a nullary variant pattern
+                                return Ok(hir::Pattern {
+                                    kind: hir::PatternKind::AdtVariant {
+                                        path: vec![enum_name.first().unwrap_or(&""), name],
+                                        fields: vec![],
+                                    },
+                                    ty: pattern_ty,
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // If it's not a nullary variant, treat it as a binding
                 self.context.add_variable(name, pattern_ty.clone());
                 hir::PatternKind::Binding {
                     name,
                     is_mut: false, // For now, assume all bindings are immutable
                 }
             }
-            // ADT variant pattern: `Option::Some(x)` or `Some(x)`
+            // ADT variant pattern: `Option::Some(x)` or `Some(x)` (with arguments)
             (path, args) => {
                 // Handle both qualified (Option::Some) and unqualified (Some) paths
                 let (enum_name, variant_name) = if path.len() == 2 {
