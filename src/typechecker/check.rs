@@ -666,6 +666,20 @@ impl<'src> TypeChecker<'src> {
             
             // Case ast::Pattern::Path { .. }:
             ast::Pattern::Path { path, args } => {
+                // Handle the case where we have a single identifier as a path (e.g., "x" in "Some(x)")
+                if path.len() == 1 && args.is_empty() {
+                    // This is a simple identifier binding
+                    let name = path[0];
+                    self.context.add_variable(name, pattern_ty.clone());
+                    return Ok(hir::Pattern {
+                        kind: hir::PatternKind::Binding {
+                            name,
+                            is_mut: false,
+                        },
+                        ty: pattern_ty,
+                    });
+                }
+
                 // This is the existing logic for AdtVariant patterns
                 // Handle both qualified (Option::Some) and unqualified (Some) paths
                 let (enum_name, variant_name) = if path.len() == 2 {
