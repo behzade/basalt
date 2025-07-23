@@ -337,17 +337,12 @@ fn run_compiler(source_code: &str, source_id: &str) -> io::Result<()> {
                     let mir_lowerer = MirLowerer::new(&hir);
                     let mir_program = mir_lowerer.lower_to_mir();
                     
-                    // 4. COMPILE MIR using CraneliftCompiler
+                    // 4. COMPILE MIR using CraneliftCompiler (AOT compilation)
                     let mut compiler = CraneliftCompiler::new();
-                    match compiler.compile(&mir_program) {
-                        Ok(function_ptr) => {
-                            // 5. JIT Execute the compiled code
-                            unsafe {
-                                let main_fn: fn() -> i64 = std::mem::transmute(function_ptr);
-                                let result = main_fn();
-                                // 6. Print the result and exit with it
-                                println!("{}", result);
-                            }
+                    match compiler.compile_and_run(&mir_program) {
+                        Ok(result) => {
+                            // 5. Print the result
+                            println!("{}", result);
                         }
                         Err(e) => {
                             eprintln!("Compilation error: {}", e);
