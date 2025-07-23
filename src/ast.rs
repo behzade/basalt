@@ -139,6 +139,7 @@ pub enum Pattern<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function<'src> {
     pub name: &'src str,
+    pub generics: Vec<&'src str>, // Generic type parameters (e.g., ["T", "U"])
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
     pub effects: Vec<&'src str>,
@@ -260,6 +261,7 @@ pub struct OwnedType {
 #[derive(Debug, Clone)]
 pub struct OwnedFunction {
     pub name: String,
+    pub generics: Vec<String>, // Generic type parameters
     pub params: Vec<(Option<String>, OwnedType)>,
     pub ret_type: Option<OwnedType>,
     pub effects: Vec<String>,
@@ -438,6 +440,7 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
     fn from(func: &Function<'src>) -> Self {
         Self {
             name: func.name.to_string(),
+            generics: func.generics.iter().map(|s| s.to_string()).collect(),
             params: func.params.iter().map(|(name, ty)| (name.map(|s| s.to_string()), ty.into())).collect(),
             ret_type: func.ret_type.as_ref().map(|t| t.into()),
             effects: func.effects.iter().map(|s| s.to_string()).collect(),

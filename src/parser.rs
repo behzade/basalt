@@ -577,6 +577,18 @@ fn fn_parser<'src>()
     })
     .boxed();
 
+    // Generic type parameters for function (e.g., <T, U>)
+    let function_generics = ident
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(
+            select! { Token::Op(op) if op == "<" => () },
+            select! { Token::Op(op) if op == ">" => () },
+        )
+        .or_not()
+        .map(|g| g.unwrap_or_default());
+
     let params = ident
         .clone()
         .then_ignore(just(Token::Colon))
@@ -626,13 +638,15 @@ fn fn_parser<'src>()
         .then(just(Token::Fn))
         .map(|(is_public, _)| is_public)
         .then(ident)
+        .then(function_generics)
         .then(params)
         .then(just(Token::Arrow).ignore_then(ty).or_not())
         .then(effects)
         .then(block)
         .map(
-            |(((((is_public, name), params), ret_type), effects), body)| Function {
+            |((((((is_public, name), generics), params), ret_type), effects), body)| Function {
                 name,
+                generics,
                 params,
                 ret_type,
                 effects,
@@ -918,6 +932,7 @@ fn handler_parser<'src>()
         )
         .map(|(((name, params), ret_type), body)| Function {
             name,
+            generics: Vec::new(), // Handler methods don't have generics
             params,
             ret_type,
             effects: Vec::new(),
@@ -1048,6 +1063,7 @@ fn impl_parser<'src>()
         )
         .map(|(((name, params), ret_type), body)| Function {
             name,
+            generics: Vec::new(), // Impl methods don't have generics
             params,
             ret_type,
             effects: Vec::new(),
