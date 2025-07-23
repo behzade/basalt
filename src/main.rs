@@ -35,9 +35,15 @@ enum Action {
         path: Option<String>,
     },
     /// Type-check a file
-    TypeCheck { path: String },
+    TypeCheck {
+        /// The path to the file to type-check. If not provided, reads from stdin.
+        path: Option<String>,
+    },
     /// Type-check a file and print the typed HIR (Hierarchical IR)
-    TypeCheckAst { path: String },
+    TypeCheckAst {
+        /// The path to the file to type-check. If not provided, reads from stdin.
+        path: Option<String>,
+    },
     /// (Coming soon) Compile a file
     Compile { path: String },
 }
@@ -80,11 +86,11 @@ fn main() -> io::Result<()> {
             }
         }
         Action::TypeCheck { path } => {
-            let (source_id, source_code) = read_source(Some(path))?;
+            let (source_id, source_code) = read_source(path)?;
             run_type_checker(&source_code, &source_id)?;
         }
         Action::TypeCheckAst { path } => {
-            let (source_id, source_code) = read_source(Some(path))?;
+            let (source_id, source_code) = read_source(path)?;
             run_type_checker(&source_code, &source_id)?;
         }
         Action::Compile { .. } => {
@@ -125,7 +131,7 @@ fn run_type_checker(source_code: &str, source_id: &str) -> io::Result<()> {
 
     // --- Type Checking ---
     if let Some(ast) = ast {
-        match TypeChecker::new().check_file(&ast) {
+        match TypeChecker::with_token_spans(tokens).check_file(&ast) {
             Ok(hir_items) => {
                 // Always print the typed HIR for snapshot testing compatibility
                 for item in hir_items {
@@ -236,11 +242,8 @@ fn report_parser_errors(
 /// A new, dedicated error reporting function for our structured type errors.
 fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) {
     for e in errors {
-        // For now, we'll use a reasonable default location (middle of the file)
-        // This is better than always showing line 1
-        let source_len = source_code.chars().count();
-        let default_pos = source_len / 2;
-        let span = default_pos..default_pos + 1;
+        // Try to find a better location based on the error content
+        let span = find_error_location(source_code, e);
         
         let msg = match e {
             TypeError::MismatchedTypes { expected, found } => {
@@ -286,5 +289,43 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             .finish()
             .print((source_id, Source::from(source_code)))
             .unwrap();
+    }
+}
+
+/// Find a better location for type errors by searching for relevant tokens
+fn find_error_location(source_code: &str, error: &TypeError) -> std::ops::Range<usize> {
+    match error {
+        TypeError::UnknownVariable(name) => {
+            // Find the variable name in the source code
+            if let Some(pos) = source_code.find(name) {
+                pos..pos + name.len()
+            } else {
+                // Fallback to middle of file
+                let source_len = source_code.chars().count();
+                let default_pos = source_len / 2;
+                default_pos..default_pos + 1
+            }
+        }
+        TypeError::MismatchedTypes { .. } => {
+            // Look for common type error patterns
+            if let Some(pos) = source_code.find("=") {
+                pos..pos + 1
+            } else if let Some(pos) = source_code.find("+") {
+                pos..pos + 1
+            } else if let Some(pos) = source_code.find("-") {
+                pos..pos + 1
+            } else {
+                // Fallback to middle of file
+                let source_len = source_code.chars().count();
+                let default_pos = source_len / 2;
+                default_pos..default_pos + 1
+            }
+        }
+        _ => {
+            // For other errors, try to find relevant tokens
+            let source_len = source_code.chars().count();
+            let default_pos = source_len / 2;
+            default_pos..default_pos + 1
+        }
     }
 }

@@ -20,6 +20,8 @@ mod unification;
 use crate::ast;
 use crate::hir;
 use crate::hir::Ty; // Import Ty for the substitutions map
+use crate::token::Token;
+use chumsky::span::SimpleSpan;
 use std::collections::HashMap;
 
 pub struct TypeChecker<'src> {
@@ -29,6 +31,8 @@ pub struct TypeChecker<'src> {
     /// FIX: Added the missing `substitutions` field. This map stores the
     /// solutions for inference variables found during unification.
     substitutions: HashMap<u32, Ty<'src>>,
+    /// Token spans for better error reporting
+    token_spans: Vec<(Token<'src>, SimpleSpan)>,
 }
 
 impl<'src> TypeChecker<'src> {
@@ -39,6 +43,17 @@ impl<'src> TypeChecker<'src> {
             next_infer_var: 0,
             // FIX: Initialize the new field.
             substitutions: HashMap::new(),
+            token_spans: Vec::new(),
+        }
+    }
+
+    pub fn with_token_spans(token_spans: Vec<(Token<'src>, SimpleSpan)>) -> Self {
+        Self {
+            context: TypeContext::new(),
+            errors: Vec::new(),
+            next_infer_var: 0,
+            substitutions: HashMap::new(),
+            token_spans,
         }
     }
 
@@ -79,6 +94,19 @@ impl<'src> TypeChecker<'src> {
 
     fn new_infer_ty(&mut self) -> hir::Ty<'src> {
         hir::Ty::Infer(self.next_infer_id())
+    }
+
+    /// Find the span for a given token or expression
+    fn find_span_for_token(&self, token: &Token<'src>) -> Option<SimpleSpan> {
+        self.token_spans.iter()
+            .find(|(t, _)| std::mem::discriminant(t) == std::mem::discriminant(token))
+            .map(|(_, span)| *span)
+    }
+
+    /// Find a reasonable span for error reporting
+    fn get_error_span(&self) -> Option<SimpleSpan> {
+        // Use the first token span if available
+        self.token_spans.first().map(|(_, span)| *span)
     }
 
     fn collect_definitions(&mut self, item: &ast::Item<'src>) -> Result<(), TypeError<'src>> {
