@@ -24,6 +24,67 @@ impl CraneliftCompiler {
         }
     }
 
+    /// Compiles the MIR program into an executable in the dist folder.
+    pub fn compile_to_executable(&mut self, mir_program: &MirProgram, output_name: &str) -> Result<(), String> {
+        // Create dist directory if it doesn't exist
+        let dist_dir = std::path::Path::new("dist");
+        std::fs::create_dir_all(dist_dir)
+            .map_err(|e| format!("Failed to create dist directory: {}", e))?;
+        
+        // Create object builder and module
+        let isa = native_builder()
+            .map_err(|e| format!("Failed to create native builder: {}", e))?
+            .finish(settings::Flags::new(settings::builder()))
+            .map_err(|e| format!("Failed to create ISA: {}", e))?;
+        
+        let mut module = ObjectModule::new(
+            ObjectBuilder::new(isa, "basalt", cranelift_module::default_libcall_names())
+                .map_err(|e| format!("Failed to create object builder: {}", e))?
+        );
+        
+        // Compile all functions
+        for (_name, mir_func) in &mir_program.functions {
+            self.compile_function(mir_func, &mut module)?;
+        }
+        
+        // Write the object file to a temporary location
+        let temp_obj = std::env::temp_dir().join("basalt_temp.o");
+        let object_data = module.finish();
+        std::fs::write(&temp_obj, object_data.emit().unwrap())
+            .map_err(|e| format!("Failed to write object file: {}", e))?;
+        
+        // Build the runtime library
+        let runtime_dir = std::path::Path::new("runtime");
+        let status = std::process::Command::new("cargo")
+            .args(&["build", "--release"])
+            .current_dir(runtime_dir)
+            .status()
+            .map_err(|e| format!("Failed to build runtime: {}", e))?;
+        
+        if !status.success() {
+            return Err("Failed to build runtime".to_string());
+        }
+        
+        // Link everything together
+        let executable_path = dist_dir.join(output_name);
+        let runtime_lib = runtime_dir.join("target/release/libbasalt_runtime.a");
+        
+        let status = std::process::Command::new("cc")
+            .args(&[
+                "-o", executable_path.to_str().unwrap(),
+                temp_obj.to_str().unwrap(),
+                runtime_lib.to_str().unwrap(),
+            ])
+            .status()
+            .map_err(|e| format!("Failed to link: {}", e))?;
+        
+        if !status.success() {
+            return Err("Failed to link executable".to_string());
+        }
+        
+        Ok(())
+    }
+    
     /// Compiles the MIR program into an object file.
     pub fn compile_to_object(&mut self, mir_program: &MirProgram, output_path: &Path) -> Result<(), String> {
         // Create object builder and module
@@ -53,48 +114,31 @@ impl CraneliftCompiler {
     /// Compiles the MIR program and returns the main function's return value.
     /// This is a convenience method for testing that compiles and executes the program.
     pub fn compile_and_run(&mut self, mir_program: &MirProgram) -> Result<i64, String> {
-        // For testing purposes, we'll create a temporary object file and link it
+        // Create a temporary object file
         let temp_obj = std::env::temp_dir().join("basalt_temp.o");
         self.compile_to_object(mir_program, &temp_obj)?;
         
-        // For now, we'll use a simple approach: compile to object file and link with a simple runtime
-        // In a full implementation, you'd want to link with a proper runtime library
-        
-        // Create a simple C runtime that calls the main function
-        let runtime_c = r#"
-#include <stdio.h>
-#include <stdlib.h>
-
-extern int64_t main(void);
-
-int main_c_wrapper() {
-    int64_t result = main();
-    return (int)result;
-}
-"#;
-        
-        let runtime_path = std::env::temp_dir().join("runtime.c");
-        std::fs::write(&runtime_path, runtime_c)
-            .map_err(|e| format!("Failed to write runtime: {}", e))?;
-        
-        // Compile the runtime
-        let runtime_obj = std::env::temp_dir().join("runtime.o");
-        let status = std::process::Command::new("cc")
-            .args(&["-c", "-o", runtime_obj.to_str().unwrap(), runtime_path.to_str().unwrap()])
+        // Build the runtime library
+        let runtime_dir = std::path::Path::new("runtime");
+        let status = std::process::Command::new("cargo")
+            .args(&["build", "--release"])
+            .current_dir(runtime_dir)
             .status()
-            .map_err(|e| format!("Failed to compile runtime: {}", e))?;
+            .map_err(|e| format!("Failed to build runtime: {}", e))?;
         
         if !status.success() {
-            return Err("Failed to compile runtime".to_string());
+            return Err("Failed to build runtime".to_string());
         }
         
         // Link everything together
         let executable = std::env::temp_dir().join("basalt_exec");
+        let runtime_lib = runtime_dir.join("target/release/libbasalt_runtime.a");
+        
         let status = std::process::Command::new("cc")
             .args(&[
                 "-o", executable.to_str().unwrap(),
                 temp_obj.to_str().unwrap(),
-                runtime_obj.to_str().unwrap(),
+                runtime_lib.to_str().unwrap(),
             ])
             .status()
             .map_err(|e| format!("Failed to link: {}", e))?;
@@ -131,8 +175,13 @@ int main_c_wrapper() {
         // Add return type
         sig.returns.push(AbiParam::new(types::I64));
         
-        // Declare the function
-        let func_id = module.declare_function(&mir_func.name, Linkage::Export, &sig)
+        // Declare the function - main should be exported globally
+        let linkage = if mir_func.name == "main" {
+            Linkage::Export
+        } else {
+            Linkage::Local
+        };
+        let func_id = module.declare_function(&mir_func.name, linkage, &sig)
             .map_err(|e| format!("Failed to declare function {}: {}", mir_func.name, e))?;
         
         // Create the function directly
@@ -151,10 +200,9 @@ int main_c_wrapper() {
         builder.finalize();
         
         // Define the function in the module
-        // For now, we'll skip the actual function definition since we need to understand
-        // the correct API for ObjectModule. This is a placeholder.
-        // module.define_function(func_id, &mut func)
-        //     .map_err(|e| format!("Failed to define function {}: {}", mir_func.name, e))?;
+        let mut ctx = cranelift::codegen::Context::for_function(func);
+        module.define_function(func_id, &mut ctx)
+            .map_err(|e| format!("Failed to define function {}: {}", mir_func.name, e))?;
         
         Ok(())
     }
@@ -170,14 +218,28 @@ int main_c_wrapper() {
         let mut local_values = HashMap::new();
         
         // Set up parameters
-        for (i, param_id) in mir_func.params.iter().enumerate() {
-            let param_val = builder.block_params(entry_block)[i];
-            local_values.insert(*param_id, param_val);
+        if !mir_func.params.is_empty() {
+            let block_params = builder.block_params(entry_block);
+            if block_params.len() >= mir_func.params.len() {
+                for (i, param_id) in mir_func.params.iter().enumerate() {
+                    let param_val = block_params[i];
+                    local_values.insert(*param_id, param_val);
+                }
+            }
         }
         
-        // Build all basic blocks
-        for block in &mir_func.basic_blocks {
-            self.build_basic_block(block, builder, &mut local_values)?;
+        // Initialize all locals that are used in the function
+        for (local_id, _local_info) in &mir_func.locals {
+            if !local_values.contains_key(local_id) {
+                // Initialize with a default value (0 for i64)
+                let default_val = builder.ins().iconst(types::I64, 0);
+                local_values.insert(*local_id, default_val);
+            }
+        }
+        
+        // Build the entry block (first block)
+        if let Some(entry_block) = mir_func.basic_blocks.first() {
+            self.build_basic_block(entry_block, builder, &mut local_values)?;
         }
         
         Ok(())

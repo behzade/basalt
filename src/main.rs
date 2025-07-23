@@ -9,7 +9,7 @@ use std::io::{self, Read};
 mod ast;
 mod codegen;
 mod hir;
-mod interpreter;
+
 mod lexer;
 mod mir;
 mod parser;
@@ -18,7 +18,6 @@ mod typechecker;
 
 use crate::{
     codegen::cranelift::CraneliftCompiler,
-    interpreter::{Interpreter, Value},
     lexer::lexer,
     mir::MirLowerer,
     parser::file_parser,
@@ -55,14 +54,14 @@ enum Action {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// Execute a file with dynamic effect handling
-    Run {
-        /// The path to the file to execute. If not provided, reads from stdin.
+    /// Build a file to an executable
+    Build {
+        /// The path to the file to build.
         path: Option<String>,
     },
-    /// Compile a file and execute it via JIT
-    Compile {
-        /// The path to the file to compile and run.
+    /// Run a file (build and execute)
+    Run {
+        /// The path to the file to run.
         path: Option<String>,
     },
 }
@@ -116,13 +115,13 @@ fn main() -> io::Result<()> {
             let (source_id, source_code) = read_source(path)?;
             run_mir_lowering(&source_code, &source_id)?;
         }
+        Action::Build { path } => {
+            let (source_id, source_code) = read_source(path)?;
+            run_compiler(&source_code, &source_id, false)?;
+        }
         Action::Run { path } => {
             let (source_id, source_code) = read_source(path)?;
-            run_interpreter(&source_code, &source_id)?;
-        }
-        Action::Compile { path } => {
-            let (source_id, source_code) = read_source(path)?;
-            run_compiler(&source_code, &source_id)?;
+            run_compiler(&source_code, &source_id, true)?;
         }
     }
 
@@ -233,76 +232,10 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Runs the interpreter with dynamic effect handling on the given source code.
-fn run_interpreter(source_code: &str, source_id: &str) -> io::Result<()> {
-    // First, lex and parse the source code
-    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
 
-    if report_errors(source_code, source_id, &lex_errs, |e| {
-        (
-            e.span().into_range(),
-            format!("Unexpected character: {}", e.reason()),
-        )
-    }) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Lexing errors occurred",
-        ));
-    }
-
-    if let Some(tokens) = tokens {
-        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
-
-        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Parsing errors occurred",
-            ));
-        }
-
-        if let Some(ast) = ast {
-            // Type check to get HIR
-            let mut type_checker = TypeChecker::with_token_spans(tokens);
-            match type_checker.check_file(&ast) {
-                Ok(hir_items) => {
-                    // Lower HIR to MIR
-                    let mir_lowerer = MirLowerer::new(&hir_items);
-                    let mir_program = mir_lowerer.lower_to_mir();
-                    
-                    // Create interpreter and execute main function
-                    let interpreter = Interpreter::new(&mir_program);
-                    
-                    println!("=== Executing with dynamic effect handling ===");
-                    match interpreter.execute_function("main", vec![]) {
-                        Ok(result) => {
-                            println!("Result: {:?}", result);
-                        }
-                        Err(e) => {
-                            eprintln!("Execution error: {}", e);
-                            return Err(io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                format!("Execution error: {}", e),
-                            ));
-                        }
-                    }
-                }
-                Err(type_errors) => {
-                    report_type_errors(source_code, source_id, &type_errors);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Type checking errors occurred",
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
 
 /// A helper function to run the full compilation pipeline.
-fn run_compiler(source_code: &str, source_id: &str) -> io::Result<()> {
+fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()> {
     // 1. Lex, Parse, Typecheck to get HIR
     let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
     if report_errors(source_code, source_id, &lex_errs, |e| {
@@ -337,12 +270,36 @@ fn run_compiler(source_code: &str, source_id: &str) -> io::Result<()> {
                     let mir_lowerer = MirLowerer::new(&hir);
                     let mir_program = mir_lowerer.lower_to_mir();
                     
-                    // 4. COMPILE MIR using CraneliftCompiler (AOT compilation)
+                    // 4. COMPILE MIR using CraneliftCompiler
                     let mut compiler = CraneliftCompiler::new();
-                    match compiler.compile_and_run(&mir_program) {
-                        Ok(result) => {
-                            // 5. Print the result
-                            println!("{}", result);
+                    
+                    // Determine output name
+                    let output_name = if source_id == "stdin" {
+                        "output".to_string()
+                    } else {
+                        let mut path = std::path::PathBuf::from(source_id);
+                        path.set_extension("");
+                        path.file_name().unwrap().to_string_lossy().to_string()
+                    };
+                    
+                    match compiler.compile_to_executable(&mir_program, &output_name) {
+                        Ok(()) => {
+                            println!("Successfully compiled to: dist/{}", output_name);
+                            
+                            if run {
+                                // Run the compiled executable
+                                let executable_path = std::path::Path::new("dist").join(&output_name);
+                                let output = std::process::Command::new(executable_path)
+                                    .output()
+                                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to run executable: {}", e)))?;
+                                
+                                // For Basalt programs, the exit code is the return value of main
+                                // Don't treat non-zero exit codes as failures
+                                
+                                // Print the output
+                                let stdout = String::from_utf8_lossy(&output.stdout);
+                                print!("{}", stdout);
+                            }
                         }
                         Err(e) => {
                             eprintln!("Compilation error: {}", e);
@@ -366,6 +323,8 @@ fn run_compiler(source_code: &str, source_id: &str) -> io::Result<()> {
 
     Ok(())
 }
+
+
 
 /// Reads source code from a file path or from stdin.
 fn read_source(path: Option<String>) -> io::Result<(String, String)> {
