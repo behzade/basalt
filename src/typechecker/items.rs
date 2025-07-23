@@ -111,6 +111,7 @@ impl<'src> TypeChecker<'src> {
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
         let hir_enum = hir::EnumDef {
             name: enum_def.name,
+            generics: enum_def.generics.clone(),
             variants: enum_def
                 .variants
                 .iter()

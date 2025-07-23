@@ -101,6 +101,7 @@ pub struct StructDef<'src> {
 #[derive(Debug, Clone)]
 pub struct EnumDef<'src> {
     pub name: Option<&'src str>,
+    pub generics: Vec<&'src str>, // Generic type parameters
     pub variants: Vec<(&'src str, Option<Vec<Ty<'src>>>)>,
     pub is_public: bool,
 }

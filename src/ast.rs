@@ -158,6 +158,7 @@ pub struct StructDef<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumDef<'src> {
     pub name: Option<&'src str>, // Enums can be anonymous
+    pub generics: Vec<&'src str>, // Generic type parameters (e.g., ["T", "E"])
     pub variants: Vec<(&'src str, Option<Vec<Type<'src>>>)>,
     pub is_public: bool, // Whether this enum is public/exported
 }
@@ -282,6 +283,7 @@ pub struct OwnedStructDef {
 #[derive(Debug, Clone)]
 pub struct OwnedEnumDef {
     pub name: Option<String>,
+    pub generics: Vec<String>, // Generic type parameters
     pub variants: Vec<(String, Option<Vec<OwnedType>>)>,
     pub is_public: bool,
 }
@@ -465,6 +467,7 @@ impl<'src> From<&EnumDef<'src>> for OwnedEnumDef {
     fn from(enum_def: &EnumDef<'src>) -> Self {
         Self {
             name: enum_def.name.map(|s| s.to_string()),
+            generics: enum_def.generics.iter().map(|s| s.to_string()).collect(),
             variants: enum_def.variants.iter().map(|(name, types)| {
                 (name.to_string(), types.as_ref().map(|ts| ts.iter().map(|t| t.into()).collect()))
             }).collect(),

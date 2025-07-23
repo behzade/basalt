@@ -834,8 +834,9 @@ fn enum_parser<'src>()
         .ignore_then(ident)
         .then(generics)
         .then(variants)
-        .map(|((name, _generics), variants)| EnumDef {
+        .map(|((name, generics), variants)| EnumDef {
             name: Some(name),
+            generics,
             variants,
             is_public: true, // Enums are always public
         })

@@ -147,12 +147,14 @@ impl<'src> TypeChecker<'src> {
             }
         }
 
-        // Check if this looks like it should be an import
-        if let Some(suggested_import) = self.suggest_import(name) {
-            return Err(TypeError::MissingImport {
-                symbol: name,
-                suggested_import: Some(suggested_import),
-            });
+        // Check if this looks like it should be an import (but only if it's not a variable)
+        if self.context.get_variable(name).is_none() {
+            if let Some(suggested_import) = self.suggest_import(name) {
+                return Err(TypeError::MissingImport {
+                    symbol: name,
+                    suggested_import: Some(suggested_import),
+                });
+            }
         }
 
         // Otherwise, assume it's a variable.
@@ -222,8 +224,9 @@ impl<'src> TypeChecker<'src> {
             self.unify(&hir_then.ty, &hir_else.ty)?;
             (Some(Box::new(hir_else)), hir_then.ty.clone())
         } else {
-            self.unify(&hir_then.ty, &Ty::Unit)?;
-            (None, Ty::Unit)
+            // If there's no else block, the if statement can return the type of the then block
+            // This allows for early returns in the then block
+            (None, hir_then.ty.clone())
         };
 
         let kind = hir::ExprKind::If {
@@ -321,6 +324,10 @@ impl<'src> TypeChecker<'src> {
                             });
                         }
 
+                        // Clone the enum definition to avoid borrow conflicts
+                        let enum_def = enum_def.clone();
+                        let variant_types = variant_types.to_vec();
+
                         // Check each argument and collect their types
                         let mut hir_args = Vec::new();
                         for arg in args {
@@ -328,11 +335,28 @@ impl<'src> TypeChecker<'src> {
                             hir_args.push(hir_arg);
                         }
 
-                        // For now, use a simple enum type without generics
+                        // Create inference variables for the enum's generic parameters
+                        let mut enum_generics = Vec::new();
+                        for _ in 0..enum_def.generics.len() {
+                            enum_generics.push(self.new_infer_ty());
+                        }
+
+                        // Create the enum type with inference variables
                         let enum_ty = Ty::Adt {
                             name: vec![path[0]],
-                            generics: vec![],
+                            generics: enum_generics.clone(),
                         };
+
+                        // Unify the argument types with the variant field types
+                        for (arg, variant_type) in hir_args.iter().zip(variant_types.iter()) {
+                            // Substitute generic parameters in the variant type
+                            let mut substitution = HashMap::new();
+                            for (generic_param, infer_ty) in enum_def.generics.iter().zip(enum_generics.iter()) {
+                                substitution.insert(*generic_param, infer_ty.clone());
+                            }
+                            let substituted_variant_ty = self.substitute_generics(variant_type, &substitution);
+                            self.unify(&arg.ty, &substituted_variant_ty)?;
+                        }
 
                         let kind = hir::ExprKind::Call {
                             fun: Box::new(hir_fun),
