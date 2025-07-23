@@ -8,4 +8,7 @@ chumsky = { version = "0.10.1", features = ["either", "pratt"] }
 ariadne = "0.4.1"
 clap = { version = "4.5.4", features = ["derive"] }
 either = "1.9.0"
+cranelift = "0.104.1"
+cranelift-jit = "0.104.1"
+cranelift-module = "0.104.1"
 

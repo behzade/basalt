@@ -7,6 +7,7 @@ use std::io::{self, Read};
 
 // --- Module Declarations ---
 mod ast;
+mod codegen;
 mod hir;
 mod interpreter;
 mod lexer;
@@ -16,6 +17,7 @@ mod token;
 mod typechecker;
 
 use crate::{
+    codegen::cranelift::CraneliftCompiler,
     interpreter::{Interpreter, Value},
     lexer::lexer,
     mir::MirLowerer,
@@ -58,8 +60,11 @@ enum Action {
         /// The path to the file to execute. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// (Coming soon) Compile a file
-    Compile { path: String },
+    /// Compile a file and execute it via JIT
+    Compile {
+        /// The path to the file to compile and run.
+        path: Option<String>,
+    },
 }
 
 fn main() -> io::Result<()> {
@@ -115,8 +120,9 @@ fn main() -> io::Result<()> {
             let (source_id, source_code) = read_source(path)?;
             run_interpreter(&source_code, &source_id)?;
         }
-        Action::Compile { .. } => {
-            println!("Compilation is not yet implemented.");
+        Action::Compile { path } => {
+            let (source_id, source_code) = read_source(path)?;
+            run_compiler(&source_code, &source_id)?;
         }
     }
 
@@ -277,6 +283,77 @@ fn run_interpreter(source_code: &str, source_id: &str) -> io::Result<()> {
                             return Err(io::Error::new(
                                 io::ErrorKind::InvalidData,
                                 format!("Execution error: {}", e),
+                            ));
+                        }
+                    }
+                }
+                Err(type_errors) => {
+                    report_type_errors(source_code, source_id, &type_errors);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Type checking errors occurred",
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// A helper function to run the full compilation pipeline.
+fn run_compiler(source_code: &str, source_id: &str) -> io::Result<()> {
+    // 1. Lex, Parse, Typecheck to get HIR
+    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
+    if report_errors(source_code, source_id, &lex_errs, |e| {
+        (
+            e.span().into_range(),
+            format!("Unexpected character: {}", e.reason()),
+        )
+    }) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Lexing errors occurred",
+        ));
+    }
+
+    if let Some(tokens) = tokens {
+        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
+        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
+
+        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Parsing errors occurred",
+            ));
+        }
+
+        if let Some(ast) = ast {
+            // 2. Type check to get HIR
+            let type_checker = TypeChecker::new();
+            match type_checker.check_file(&ast) {
+                Ok(hir) => {
+                    // 3. Lower HIR to MIR
+                    let mir_lowerer = MirLowerer::new(&hir);
+                    let mir_program = mir_lowerer.lower_to_mir();
+                    
+                    // 4. COMPILE MIR using CraneliftCompiler
+                    let mut compiler = CraneliftCompiler::new();
+                    match compiler.compile(&mir_program) {
+                        Ok(function_ptr) => {
+                            // 5. JIT Execute the compiled code
+                            unsafe {
+                                let main_fn: fn() -> i64 = std::mem::transmute(function_ptr);
+                                let result = main_fn();
+                                // 6. Print the result and exit with it
+                                println!("{}", result);
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Compilation error: {}", e);
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                format!("Compilation error: {}", e),
                             ));
                         }
                     }
