@@ -279,7 +279,7 @@ fn expression_parsers<'src>() -> (
         .labelled("match expression")
         .boxed();
 
-    let atom = choice((
+    let _atom = choice((
         // Literals
         select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
         select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
@@ -1071,7 +1071,7 @@ pub fn file_parser<'src>()
 /// Parses a single top-level item.
 fn item_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt) = expression_parsers();
+    let (_expr, stmt) = expression_parsers();
     let fn_decl = fn_parser().map(Item::Fn);
     let stmt_item = stmt.map(Item::Stmt);
 

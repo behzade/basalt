@@ -46,13 +46,6 @@ pub enum Stmt<'src> {
     Error,
 }
 
-/// An expression with optional type annotation.
-#[derive(Debug, PartialEq, Clone)]
-pub struct TypedExpr<'src> {
-    pub expr: Expr<'src>,
-    pub inferred_type: Option<Type<'src>>,
-}
-
 /// An expression.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr<'src> {

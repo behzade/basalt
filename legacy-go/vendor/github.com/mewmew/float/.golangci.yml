@@ -1,7 +1,0 @@
-linters:
-  enable-all: true
-  disable:
-    - dupl
-    - maligned
-    - lll
-    - gochecknoglobals
