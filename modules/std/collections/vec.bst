@@ -1,19 +1,26 @@
 // Std::Collections::Vec module
 
+// Define the Vec struct
+pub struct Vec<T> {
+    data: [T],
+    length: i64,
+}
+
 pub fn new<T>() -> Vec<T> {
-    // Implementation would go here
-    // For now, just return empty vec
-    []
+    // Create a new empty Vec
+    Vec {
+        data: [],
+        length: 0,
+    }
 }
 
 pub fn push<T>(vec: Vec<T>, item: T) -> Vec<T> {
-    // Implementation would go here
-    // For now, just return the vec
+    // For now, just return the vec unchanged
+    // In a real implementation, this would append the item
     vec
 }
 
 pub fn len<T>(vec: Vec<T>) -> i64 {
-    // Implementation would go here
-    // For now, just return 0
-    0
+    // Return the length of the vec
+    vec.length
 } 
