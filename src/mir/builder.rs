@@ -46,6 +46,11 @@ impl<'src> MirBuilder<'src> {
         self.current_block = block_id;
     }
 
+    /// Gets the current block ID.
+    pub fn current_block(&self) -> BasicBlockId {
+        self.current_block
+    }
+
     /// Adds a statement to the current basic block.
     pub fn push_statement(&mut self, statement: Statement<'src>) {
         self.basic_blocks[self.current_block]

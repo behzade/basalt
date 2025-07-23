@@ -299,13 +299,139 @@ impl<'src> MirLowerer<'src> {
                     }
                 }
             }
-            // --- TODO: Implement lowering for other HIR expression kinds ---
-            // e.g., Array, Map, StructInit, Match, etc.
-            _ => {
-                // For unhandled expressions, assign a placeholder.
-                // This allows incremental implementation.
+            hir::ExprKind::Array(elements) => {
+                // Lower all array elements into operands
+                let mut element_operands = Vec::new();
+                for element in elements {
+                    let element_temp = builder.new_local(element.ty.clone(), false);
+                    self.lower_expr(element, builder, locals, Place { local: element_temp });
+                    element_operands.push(Operand::Copy(Place { local: element_temp }));
+                }
+                
+                // Create array Rvalue
+                let rvalue = Rvalue::Array(element_operands);
+                builder.push_statement(Statement::Assign(destination, rvalue));
+            }
+            hir::ExprKind::Map(entries) => {
+                // Lower all map entries into operands
+                let mut entry_operands = Vec::new();
+                for (key, value) in entries {
+                    let key_temp = builder.new_local(key.ty.clone(), false);
+                    let value_temp = builder.new_local(value.ty.clone(), false);
+                    
+                    self.lower_expr(key, builder, locals, Place { local: key_temp });
+                    self.lower_expr(value, builder, locals, Place { local: value_temp });
+                    
+                    entry_operands.push((
+                        Operand::Copy(Place { local: key_temp }),
+                        Operand::Copy(Place { local: value_temp })
+                    ));
+                }
+                
+                // Create map Rvalue
+                let rvalue = Rvalue::Map(entry_operands);
+                builder.push_statement(Statement::Assign(destination, rvalue));
+            }
+            hir::ExprKind::StructInit { path, fields } => {
+                // Lower all field values into operands
+                let mut field_operands = HashMap::new();
+                for (field_name, field_expr) in fields {
+                    let field_temp = builder.new_local(field_expr.ty.clone(), false);
+                    self.lower_expr(field_expr, builder, locals, Place { local: field_temp });
+                    field_operands.insert(*field_name, Operand::Copy(Place { local: field_temp }));
+                }
+                
+                // Create struct initialization Rvalue
+                let struct_name = path.first().expect("Struct path cannot be empty");
+                let rvalue = Rvalue::StructInit {
+                    path: struct_name,
+                    fields: field_operands,
+                };
+                builder.push_statement(Statement::Assign(destination, rvalue));
+            }
+            hir::ExprKind::Match { scrutinee, arms } => {
+                // Lower the scrutinee
+                let scrutinee_temp = builder.new_local(scrutinee.ty.clone(), false);
+                self.lower_expr(scrutinee, builder, locals, Place { local: scrutinee_temp });
+                
+                // Create blocks for each arm and a default block
+                let mut arm_blocks = Vec::new();
+                let default_block = builder.new_basic_block();
+                let merge_block = builder.new_basic_block();
+                
+                for (pattern, arm_expr) in arms {
+                    let arm_block = builder.new_basic_block();
+                    
+                    // Convert hir::Pattern to data::Pattern and handle bindings
+                    let mir_pattern = Pattern {
+                        kind: match &pattern.kind {
+                            hir::PatternKind::Literal(lit) => PatternKind::Literal(lit.clone()),
+                            hir::PatternKind::Binding { name, is_mut } => {
+                                // Create a local for the bound variable
+                                let binding_local = builder.new_local(pattern.ty.clone(), false);
+                                locals.insert(name, binding_local);
+                                PatternKind::Binding {
+                                    name,
+                                    is_mut: *is_mut,
+                                }
+                            },
+                            hir::PatternKind::AdtVariant { path, fields } => {
+                                // Handle field bindings
+                                for field in fields {
+                                    if let hir::PatternKind::Binding { name, is_mut } = &field.kind {
+                                        let field_local = builder.new_local(field.ty.clone(), false);
+                                        locals.insert(name, field_local);
+                                    }
+                                }
+                                PatternKind::AdtVariant {
+                                    path: path.first().expect("Pattern path cannot be empty"),
+                                    fields: fields.iter().map(|f| Pattern {
+                                        kind: match &f.kind {
+                                            hir::PatternKind::Literal(lit) => PatternKind::Literal(lit.clone()),
+                                            hir::PatternKind::Binding { name, is_mut } => PatternKind::Binding {
+                                                name,
+                                                is_mut: *is_mut,
+                                            },
+                                            hir::PatternKind::AdtVariant { path, fields } => PatternKind::AdtVariant {
+                                                path: path.first().expect("Pattern path cannot be empty"),
+                                                fields: Vec::new(), // Simplified for now
+                                            },
+                                            hir::PatternKind::Wildcard => PatternKind::Wildcard,
+                                        },
+                                        ty: f.ty.clone(),
+                                    }).collect(),
+                                }
+                            },
+                            hir::PatternKind::Wildcard => PatternKind::Wildcard,
+                        },
+                        ty: pattern.ty.clone(),
+                    };
+                    
+                    arm_blocks.push((mir_pattern, arm_block));
+                    
+                    // Switch to arm block and lower the expression
+                    builder.switch_to_block(arm_block);
+                    self.lower_expr(arm_expr, builder, locals, destination.clone());
+                    builder.set_terminator(Terminator::Goto { target: merge_block });
+                }
+                
+                // Set up the default block to assign unit and goto merge
+                builder.switch_to_block(default_block);
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
+                builder.set_terminator(Terminator::Goto { target: merge_block });
+                
+                // Set the pattern match terminator in the current block (which should be the original block)
+                // We need to manually set it in the correct block since we've been switching around
+                let original_block = builder.basic_blocks.len() - 2 - arms.len();
+                builder.basic_blocks[original_block].terminator = Terminator::PatternMatch {
+                    scrutinee: Operand::Copy(Place { local: scrutinee_temp }),
+                    arms: arm_blocks,
+                    otherwise: default_block,
+                };
+                
+                // Continue from merge block
+                builder.switch_to_block(merge_block);
             }
         }
     }

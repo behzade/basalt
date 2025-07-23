@@ -77,6 +77,15 @@ pub enum Rvalue<'src> {
     UnaryOp(ast::UnaryOp, Operand<'src>),
     /// Create a reference to a place.
     Ref(Place),
+    /// Create an array from a list of operands.
+    Array(Vec<Operand<'src>>),
+    /// Create a map from key-value pairs.
+    Map(Vec<(Operand<'src>, Operand<'src>)>),
+    /// Initialize a struct with field values.
+    StructInit {
+        path: &'src str,
+        fields: HashMap<&'src str, Operand<'src>>,
+    },
 }
 
 /// A "place" is a location in memory, like a local variable or a field of a struct.
@@ -94,6 +103,30 @@ pub struct Place {
 pub enum Operand<'src> {
     Constant(ast::Literal<'src>),
     Copy(Place),
+}
+
+//================================================================================//
+//                                  Patterns
+//================================================================================//
+
+/// A pattern used in match expressions for pattern matching.
+#[derive(Debug, Clone)]
+pub struct Pattern<'src> {
+    pub kind: PatternKind<'src>,
+    pub ty: hir::Ty<'src>,
+}
+
+/// The different kinds of patterns that can be matched against.
+#[derive(Debug, Clone)]
+pub enum PatternKind<'src> {
+    /// A literal pattern, e.g., `1`, `"hello"`, `true`.
+    Literal(ast::Literal<'src>),
+    /// An identifier that binds the matched value to a new variable, e.g., `x`.
+    Binding { name: &'src str, is_mut: bool },
+    /// A path to an enum variant, e.g., `Option::Some(x)`.
+    AdtVariant { path: &'src str, fields: Vec<Pattern<'src>> },
+    /// The wildcard pattern `_`.
+    Wildcard,
 }
 
 //================================================================================//
@@ -134,6 +167,12 @@ pub enum Terminator<'src> {
     Resume {
         value: Operand<'src>,
         target: BasicBlockId,
+    },
+    /// Pattern matching for match expressions.
+    PatternMatch {
+        scrutinee: Operand<'src>,
+        arms: Vec<(Pattern<'src>, BasicBlockId)>,
+        otherwise: BasicBlockId,
     },
     /// Return from the function.
     Return,
