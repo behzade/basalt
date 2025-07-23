@@ -1,0 +1,730 @@
+DEBUG: Checking pattern: Path { path: ["Ok"], args: [Path { path: ["sum"], args: [] }] }
+DEBUG: Checking pattern: Path { path: ["sum"], args: [] }
+DEBUG: Checking pattern: Path { path: ["Err"], args: [Path { path: ["msg"], args: [] }] }
+DEBUG: Checking pattern: Path { path: ["msg"], args: [] }
+MirProgram {
+    functions: {
+        "processData": MirFunction {
+            name: "processData",
+            params: [
+                LocalId(
+                    1,
+                ),
+            ],
+            return_type: Adt {
+                name: [
+                    "Result",
+                ],
+                generics: [
+                    I64,
+                    Str,
+                ],
+            },
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Bool(
+                                        false,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: SwitchInt {
+                        discr: Copy(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                        ),
+                        targets: [
+                            (
+                                1,
+                                1,
+                            ),
+                        ],
+                        otherwise: 2,
+                    },
+                },
+                BasicBlock {
+                    id: 1,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    4,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "empty data",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "Result",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        4,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                0,
+                            ),
+                        },
+                        target: 4,
+                    },
+                },
+                BasicBlock {
+                    id: 2,
+                    statements: [],
+                    terminator: Goto {
+                        target: 3,
+                    },
+                },
+                BasicBlock {
+                    id: 3,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    6,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 5,
+                    },
+                },
+                BasicBlock {
+                    id: 4,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 3,
+                    },
+                },
+                BasicBlock {
+                    id: 5,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    9,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            6,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    10,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        10,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                            BinaryOp(
+                                Lt,
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            9,
+                                        ),
+                                    },
+                                ),
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            10,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: SwitchInt {
+                        discr: Copy(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                        ),
+                        targets: [
+                            (
+                                1,
+                                6,
+                            ),
+                        ],
+                        otherwise: 7,
+                    },
+                },
+                BasicBlock {
+                    id: 6,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    13,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            5,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    15,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    16,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            6,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "get",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        15,
+                                    ),
+                                },
+                            ),
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        16,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                14,
+                            ),
+                        },
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 7,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    7,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    20,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            5,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "Result",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        20,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                0,
+                            ),
+                        },
+                        target: 9,
+                    },
+                },
+                BasicBlock {
+                    id: 8,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    12,
+                                ),
+                            },
+                            BinaryOp(
+                                Add,
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            13,
+                                        ),
+                                    },
+                                ),
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            14,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            12,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    18,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            6,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    19,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        1,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    17,
+                                ),
+                            },
+                            BinaryOp(
+                                Add,
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            18,
+                                        ),
+                                    },
+                                ),
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            19,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    6,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            17,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    11,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 5,
+                    },
+                },
+                BasicBlock {
+                    id: 9,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    20,
+                ): MirLocal {
+                    id: LocalId(
+                        20,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    8,
+                ): MirLocal {
+                    id: LocalId(
+                        8,
+                    ),
+                    ty: Bool,
+                    is_param: false,
+                },
+                LocalId(
+                    9,
+                ): MirLocal {
+                    id: LocalId(
+                        9,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: Bool,
+                    is_param: false,
+                },
+                LocalId(
+                    6,
+                ): MirLocal {
+                    id: LocalId(
+                        6,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    7,
+                ): MirLocal {
+                    id: LocalId(
+                        7,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+                LocalId(
+                    15,
+                ): MirLocal {
+                    id: LocalId(
+                        15,
+                    ),
+                    ty: Array(
+                        I64,
+                    ),
+                    is_param: false,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "Result",
+                        ],
+                        generics: [
+                            I64,
+                            Str,
+                        ],
+                    },
+                    is_param: false,
+                },
+                LocalId(
+                    14,
+                ): MirLocal {
+                    id: LocalId(
+                        14,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    10,
+                ): MirLocal {
+                    id: LocalId(
+                        10,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: Array(
+                        I64,
+                    ),
+                    is_param: true,
+                },
+                LocalId(
+                    16,
+                ): MirLocal {
+                    id: LocalId(
+                        16,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    17,
+                ): MirLocal {
+                    id: LocalId(
+                        17,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    5,
+                ): MirLocal {
+                    id: LocalId(
+                        5,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    11,
+                ): MirLocal {
+                    id: LocalId(
+                        11,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+                LocalId(
+                    13,
+                ): MirLocal {
+                    id: LocalId(
+                        13,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "Result",
+                        ],
+                        generics: [
+                            Infer(
+                                4,
+                            ),
+                            Str,
+                        ],
+                    },
+                    is_param: false,
+                },
+                LocalId(
+                    19,
+                ): MirLocal {
+                    id: LocalId(
+                        19,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    18,
+                ): MirLocal {
+                    id: LocalId(
+                        18,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    12,
+                ): MirLocal {
+                    id: LocalId(
+                        12,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                21,
+            ),
+        },
+    },
+}

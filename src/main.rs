@@ -9,12 +9,14 @@ use std::io::{self, Read};
 mod ast;
 mod hir;
 mod lexer;
+mod mir;
 mod parser;
 mod token;
 mod typechecker;
 
 use crate::{
     lexer::lexer,
+    mir::MirLowerer,
     parser::file_parser,
     token::Token,
     typechecker::{TypeChecker, TypeError},
@@ -42,6 +44,11 @@ enum Action {
     /// Type-check a file and print the typed HIR (Hierarchical IR)
     TypeCheckAst {
         /// The path to the file to type-check. If not provided, reads from stdin.
+        path: Option<String>,
+    },
+    /// Lower HIR to MIR and print the MIR representation
+    Mir {
+        /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
     /// (Coming soon) Compile a file
@@ -92,6 +99,10 @@ fn main() -> io::Result<()> {
         Action::TypeCheckAst { path } => {
             let (source_id, source_code) = read_source(path)?;
             run_type_checker(&source_code, &source_id)?;
+        }
+        Action::Mir { path } => {
+            let (source_id, source_code) = read_source(path)?;
+            run_mir_lowering(&source_code, &source_id)?;
         }
         Action::Compile { .. } => {
             println!("Compilation is not yet implemented.");
@@ -144,6 +155,60 @@ fn run_type_checker(source_code: &str, source_id: &str) -> io::Result<()> {
                     io::ErrorKind::InvalidData,
                     "Type checking errors occurred",
                 ));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs the MIR lowering process on the given source code.
+fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
+    // First, lex and parse the source code
+    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
+
+    if report_errors(source_code, source_id, &lex_errs, |e| {
+        (
+            e.span().into_range(),
+            format!("Unexpected character: {}", e.reason()),
+        )
+    }) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Lexing errors occurred",
+        ));
+    }
+
+    if let Some(tokens) = tokens {
+        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
+        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
+
+        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Parsing errors occurred",
+            ));
+        }
+
+        if let Some(ast) = ast {
+            // Type check to get HIR
+            let mut type_checker = TypeChecker::with_token_spans(tokens);
+            match type_checker.check_file(&ast) {
+                Ok(hir_items) => {
+                    // Lower HIR to MIR
+                    let mir_lowerer = MirLowerer::new(&hir_items);
+                    let mir_program = mir_lowerer.lower_to_mir();
+                    
+                    // Print the MIR representation
+                    println!("{:#?}", mir_program);
+                }
+                Err(type_errors) => {
+                    report_type_errors(source_code, source_id, &type_errors);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Type checking errors occurred",
+                    ));
+                }
             }
         }
     }

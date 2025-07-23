@@ -1,0 +1,6 @@
+DEBUG: Checking pattern: Path { path: ["Some"], args: [Path { path: ["x"], args: [] }] }
+DEBUG: Checking pattern: Path { path: ["x"], args: [] }
+DEBUG: Checking pattern: Path { path: ["None"], args: [] }
+MirProgram {
+    functions: {},
+}

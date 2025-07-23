@@ -1,0 +1,157 @@
+MirProgram {
+    functions: {
+        "greetUser": MirFunction {
+            name: "greetUser",
+            params: [],
+            return_type: Str,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    1,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "Hello ",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    4,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            2,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            BinaryOp(
+                                Add,
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            3,
+                                        ),
+                                    },
+                                ),
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            4,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                5,
+            ),
+        },
+    },
+}

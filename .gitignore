@@ -8,3 +8,4 @@ dist/
 # Test temporary files
 tests/temp/
 tests/typecheck_temp
+tests/mir_temp

@@ -1,0 +1,99 @@
+MirProgram {
+    functions: {
+        "testOption": MirFunction {
+            name: "testOption",
+            params: [],
+            return_type: Adt {
+                name: [
+                    "Option",
+                ],
+                generics: [],
+            },
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    1,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        42,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "Option",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        1,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                0,
+                            ),
+                        },
+                        target: 1,
+                    },
+                },
+                BasicBlock {
+                    id: 1,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "Option",
+                        ],
+                        generics: [],
+                    },
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                2,
+            ),
+        },
+    },
+}
