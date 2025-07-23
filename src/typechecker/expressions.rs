@@ -77,6 +77,28 @@ impl<'src> TypeChecker<'src> {
                 let ty = self.lower_type(&module_type);
                 return Ok((hir::ExprKind::Path(resolved_path), ty));
             }
+            
+            // If we couldn't resolve it as a module symbol, check if it looks like a module path
+            if resolved_path.len() >= 3 {
+                let namespace = resolved_path[0];
+                let module = resolved_path[1];
+                let symbol = resolved_path[2];
+                
+                // Check if the module exists but the symbol doesn't
+                let module_path = format!("{}::{}", namespace, module);
+                if self.context.get_module_symbols(&module_path).is_some() {
+                    return Err(TypeError::UnknownModuleSymbol {
+                        namespace,
+                        module,
+                        symbol,
+                    });
+                } else {
+                    return Err(TypeError::UnknownModule {
+                        namespace,
+                        module,
+                    });
+                }
+            }
         }
         
         // Check for enum variant first.
@@ -123,6 +145,14 @@ impl<'src> TypeChecker<'src> {
                     },
                 ));
             }
+        }
+
+        // Check if this looks like it should be an import
+        if let Some(suggested_import) = self.suggest_import(name) {
+            return Err(TypeError::MissingImport {
+                symbol: name,
+                suggested_import: Some(suggested_import),
+            });
         }
 
         // Otherwise, assume it's a variable.

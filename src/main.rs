@@ -277,6 +277,19 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             TypeError::UnificationError(t1, t2) => {
                 format!("Cannot unify types `{}` and `{}`", t1, t2)
             }
+            TypeError::UnknownModule { namespace, module } => {
+                format!("Module `{}::{}` not found. Check if the module exists and is properly structured.", namespace, module)
+            }
+            TypeError::UnknownModuleSymbol { namespace, module, symbol } => {
+                format!("Symbol `{}` not found in module `{}::{}`. The module exists but doesn't export this symbol.", symbol, namespace, module)
+            }
+            TypeError::MissingImport { symbol, suggested_import } => {
+                if let Some(import) = suggested_import {
+                    format!("Unknown symbol `{}`. Try adding: {}", symbol, import)
+                } else {
+                    format!("Unknown symbol `{}`. You may need to import it from a module.", symbol)
+                }
+            }
         };
 
         Report::build(ReportKind::Error, source_id, span.start)
@@ -299,6 +312,41 @@ fn find_error_location(source_code: &str, error: &TypeError) -> std::ops::Range<
             // Find the variable name in the source code
             if let Some(pos) = source_code.find(name) {
                 pos..pos + name.len()
+            } else {
+                // Fallback to middle of file
+                let source_len = source_code.chars().count();
+                let default_pos = source_len / 2;
+                default_pos..default_pos + 1
+            }
+        }
+        TypeError::MissingImport { symbol, .. } => {
+            // Look for the symbol name in the source code
+            if let Some(pos) = source_code.find(symbol) {
+                pos..pos + symbol.len()
+            } else {
+                // Fallback to middle of file
+                let source_len = source_code.chars().count();
+                let default_pos = source_len / 2;
+                default_pos..default_pos + 1
+            }
+        }
+        TypeError::UnknownModule { namespace, module } => {
+            // Look for the module path in the source code
+            let module_path = format!("{}::{}", namespace, module);
+            if let Some(pos) = source_code.find(&module_path) {
+                pos..pos + module_path.len()
+            } else {
+                // Fallback to middle of file
+                let source_len = source_code.chars().count();
+                let default_pos = source_len / 2;
+                default_pos..default_pos + 1
+            }
+        }
+        TypeError::UnknownModuleSymbol { namespace, module, symbol } => {
+            // Look for the full path in the source code
+            let full_path = format!("{}::{}::{}", namespace, module, symbol);
+            if let Some(pos) = source_code.find(&full_path) {
+                pos..pos + full_path.len()
             } else {
                 // Fallback to middle of file
                 let source_len = source_code.chars().count();

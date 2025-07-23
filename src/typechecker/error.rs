@@ -39,6 +39,20 @@ pub enum TypeError<'src> {
         pattern: String,
     },
     UnificationError(hir::Ty<'src>, hir::Ty<'src>),
+    // New import-related errors
+    UnknownModule {
+        namespace: &'src str,
+        module: &'src str,
+    },
+    UnknownModuleSymbol {
+        namespace: &'src str,
+        module: &'src str,
+        symbol: &'src str,
+    },
+    MissingImport {
+        symbol: &'src str,
+        suggested_import: Option<String>,
+    },
 }
 
 impl<'src> fmt::Display for hir::Ty<'src> {

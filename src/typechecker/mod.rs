@@ -338,6 +338,35 @@ impl<'src> TypeChecker<'src> {
             Some(symbols)
         }
     }
+
+    /// Suggest an import for an unknown symbol
+    fn suggest_import(&self, symbol: &str) -> Option<String> {
+        // Common standard library modules that might contain the symbol
+        let common_modules = [
+            ("Std::Fmt", vec!["println", "print", "format"]),
+            ("Std::String", vec!["from", "new", "len", "is_empty"]),
+            ("Std::Collections", vec!["Vec", "Map", "Set"]),
+            ("Std::Math", vec!["add", "sub", "mul", "div", "sqrt", "pow"]),
+            ("Self::Utils", vec!["helper_function", "utility"]),
+        ];
+        
+        for (module_path, symbols) in common_modules.iter() {
+            if symbols.contains(&symbol) {
+                return Some(format!("import {};", module_path));
+            }
+        }
+        
+        // If it looks like a standard library module name, suggest importing it
+        if symbol == "Std" {
+            return Some("import Std::Fmt;".to_string());
+        }
+        
+        if symbol == "Self" {
+            return Some("import Self::Utils;".to_string());
+        }
+        
+        None
+    }
 }
 
 impl<'src> Default for TypeChecker<'src> {
