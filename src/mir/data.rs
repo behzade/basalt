@@ -30,6 +30,8 @@ pub struct MirFunction<'src> {
     pub basic_blocks: Vec<BasicBlock<'src>>,
     pub locals: HashMap<LocalId, MirLocal<'src>>,
     pub next_local_id: LocalId,
+    /// Handler context that this function expects to receive
+    pub handler_context: HandlerContext<'src>,
 }
 
 /// A "basic block" is a straight line of code with no jumps in or out, except
@@ -51,6 +53,65 @@ pub struct MirLocal<'src> {
     pub id: LocalId,
     pub ty: hir::Ty<'src>,
     pub is_param: bool,
+}
+
+/// Represents the handler context for a function or expression
+#[derive(Debug, Clone)]
+pub struct HandlerContext<'src> {
+    /// Stack of active handlers, from innermost to outermost
+    pub handlers: Vec<HandlerEntry<'src>>,
+}
+
+/// A single handler entry in the handler stack
+#[derive(Debug, Clone)]
+pub struct HandlerEntry<'src> {
+    /// The effect this handler handles
+    pub effect: &'src str,
+    /// The handler name or identifier
+    pub handler: &'src str,
+    /// Whether this handler was pushed by a handle expression (vs inherited from caller)
+    pub is_local: bool,
+}
+
+impl<'src> HandlerContext<'src> {
+    pub fn new() -> Self {
+        Self { handlers: Vec::new() }
+    }
+
+    /// Push a new handler onto the stack
+    pub fn push_handler(&mut self, effect: &'src str, handler: &'src str) {
+        self.handlers.push(HandlerEntry {
+            effect,
+            handler,
+            is_local: true,
+        });
+    }
+
+    /// Pop the topmost local handler from the stack
+    pub fn pop_local_handler(&mut self) -> Option<HandlerEntry<'src>> {
+        // Find the topmost local handler
+        if let Some(index) = self.handlers.iter().rposition(|h| h.is_local) {
+            Some(self.handlers.remove(index))
+        } else {
+            None
+        }
+    }
+
+    /// Find the handler for a given effect (searches from top of stack)
+    pub fn find_handler(&self, effect: &str) -> Option<&'src str> {
+        self.handlers
+            .iter()
+            .rev()
+            .find(|h| h.effect == effect)
+            .map(|h| h.handler)
+    }
+
+    /// Clone the context for passing to called functions
+    pub fn clone_for_call(&self) -> Self {
+        Self {
+            handlers: self.handlers.clone(),
+        }
+    }
 }
 
 //================================================================================//
@@ -155,13 +216,24 @@ pub enum Terminator<'src> {
         destination: Place,
         target: BasicBlockId, // Block to jump to after the call.
     },
-    /// An effect operation that captures the continuation.
+    /// Push a handler onto the dynamic handler stack
+    PushHandler {
+        effect: &'src str,
+        handler: &'src str,
+        target: BasicBlockId, // Block to execute with handler in scope
+    },
+    /// Pop a handler from the dynamic handler stack
+    PopHandler {
+        target: BasicBlockId, // Block to execute after handler is popped
+    },
+    /// An effect operation that uses dynamic handler lookup
     Perform {
         effect: &'src str,
         operation: &'src str,
         args: Vec<Operand<'src>>,
         destination: Place,
         continuation: BasicBlockId, // Block to resume after handler returns
+        no_handler: BasicBlockId, // Block to jump to if no handler found
     },
     /// Resume execution after an effect operation was handled.
     Resume {
@@ -174,8 +246,8 @@ pub enum Terminator<'src> {
         arms: Vec<(Pattern<'src>, BasicBlockId)>,
         otherwise: BasicBlockId,
     },
-    /// Return from the function.
+    /// Return from the current function.
     Return,
-    /// Should not be reachable.
+    /// Unreachable code (should never be executed).
     Unreachable,
 } 

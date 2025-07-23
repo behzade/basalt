@@ -1,5 +1,5 @@
-// Test 14: Effects
-// Testing effect definitions and handlers
+// Test: Dynamic Effect Handler Context
+// This demonstrates that effect handlers work dynamically across function calls
 
 effect IO {
     Read() -> string,
@@ -8,10 +8,10 @@ effect IO {
 
 handler ConsoleIO{IO} {
     Read() -> string {
-        return "input";
+        return "mock_input";
     }
     Write(msg: string) -> none {
-        // console output
+        return;
     }
 }
 

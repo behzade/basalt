@@ -11,8 +11,8 @@ pub struct MirBuilder<'src> {
     pub locals: HashMap<LocalId, MirLocal<'src>>,
     next_local_id: usize,
     current_block: BasicBlockId,
-    /// Stack of active effect handlers for continuation capture
-    effect_handlers: Vec<(&'src str, &'src str)>, // (effect_name, handler_name)
+    /// Dynamic handler context for this function
+    handler_context: HandlerContext<'src>,
 }
 
 impl<'src> MirBuilder<'src> {
@@ -22,7 +22,7 @@ impl<'src> MirBuilder<'src> {
             locals: HashMap::new(),
             next_local_id: 0,
             current_block: 0, // Placeholder, will be set by `new_basic_block`
-            effect_handlers: Vec::new(),
+            handler_context: HandlerContext::new(),
         };
         // Every function starts with at least one block.
         builder.current_block = builder.new_basic_block();
@@ -63,23 +63,29 @@ impl<'src> MirBuilder<'src> {
         self.basic_blocks[self.current_block].terminator = terminator;
     }
 
-    /// Pushes an effect handler onto the stack.
+    /// Pushes an effect handler onto the dynamic handler stack
     pub fn push_effect_handler(&mut self, effect: &'src str, handler: &'src str) {
-        self.effect_handlers.push((effect, handler));
+        self.handler_context.push_handler(effect, handler);
     }
 
-    /// Pops an effect handler from the stack.
-    pub fn pop_effect_handler(&mut self) -> Option<(&'src str, &'src str)> {
-        self.effect_handlers.pop()
+    /// Pops an effect handler from the dynamic handler stack
+    pub fn pop_effect_handler(&mut self) -> Option<HandlerEntry<'src>> {
+        self.handler_context.pop_local_handler()
     }
 
-    /// Gets the current effect handler for a given effect.
+    /// Gets the current effect handler for a given effect (for static analysis)
     pub fn get_effect_handler(&self, effect: &str) -> Option<&'src str> {
-        self.effect_handlers
-            .iter()
-            .rev() // Search from top of stack
-            .find(|(e, _)| *e == effect)
-            .map(|(_, h)| *h)
+        self.handler_context.find_handler(effect)
+    }
+
+    /// Gets the current handler context
+    pub fn get_handler_context(&self) -> &HandlerContext<'src> {
+        &self.handler_context
+    }
+
+    /// Sets the handler context (used when inheriting from caller)
+    pub fn set_handler_context(&mut self, context: HandlerContext<'src>) {
+        self.handler_context = context;
     }
 
     /// Allocates a new local variable.
@@ -104,6 +110,7 @@ impl<'src> MirBuilder<'src> {
             basic_blocks: self.basic_blocks,
             locals: self.locals,
             next_local_id: LocalId(self.next_local_id),
+            handler_context: self.handler_context,
         }
     }
 } 

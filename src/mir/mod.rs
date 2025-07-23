@@ -4,7 +4,7 @@
 //! into the Mid-level Intermediate Representation (MIR).
 
 mod builder;
-mod data;
+pub mod data;
 
 use crate::{hir, hir::Ty, ast};
 use builder::MirBuilder;
@@ -119,41 +119,43 @@ impl<'src> MirLowerer<'src> {
                 let rvalue = Rvalue::UnaryOp(*op, Operand::Copy(Place { local: rhs_temp }));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
-            hir::ExprKind::If {
-                cond,
-                then_block,
-                else_block,
-            } => {
-                // Create blocks for then, else, and the merge point after the if.
-                let then_bb = builder.new_basic_block();
-                let else_bb = builder.new_basic_block();
-                let merge_bb = builder.new_basic_block();
-
-                // Lower the condition.
+            hir::ExprKind::If { cond, then_block, else_block } => {
+                // Lower the condition into a temporary local.
                 let cond_temp = builder.new_local(cond.ty.clone(), false);
                 self.lower_expr(cond, builder, locals, Place { local: cond_temp });
 
-                // Terminate the current block with a conditional switch.
+                // Create blocks for the if structure.
+                let then_block_id = builder.new_basic_block();
+                let else_block_id = builder.new_basic_block();
+                let merge_block_id = builder.new_basic_block();
+
+                // Terminate current block with conditional jump.
                 builder.set_terminator(Terminator::SwitchInt {
                     discr: Operand::Copy(Place { local: cond_temp }),
-                    targets: vec![(1, then_bb)], // if true (1), go to then_bb
-                    otherwise: else_bb,
+                    targets: vec![(1, then_block_id)], // true -> then block
+                    otherwise: else_block_id,           // false -> else block
                 });
 
-                // Lower the `then` block.
-                builder.switch_to_block(then_bb);
+                // Lower the then block.
+                builder.switch_to_block(then_block_id);
                 self.lower_expr(then_block, builder, locals, destination.clone());
-                builder.set_terminator(Terminator::Goto { target: merge_bb });
+                builder.set_terminator(Terminator::Goto { target: merge_block_id });
 
-                // Lower the `else` block.
-                builder.switch_to_block(else_bb);
+                // Lower the else block if it exists.
                 if let Some(else_expr) = else_block {
+                    builder.switch_to_block(else_block_id);
                     self.lower_expr(else_expr, builder, locals, destination);
+                    builder.set_terminator(Terminator::Goto { target: merge_block_id });
+                } else {
+                    // No else block - assign unit to destination and goto merge
+                    builder.switch_to_block(else_block_id);
+                    let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                    builder.push_statement(Statement::Assign(destination.clone(), rvalue));
+                    builder.set_terminator(Terminator::Goto { target: merge_block_id });
                 }
-                builder.set_terminator(Terminator::Goto { target: merge_bb });
 
-                // Continue building from the merge block.
-                builder.switch_to_block(merge_bb);
+                // Continue from merge block.
+                builder.switch_to_block(merge_block_id);
             }
             hir::ExprKind::Block { stmts, last_expr } => {
                 // Lower all statements in the block.
@@ -161,14 +163,23 @@ impl<'src> MirLowerer<'src> {
                     self.lower_stmt(stmt, builder, locals);
                 }
 
-                // Lower the last expression if present.
+                // Check if any statement was a return
+                let has_return = stmts.iter().any(|stmt| {
+                    matches!(stmt, hir::Stmt::Return(_))
+                });
+
+                // Lower the last expression if it exists and no return statement was encountered.
                 if let Some(expr) = last_expr {
-                    self.lower_expr(expr, builder, locals, destination);
-                } else {
-                                    // If no last expression, assign unit value.
-                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                    if !has_return {
+                        self.lower_expr(expr, builder, locals, destination);
+                    }
+                } else if !has_return {
+                    // No last expression and no return statement - assign unit.
+                    let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                    builder.push_statement(Statement::Assign(destination, rvalue));
                 }
+                // If there's a return statement, don't assign anything to destination
+                // The return statement has already handled the return value
             }
             hir::ExprKind::Call { fun, args } => {
                 // Lower all arguments into temporary locals.
@@ -198,40 +209,6 @@ impl<'src> MirLowerer<'src> {
                 // Switch to the after-call block.
                 builder.switch_to_block(after_call_bb);
             }
-            hir::ExprKind::While { cond, body } => {
-                // Create blocks for the loop: condition, body, and exit.
-                let cond_bb = builder.new_basic_block();
-                let body_bb = builder.new_basic_block();
-                let exit_bb = builder.new_basic_block();
-
-                // Jump to the condition block.
-                builder.set_terminator(Terminator::Goto { target: cond_bb });
-
-                // Lower the condition.
-                builder.switch_to_block(cond_bb);
-                let cond_temp = builder.new_local(cond.ty.clone(), false);
-                self.lower_expr(cond, builder, locals, Place { local: cond_temp });
-
-                // Branch based on condition.
-                builder.set_terminator(Terminator::SwitchInt {
-                    discr: Operand::Copy(Place { local: cond_temp }),
-                    targets: vec![(1, body_bb)], // if true, go to body
-                    otherwise: exit_bb,           // if false, exit loop
-                });
-
-                // Lower the body.
-                builder.switch_to_block(body_bb);
-                let body_temp = builder.new_local(body.ty.clone(), false);
-                self.lower_expr(body, builder, locals, Place { local: body_temp });
-                builder.set_terminator(Terminator::Goto { target: cond_bb }); // Loop back to condition
-
-                // Continue from exit block.
-                builder.switch_to_block(exit_bb);
-                
-                // Assign unit value to destination (while loops return unit).
-                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination, rvalue));
-            }
             hir::ExprKind::Perform { path, args } => {
                 // Lower all arguments into temporary locals.
                 let mut arg_operands = Vec::new();
@@ -247,28 +224,28 @@ impl<'src> MirLowerer<'src> {
 
                 // Create continuation block for after the effect is handled
                 let continuation_bb = builder.new_basic_block();
+                
+                // Create block for when no handler is found
+                let no_handler_bb = builder.new_basic_block();
 
-                // Check if we have a handler for this effect
-                if let Some(handler_name) = builder.get_effect_handler(effect_name) {
-                    // We have a handler - perform the effect operation
-                    builder.set_terminator(Terminator::Perform {
-                        effect: effect_name,
-                        operation: operation_name,
-                        args: arg_operands,
-                        destination: destination.clone(),
-                        continuation: continuation_bb,
-                    });
+                // Generate dynamic perform operation
+                builder.set_terminator(Terminator::Perform {
+                    effect: effect_name,
+                    operation: operation_name,
+                    args: arg_operands,
+                    destination: destination.clone(),
+                    continuation: continuation_bb,
+                    no_handler: no_handler_bb,
+                });
 
-                    // Switch to continuation block
-                    builder.switch_to_block(continuation_bb);
-                } else {
-                    // No handler available - this is an error in a real compiler
-                    // For now, we'll assign a placeholder and continue
-                    let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                    builder.push_statement(Statement::Assign(destination, rvalue));
-                    builder.set_terminator(Terminator::Goto { target: continuation_bb });
-                    builder.switch_to_block(continuation_bb);
-                }
+                // Set up no-handler block (for now, assign unit and continue)
+                builder.switch_to_block(no_handler_bb);
+                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                builder.push_statement(Statement::Assign(destination.clone(), rvalue));
+                builder.set_terminator(Terminator::Goto { target: continuation_bb });
+
+                // Switch to continuation block
+                builder.switch_to_block(continuation_bb);
             }
             hir::ExprKind::Handle { body, handler } => {
                 match handler {
@@ -280,14 +257,28 @@ impl<'src> MirLowerer<'src> {
                         // In a real implementation, we'd check the handler's effect signature
                         let effect_name = "IO"; // Placeholder - should come from handler definition
                         
-                        // Push the handler onto the effect stack
-                        builder.push_effect_handler(effect_name, handler_name);
+                        // Create blocks for the handle structure
+                        let body_block = builder.new_basic_block();
+                        let after_handle_block = builder.new_basic_block();
                         
-                        // Lower the body with the handler in scope
+                        // Push handler and jump to body
+                        builder.set_terminator(Terminator::PushHandler {
+                            effect: effect_name,
+                            handler: handler_name,
+                            target: body_block,
+                        });
+                        
+                        // Lower the body in the body block
+                        builder.switch_to_block(body_block);
                         self.lower_expr(body, builder, locals, destination);
                         
-                        // Pop the handler from the stack
-                        builder.pop_effect_handler();
+                        // Pop handler and continue
+                        builder.set_terminator(Terminator::PopHandler {
+                            target: after_handle_block,
+                        });
+                        
+                        // Switch to after-handle block
+                        builder.switch_to_block(after_handle_block);
                     }
                     hir::HandlerBody::Inline(handler_functions) => {
                         // For inline handlers, we'd need to create local handler functions
@@ -350,19 +341,15 @@ impl<'src> MirLowerer<'src> {
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
             hir::ExprKind::Match { scrutinee, arms } => {
-                // Lower the scrutinee
+                // Lower the scrutinee into a temporary local.
                 let scrutinee_temp = builder.new_local(scrutinee.ty.clone(), false);
                 self.lower_expr(scrutinee, builder, locals, Place { local: scrutinee_temp });
-                
-                // Create blocks for each arm and a default block
+
+                // Create blocks for each arm and a merge block.
                 let mut arm_blocks = Vec::new();
-                let default_block = builder.new_basic_block();
-                let merge_block = builder.new_basic_block();
-                
-                for (pattern, arm_expr) in arms {
+                for (pattern, _) in arms {
                     let arm_block = builder.new_basic_block();
-                    
-                    // Convert hir::Pattern to data::Pattern and handle bindings
+                    // Convert hir::Pattern to data::Pattern
                     let mir_pattern = Pattern {
                         kind: match &pattern.kind {
                             hir::PatternKind::Literal(lit) => PatternKind::Literal(lit.clone()),
@@ -406,12 +393,15 @@ impl<'src> MirLowerer<'src> {
                         },
                         ty: pattern.ty.clone(),
                     };
-                    
                     arm_blocks.push((mir_pattern, arm_block));
-                    
-                    // Switch to arm block and lower the expression
-                    builder.switch_to_block(arm_block);
-                    self.lower_expr(arm_expr, builder, locals, destination.clone());
+                }
+                let default_block = builder.new_basic_block();
+                let merge_block = builder.new_basic_block();
+
+                // Lower each arm.
+                for ((pattern, expr), arm_block) in arms.iter().zip(arm_blocks.iter()) {
+                    builder.switch_to_block(arm_block.1);
+                    self.lower_expr(expr, builder, locals, destination.clone());
                     builder.set_terminator(Terminator::Goto { target: merge_block });
                 }
                 
@@ -432,6 +422,40 @@ impl<'src> MirLowerer<'src> {
                 
                 // Continue from merge block
                 builder.switch_to_block(merge_block);
+            }
+            hir::ExprKind::While { cond, body } => {
+                // Create blocks for the loop: condition, body, and exit.
+                let cond_bb = builder.new_basic_block();
+                let body_bb = builder.new_basic_block();
+                let exit_bb = builder.new_basic_block();
+
+                // Jump to the condition block.
+                builder.set_terminator(Terminator::Goto { target: cond_bb });
+
+                // Lower the condition.
+                builder.switch_to_block(cond_bb);
+                let cond_temp = builder.new_local(cond.ty.clone(), false);
+                self.lower_expr(cond, builder, locals, Place { local: cond_temp });
+
+                // Branch based on condition.
+                builder.set_terminator(Terminator::SwitchInt {
+                    discr: Operand::Copy(Place { local: cond_temp }),
+                    targets: vec![(1, body_bb)], // if true, go to body
+                    otherwise: exit_bb,           // if false, exit loop
+                });
+
+                // Lower the body.
+                builder.switch_to_block(body_bb);
+                let body_temp = builder.new_local(body.ty.clone(), false);
+                self.lower_expr(body, builder, locals, Place { local: body_temp });
+                builder.set_terminator(Terminator::Goto { target: cond_bb }); // Loop back to condition
+
+                // Continue from exit block.
+                builder.switch_to_block(exit_bb);
+                
+                // Assign unit value to destination (while loops return unit).
+                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                builder.push_statement(Statement::Assign(destination, rvalue));
             }
         }
     }
@@ -478,9 +502,9 @@ impl<'src> MirLowerer<'src> {
                 builder.push_statement(Statement::Assign(Place { local: *lhs_local }, rvalue));
             }
             hir::Stmt::Expr(expr) => {
-                // Lower the expression into a temporary local (result is discarded).
-                let temp = builder.new_local(expr.ty.clone(), false);
-                self.lower_expr(expr, builder, locals, Place { local: temp });
+                // Create a temporary local for the expression result.
+                let temp_local = builder.new_local(expr.ty.clone(), false);
+                self.lower_expr(expr, builder, locals, Place { local: temp_local });
             }
         }
     }

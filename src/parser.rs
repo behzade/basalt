@@ -334,8 +334,20 @@ fn expression_parsers<'src>() -> (
         .map(|(path, args)| Expr::Perform { path, args })
         .labelled("perform expression");
 
-    // Add perform expression to atom choices
-    let atom_with_perform = choice((
+    // Handle expression parser
+    let handle_expr = just(Token::Handle)
+        .ignore_then(expr.clone())
+        .then_ignore(just(Token::With))
+        .then(path.clone())
+        .then_ignore(just(Token::Semi))
+        .map(|(body, handler_path)| Expr::Handle {
+            body: Box::new(body),
+            handler: HandlerBody::Path(handler_path),
+        })
+        .labelled("handle expression");
+
+    // Add perform and handle expressions to atom choices
+    let atom_with_perform_and_handle = choice((
         // Literals
         select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
         select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
@@ -364,12 +376,14 @@ fn expression_parsers<'src>() -> (
         block.clone(),
         // Perform expression
         perform_expr.clone(),
+        // Handle expression
+        handle_expr.clone(),
         // Array literal
         array_literal.clone(),
     ))
     .boxed();
 
-    let expr_parser = atom_with_perform
+    let expr_parser = atom_with_perform_and_handle
         .pratt((
             postfix(
                 9,
