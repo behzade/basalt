@@ -37,6 +37,7 @@ impl<'src> TypeChecker<'src> {
             }
             ast::Expr::Call { fun, args } => self.check_call(fun, args)?,
             ast::Expr::Array(elements) => self.check_array(elements)?,
+            ast::Expr::Map(pairs) => self.check_map(pairs)?,
             ast::Expr::StructInit { path, generics, fields } => {
                 self.check_struct_init(path, generics, fields)?
             }
@@ -307,6 +308,40 @@ impl<'src> TypeChecker<'src> {
     ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
         let hir_fun = self.check_expr(fun)?;
 
+        // Check for array indexing: get(array, index)
+        if let hir::ExprKind::Path(path) = &hir_fun.kind {
+            if path == &["get"] && args.len() == 2 {
+                let array_expr = self.check_expr(&args[0])?;
+                let index_expr = self.check_expr(&args[1])?;
+                
+                // Check that the index is an integer
+                self.unify(&index_expr.ty, &Ty::I64)?;
+                
+                // Check that the first argument is an array
+                if let Ty::Array(element_ty) = &array_expr.ty {
+                    let kind = hir::ExprKind::Call {
+                        fun: Box::new(hir_fun),
+                        args: vec![array_expr.clone(), index_expr.clone()],
+                    };
+                    return Ok((kind, element_ty.as_ref().clone()));
+                } else {
+                    // If it's not an array, check if it's a map (for map access)
+                    if let Ty::Map { value, .. } = &array_expr.ty {
+                        let kind = hir::ExprKind::Call {
+                            fun: Box::new(hir_fun),
+                            args: vec![array_expr.clone(), index_expr.clone()],
+                        };
+                        return Ok((kind, value.as_ref().clone()));
+                    } else {
+                        return Err(TypeError::MismatchedTypes {
+                            expected: Ty::Array(Box::new(Ty::Infer(0))),
+                            found: array_expr.ty,
+                        });
+                    }
+                }
+            }
+        }
+
         // This is a simplification. A real implementation would unify against
         // a function type, but for now we check for function names.
         if let hir::ExprKind::Path(path) = &hir_fun.kind {
@@ -473,6 +508,31 @@ impl<'src> TypeChecker<'src> {
         }
         let array_ty = Ty::Array(Box::new(self.resolve_type(&inner_ty)));
         Ok((hir::ExprKind::Array(hir_elements), array_ty))
+    }
+
+    fn check_map(
+        &mut self,
+        pairs: &[(ast::Expr<'src>, ast::Expr<'src>)],
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        let key_ty = self.new_infer_ty();
+        let value_ty = self.new_infer_ty();
+
+        let mut hir_pairs = Vec::new();
+        for (key_expr, value_expr) in pairs {
+            let hir_key = self.check_expr_with_hint(key_expr, &key_ty)?;
+            let hir_value = self.check_expr_with_hint(value_expr, &value_ty)?;
+
+            self.unify(&hir_key.ty, &key_ty)?;
+            self.unify(&hir_value.ty, &value_ty)?;
+
+            hir_pairs.push((hir_key, hir_value));
+        }
+
+        let map_ty = Ty::Map {
+            key: Box::new(self.resolve_type(&key_ty)),
+            value: Box::new(self.resolve_type(&value_ty)),
+        };
+        Ok((hir::ExprKind::Map(hir_pairs), map_ty))
     }
 
     fn check_struct_init(

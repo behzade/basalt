@@ -85,9 +85,135 @@ impl<'src> TypeChecker<'src> {
         }
 
         if self.errors.is_empty() {
-            Ok(hir_items)
+            // Resolve all inference variables in the final HIR
+            let resolved_items = hir_items.into_iter()
+                .map(|item| self.resolve_item_inference(item))
+                .collect();
+            Ok(resolved_items)
         } else {
             Err(self.errors)
+        }
+    }
+
+    /// Resolves all inference variables in an HIR item
+    fn resolve_item_inference(&self, item: hir::Item<'src>) -> hir::Item<'src> {
+        match item {
+            hir::Item::Fn(func) => hir::Item::Fn(self.resolve_function_inference(func)),
+            hir::Item::Stmt(stmt) => hir::Item::Stmt(self.resolve_stmt_inference(stmt)),
+            hir::Item::Impl(impl_block) => hir::Item::Impl(self.resolve_impl_inference(impl_block)),
+            _ => item, // Other items don't contain expressions that need resolution
+        }
+    }
+
+    /// Resolves all inference variables in a function
+    fn resolve_function_inference(&self, func: hir::Function<'src>) -> hir::Function<'src> {
+        hir::Function {
+            name: func.name,
+            params: func.params,
+            ret_type: self.resolve_type(&func.ret_type),
+            body: self.resolve_expr_inference(func.body),
+            is_public: func.is_public,
+        }
+    }
+
+    /// Resolves all inference variables in a statement
+    fn resolve_stmt_inference(&self, stmt: hir::Stmt<'src>) -> hir::Stmt<'src> {
+        match stmt {
+            hir::Stmt::Let { name, is_mut, value_ty, value } => hir::Stmt::Let {
+                name,
+                is_mut,
+                value_ty: self.resolve_type(&value_ty),
+                value: self.resolve_expr_inference(value),
+            },
+            hir::Stmt::Return(expr) => hir::Stmt::Return(expr.map(|e| self.resolve_expr_inference(e))),
+            hir::Stmt::Assign(lhs, rhs) => hir::Stmt::Assign(
+                self.resolve_expr_inference(lhs),
+                self.resolve_expr_inference(rhs),
+            ),
+            hir::Stmt::Expr(expr) => hir::Stmt::Expr(self.resolve_expr_inference(expr)),
+        }
+    }
+
+    /// Resolves all inference variables in an implementation block
+    fn resolve_impl_inference(&self, impl_block: hir::ImplBlock<'src>) -> hir::ImplBlock<'src> {
+        hir::ImplBlock {
+            trait_name: impl_block.trait_name,
+            target_type: self.resolve_type(&impl_block.target_type),
+            methods: impl_block.methods.into_iter()
+                .map(|m| self.resolve_function_inference(m))
+                .collect(),
+        }
+    }
+
+    /// Resolves all inference variables in an expression
+    fn resolve_expr_inference(&self, expr: hir::Expr<'src>) -> hir::Expr<'src> {
+        let resolved_ty = self.resolve_type(&expr.ty);
+        let resolved_kind = match expr.kind {
+            hir::ExprKind::Literal(lit) => hir::ExprKind::Literal(lit),
+            hir::ExprKind::Array(elements) => hir::ExprKind::Array(
+                elements.into_iter().map(|e| self.resolve_expr_inference(e)).collect()
+            ),
+            hir::ExprKind::Map(pairs) => hir::ExprKind::Map(
+                pairs.into_iter().map(|(k, v)| (
+                    self.resolve_expr_inference(k),
+                    self.resolve_expr_inference(v)
+                )).collect()
+            ),
+            hir::ExprKind::Path(path) => hir::ExprKind::Path(path),
+            hir::ExprKind::Unary { op, rhs } => hir::ExprKind::Unary {
+                op,
+                rhs: Box::new(self.resolve_expr_inference(*rhs)),
+            },
+            hir::ExprKind::Binary { op, lhs, rhs } => hir::ExprKind::Binary {
+                op,
+                lhs: Box::new(self.resolve_expr_inference(*lhs)),
+                rhs: Box::new(self.resolve_expr_inference(*rhs)),
+            },
+            hir::ExprKind::Call { fun, args } => hir::ExprKind::Call {
+                fun: Box::new(self.resolve_expr_inference(*fun)),
+                args: args.into_iter().map(|a| self.resolve_expr_inference(a)).collect(),
+            },
+            hir::ExprKind::StructInit { path, fields } => hir::ExprKind::StructInit {
+                path,
+                fields: fields.into_iter().map(|(k, v)| (k, self.resolve_expr_inference(v))).collect(),
+            },
+            hir::ExprKind::Block { stmts, last_expr } => hir::ExprKind::Block {
+                stmts: stmts.into_iter().map(|s| self.resolve_stmt_inference(s)).collect(),
+                last_expr: last_expr.map(|e| Box::new(self.resolve_expr_inference(*e))),
+            },
+            hir::ExprKind::If { cond, then_block, else_block } => hir::ExprKind::If {
+                cond: Box::new(self.resolve_expr_inference(*cond)),
+                then_block: Box::new(self.resolve_expr_inference(*then_block)),
+                else_block: else_block.map(|e| Box::new(self.resolve_expr_inference(*e))),
+            },
+            hir::ExprKind::Match { scrutinee, arms } => hir::ExprKind::Match {
+                scrutinee: Box::new(self.resolve_expr_inference(*scrutinee)),
+                arms: arms.into_iter().map(|(pat, expr)| (
+                    self.resolve_pattern_inference(pat),
+                    self.resolve_expr_inference(expr)
+                )).collect(),
+            },
+            hir::ExprKind::While { cond, body } => hir::ExprKind::While {
+                cond: Box::new(self.resolve_expr_inference(*cond)),
+                body: Box::new(self.resolve_expr_inference(*body)),
+            },
+            hir::ExprKind::Perform { path, args } => hir::ExprKind::Perform {
+                path,
+                args: args.into_iter().map(|a| self.resolve_expr_inference(a)).collect(),
+            },
+            hir::ExprKind::Handle { body, handler } => hir::ExprKind::Handle {
+                body: Box::new(self.resolve_expr_inference(*body)),
+                handler,
+            },
+        };
+        hir::Expr { kind: resolved_kind, ty: resolved_ty }
+    }
+
+    /// Resolves all inference variables in a pattern
+    fn resolve_pattern_inference(&self, pattern: hir::Pattern<'src>) -> hir::Pattern<'src> {
+        hir::Pattern {
+            kind: pattern.kind,
+            ty: self.resolve_type(&pattern.ty),
         }
     }
 
