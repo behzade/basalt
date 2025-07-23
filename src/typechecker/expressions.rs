@@ -46,6 +46,12 @@ impl<'src> TypeChecker<'src> {
             ast::Expr::While { cond, body } => {
                 self.check_while(cond, body)?
             }
+            ast::Expr::Perform { path, args } => {
+                self.check_perform(path, args)?
+            }
+            ast::Expr::Handle { body, handler } => {
+                self.check_handle(body, handler)?
+            }
             _ => return Ok(hir::Expr {
                 kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
                 ty: Ty::Error,
@@ -593,5 +599,82 @@ impl<'src> TypeChecker<'src> {
 
         // While loops return unit type
         Ok((kind, Ty::Unit))
+    }
+
+    fn check_perform(
+        &mut self,
+        path: &[&'src str],
+        args: &[ast::Expr<'src>],
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        // Check each argument
+        let mut hir_args = Vec::new();
+        for arg in args {
+            let hir_arg = self.check_expr(arg)?;
+            hir_args.push(hir_arg);
+        }
+
+        // Look up the effect operation signature
+        if path.len() >= 2 {
+            let effect_name = path[0];
+            let operation_name = path[1];
+            
+            // Try to find the effect definition
+            if let Some(effect_def) = self.context.get_effect(effect_name) {
+                // Find the operation in the effect
+                if let Some(operation) = effect_def.operations.iter().find(|op| op.name == operation_name) {
+                    // Check argument count
+                    if args.len() != operation.params.len() {
+                        return Err(TypeError::WrongArgumentCount {
+                            expected: operation.params.len(),
+                            found: args.len(),
+                        });
+                    }
+                    
+                    // Convert operation types to HIR types first
+                    let hir_param_types: Vec<Ty<'src>> = operation.params.iter().map(|t| self.lower_type(t)).collect();
+                    let hir_ret_type = self.lower_type(&operation.ret_type);
+                    
+                    // Check argument types
+                    for (arg, param_ty) in hir_args.iter().zip(hir_param_types.iter()) {
+                        self.unify(&arg.ty, param_ty)?;
+                    }
+                    
+                    return Ok((hir::ExprKind::Perform {
+                        path: path.to_vec(),
+                        args: hir_args,
+                    }, hir_ret_type));
+                }
+            }
+        }
+
+        // Fallback: assume unit type if we can't find the effect operation
+        Ok((hir::ExprKind::Perform {
+            path: path.to_vec(),
+            args: hir_args,
+        }, Ty::Unit))
+    }
+
+    fn check_handle(
+        &mut self,
+        body: &ast::Expr<'src>,
+        handler: &ast::HandlerBody<'src>,
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        let hir_body = self.check_expr(body)?;
+        
+        let hir_handler = match handler {
+            ast::HandlerBody::Path(path) => hir::HandlerBody::Path(path.clone()),
+            ast::HandlerBody::Inline(functions) => {
+                // For now, just use the path version
+                // In a full implementation, we'd check the functions
+                hir::HandlerBody::Path(vec!["inline_handler"])
+            }
+        };
+
+        // For now, assume handle returns the same type as the body
+        // In a full implementation, we'd check effect row compatibility
+        Ok((hir::ExprKind::Handle {
+            body: Box::new(hir_body.clone()),
+            handler: hir_handler,
+        }, hir_body.ty))
     }
 } 

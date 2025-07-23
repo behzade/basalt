@@ -75,7 +75,10 @@ pub enum Item<'src> {
     Fn(Function<'src>),
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
-    // ... other items like Trait, Impl, etc. would go here
+    Trait(TraitDef<'src>),
+    Impl(ImplBlock<'src>),
+    Effect(EffectDef<'src>),
+    Handler(HandlerDef<'src>),
 }
 
 /// A fully typed function definition.
@@ -104,6 +107,64 @@ pub struct EnumDef<'src> {
     pub generics: Vec<&'src str>, // Generic type parameters
     pub variants: Vec<(&'src str, Option<Vec<Ty<'src>>>)>,
     pub is_public: bool,
+}
+
+/// A trait definition, using `hir::Ty` for its method signatures.
+#[derive(Debug, Clone)]
+pub struct TraitDef<'src> {
+    pub name: &'src str,
+    pub methods: Vec<TraitMethod<'src>>,
+    pub is_public: bool,
+}
+
+/// A trait method signature, using `hir::Ty` for types.
+#[derive(Debug, Clone)]
+pub struct TraitMethod<'src> {
+    pub name: &'src str,
+    pub params: Vec<(Option<&'src str>, Ty<'src>)>,
+    pub ret_type: Ty<'src>,
+    pub is_public: bool,
+}
+
+/// An implementation block, using `hir::Ty` for types.
+#[derive(Debug, Clone)]
+pub struct ImplBlock<'src> {
+    pub trait_name: &'src str,
+    pub target_type: Ty<'src>,
+    pub methods: Vec<Function<'src>>,
+}
+
+/// An effect definition, using `hir::Ty` for operation signatures.
+#[derive(Debug, Clone)]
+pub struct EffectDef<'src> {
+    pub name: &'src str,
+    pub operations: Vec<EffectOp<'src>>,
+    pub is_public: bool,
+}
+
+/// An effect operation signature, using `hir::Ty` for types.
+#[derive(Debug, Clone)]
+pub struct EffectOp<'src> {
+    pub name: &'src str,
+    pub params: Vec<Ty<'src>>,
+    pub ret_type: Ty<'src>,
+    pub is_public: bool,
+}
+
+/// A handler definition, using `hir::Ty` for types.
+#[derive(Debug, Clone)]
+pub struct HandlerDef<'src> {
+    pub name: &'src str,
+    pub effects: Vec<&'src str>,
+    pub functions: Vec<Function<'src>>,
+    pub is_public: bool,
+}
+
+/// A handler body, either a path or inline functions.
+#[derive(Debug, Clone)]
+pub enum HandlerBody<'src> {
+    Path(Path<'src>),
+    Inline(Vec<Function<'src>>),
 }
 
 //================================================================================//
@@ -174,7 +235,16 @@ pub enum ExprKind<'src> {
         cond: Box<Expr<'src>>,
         body: Box<Expr<'src>>,
     },
-    // ... other expression kinds would follow
+    /// Effect operation: `perform Effect::op(args)`
+    Perform {
+        path: Path<'src>,
+        args: Vec<Expr<'src>>,
+    },
+    /// Effect handler: `handle body with handler`
+    Handle {
+        body: Box<Expr<'src>>,
+        handler: HandlerBody<'src>,
+    },
 }
 
 //================================================================================//

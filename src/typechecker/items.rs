@@ -38,6 +38,8 @@ impl<'src> TypeChecker<'src> {
                     .collect(),
                 ret_type: self.lower_type(ret_type),
             }),
+            ast::Item::Effect(effect_def) => self.check_effect(effect_def),
+            ast::Item::Handler(handler_def) => self.check_handler(handler_def),
             _ => Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
                 kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
                 ty: Ty::Unit,
@@ -142,12 +144,30 @@ impl<'src> TypeChecker<'src> {
         &mut self,
         trait_def: &ast::TraitDef<'src>,
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
-        // For now, just return a placeholder. In a full implementation,
-        // we would check the trait methods and store trait information.
-        Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
-            kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
-            ty: Ty::Unit,
-        })))
+        let hir_methods = trait_def
+            .methods
+            .iter()
+            .map(|method| hir::TraitMethod {
+                name: method.name,
+                params: method
+                    .params
+                    .iter()
+                    .map(|(name, ty)| (*name, self.lower_type(ty)))
+                    .collect(),
+                ret_type: method
+                    .ret_type
+                    .as_ref()
+                    .map_or(Ty::Unit, |t| self.lower_type(t)),
+                is_public: method.is_public,
+            })
+            .collect();
+
+        let hir_trait = hir::TraitDef {
+            name: trait_def.name,
+            methods: hir_methods,
+            is_public: trait_def.is_public,
+        };
+        Ok(hir::Item::Trait(hir_trait))
     }
 
     /// Checks an impl block and lowers it to HIR.
@@ -155,15 +175,67 @@ impl<'src> TypeChecker<'src> {
         &mut self,
         impl_block: &ast::ImplBlock<'src>,
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
-        // For now, just check each method in the impl block
+        // Check each method in the impl block and collect them
+        let mut hir_methods = Vec::new();
         for method in &impl_block.methods {
-            self.check_function(method)?;
+            let hir_method = self.check_function(method)?;
+            if let hir::Item::Fn(func) = hir_method {
+                hir_methods.push(func);
+            }
         }
         
-        // Return a placeholder for the impl block itself
-        Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
-            kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
-            ty: Ty::Unit,
-        })))
+        let hir_impl = hir::ImplBlock {
+            trait_name: impl_block.trait_name,
+            target_type: self.lower_type(&impl_block.target_type),
+            methods: hir_methods,
+        };
+        Ok(hir::Item::Impl(hir_impl))
+    }
+
+    /// Checks an effect definition and lowers it to HIR.
+    pub fn check_effect(
+        &mut self,
+        effect_def: &ast::EffectDef<'src>,
+    ) -> Result<hir::Item<'src>, TypeError<'src>> {
+        let hir_operations = effect_def
+            .operations
+            .iter()
+            .map(|op| hir::EffectOp {
+                name: op.name,
+                params: op.params.iter().map(|t| self.lower_type(t)).collect(),
+                ret_type: self.lower_type(&op.ret_type),
+                is_public: op.is_public,
+            })
+            .collect();
+
+        let hir_effect = hir::EffectDef {
+            name: effect_def.name,
+            operations: hir_operations,
+            is_public: effect_def.is_public,
+        };
+        Ok(hir::Item::Effect(hir_effect))
+    }
+
+    /// Checks a handler definition and lowers it to HIR.
+    pub fn check_handler(
+        &mut self,
+        handler_def: &ast::HandlerDef<'src>,
+    ) -> Result<hir::Item<'src>, TypeError<'src>> {
+        // Check each function in the handler and collect them
+        let mut hir_functions = Vec::new();
+        for func in &handler_def.functions {
+            let hir_func = self.check_function(func)?;
+            if let hir::Item::Fn(func) = hir_func {
+                hir_functions.push(func);
+            }
+        }
+
+        let hir_handler = hir::HandlerDef {
+            name: handler_def.name,
+            effects: handler_def.effects.clone(),
+            functions: hir_functions,
+            is_public: handler_def.is_public,
+        };
+        Ok(hir::Item::Handler(hir_handler))
     }
 } 

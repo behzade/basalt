@@ -142,6 +142,9 @@ impl<'src> TypeChecker<'src> {
                     });
                 }
             }
+            ast::Item::Effect(effect_def) => {
+                self.context.add_effect(effect_def.clone());
+            }
             ast::Item::Import { path, alias } => {
                 // Process imports and build import mappings
                 let alias_name = alias.unwrap_or_else(|| path.last().unwrap());

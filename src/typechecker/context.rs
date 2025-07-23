@@ -58,6 +58,8 @@ pub struct TypeContext<'src> {
     traits: HashMap<&'src str, ast::TraitDef<'src>>,
     /// Trait methods available in the global scope (from impl blocks).
     trait_methods: HashMap<&'src str, ast::TraitMethod<'src>>,
+    /// Effect definitions available in the global scope.
+    effects: HashMap<&'src str, ast::EffectDef<'src>>,
     
     // --- Import System ---
     /// Cached module symbols (namespace::module -> symbols)
@@ -75,6 +77,7 @@ impl<'src> TypeContext<'src> {
             enums: HashMap::new(),
             traits: HashMap::new(),
             trait_methods: HashMap::new(),
+            effects: HashMap::new(),
             module_symbols: HashMap::new(),
         }
     }
@@ -176,6 +179,16 @@ impl<'src> TypeContext<'src> {
     /// Retrieves a trait method from the global context.
     pub fn get_trait_method(&self, name: &'src str) -> Option<&ast::TraitMethod<'src>> {
         self.trait_methods.get(name)
+    }
+
+    /// Adds an effect definition to the global context.
+    pub fn add_effect(&mut self, effect_def: ast::EffectDef<'src>) {
+        self.effects.insert(effect_def.name, effect_def);
+    }
+
+    /// Retrieves an effect definition from the global context.
+    pub fn get_effect(&self, name: &'src str) -> Option<&ast::EffectDef<'src>> {
+        self.effects.get(name)
     }
 
     /// Finds an enum that contains a specific variant.
