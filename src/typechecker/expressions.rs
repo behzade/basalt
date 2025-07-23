@@ -147,6 +147,21 @@ impl<'src> TypeChecker<'src> {
             }
         }
 
+        // Check for trait methods
+        if let Some(trait_method) = self.context.get_trait_method(name) {
+            let ret_ty = trait_method
+                .ret_type
+                .as_ref()
+                .map_or(Ty::Unit, |t| self.lower_type(t));
+            return Ok((
+                hir::ExprKind::Path(resolved_path),
+                Ty::Function {
+                    param_types: trait_method.params.iter().map(|(_, t)| self.lower_type(t)).collect(),
+                    ret_type: Box::new(ret_ty),
+                },
+            ));
+        }
+
         // Check if this looks like it should be an import (but only if it's not a variable)
         if self.context.get_variable(name).is_none() {
             if let Some(suggested_import) = self.suggest_import(name) {

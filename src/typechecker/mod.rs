@@ -128,6 +128,20 @@ impl<'src> TypeChecker<'src> {
             ast::Item::Enum(enum_def) => {
                 self.context.add_enum(enum_def.clone());
             }
+            ast::Item::Trait(trait_def) => {
+                self.context.add_trait(trait_def.clone());
+            }
+            ast::Item::Impl(impl_block) => {
+                // Add each method from the impl block to the context
+                for method in &impl_block.methods {
+                    self.context.add_trait_method(method.name, ast::TraitMethod {
+                        name: method.name,
+                        params: method.params.clone(),
+                        ret_type: method.ret_type.clone(),
+                        is_public: method.is_public,
+                    });
+                }
+            }
             ast::Item::Import { path, alias } => {
                 // Process imports and build import mappings
                 let alias_name = alias.unwrap_or_else(|| path.last().unwrap());

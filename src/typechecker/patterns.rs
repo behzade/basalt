@@ -5,6 +5,7 @@
 
 use super::{TypeChecker, TypeError};
 use crate::{ast, hir};
+use std::collections::HashMap;
 
 impl<'src> TypeChecker<'src> {
     /// Checks a pattern and converts it to a `hir::Pattern`.
@@ -144,9 +145,28 @@ impl<'src> TypeChecker<'src> {
                     .map(|ty| self.lower_type(ty))
                     .collect();
 
+                // Substitute generic parameters in the variant types
+                let mut substituted_variant_types = Vec::new();
+                if let hir::Ty::Adt { generics: enum_generics, .. } = expected_ty {
+                    // Create a substitution mapping from enum generic parameters to concrete types
+                    let mut substitution = HashMap::new();
+                    for (generic_param, concrete_type) in enum_def.generics.iter().zip(enum_generics.iter()) {
+                        substitution.insert(*generic_param, concrete_type.clone());
+                    }
+                    
+                    // Substitute generic parameters in each variant type
+                    for variant_type in &hir_variant_types {
+                        let substituted_type = self.substitute_generics_in_hir_type(variant_type, &substitution);
+                        substituted_variant_types.push(substituted_type);
+                    }
+                } else {
+                    // If we can't determine the concrete types, use the original types
+                    substituted_variant_types = hir_variant_types.clone();
+                }
+
                 // Recursively check each sub-pattern
                 let mut fields = Vec::new();
-                for (arg_pattern, field_ty) in args.iter().zip(hir_variant_types.iter()) {
+                for (arg_pattern, field_ty) in args.iter().zip(substituted_variant_types.iter()) {
                     let hir_field_pattern = self.check_pattern(arg_pattern, field_ty)?;
                     fields.push(hir_field_pattern);
                 }
@@ -162,5 +182,58 @@ impl<'src> TypeChecker<'src> {
             kind,
             ty: pattern_ty,
         })
+    }
+
+    /// Substitutes generic type parameters in an HIR type with concrete types.
+    fn substitute_generics_in_hir_type(&self, ty: &hir::Ty<'src>, substitution: &HashMap<&'src str, hir::Ty<'src>>) -> hir::Ty<'src> {
+        match ty {
+            hir::Ty::Bool => hir::Ty::Bool,
+            hir::Ty::I64 => hir::Ty::I64,
+            hir::Ty::F64 => hir::Ty::F64,
+            hir::Ty::Str => hir::Ty::Str,
+            hir::Ty::Unit => hir::Ty::Unit,
+            hir::Ty::Array(inner) => {
+                let substituted_inner = self.substitute_generics_in_hir_type(inner, substitution);
+                hir::Ty::Array(Box::new(substituted_inner))
+            }
+            hir::Ty::Map { key, value } => {
+                let substituted_key = self.substitute_generics_in_hir_type(key, substitution);
+                let substituted_value = self.substitute_generics_in_hir_type(value, substitution);
+                hir::Ty::Map {
+                    key: Box::new(substituted_key),
+                    value: Box::new(substituted_value),
+                }
+            }
+            hir::Ty::Adt { name, generics } => {
+                // Check if this is a generic parameter that needs substitution
+                if name.len() == 1 && substitution.contains_key(name[0]) {
+                    return substitution[name[0]].clone();
+                }
+                
+                // Otherwise, recursively substitute in the generic parameters
+                let substituted_generics: Vec<hir::Ty<'src>> = generics
+                    .iter()
+                    .map(|g| self.substitute_generics_in_hir_type(g, substitution))
+                    .collect();
+                
+                hir::Ty::Adt {
+                    name: name.clone(),
+                    generics: substituted_generics,
+                }
+            }
+            hir::Ty::Function { param_types, ret_type } => {
+                let substituted_param_types: Vec<hir::Ty<'src>> = param_types
+                    .iter()
+                    .map(|p| self.substitute_generics_in_hir_type(p, substitution))
+                    .collect();
+                let substituted_ret_type = self.substitute_generics_in_hir_type(ret_type, substitution);
+                hir::Ty::Function {
+                    param_types: substituted_param_types,
+                    ret_type: Box::new(substituted_ret_type),
+                }
+            }
+            hir::Ty::Infer(id) => hir::Ty::Infer(*id),
+            hir::Ty::Error => hir::Ty::Error,
+        }
     }
 } 

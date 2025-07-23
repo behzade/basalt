@@ -54,7 +54,10 @@ pub struct TypeContext<'src> {
     structs: HashMap<&'src str, ast::StructDef<'src>>,
     /// Enum definitions available in the global scope.
     enums: HashMap<&'src str, ast::EnumDef<'src>>,
-    // TODO: Add tables for traits, impls, etc. as they are implemented.
+    /// Trait definitions available in the global scope.
+    traits: HashMap<&'src str, ast::TraitDef<'src>>,
+    /// Trait methods available in the global scope (from impl blocks).
+    trait_methods: HashMap<&'src str, ast::TraitMethod<'src>>,
     
     // --- Import System ---
     /// Cached module symbols (namespace::module -> symbols)
@@ -70,6 +73,8 @@ impl<'src> TypeContext<'src> {
             extern_functions: HashMap::new(),
             structs: HashMap::new(),
             enums: HashMap::new(),
+            traits: HashMap::new(),
+            trait_methods: HashMap::new(),
             module_symbols: HashMap::new(),
         }
     }
@@ -151,6 +156,26 @@ impl<'src> TypeContext<'src> {
     /// Retrieves an enum definition from the global context.
     pub fn get_enum(&self, name: &'src str) -> Option<&ast::EnumDef<'src>> {
         self.enums.get(name)
+    }
+
+    /// Adds a trait definition to the global context.
+    pub fn add_trait(&mut self, trait_def: ast::TraitDef<'src>) {
+        self.traits.insert(trait_def.name, trait_def);
+    }
+
+    /// Retrieves a trait definition from the global context.
+    pub fn get_trait(&self, name: &'src str) -> Option<&ast::TraitDef<'src>> {
+        self.traits.get(name)
+    }
+
+    /// Adds a trait method to the global context.
+    pub fn add_trait_method(&mut self, name: &'src str, method: ast::TraitMethod<'src>) {
+        self.trait_methods.insert(name, method);
+    }
+
+    /// Retrieves a trait method from the global context.
+    pub fn get_trait_method(&self, name: &'src str) -> Option<&ast::TraitMethod<'src>> {
+        self.trait_methods.get(name)
     }
 
     /// Finds an enum that contains a specific variant.

@@ -20,6 +20,8 @@ impl<'src> TypeChecker<'src> {
             }
             ast::Item::Struct(struct_def) => self.check_struct(struct_def),
             ast::Item::Enum(enum_def) => self.check_enum(enum_def),
+            ast::Item::Trait(trait_def) => self.check_trait(trait_def),
+            ast::Item::Impl(impl_block) => self.check_impl(impl_block),
             ast::Item::Import { path, alias } => Ok(hir::Item::Import {
                 path: path.clone(),
                 alias: *alias,
@@ -49,6 +51,12 @@ impl<'src> TypeChecker<'src> {
         func: &ast::Function<'src>,
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
         self.context.enter_scope();
+
+        // Add generic type parameters to the scope as inference variables
+        for generic_param in &func.generics {
+            let infer_ty = self.new_infer_ty();
+            self.context.add_variable(generic_param, infer_ty);
+        }
 
         let mut hir_params = Vec::new();
         for (name_opt, ty) in &func.params {
@@ -127,5 +135,35 @@ impl<'src> TypeChecker<'src> {
             is_public: enum_def.is_public,
         };
         Ok(hir::Item::Enum(hir_enum))
+    }
+
+    /// Checks a trait definition and lowers it to HIR.
+    pub fn check_trait(
+        &mut self,
+        trait_def: &ast::TraitDef<'src>,
+    ) -> Result<hir::Item<'src>, TypeError<'src>> {
+        // For now, just return a placeholder. In a full implementation,
+        // we would check the trait methods and store trait information.
+        Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
+            kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
+            ty: Ty::Unit,
+        })))
+    }
+
+    /// Checks an impl block and lowers it to HIR.
+    pub fn check_impl(
+        &mut self,
+        impl_block: &ast::ImplBlock<'src>,
+    ) -> Result<hir::Item<'src>, TypeError<'src>> {
+        // For now, just check each method in the impl block
+        for method in &impl_block.methods {
+            self.check_function(method)?;
+        }
+        
+        // Return a placeholder for the impl block itself
+        Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
+            kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
+            ty: Ty::Unit,
+        })))
     }
 } 
