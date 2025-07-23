@@ -232,13 +232,80 @@ impl<'src> MirLowerer<'src> {
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
+            hir::ExprKind::Perform { path, args } => {
+                // Lower all arguments into temporary locals.
+                let mut arg_operands = Vec::new();
+                for arg in args {
+                    let arg_temp = builder.new_local(arg.ty.clone(), false);
+                    self.lower_expr(arg, builder, locals, Place { local: arg_temp });
+                    arg_operands.push(Operand::Copy(Place { local: arg_temp }));
+                }
+
+                // Extract effect and operation names from path
+                let effect_name = path.first().expect("Effect path cannot be empty");
+                let operation_name = path.get(1).expect("Effect operation path must have operation name");
+
+                // Create continuation block for after the effect is handled
+                let continuation_bb = builder.new_basic_block();
+
+                // Check if we have a handler for this effect
+                if let Some(handler_name) = builder.get_effect_handler(effect_name) {
+                    // We have a handler - perform the effect operation
+                    builder.set_terminator(Terminator::Perform {
+                        effect: effect_name,
+                        operation: operation_name,
+                        args: arg_operands,
+                        destination: destination.clone(),
+                        continuation: continuation_bb,
+                    });
+
+                    // Switch to continuation block
+                    builder.switch_to_block(continuation_bb);
+                } else {
+                    // No handler available - this is an error in a real compiler
+                    // For now, we'll assign a placeholder and continue
+                    let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                    builder.push_statement(Statement::Assign(destination, rvalue));
+                    builder.set_terminator(Terminator::Goto { target: continuation_bb });
+                    builder.switch_to_block(continuation_bb);
+                }
+            }
+            hir::ExprKind::Handle { body, handler } => {
+                match handler {
+                    hir::HandlerBody::Path(handler_path) => {
+                        // Extract handler name from path
+                        let handler_name = handler_path.first().expect("Handler path cannot be empty");
+                        
+                        // For now, we'll assume the handler handles all effects
+                        // In a real implementation, we'd check the handler's effect signature
+                        let effect_name = "IO"; // Placeholder - should come from handler definition
+                        
+                        // Push the handler onto the effect stack
+                        builder.push_effect_handler(effect_name, handler_name);
+                        
+                        // Lower the body with the handler in scope
+                        self.lower_expr(body, builder, locals, destination);
+                        
+                        // Pop the handler from the stack
+                        builder.pop_effect_handler();
+                    }
+                    hir::HandlerBody::Inline(handler_functions) => {
+                        // For inline handlers, we'd need to create local handler functions
+                        // and push them onto the effect stack
+                        // This is more complex and would require additional MIR constructs
+                        
+                        // For now, just lower the body without any handler
+                        self.lower_expr(body, builder, locals, destination);
+                    }
+                }
+            }
             // --- TODO: Implement lowering for other HIR expression kinds ---
-            // e.g., Array, Map, StructInit, Match, Perform, Handle, etc.
+            // e.g., Array, Map, StructInit, Match, etc.
             _ => {
-                            // For unhandled expressions, assign a placeholder.
-            // This allows incremental implementation.
-            let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-            builder.push_statement(Statement::Assign(destination, rvalue));
+                // For unhandled expressions, assign a placeholder.
+                // This allows incremental implementation.
+                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                builder.push_statement(Statement::Assign(destination, rvalue));
             }
         }
     }

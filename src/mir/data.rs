@@ -122,6 +122,19 @@ pub enum Terminator<'src> {
         destination: Place,
         target: BasicBlockId, // Block to jump to after the call.
     },
+    /// An effect operation that captures the continuation.
+    Perform {
+        effect: &'src str,
+        operation: &'src str,
+        args: Vec<Operand<'src>>,
+        destination: Place,
+        continuation: BasicBlockId, // Block to resume after handler returns
+    },
+    /// Resume execution after an effect operation was handled.
+    Resume {
+        value: Operand<'src>,
+        target: BasicBlockId,
+    },
     /// Return from the function.
     Return,
     /// Should not be reachable.

@@ -11,6 +11,8 @@ pub struct MirBuilder<'src> {
     pub locals: HashMap<LocalId, MirLocal<'src>>,
     next_local_id: usize,
     current_block: BasicBlockId,
+    /// Stack of active effect handlers for continuation capture
+    effect_handlers: Vec<(&'src str, &'src str)>, // (effect_name, handler_name)
 }
 
 impl<'src> MirBuilder<'src> {
@@ -20,6 +22,7 @@ impl<'src> MirBuilder<'src> {
             locals: HashMap::new(),
             next_local_id: 0,
             current_block: 0, // Placeholder, will be set by `new_basic_block`
+            effect_handlers: Vec::new(),
         };
         // Every function starts with at least one block.
         builder.current_block = builder.new_basic_block();
@@ -53,6 +56,25 @@ impl<'src> MirBuilder<'src> {
     /// Sets the terminator for the current basic block.
     pub fn set_terminator(&mut self, terminator: Terminator<'src>) {
         self.basic_blocks[self.current_block].terminator = terminator;
+    }
+
+    /// Pushes an effect handler onto the stack.
+    pub fn push_effect_handler(&mut self, effect: &'src str, handler: &'src str) {
+        self.effect_handlers.push((effect, handler));
+    }
+
+    /// Pops an effect handler from the stack.
+    pub fn pop_effect_handler(&mut self) -> Option<(&'src str, &'src str)> {
+        self.effect_handlers.pop()
+    }
+
+    /// Gets the current effect handler for a given effect.
+    pub fn get_effect_handler(&self, effect: &str) -> Option<&'src str> {
+        self.effect_handlers
+            .iter()
+            .rev() // Search from top of stack
+            .find(|(e, _)| *e == effect)
+            .map(|(_, h)| *h)
     }
 
     /// Allocates a new local variable.
