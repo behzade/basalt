@@ -17,6 +17,26 @@ pub struct Scope<'src> {
     // scope-specific information.
 }
 
+/// Represents a symbol signature from a module
+#[derive(Debug, Clone)]
+pub struct SymbolSignature {
+    pub name: String,
+    pub kind: SymbolKind,
+    pub type_info: ast::OwnedType,
+}
+
+/// The kind of symbol
+#[derive(Debug, Clone)]
+pub enum SymbolKind {
+    Function(ast::OwnedFunction),
+    Struct(ast::OwnedStructDef),
+    Enum(ast::OwnedEnumDef),
+    Trait(ast::OwnedTraitDef),
+    Effect(ast::OwnedEffectDef),
+    Handler(ast::OwnedHandlerDef),
+    ExternFunction(ast::OwnedType), // return type
+}
+
 /// The `TypeContext` holds all the information needed to resolve types.
 /// It maintains a stack of scopes to correctly handle lexical scoping and
 /// also stores global definitions like functions and structs.
@@ -35,6 +55,10 @@ pub struct TypeContext<'src> {
     /// Enum definitions available in the global scope.
     enums: HashMap<&'src str, ast::EnumDef<'src>>,
     // TODO: Add tables for traits, impls, etc. as they are implemented.
+    
+    // --- Import System ---
+    /// Cached module symbols (namespace::module -> symbols)
+    module_symbols: HashMap<String, HashMap<String, SymbolSignature>>,
 }
 
 impl<'src> TypeContext<'src> {
@@ -46,6 +70,7 @@ impl<'src> TypeContext<'src> {
             extern_functions: HashMap::new(),
             structs: HashMap::new(),
             enums: HashMap::new(),
+            module_symbols: HashMap::new(),
         }
     }
 
@@ -136,6 +161,18 @@ impl<'src> TypeContext<'src> {
             }
         }
         None
+    }
+
+    // --- Import System ---
+
+    /// Add module symbols to cache
+    pub fn add_module_symbols(&mut self, module_path: String, symbols: HashMap<String, SymbolSignature>) {
+        self.module_symbols.insert(module_path, symbols);
+    }
+
+    /// Get module symbols from cache
+    pub fn get_module_symbols(&self, module_path: &str) -> Option<&HashMap<String, SymbolSignature>> {
+        self.module_symbols.get(module_path)
     }
 }
 

@@ -61,27 +61,40 @@ impl<'src> TypeChecker<'src> {
             ast::Literal::I64(_) => Ty::I64,
             ast::Literal::F64(_) => Ty::F64,
             ast::Literal::Str(_) => Ty::Str,
+            ast::Literal::Unit => Ty::Unit,
         };
         Ok((hir::ExprKind::Literal(lit.clone()), ty))
     }
 
     fn check_path(&mut self, path: &[&'src str]) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        // First, try to resolve the path using import resolution
+        let resolved_path = self.resolve_path(path);
+        
+        // Check for module-qualified paths (e.g., Fmt::println)
+        if resolved_path.len() >= 2 {
+            // Try to resolve as a module symbol
+            if let Some(module_type) = self.resolve_module_symbol(&resolved_path) {
+                let ty = self.lower_type(&module_type);
+                return Ok((hir::ExprKind::Path(resolved_path), ty));
+            }
+        }
+        
         // Check for enum variant first.
-        if path.len() == 2 {
-            if let Some(enum_def) = self.context.get_enum(path[0]) {
-                if enum_def.variants.iter().any(|(v, _)| v == &path[1]) {
+        if resolved_path.len() == 2 {
+            if let Some(enum_def) = self.context.get_enum(resolved_path[0]) {
+                if enum_def.variants.iter().any(|(v, _)| v == &resolved_path[1]) {
                     // This is an enum variant, not a variable. Its type is the enum itself.
                     let enum_ty = self.lower_type(&ast::Type {
-                        path: vec![path[0]],
+                        path: vec![resolved_path[0]],
                         generics: vec![],
                     });
-                    return Ok((hir::ExprKind::Path(path.to_vec()), enum_ty));
+                    return Ok((hir::ExprKind::Path(resolved_path), enum_ty));
                 }
             }
         }
 
         // Check for functions and extern functions
-        let name = path.first().ok_or(TypeError::UnknownVariable(""))?;
+        let name = resolved_path.first().ok_or(TypeError::UnknownVariable(""))?;
         
         // Check for regular functions
         if let Some(func_def) = self.context.get_function(name) {
@@ -90,7 +103,7 @@ impl<'src> TypeChecker<'src> {
                 .as_ref()
                 .map_or(Ty::Unit, |t| self.lower_type(t));
             return Ok((
-                hir::ExprKind::Path(path.to_vec()),
+                hir::ExprKind::Path(resolved_path),
                 Ty::Function {
                     param_types: func_def.params.iter().map(|(_, t)| self.lower_type(t)).collect(),
                     ret_type: Box::new(ret_ty),
@@ -103,7 +116,7 @@ impl<'src> TypeChecker<'src> {
             if let ast::Item::ExternFn { params, ret_type, .. } = extern_item {
                 let ret_ty = self.lower_type(ret_type);
                 return Ok((
-                    hir::ExprKind::Path(path.to_vec()),
+                    hir::ExprKind::Path(resolved_path),
                     Ty::Function {
                         param_types: params.iter().map(|(_, t)| self.lower_type(t)).collect(),
                         ret_type: Box::new(ret_ty),
@@ -118,7 +131,7 @@ impl<'src> TypeChecker<'src> {
             .get_variable(name)
             .ok_or(TypeError::UnknownVariable(name))?
             .clone();
-        Ok((hir::ExprKind::Path(path.to_vec()), ty))
+        Ok((hir::ExprKind::Path(resolved_path), ty))
     }
 
     fn check_binary(
@@ -243,6 +256,25 @@ impl<'src> TypeChecker<'src> {
         // This is a simplification. A real implementation would unify against
         // a function type, but for now we check for function names.
         if let hir::ExprKind::Path(path) = &hir_fun.kind {
+            // Check for module-qualified function calls (e.g., Std::Fmt::println)
+            if path.len() >= 3 {
+                if let Some(module_type) = self.resolve_module_symbol(path) {
+                    // For now, assume it's a function that returns unit
+                    // In a real implementation, we'd extract the actual function signature
+                    let mut hir_args = Vec::new();
+                    for arg in args {
+                        let hir_arg = self.check_expr(arg)?;
+                        hir_args.push(hir_arg);
+                    }
+                    
+                    let kind = hir::ExprKind::Call {
+                        fun: Box::new(hir_fun),
+                        args: hir_args,
+                    };
+                    return Ok((kind, Ty::Unit));
+                }
+            }
+            
             // First check for enum variant construction (e.g., Option::Some(42))
             if path.len() == 2 {
                 if let Some(enum_def) = self.context.get_enum(path[0]) {

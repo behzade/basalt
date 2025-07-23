@@ -285,6 +285,10 @@ fn expression_parsers<'src>() -> (
         select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
         select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
         select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+        // Unit literal
+        just(Token::LParen)
+            .then(just(Token::RParen))
+            .map(|_| Expr::Literal(Literal::Unit)),
         // Control flow expressions
         if_expr.clone(),
         while_expr.clone(),
@@ -337,6 +341,10 @@ fn expression_parsers<'src>() -> (
         select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
         select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
         select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+        // Unit literal
+        just(Token::LParen)
+            .then(just(Token::RParen))
+            .map(|_| Expr::Literal(Literal::Unit)),
         // Control flow expressions
         if_expr.clone(),
         while_expr.clone(),
@@ -579,16 +587,24 @@ fn fn_parser<'src>()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
-    // Use the same block parser from expression_parsers
+    // Use the same block parser from expression_parsers, but handle comments
     let block = stmt
         .clone()
+        .or(select! { Token::Comment(_) => Stmt::Error })
         .repeated()
         .collect::<Vec<_>>()
         .then(expr.clone().or_not())
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map(|(stmts, last_expr)| Expr::Block {
-            stmts,
-            last_expr: last_expr.map(Box::new),
+        .map(|(stmts, last_expr)| {
+            // Filter out comment statements (Error statements)
+            let filtered_stmts: Vec<_> = stmts
+                .into_iter()
+                .filter(|s| !matches!(s, Stmt::Error))
+                .collect();
+            Expr::Block {
+                stmts: filtered_stmts,
+                last_expr: last_expr.map(Box::new),
+            }
         });
 
     // Parse effects list: / {effect1, effect2}
@@ -604,10 +620,11 @@ fn fn_parser<'src>()
         .map(|e| e.unwrap_or_default());
 
     // Optional pub keyword
-    let pub_keyword = just(Token::Pub).or_not().map(|_| true);
+    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
 
-    just(Token::Fn)
-        .ignore_then(pub_keyword)
+    pub_keyword
+        .then(just(Token::Fn))
+        .map(|(is_public, _)| is_public)
         .then(ident)
         .then(params)
         .then(just(Token::Arrow).ignore_then(ty).or_not())
@@ -655,7 +672,7 @@ fn struct_parser<'src>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace));
 
     // Optional pub keyword
-    let pub_keyword = just(Token::Pub).or_not().map(|_| true);
+    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
 
     just(Token::Struct)
         .ignore_then(pub_keyword)

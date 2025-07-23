@@ -25,10 +25,11 @@ impl<'src> TypeChecker<'src> {
             ast::Pattern::Literal(lit) => {
                 // Determine the type of the literal
                 let literal_ty = match lit {
-                    ast::Literal::Bool(_) => hir::Ty::Bool,
-                    ast::Literal::I64(_) => hir::Ty::I64,
-                    ast::Literal::F64(_) => hir::Ty::F64,
-                    ast::Literal::Str(_) => hir::Ty::Str,
+                    &ast::Literal::Bool(_) => hir::Ty::Bool,
+                    &ast::Literal::I64(_) => hir::Ty::I64,
+                    &ast::Literal::F64(_) => hir::Ty::F64,
+                    &ast::Literal::Str(_) => hir::Ty::Str,
+                    &ast::Literal::Unit => hir::Ty::Unit,
                 };
                 
                 // Unify this literal type with the scrutinee's type
