@@ -618,6 +618,7 @@ fn fn_decl_parser<'src>()
         .then(just(Token::Arrow).ignore_then(ty).or_not())
         .then_ignore(just(Token::Semi))
         .map(|(((is_public, name), params), ret_type)| Function {
+            attributes: Vec::new(), // Function declarations don't have attributes yet
             name,
             generics: Vec::new(), // Function declarations don't have generics
             params,
@@ -733,6 +734,7 @@ fn fn_parser<'src>()
         .then(block)
         .map(
             |((((((is_public, name), generics), params), ret_type), effects), body)| Function {
+                attributes: Vec::new(), // Regular functions don't have attributes yet
                 name,
                 generics,
                 params,
@@ -782,6 +784,7 @@ fn struct_parser<'src>()
         .then(generics)
         .then(fields)
         .map(|(((is_public, name), generics), fields)| StructDef {
+            attributes: Vec::new(), // Structs don't have attributes yet
             name,
             generics,
             fields,
@@ -1020,6 +1023,7 @@ fn handler_parser<'src>()
                 }),
         )
         .map(|(((name, params), ret_type), body)| Function {
+            attributes: Vec::new(), // Handler methods don't have attributes yet
             name,
             generics: Vec::new(), // Handler methods don't have generics
             params,
@@ -1155,6 +1159,7 @@ fn impl_parser<'src>()
                 }),
         )
         .map(|(((name, params), ret_type), body)| Function {
+            attributes: Vec::new(), // Impl methods don't have attributes yet
             name,
             generics: Vec::new(), // Impl methods don't have generics
             params,

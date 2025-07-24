@@ -52,6 +52,7 @@ pub enum Token<'src> {
     RBrace,      // }
     LBracket,    // [
     RBracket,    // ]
+    Hash,        // #
 
     // Ignored token
     Comment(&'src str),
@@ -112,6 +113,7 @@ impl<'src> fmt::Display for Token<'src> {
 
             // Comment
             Token::Comment(c) => write!(f, "//{}", c),
+            Token::Hash => write!(f, "#"),
         }
     }
 }

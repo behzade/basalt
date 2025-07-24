@@ -2,7 +2,7 @@
 // Testing trait definitions
 
 trait Printable {
-    fn print(&self) -> unit,
+    fn print(self) -> unit;
 }
 
 struct Point {
@@ -11,7 +11,7 @@ struct Point {
 }
 
 impl Printable for Point {
-    fn print(&self) -> unit {
+    fn print(self) -> unit {
         // In a real implementation, this would print the point
         return ();
     }

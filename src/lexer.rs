@@ -41,6 +41,7 @@ pub fn lexer<'src>()
         just("[").to(Token::LBracket),
         just("]").to(Token::RBracket),
         just(".").to(Token::Op(".".to_string())),
+        just("#").to(Token::Hash),
     ));
 
     // A parser for literals
