@@ -260,6 +260,14 @@ impl<'src> TypeChecker<'src> {
                     .collect(),
             ),
             hir::ExprKind::Path(path) => hir::ExprKind::Path(path),
+            hir::ExprKind::EnumVariant { enum_name, variant_name } => hir::ExprKind::EnumVariant {
+                enum_name,
+                variant_name,
+            },
+            hir::ExprKind::ModulePath { module, symbol } => hir::ExprKind::ModulePath {
+                module,
+                symbol,
+            },
             hir::ExprKind::FieldAccess { receiver, field } => hir::ExprKind::FieldAccess {
                 receiver: Box::new(self.resolve_expr_inference(*receiver)),
                 field: field,

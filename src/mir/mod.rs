@@ -92,11 +92,24 @@ impl<'src> MirLowerer<'src> {
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
             hir::ExprKind::Path(path) => {
+                // This is a local variable or function reference
                 let name = path.first().expect("Path cannot be empty");
                 let local_id = locals
                     .get(name)
                     .expect("Local variable not found in MIR context");
                 let rvalue = Rvalue::Use(Operand::Copy(Place { local: *local_id }));
+                builder.push_statement(Statement::Assign(destination, rvalue));
+            }
+            hir::ExprKind::EnumVariant { enum_name, variant_name } => {
+                // This is an enum variant, treat it as a constant for now
+                // In a real implementation, this would create proper enum variant construction
+                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                builder.push_statement(Statement::Assign(destination, rvalue));
+            }
+            hir::ExprKind::ModulePath { module, symbol } => {
+                // This is a module-qualified path, treat it as a constant for now
+                // In a real implementation, this would resolve the module symbol
+                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
             hir::ExprKind::FieldAccess { receiver, field } => {
@@ -222,7 +235,15 @@ impl<'src> MirLowerer<'src> {
                             kind: hir::ExprKind::Path(path),
                             ..
                         } => path.first().expect("Function path cannot be empty"),
-                        _ => panic!("Expected function call to have a path expression"),
+                        hir::Expr {
+                            kind: hir::ExprKind::EnumVariant { enum_name, variant_name },
+                            ..
+                        } => variant_name, // Use the variant name as the function name
+                        hir::Expr {
+                            kind: hir::ExprKind::ModulePath { module, symbol },
+                            ..
+                        } => symbol, // Use the symbol name as the function name
+                        _ => panic!("Expected function call to have a path, enum variant, or module path expression"),
                     },
                     args: arg_operands,
                     destination: destination.clone(),

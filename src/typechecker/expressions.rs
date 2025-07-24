@@ -134,7 +134,10 @@ impl<'src> TypeChecker<'src> {
             // Try to resolve as a module symbol
             if let Some(module_type) = self.resolve_module_symbol(&resolved_path) {
                 let ty = self.lower_type(&module_type);
-                return Ok((hir::ExprKind::Path(resolved_path), ty));
+                return Ok((hir::ExprKind::ModulePath {
+                    module: resolved_path[0],
+                    symbol: resolved_path[1],
+                }, ty));
             }
 
             // If we couldn't resolve it as a module symbol, check if it looks like a module path
@@ -170,7 +173,10 @@ impl<'src> TypeChecker<'src> {
                         path: vec![resolved_path[0]],
                         generics: vec![],
                     });
-                    return Ok((hir::ExprKind::Path(resolved_path), enum_ty));
+                    return Ok((hir::ExprKind::EnumVariant {
+                        enum_name: resolved_path[0],
+                        variant_name: resolved_path[1],
+                    }, enum_ty));
                 }
             }
         }

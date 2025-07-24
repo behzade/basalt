@@ -204,7 +204,18 @@ pub struct Expr<'src> {
 #[derive(Debug, Clone)]
 pub enum ExprKind<'src> {
     Literal(ast::Literal<'src>),
+    /// A local variable or function reference
     Path(Path<'src>),
+    /// An enum variant reference (e.g., Color::Red)
+    EnumVariant {
+        enum_name: &'src str,
+        variant_name: &'src str,
+    },
+    /// A module-qualified path (e.g., Std::print)
+    ModulePath {
+        module: &'src str,
+        symbol: &'src str,
+    },
     FieldAccess {
         receiver: Box<Expr<'src>>,
         field: &'src str,
