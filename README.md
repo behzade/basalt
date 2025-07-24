@@ -31,14 +31,14 @@ Currently, you can compile and run `.bst` files as native executables.
 
 1.  **Clone the repository:**
     ```sh
-    git clone [github.com/behzade/basalt](https://github.com/behzade/basalt)
+    git clone https://github.com/behzade/basalt
     cd basalt
     ```
 
 2.  **Build and run a test file:**
     The following command will compile `./tests/compile/05-function-call.bst` into a native object file, link it, and execute it.
     ```sh
-    cargo run -- run ./tests/compile/05-function-call.bst
+    cargo run -- run ./tests/compile/04-return-literal.bst
     ```
     The program should exit with code `42`.
 
