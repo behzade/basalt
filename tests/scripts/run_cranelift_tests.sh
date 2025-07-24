@@ -175,9 +175,9 @@ run_basic_tests() {
         
         echo -n "Testing Cranelift IR generation for ${test_name}... "
         
-        # Run the Cranelift IR generation
+        # Run the Cranelift IR generation with validation enabled by default
         local exit_code=0
-        ./target/debug/basalt cranelift "$test_file" > /dev/null 2>&1 || exit_code=$?
+        ./target/debug/basalt cranelift --validate "$test_file" > /dev/null 2>&1 || exit_code=$?
         
         if [ $exit_code -eq 0 ]; then
             echo -e "${GREEN}✓${NC}"
@@ -362,7 +362,7 @@ case "${1:-}" in
         echo "  --cleanup      Clean up temporary test files"
         echo "  --help, -h     Show this help message"
         echo
-        echo "If no option is provided, runs basic tests (pass/fail only)"
+        echo "If no option is provided, runs basic tests with validation enabled by default"
         ;;
     *)
         run_basic_tests
