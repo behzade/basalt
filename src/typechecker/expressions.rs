@@ -26,6 +26,7 @@ impl<'src> TypeChecker<'src> {
         let (kind, ty) = match expr {
             ast::Expr::Literal(lit) => self.check_literal(lit)?,
             ast::Expr::Path(path) => self.check_path(path)?,
+            ast::Expr::Unary { op, rhs } => self.check_unary(op, rhs)?,
             ast::Expr::Binary { op, lhs, rhs } => self.check_binary(op, lhs, rhs)?,
             ast::Expr::If {
                 cond,
@@ -204,6 +205,43 @@ impl<'src> TypeChecker<'src> {
         Ok((hir::ExprKind::Path(resolved_path), ty))
     }
 
+    fn check_unary(
+        &mut self,
+        op: &ast::UnaryOp,
+        rhs: &ast::Expr<'src>,
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        let hir_rhs = self.check_expr(rhs)?;
+
+        let ty = match op {
+            ast::UnaryOp::Neg => {
+                // Negation only works on numeric types
+                if !matches!(hir_rhs.ty, Ty::I64 | Ty::F64) {
+                    return Err(TypeError::InvalidOperator {
+                        op: "-".to_string(),
+                        ty: hir_rhs.ty,
+                    });
+                }
+                hir_rhs.ty.clone()
+            }
+            ast::UnaryOp::Not => {
+                // Logical negation only works on boolean types
+                if !matches!(hir_rhs.ty, Ty::Bool) {
+                    return Err(TypeError::InvalidOperator {
+                        op: "!".to_string(),
+                        ty: hir_rhs.ty,
+                    });
+                }
+                Ty::Bool
+            }
+        };
+
+        let kind = hir::ExprKind::Unary {
+            op: *op,
+            rhs: Box::new(hir_rhs),
+        };
+        Ok((kind, ty))
+    }
+
     fn check_binary(
         &mut self,
         op: &ast::BinaryOp,
@@ -357,7 +395,7 @@ impl<'src> TypeChecker<'src> {
         if let hir::ExprKind::Path(path) = &hir_fun.kind {
             // Check for module-qualified function calls (e.g., Std::Fmt::println)
             if path.len() >= 3 {
-                if let Some(module_type) = self.resolve_module_symbol(path) {
+                if let Some(_module_type) = self.resolve_module_symbol(path) {
                     // For now, assume it's a function that returns unit
                     // In a real implementation, we'd extract the actual function signature
                     let mut hir_args = Vec::new();
@@ -617,7 +655,7 @@ impl<'src> TypeChecker<'src> {
         &mut self,
         scrutinee: &ast::Expr<'src>,
         arms: &[(ast::Pattern<'src>, ast::Expr<'src>)],
-        type_hint: &Ty<'src>,
+        _type_hint: &Ty<'src>,
     ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
         // Type-check the scrutinee expression
         let hir_scrutinee = self.check_expr(scrutinee)?;
@@ -755,7 +793,7 @@ impl<'src> TypeChecker<'src> {
 
         let hir_handler = match handler {
             ast::HandlerBody::Path(path) => hir::HandlerBody::Path(path.clone()),
-            ast::HandlerBody::Inline(functions) => {
+            ast::HandlerBody::Inline(_functions) => {
                 // For now, just use the path version
                 // In a full implementation, we'd check the functions
                 hir::HandlerBody::Path(vec!["inline_handler"])

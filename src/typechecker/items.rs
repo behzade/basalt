@@ -40,10 +40,6 @@ impl<'src> TypeChecker<'src> {
             }),
             ast::Item::Effect(effect_def) => self.check_effect(effect_def),
             ast::Item::Handler(handler_def) => self.check_handler(handler_def),
-            _ => Ok(hir::Item::Stmt(hir::Stmt::Expr(hir::Expr {
-                kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
-                ty: Ty::Unit,
-            }))),
         }
     }
 

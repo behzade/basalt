@@ -208,7 +208,7 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
 
         if let Some(ast) = ast {
             // Type check to get HIR
-            let mut type_checker = TypeChecker::with_token_spans(tokens);
+            let type_checker = TypeChecker::with_token_spans(tokens);
             match type_checker.check_file(&ast) {
                 Ok(hir_items) => {
                     // Lower HIR to MIR

@@ -6,7 +6,7 @@
 mod builder;
 pub mod data;
 
-use crate::{ast, hir, hir::Ty};
+use crate::{ast, hir};
 use builder::MirBuilder;
 use data::*;
 use std::collections::HashMap;
@@ -296,7 +296,7 @@ impl<'src> MirLowerer<'src> {
                         // Switch to after-handle block
                         builder.switch_to_block(after_handle_block);
                     }
-                    hir::HandlerBody::Inline(handler_functions) => {
+                    hir::HandlerBody::Inline(_handler_functions) => {
                         // For inline handlers, we'd need to create local handler functions
                         // and push them onto the effect stack
                         // This is more complex and would require additional MIR constructs
@@ -397,7 +397,7 @@ impl<'src> MirLowerer<'src> {
                             hir::PatternKind::AdtVariant { path, fields } => {
                                 // Handle field bindings
                                 for field in fields {
-                                    if let hir::PatternKind::Binding { name, is_mut } = &field.kind
+                                    if let hir::PatternKind::Binding { name, is_mut: _ } = &field.kind
                                     {
                                         let field_local =
                                             builder.new_local(field.ty.clone(), false);
@@ -419,7 +419,7 @@ impl<'src> MirLowerer<'src> {
                                                         is_mut: *is_mut,
                                                     }
                                                 }
-                                                hir::PatternKind::AdtVariant { path, fields } => {
+                                                hir::PatternKind::AdtVariant { path, fields: _ } => {
                                                     PatternKind::AdtVariant {
                                                         path: path
                                                             .first()
@@ -444,7 +444,7 @@ impl<'src> MirLowerer<'src> {
                 let merge_block = builder.new_basic_block();
 
                 // Lower each arm.
-                for ((pattern, expr), arm_block) in arms.iter().zip(arm_blocks.iter()) {
+                for ((_pattern, expr), arm_block) in arms.iter().zip(arm_blocks.iter()) {
                     builder.switch_to_block(arm_block.1);
                     self.lower_expr(expr, builder, locals, destination.clone());
                     builder.set_terminator(Terminator::Goto {

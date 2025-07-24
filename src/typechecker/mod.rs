@@ -364,7 +364,7 @@ impl<'src> TypeChecker<'src> {
 
         // Check if we have cached symbols for this module
         if let Some(symbols) = self.context.get_module_symbols(&module_path) {
-            if let Some(signature) = symbols.get(symbol) {
+            if let Some(_signature) = symbols.get(symbol) {
                 // For now, just return a simple type based on the symbol name
                 // This avoids the lifetime issues with converting back to borrowed types
                 return Some(ast::Type {

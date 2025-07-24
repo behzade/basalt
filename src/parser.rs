@@ -436,6 +436,14 @@ fn expression_parsers<'src>() -> (
                     rhs: Box::new(rhs),
                 },
             ),
+            prefix(
+                7,
+                select! { Token::Op(op) if op == "!" => () },
+                |_op, rhs, _extra| Expr::Unary {
+                    op: UnaryOp::Not,
+                    rhs: Box::new(rhs),
+                },
+            ),
             infix(
                 left(6),
                 select! { Token::Op(op) if op == "*" => () },

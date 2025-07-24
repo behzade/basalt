@@ -219,6 +219,7 @@ pub enum HandlerBody<'src> {
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UnaryOp {
     Neg, // -
+    Not, // !
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -635,7 +636,7 @@ impl<'src> From<&Stmt<'src>> for OwnedStmt {
                 ty: ty.as_ref().map(|t| t.into()),
                 value: value.into(),
             },
-            Stmt::Return(expr) => OwnedStmt::Return(expr.as_ref().map(|e| OwnedExpr::Error)), // Simplified for now
+            Stmt::Return(expr) => OwnedStmt::Return(expr.as_ref().map(|_e| OwnedExpr::Error)), // Simplified for now
             Stmt::Assign(lhs, rhs) => OwnedStmt::Assign(lhs.into(), rhs.into()),
             Stmt::Expr(expr) => OwnedStmt::Expr(expr.into()),
             Stmt::Error => OwnedStmt::Error,

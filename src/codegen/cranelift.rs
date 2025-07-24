@@ -3,7 +3,7 @@
 //! This module implements ahead-of-time (AOT) code generation from MIR to object files
 //! using the Cranelift code generation library.
 
-use crate::ast::{BinaryOp, Literal};
+use crate::ast::{BinaryOp, Literal, UnaryOp};
 use crate::mir::data::{
     BasicBlock, LocalId, MirFunction, MirProgram, Operand, Rvalue, Statement, Terminator,
 };
@@ -321,7 +321,45 @@ impl CraneliftCompiler {
                     BinaryOp::Sub => Ok(builder.ins().isub(left_val, right_val)),
                     BinaryOp::Mul => Ok(builder.ins().imul(left_val, right_val)),
                     BinaryOp::Div => Ok(builder.ins().sdiv(left_val, right_val)),
-                    _ => Err(format!("Unsupported binary operation: {:?}", op)),
+                    BinaryOp::Eq => {
+                        let is_equal = builder.ins().icmp(IntCC::Equal, left_val, right_val);
+                        let one = builder.ins().iconst(types::I64, 1);
+                        let zero = builder.ins().iconst(types::I64, 0);
+                        Ok(builder.ins().select(is_equal, one, zero))
+                    }
+                    BinaryOp::Ne => {
+                        let is_not_equal = builder.ins().icmp(IntCC::NotEqual, left_val, right_val);
+                        let one = builder.ins().iconst(types::I64, 1);
+                        let zero = builder.ins().iconst(types::I64, 0);
+                        Ok(builder.ins().select(is_not_equal, one, zero))
+                    }
+                    BinaryOp::Lt => {
+                        let is_less = builder.ins().icmp(IntCC::SignedLessThan, left_val, right_val);
+                        let one = builder.ins().iconst(types::I64, 1);
+                        let zero = builder.ins().iconst(types::I64, 0);
+                        Ok(builder.ins().select(is_less, one, zero))
+                    }
+                    BinaryOp::Gt => {
+                        let is_greater = builder.ins().icmp(IntCC::SignedGreaterThan, left_val, right_val);
+                        let one = builder.ins().iconst(types::I64, 1);
+                        let zero = builder.ins().iconst(types::I64, 0);
+                        Ok(builder.ins().select(is_greater, one, zero))
+                    }
+                }
+            }
+            Rvalue::UnaryOp(op, operand) => {
+                let operand_val = self.build_operand(operand, builder, local_values)?;
+
+                match op {
+                    UnaryOp::Neg => Ok(builder.ins().ineg(operand_val)),
+                    UnaryOp::Not => {
+                        // For boolean negation, we need to convert to 0/1 and then negate
+                        // Since we're using i64 for booleans, we can use a simple approach
+                        let zero = builder.ins().iconst(types::I64, 0);
+                        let one = builder.ins().iconst(types::I64, 1);
+                        let is_zero = builder.ins().icmp(IntCC::Equal, operand_val, zero);
+                        Ok(builder.ins().select(is_zero, one, zero))
+                    }
                 }
             }
             _ => Err(format!("Unsupported rvalue: {:?}", rvalue)),
@@ -338,7 +376,8 @@ impl CraneliftCompiler {
         match operand {
             Operand::Constant(literal) => match literal {
                 Literal::I64(value) => Ok(builder.ins().iconst(types::I64, *value as i64)),
-                _ => Err("Expected i64 literal".to_string()),
+                Literal::Bool(value) => Ok(builder.ins().iconst(types::I64, if *value { 1 } else { 0 })),
+                _ => Err("Expected i64 or bool literal".to_string()),
             },
             Operand::Copy(place) => local_values
                 .get(&place.local)
@@ -391,23 +430,11 @@ impl CraneliftCompiler {
                 }
 
                 // For external function calls, we need to create a proper function call
-                // The function should already be declared in the module
-                // We'll use a direct call instruction for now
-                let call_inst = builder
-                    .ins()
-                    .call_indirect(types::I64, arg_values[0], &arg_values);
-
-                // Get the results of the call
-                let call_results = builder.inst_results(call_inst);
-
-                // Store the result if there is one, otherwise store a placeholder for void functions
-                if !call_results.is_empty() {
-                    local_values.insert(destination.local, call_results[0]);
-                } else {
-                    // For void functions like basalt_print, store a placeholder
-                    let placeholder = builder.ins().iconst(types::I64, 0);
-                    local_values.insert(destination.local, placeholder);
-                }
+                // Since we don't have access to the module here, we'll use a simple approach
+                // For now, we'll just store the result and continue
+                // TODO: Implement proper external function calling
+                let placeholder = builder.ins().iconst(types::I64, 0);
+                local_values.insert(destination.local, placeholder);
 
                 // Jump to the target block
                 let target_block = builder.create_block();
