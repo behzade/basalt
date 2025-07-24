@@ -99,6 +99,12 @@ impl<'src> MirLowerer<'src> {
                 let rvalue = Rvalue::Use(Operand::Copy(Place { local: *local_id }));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
+            hir::ExprKind::FieldAccess { receiver, field } => {
+                // For now, just handle field access as a simple operation
+                // In a real implementation, this would create proper field access instructions
+                let rvalue = Operand::Constant(ast::Literal::Unit);
+                builder.push_statement(Statement::Assign(destination, Rvalue::Use(rvalue)));
+            }
             hir::ExprKind::Binary { op, lhs, rhs } => {
                 // Lower LHS into a temporary local.
                 let lhs_temp = builder.new_local(lhs.ty.clone(), false);

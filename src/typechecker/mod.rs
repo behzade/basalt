@@ -65,10 +65,92 @@ impl<'src> TypeChecker<'src> {
         mut self,
         items: &[ast::Item<'src>],
     ) -> Result<Vec<hir::Item<'src>>, Vec<TypeError<'src>>> {
-        // First pass: collect all definitions and process imports
+        // First pass: collect all definitions
         for item in items {
-            if let Err(e) = self.collect_definitions(item) {
-                self.errors.push(e);
+            match item {
+                ast::Item::Struct(struct_def) => {
+                    println!("DEBUG: Adding struct {} to context", struct_def.name);
+                    self.context.add_struct(struct_def.clone());
+                }
+                ast::Item::Enum(enum_def) => {
+                    self.context.add_enum(enum_def.clone());
+                }
+                ast::Item::Trait(trait_def) => {
+                    self.context.add_trait(trait_def.clone());
+                }
+                ast::Item::Impl(impl_block) => {
+                    println!("DEBUG: Processing impl block for target: {:?}", impl_block.target_type);
+                    
+                    // Extract the target type name
+                    let (target_name, generics) = if let ast::Type { path, generics } = &impl_block.target_type {
+                        if path.len() == 1 {
+                            (path[0], generics.clone())
+                        } else {
+                            self.errors.push(TypeError::UnknownStruct(""));
+                            continue;
+                        }
+                    } else {
+                        self.errors.push(TypeError::UnknownStruct(""));
+                        continue;
+                    };
+                    
+                    // Check if the struct exists
+                    if let Some(struct_def) = self.context.get_struct(target_name) {
+                        println!("DEBUG: Found struct {} for impl block", target_name);
+                        
+                        // Process each method in the impl block
+                        for method in &impl_block.methods {
+                            // Create a copy of the method with the correct self parameter type
+                            let mut method_with_self = method.clone();
+                            
+                            // Fix the self parameter type if it exists
+                            for (param_name, param_type) in &mut method_with_self.params {
+                                if let Some(name) = param_name {
+                                    if name == &"self" || name == &"mut self" {
+                                        println!("DEBUG: Fixing self parameter type for method {}", method_with_self.name);
+                                        // Set the self parameter type to the struct being implemented
+                                        *param_type = ast::Type {
+                                            path: vec![target_name],
+                                            generics: generics.clone(),
+                                        };
+                                        println!("DEBUG: Set self parameter type to {:?}", *param_type);
+                                    }
+                                }
+                            }
+                            
+                            // Add the corrected method to the context
+                            self.context.add_function(method_with_self);
+                        }
+                    } else {
+                        println!("DEBUG: Struct {} not found for impl block", target_name);
+                        self.errors.push(TypeError::UnknownStruct(target_name));
+                    }
+                },
+                ast::Item::Fn(func) => {
+                    // Only add regular functions (not methods from impl blocks)
+                    // Methods are added during impl block processing
+                    if !func.params.iter().any(|(name, _)| name.as_deref() == Some("self") || name.as_deref() == Some("mut self")) {
+                        self.context.add_function(func.clone());
+                    }
+                }
+                ast::Item::ExternBlock { module_name, functions } => {
+                    for function in functions {
+                        self.context.add_extern_function(function.name, ast::Item::ExternBlock {
+                            module_name,
+                            functions: vec![function.clone()],
+                        });
+                    }
+                }
+                ast::Item::Effect(effect_def) => {
+                    self.context.add_effect(effect_def.clone());
+                }
+                ast::Item::Handler(handler_def) => {
+                    // For now, just add the handler name to the context
+                    // In a full implementation, we'd process the handler functions
+                }
+                _ => {
+                    // Other items don't need to be collected in the first pass
+                }
             }
         }
 
@@ -178,6 +260,10 @@ impl<'src> TypeChecker<'src> {
                     .collect(),
             ),
             hir::ExprKind::Path(path) => hir::ExprKind::Path(path),
+            hir::ExprKind::FieldAccess { receiver, field } => hir::ExprKind::FieldAccess {
+                receiver: Box::new(self.resolve_expr_inference(*receiver)),
+                field: field,
+            },
             hir::ExprKind::Unary { op, rhs } => hir::ExprKind::Unary {
                 op,
                 rhs: Box::new(self.resolve_expr_inference(*rhs)),
@@ -295,6 +381,7 @@ impl<'src> TypeChecker<'src> {
                 }
             }
             ast::Item::Struct(struct_def) => {
+                println!("DEBUG: Adding struct {} to context", struct_def.name);
                 self.context.add_struct(struct_def.clone());
             }
             ast::Item::Enum(enum_def) => {
@@ -304,35 +391,51 @@ impl<'src> TypeChecker<'src> {
                 self.context.add_trait(trait_def.clone());
             }
             ast::Item::Impl(impl_block) => {
-                // Check if this is a struct implementation or trait implementation
-                if let ast::Type { path, generics } = &impl_block.target_type {
+                println!("DEBUG: Processing impl block for target: {:?}", impl_block.target_type);
+                
+                // Extract the target type name
+                let (target_name, generics) = if let ast::Type { path, generics } = &impl_block.target_type {
                     if path.len() == 1 {
-                        let target_name = path[0];
-                        // Check if this target type is a struct (not a trait)
-                        if self.context.get_struct(target_name).is_some() {
-                            // This is a struct implementation
-                            // Add methods as regular functions (they'll be resolved as struct methods)
-                            for method in &impl_block.methods {
-                                self.context.add_function(method.clone());
-                            }
-                        } else {
-                            // This is a trait implementation
-                            // Add each method from the impl block to the context as trait methods
-                            for method in &impl_block.methods {
-                                self.context.add_trait_method(
-                                    method.name,
-                                    ast::TraitMethod {
-                                        name: method.name,
-                                        params: method.params.clone(),
-                                        ret_type: method.ret_type.clone(),
-                                        is_public: method.is_public,
-                                    },
-                                );
+                        (path[0], generics.clone())
+                    } else {
+                        return Err(TypeError::UnknownStruct(""));
+                    }
+                } else {
+                    return Err(TypeError::UnknownStruct(""));
+                };
+                
+                // Check if the struct exists
+                if let Some(struct_def) = self.context.get_struct(target_name) {
+                    println!("DEBUG: Found struct {} for impl block", target_name);
+                    
+                    // Process each method in the impl block
+                    for method in &impl_block.methods {
+                        // Create a copy of the method with the correct self parameter type
+                        let mut method_with_self = method.clone();
+                        
+                        // Fix the self parameter type if it exists
+                        for (param_name, param_type) in &mut method_with_self.params {
+                            if let Some(name) = param_name {
+                                if name == &"self" || name == &"mut self" {
+                                    println!("DEBUG: Fixing self parameter type for method {}", method_with_self.name);
+                                    // Set the self parameter type to the struct being implemented
+                                    *param_type = ast::Type {
+                                        path: vec![target_name],
+                                        generics: generics.clone(),
+                                    };
+                                    println!("DEBUG: Set self parameter type to {:?}", *param_type);
+                                }
                             }
                         }
+                        
+                        // Add the corrected method to the context
+                        self.context.add_function(method_with_self);
                     }
+                } else {
+                    println!("DEBUG: Struct {} not found for impl block", target_name);
+                    return Err(TypeError::UnknownStruct(target_name));
                 }
-            }
+            },
             ast::Item::Effect(effect_def) => {
                 self.context.add_effect(effect_def.clone());
             }

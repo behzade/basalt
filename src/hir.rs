@@ -204,9 +204,11 @@ pub struct Expr<'src> {
 #[derive(Debug, Clone)]
 pub enum ExprKind<'src> {
     Literal(ast::Literal<'src>),
-    Array(Vec<Expr<'src>>),
-    Map(Vec<(Expr<'src>, Expr<'src>)>),
     Path(Path<'src>),
+    FieldAccess {
+        receiver: Box<Expr<'src>>,
+        field: &'src str,
+    },
     Unary {
         op: ast::UnaryOp,
         rhs: Box<Expr<'src>>,
@@ -241,12 +243,12 @@ pub enum ExprKind<'src> {
         cond: Box<Expr<'src>>,
         body: Box<Expr<'src>>,
     },
-    /// Effect operation: `perform Effect::op(args)`
+    Array(Vec<Expr<'src>>),
+    Map(Vec<(Expr<'src>, Expr<'src>)>),
     Perform {
         path: Path<'src>,
         args: Vec<Expr<'src>>,
     },
-    /// Effect handler: `handle body with handler`
     Handle {
         body: Box<Expr<'src>>,
         handler: HandlerBody<'src>,

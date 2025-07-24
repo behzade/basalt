@@ -52,6 +52,10 @@ pub enum Expr<'src> {
     Array(Vec<Expr<'src>>),
     Map(Vec<(Expr<'src>, Expr<'src>)>),
     Path(Path<'src>),
+    FieldAccess {
+        receiver: Box<Expr<'src>>,
+        field: &'src str,
+    },
     Unary {
         op: UnaryOp,
         rhs: Box<Expr<'src>>,
@@ -349,6 +353,10 @@ pub enum OwnedExpr {
     Array(Vec<OwnedExpr>),
     Map(Vec<(OwnedExpr, OwnedExpr)>),
     Path(Vec<String>),
+    FieldAccess {
+        receiver: Box<OwnedExpr>,
+        field: String,
+    },
     Unary {
         op: UnaryOp,
         rhs: Box<OwnedExpr>,
@@ -570,6 +578,10 @@ impl<'src> From<&Expr<'src>> for OwnedExpr {
                 OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect())
             }
             Expr::Path(path) => OwnedExpr::Path(path.iter().map(|s| s.to_string()).collect()),
+            Expr::FieldAccess { receiver, field } => OwnedExpr::FieldAccess {
+                receiver: Box::new((&**receiver).into()),
+                field: field.to_string(),
+            },
             Expr::Unary { op, rhs } => OwnedExpr::Unary {
                 op: *op,
                 rhs: Box::new((&**rhs).into()),

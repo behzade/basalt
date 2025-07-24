@@ -56,30 +56,40 @@ impl<'src> TypeChecker<'src> {
         &mut self,
         func: &ast::Function<'src>,
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
+        // Get the function definition from the context (which may have been modified by impl blocks)
+        let func_to_check = if let Some(context_func) = self.context.get_function(func.name) {
+            println!("DEBUG: Using function from context: {} with params: {:?}", context_func.name, context_func.params);
+            context_func.clone()
+        } else {
+            println!("DEBUG: Function not found in context, using AST: {} with params: {:?}", func.name, func.params);
+            func.clone()
+        };
+        
         self.context.enter_scope();
 
         // Add generic type parameters to the scope as inference variables
-        for generic_param in &func.generics {
+        for generic_param in &func_to_check.generics {
             let infer_ty = self.new_infer_ty();
             self.context.add_variable(generic_param, infer_ty);
         }
 
         let mut hir_params = Vec::new();
-        for (name_opt, ty) in &func.params {
+        for (name_opt, ty) in &func_to_check.params {
             let hir_ty = self.lower_type(ty);
             if let Some(name) = name_opt {
+                println!("DEBUG: Adding parameter {} with type {:?} to scope", name, hir_ty);
                 self.context.add_variable(name, hir_ty.clone());
             }
             hir_params.push((*name_opt, hir_ty));
         }
 
-        let expected_ret_ty = func
+        let expected_ret_ty = func_to_check
             .ret_type
             .as_ref()
             .map_or(Ty::Unit, |rt| self.lower_type(rt));
 
         // Check if this is a function declaration (empty body) or a function definition
-        let body = if let ast::Expr::Block { stmts, last_expr } = &func.body {
+        let body = if let ast::Expr::Block { stmts, last_expr } = &func_to_check.body {
             if stmts.is_empty() && last_expr.is_none() {
                 // This is a function declaration (extern function), don't check the body
                 hir::Expr {
@@ -91,20 +101,20 @@ impl<'src> TypeChecker<'src> {
                 }
             } else {
                 // This is a function definition, check the body
-                self.check_expr_with_hint(&func.body, &expected_ret_ty)?
+                self.check_expr_with_hint(&func_to_check.body, &expected_ret_ty)?
             }
         } else {
             // This is a function definition, check the body
-            self.check_expr_with_hint(&func.body, &expected_ret_ty)?
+            self.check_expr_with_hint(&func_to_check.body, &expected_ret_ty)?
         };
 
         // For function definitions (not declarations), unify the actual body's return type with the function's declared return type.
-        if let ast::Expr::Block { stmts, last_expr } = &func.body {
+        if let ast::Expr::Block { stmts, last_expr } = &func_to_check.body {
             if !stmts.is_empty() || last_expr.is_some() {
                 
                 // For generic functions, we don't unify the return types during definition
                 // The unification will happen when the function is called with concrete types
-                if func.generics.is_empty() {
+                if func_to_check.generics.is_empty() {
                     if let Err(_) = self.unify(&body.ty, &expected_ret_ty) {
                         return Err(TypeError::MismatchedTypes {
                             expected: self.resolve_type(&expected_ret_ty),
@@ -118,11 +128,11 @@ impl<'src> TypeChecker<'src> {
         self.context.leave_scope();
 
         Ok(hir::Item::Fn(hir::Function {
-            name: func.name,
+            name: func_to_check.name,
             params: hir_params,
             ret_type: self.resolve_type(&expected_ret_ty),
             body,
-            is_public: func.is_public,
+            is_public: func_to_check.is_public,
         }))
     }
 
@@ -131,6 +141,7 @@ impl<'src> TypeChecker<'src> {
         &mut self,
         struct_def: &ast::StructDef<'src>,
     ) -> Result<hir::Item<'src>, TypeError<'src>> {
+        println!("DEBUG: Type-checking struct {} with fields: {:?}", struct_def.name, struct_def.fields);
         let hir_struct = hir::StructDef {
             name: struct_def.name,
             generics: struct_def.generics.clone(),

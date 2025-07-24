@@ -97,10 +97,10 @@ impl<'src> TypeContext<'src> {
             name: "get",
             generics: vec![],
             params: vec![
-                (Some("collection"), ast::Type { path: vec!["any"], generics: vec![] }),
-                (Some("index"), ast::Type { path: vec!["any"], generics: vec![] }),
+                (Some("collection"), ast::Type { path: vec!["collection"], generics: vec![] }),
+                (Some("index"), ast::Type { path: vec!["index"], generics: vec![] }),
             ],
-            ret_type: Some(ast::Type { path: vec!["any"], generics: vec![] }),
+            ret_type: Some(ast::Type { path: vec!["element"], generics: vec![] }),
             effects: vec![],
             body: ast::Expr::Literal(ast::Literal::Unit),
             is_public: true,
@@ -108,15 +108,17 @@ impl<'src> TypeContext<'src> {
         self.add_function(get_func);
 
         // Add get_field function for struct field access
+        // Note: This function will be handled specially in the type checker
+        // The actual return type will be determined by the field being accessed
         let get_field_func = ast::Function {
             attributes: vec![],
             name: "get_field",
             generics: vec![],
             params: vec![
-                (Some("struct"), ast::Type { path: vec!["any"], generics: vec![] }),
-                (Some("field"), ast::Type { path: vec!["string"], generics: vec![] }),
+                (Some("struct"), ast::Type { path: vec!["struct"], generics: vec![] }),
+                (Some("field"), ast::Type { path: vec!["str"], generics: vec![] }),
             ],
-            ret_type: Some(ast::Type { path: vec!["any"], generics: vec![] }),
+            ret_type: Some(ast::Type { path: vec!["field_type"], generics: vec![] }),
             effects: vec![],
             body: ast::Expr::Literal(ast::Literal::Unit),
             is_public: true,

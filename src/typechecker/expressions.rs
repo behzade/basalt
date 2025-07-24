@@ -75,6 +75,7 @@ impl<'src> TypeChecker<'src> {
                 self.check_block(stmts, last_expr, type_hint)?
             }
             ast::Expr::Call { fun, args } => self.check_call(fun, args)?,
+            ast::Expr::FieldAccess { receiver, field } => self.check_field_access(receiver, field)?,
             ast::Expr::Array(elements) => self.check_array(elements)?,
             ast::Expr::Map(pairs) => self.check_map(pairs)?,
             ast::Expr::StructInit {
@@ -232,6 +233,15 @@ impl<'src> TypeChecker<'src> {
                     ret_type: Box::new(ret_ty),
                 },
             ));
+        }
+
+        // Check for struct types
+        if let Some(struct_def) = self.context.get_struct(name) {
+            let struct_ty = Ty::Adt {
+                name: vec![name],
+                generics: vec![],
+            };
+            return Ok((hir::ExprKind::Path(resolved_path), struct_ty));
         }
 
         // Check if this looks like it should be an import (but only if it's not a variable)
@@ -444,52 +454,9 @@ impl<'src> TypeChecker<'src> {
 
             // Check for struct field access: get_field(struct, field_name)
             if path == &["get_field"] && args.len() == 2 {
-                let struct_expr = self.check_expr(&args[0])?;
-                let field_name_expr = self.check_expr(&args[1])?;
-
-                // Check that the field name is a string
-                self.unify(&field_name_expr.ty, &Ty::Str)?;
-
-                // Check that the first argument is a struct (ADT)
-                if let Ty::Adt { name, .. } = &struct_expr.ty {
-                    // Look up the struct definition to get the field type
-                    let struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
-                    if let Some(struct_def) = self.context.get_struct(struct_name) {
-                        // Extract the field name from the string literal
-                        if let ast::Expr::Literal(ast::Literal::Str(field_name)) = &args[1] {
-                            // Find the field in the struct definition
-                            if let Some((_, field_ty_ast)) = struct_def.fields.iter().find(|(n, _)| n == field_name) {
-                                // Convert the AST type to HIR type
-                                let field_ty = self.lower_type(field_ty_ast);
-                                let kind = hir::ExprKind::Call {
-                                    fun: Box::new(hir_fun),
-                                    args: vec![struct_expr.clone(), field_name_expr.clone()],
-                                };
-                                return Ok((kind, field_ty));
-                            } else {
-                                return Err(TypeError::UnknownStructField {
-                                    struct_name,
-                                    field_name,
-                                });
-                            }
-                        } else {
-                            // If the field name is not a string literal, we can't determine the field type at compile time
-                            let field_ty = self.new_infer_ty();
-                            let kind = hir::ExprKind::Call {
-                                fun: Box::new(hir_fun),
-                                args: vec![struct_expr.clone(), field_name_expr.clone()],
-                            };
-                            return Ok((kind, field_ty));
-                        }
-                    } else {
-                        return Err(TypeError::UnknownStruct(struct_name));
-                    }
-                } else {
-                    return Err(TypeError::MismatchedTypes {
-                        expected: Ty::Adt { name: vec!["struct"], generics: vec![] },
-                        found: struct_expr.ty,
-                    });
-                }
+                // This is now handled by the new FieldAccess expression
+                // Remove this old handling
+                return Err(TypeError::UnknownFunction("get_field"));
             }
         }
 
@@ -799,6 +766,41 @@ impl<'src> TypeChecker<'src> {
             },
             Ty::Error,
         ))
+    }
+
+    fn check_field_access(
+        &mut self,
+        receiver: &ast::Expr<'src>,
+        field: &'src str,
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+        let hir_receiver = self.check_expr(receiver)?;
+
+        // Check if the receiver is an ADT
+        if let Ty::Adt { name, .. } = &hir_receiver.ty {
+            let struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
+            if let Some(struct_def) = self.context.get_struct(struct_name) {
+                // Find the field in the struct definition
+                if let Some((_, field_ty_ast)) = struct_def.fields.iter().find(|(n, _)| *n == field) {
+                    let field_ty = self.lower_type(field_ty_ast);
+                    return Ok((hir::ExprKind::FieldAccess {
+                        receiver: Box::new(hir_receiver),
+                        field: field,
+                    }, field_ty));
+                } else {
+                    return Err(TypeError::UnknownStructField {
+                        struct_name,
+                        field_name: field,
+                    });
+                }
+            } else {
+                return Err(TypeError::UnknownStruct(struct_name));
+            }
+        } else {
+            return Err(TypeError::MismatchedTypes {
+                expected: Ty::Adt { name: vec!["struct"], generics: vec![] },
+                found: hir_receiver.ty,
+            });
+        }
     }
 
     fn check_array(

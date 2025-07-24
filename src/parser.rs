@@ -418,10 +418,10 @@ fn expression_parsers<'src>() -> (
                             }
                         }
                         None => {
-                            // Field access
-                            Expr::Call {
-                                fun: Box::new(Expr::Path(vec!["get_field"])),
-                                args: vec![lhs, Expr::Literal(Literal::Str(name))],
+                            // Field access - use the new FieldAccess expression
+                            Expr::FieldAccess {
+                                receiver: Box::new(lhs),
+                                field: name,
                             }
                         }
                     }
