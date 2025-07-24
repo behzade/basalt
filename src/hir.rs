@@ -19,6 +19,8 @@ use std::collections::HashMap;
 pub enum Ty<'src> {
     /// Boolean type: `bool`.
     Bool,
+    /// 32-bit signed integer: `i32`.
+    I32,
     /// 64-bit signed integer: `i64`.
     I64,
     /// 64-bit float: `f64`.

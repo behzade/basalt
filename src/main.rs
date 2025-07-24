@@ -398,76 +398,59 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
         let span = find_error_location(source_code, e);
 
         let msg = match e {
-            TypeError::MismatchedTypes { expected, found } => {
-                format!(
-                    "Mismatched types: expected `{}`, found `{}`",
-                    expected, found
-                )
+            &TypeError::MismatchedTypes { ref expected, ref found } => {
+                format!("Mismatched types: expected `{}`, found `{}`", expected, found)
             }
-            TypeError::UnknownVariable(name) => format!("Unknown variable: `{}`", name),
-            TypeError::UnknownFunction(name) => format!("Unknown function: `{}`", name),
-            TypeError::UnknownStruct(name) => format!("Unknown struct: `{}`", name),
-            TypeError::UnknownEnum(name) => format!("Unknown enum: `{}`", name),
-            TypeError::UnknownEnumVariant {
-                enum_name,
-                variant_name,
-            } => {
-                format!("Unknown enum variant: `{}::{}`", enum_name, variant_name)
+            &TypeError::UnknownVariable(name) => {
+                format!("Unknown variable: `{}`", name)
             }
-            TypeError::WrongArgumentCount { expected, found } => {
-                format!(
-                    "Wrong number of arguments: expected {}, found {}",
-                    expected, found
-                )
+            &TypeError::UnknownFunction(name) => {
+                format!("Unknown function: `{}`", name)
             }
-            TypeError::UnknownStructField {
-                struct_name,
-                field_name,
-            } => {
+            &TypeError::UnknownStruct(name) => {
+                format!("Unknown struct: `{}`", name)
+            }
+            &TypeError::UnknownEnum(name) => {
+                format!("Unknown enum: `{}`", name)
+            }
+            &TypeError::UnknownEnumVariant { enum_name, variant_name } => {
+                format!("Unknown variant `{}` in enum `{}`", variant_name, enum_name)
+            }
+            &TypeError::WrongArgumentCount { expected, found } => {
+                format!("Wrong number of arguments: expected {}, found {}", expected, found)
+            }
+            &TypeError::WrongNumberOfArguments { expected, found } => {
+                format!("Wrong number of arguments: expected {}, found {}", expected, found)
+            }
+            &TypeError::WrongArgumentType { ref expected, ref found } => {
+                format!("Wrong argument type: expected `{}`, found `{}`", expected, found)
+            }
+            &TypeError::UnknownStructField { struct_name, field_name } => {
                 format!("Unknown struct field: `{}.{}`", struct_name, field_name)
             }
-            TypeError::MissingStructField {
-                struct_name,
-                field_name,
-            } => {
+            &TypeError::MissingStructField { struct_name, field_name } => {
                 format!("Missing struct field: `{}.{}`", struct_name, field_name)
             }
-            TypeError::InvalidOperator { op, ty } => {
+            &TypeError::InvalidOperator { ref op, ref ty } => {
                 format!("Cannot apply operator `{}` to type `{}`", op, ty)
             }
-            TypeError::InvalidPattern { pattern } => {
+            &TypeError::InvalidPattern { ref pattern } => {
                 format!("Invalid pattern: {}", pattern)
             }
-            TypeError::UnificationError(t1, t2) => {
-                format!("Cannot unify types `{}` and `{}`", t1, t2)
+            &TypeError::UnificationError(ref ty1, ref ty2) => {
+                format!("Cannot unify types `{}` and `{}`", ty1, ty2)
             }
-            TypeError::UnknownModule { namespace, module } => {
-                format!(
-                    "Module `{}::{}` not found. Check if the module exists and is properly structured.",
-                    namespace, module
-                )
+            &TypeError::UnknownModule { namespace, module } => {
+                format!("Unknown module: `{}::{}`", namespace, module)
             }
-            TypeError::UnknownModuleSymbol {
-                namespace,
-                module,
-                symbol,
-            } => {
-                format!(
-                    "Symbol `{}` not found in module `{}::{}`. The module exists but doesn't export this symbol.",
-                    symbol, namespace, module
-                )
+            &TypeError::UnknownModuleSymbol { namespace, module, symbol } => {
+                format!("Unknown symbol `{}` in module `{}::{}`", symbol, namespace, module)
             }
-            TypeError::MissingImport {
-                symbol,
-                suggested_import,
-            } => {
-                if let Some(import) = suggested_import {
-                    format!("Unknown symbol `{}`. Try adding: {}", symbol, import)
+            &TypeError::MissingImport { symbol, ref suggested_import } => {
+                if let Some(suggestion) = suggested_import {
+                    format!("Unknown symbol `{}`. Try importing it: {}", symbol, suggestion)
                 } else {
-                    format!(
-                        "Unknown symbol `{}`. You may need to import it from a module.",
-                        symbol
-                    )
+                    format!("Unknown symbol `{}`", symbol)
                 }
             }
         };

@@ -56,6 +56,9 @@ impl<'src> TypeChecker<'src> {
             }
         };
 
+        // Unify the inferred type with the type hint
+        self.unify(&ty, type_hint)?;
+
         Ok(hir::Expr { kind, ty })
     }
 
@@ -65,7 +68,14 @@ impl<'src> TypeChecker<'src> {
     ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
         let ty = match lit {
             ast::Literal::Bool(_) => Ty::Bool,
-            ast::Literal::I64(_) => Ty::I64,
+            ast::Literal::I64(value) => {
+                // Use i32 for small integers, i64 for larger ones
+                if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
+                    Ty::I32
+                } else {
+                    Ty::I64
+                }
+            }
             ast::Literal::F64(_) => Ty::F64,
             ast::Literal::Str(_) => Ty::Str,
             ast::Literal::Unit => Ty::Unit,
@@ -255,7 +265,7 @@ impl<'src> TypeChecker<'src> {
             ast::BinaryOp::Add | ast::BinaryOp::Sub | ast::BinaryOp::Mul | ast::BinaryOp::Div => {
                 self.unify(&hir_lhs.ty, &hir_rhs.ty)?;
                 let resolved_lhs = self.resolve_type(&hir_lhs.ty);
-                if !matches!(resolved_lhs, Ty::I64 | Ty::F64 | Ty::Str) {
+                if !matches!(resolved_lhs, Ty::I32 | Ty::I64 | Ty::F64 | Ty::Str) {
                     return Err(TypeError::InvalidOperator {
                         op: op.to_string(),
                         ty: resolved_lhs,
@@ -391,6 +401,32 @@ impl<'src> TypeChecker<'src> {
                             found: array_expr.ty,
                         });
                     }
+                }
+            }
+
+            // Check for struct field access: get_field(struct, field_name)
+            if path == &["get_field"] && args.len() == 2 {
+                let struct_expr = self.check_expr(&args[0])?;
+                let field_name_expr = self.check_expr(&args[1])?;
+
+                // Check that the field name is a string
+                self.unify(&field_name_expr.ty, &Ty::Str)?;
+
+                // Check that the first argument is a struct (ADT)
+                if let Ty::Adt { name, .. } = &struct_expr.ty {
+                    // For now, return an inference variable for the field type
+                    // In a real implementation, we'd look up the struct definition
+                    let field_ty = self.new_infer_ty();
+                    let kind = hir::ExprKind::Call {
+                        fun: Box::new(hir_fun),
+                        args: vec![struct_expr.clone(), field_name_expr.clone()],
+                    };
+                    return Ok((kind, field_ty));
+                } else {
+                    return Err(TypeError::MismatchedTypes {
+                        expected: Ty::Adt { name: vec!["struct"], generics: vec![] },
+                        found: struct_expr.ty,
+                    });
                 }
             }
         }

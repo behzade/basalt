@@ -69,7 +69,7 @@ pub struct TypeContext<'src> {
 impl<'src> TypeContext<'src> {
     /// Creates a new `TypeContext` with a single, empty global scope.
     pub fn new() -> Self {
-        Self {
+        let mut context = Self {
             scopes: vec![Scope::default()], // Start with the global scope.
             functions: HashMap::new(),
             extern_functions: HashMap::new(),
@@ -79,7 +79,46 @@ impl<'src> TypeContext<'src> {
             trait_methods: HashMap::new(),
             effects: HashMap::new(),
             module_symbols: HashMap::new(),
-        }
+        };
+
+        // Add built-in functions
+        context.add_builtin_functions();
+        context
+    }
+
+    /// Adds built-in functions to the context
+    fn add_builtin_functions(&mut self) {
+        // Add get function for array/map access (flexible parameter types)
+        let get_func = ast::Function {
+            attributes: vec![],
+            name: "get",
+            generics: vec![],
+            params: vec![
+                (Some("collection"), ast::Type { path: vec!["any"], generics: vec![] }),
+                (Some("index"), ast::Type { path: vec!["any"], generics: vec![] }),
+            ],
+            ret_type: Some(ast::Type { path: vec!["any"], generics: vec![] }),
+            effects: vec![],
+            body: ast::Expr::Literal(ast::Literal::Unit),
+            is_public: true,
+        };
+        self.add_function(get_func);
+
+        // Add get_field function for struct field access
+        let get_field_func = ast::Function {
+            attributes: vec![],
+            name: "get_field",
+            generics: vec![],
+            params: vec![
+                (Some("struct"), ast::Type { path: vec!["any"], generics: vec![] }),
+                (Some("field"), ast::Type { path: vec!["string"], generics: vec![] }),
+            ],
+            ret_type: Some(ast::Type { path: vec!["any"], generics: vec![] }),
+            effects: vec![],
+            body: ast::Expr::Literal(ast::Literal::Unit),
+            is_public: true,
+        };
+        self.add_function(get_field_func);
     }
 
     // --- Scope Management ---

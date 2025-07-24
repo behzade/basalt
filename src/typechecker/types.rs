@@ -12,10 +12,13 @@ impl<'src> TypeChecker<'src> {
         let name = ast_ty.path.first().unwrap_or(&"");
         match *name {
             "bool" => Ty::Bool,
+            "i32" => Ty::I32,
             "i64" => Ty::I64,
             "f64" => Ty::F64,
             "string" => Ty::Str,
             "none" => Ty::Unit,
+            "unit" => Ty::Unit,
+            "any" => Ty::Error, // Use Error as a placeholder for any type
             "Array" => {
                 let inner = ast_ty
                     .generics
@@ -59,10 +62,12 @@ impl<'src> TypeChecker<'src> {
 
         match *name {
             "bool" => Ty::Bool,
+            "i32" => Ty::I32,
             "i64" => Ty::I64,
             "f64" => Ty::F64,
             "string" => Ty::Str,
             "none" => Ty::Unit,
+            "unit" => Ty::Unit,
             "Array" => {
                 let inner = ast_ty
                     .generics

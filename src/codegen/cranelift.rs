@@ -135,14 +135,15 @@ impl CraneliftCodegen {
     fn convert_type(ty: &crate::hir::Ty) -> Type {
         match ty {
             crate::hir::Ty::Bool => Type::int(8).unwrap(),
+            crate::hir::Ty::I32 => Type::int(32).unwrap(),
             crate::hir::Ty::I64 => Type::int(64).unwrap(),
             crate::hir::Ty::F64 => Type::int(64).unwrap(), // Treat f64 as i64 for now
-            crate::hir::Ty::Str => Type::int(64).unwrap(), // String as pointer
+            crate::hir::Ty::Str => Type::int(64).unwrap(), // Treat string as i64 for now
             crate::hir::Ty::Unit => Type::int(32).unwrap(), // Unit as i32 for simplicity
-            crate::hir::Ty::Adt { .. } => Type::int(64).unwrap(), // ADT as pointer
-            crate::hir::Ty::Array(_) => Type::int(64).unwrap(), // Array as pointer
-            crate::hir::Ty::Map { .. } => Type::int(64).unwrap(), // Map as pointer
-            crate::hir::Ty::Function { .. } => Type::int(64).unwrap(), // Function pointer
+            crate::hir::Ty::Array(_) => Type::int(64).unwrap(), // Array as i64 for now
+            crate::hir::Ty::Map { .. } => Type::int(64).unwrap(), // Map as i64 for now
+            crate::hir::Ty::Adt { .. } => Type::int(64).unwrap(), // ADT as i64 for now
+            crate::hir::Ty::Function { .. } => Type::int(64).unwrap(), // Function as i64 for now
             crate::hir::Ty::Infer(_) => Type::int(32).unwrap(), // Infer as i32 for simplicity
             crate::hir::Ty::Error => Type::int(32).unwrap(), // Error as i32 for simplicity
         }

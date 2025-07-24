@@ -6,66 +6,71 @@ use super::{TypeChecker, TypeError};
 use crate::hir::Ty;
 
 impl<'src> TypeChecker<'src> {
+    /// Unifies two types, returning an error if they cannot be unified.
     pub fn unify(&mut self, ty1: &Ty<'src>, ty2: &Ty<'src>) -> Result<(), TypeError<'src>> {
-        let resolved_ty1 = self.resolve_type(ty1);
-        let resolved_ty2 = self.resolve_type(ty2);
-
-        match (resolved_ty1, resolved_ty2) {
-            (Ty::Error, _) | (_, Ty::Error) => Ok(()),
-            (Ty::Infer(id), ty) | (ty, Ty::Infer(id)) => self.unify_variable(id, &ty),
-            (Ty::Bool, Ty::Bool)
+        match (ty1, ty2) {
+            // Same types unify
+            | (Ty::Bool, Ty::Bool)
+            | (Ty::I32, Ty::I32)
             | (Ty::I64, Ty::I64)
             | (Ty::F64, Ty::F64)
             | (Ty::Str, Ty::Str)
             | (Ty::Unit, Ty::Unit) => Ok(()),
 
-            // FIX: Dereference the Box<Ty> to get a &Ty for the recursive call.
-            (Ty::Array(inner1), Ty::Array(inner2)) => self.unify(&inner1, &inner2),
+            // Integer promotion: i32 can be promoted to i64
+            | (Ty::I32, Ty::I64) | (Ty::I64, Ty::I32) => Ok(()),
 
-            (
-                Ty::Map {
-                    key: key1,
-                    value: value1,
-                },
-                Ty::Map {
-                    key: key2,
-                    value: value2,
-                },
-            ) => {
-                // FIX: Dereference the Box<Ty> to get a &Ty.
-                self.unify(&key1, &key2)?;
-                self.unify(&value1, &value2)
+            // Inference variables unify with anything
+            (Ty::Infer(id), other) | (other, Ty::Infer(id)) => {
+                self.substitutions.insert(*id, other.clone());
+                Ok(())
             }
 
-            (
-                Ty::Adt {
-                    name: name1,
-                    generics: generics1,
-                },
-                Ty::Adt {
-                    name: name2,
-                    generics: generics2,
-                },
-            ) => {
-                if name1 == name2 && generics1.len() == generics2.len() {
-                    for (g1, g2) in generics1.iter().zip(generics2.iter()) {
-                        self.unify(g1, g2)?;
-                    }
-                    Ok(())
-                } else {
-                    Err(TypeError::UnificationError(ty1.clone(), ty2.clone()))
-                }
+            // Arrays unify if their element types unify
+            (Ty::Array(elem1), Ty::Array(elem2)) => self.unify(elem1, elem2),
+
+            // Maps unify if their key and value types unify
+            (Ty::Map { key: key1, value: value1 }, Ty::Map { key: key2, value: value2 }) => {
+                self.unify(key1, key2)?;
+                self.unify(value1, value2)
             }
-            (t1, t2) => {
-                if t1 == t2 {
-                    Ok(())
-                } else {
-                    Err(TypeError::MismatchedTypes {
-                        expected: t1.clone(),
-                        found: t2.clone(),
-                    })
+
+            // ADTs unify if they have the same name and their generics unify
+            (Ty::Adt { name: name1, generics: generics1 }, Ty::Adt { name: name2, generics: generics2 }) => {
+                if name1 != name2 || generics1.len() != generics2.len() {
+                    return Err(TypeError::MismatchedTypes {
+                        expected: ty1.clone(),
+                        found: ty2.clone(),
+                    });
                 }
+                for (g1, g2) in generics1.iter().zip(generics2.iter()) {
+                    self.unify(g1, g2)?;
+                }
+                Ok(())
             }
+
+            // Functions unify if their parameter and return types unify
+            (Ty::Function { param_types: params1, ret_type: ret1 }, Ty::Function { param_types: params2, ret_type: ret2 }) => {
+                if params1.len() != params2.len() {
+                    return Err(TypeError::MismatchedTypes {
+                        expected: ty1.clone(),
+                        found: ty2.clone(),
+                    });
+                }
+                for (p1, p2) in params1.iter().zip(params2.iter()) {
+                    self.unify(p1, p2)?;
+                }
+                self.unify(ret1, ret2)
+            }
+
+            // Error types unify with anything
+            (Ty::Error, _) | (_, Ty::Error) => Ok(()),
+
+            // Otherwise, types don't unify
+            _ => Err(TypeError::MismatchedTypes {
+                expected: ty1.clone(),
+                found: ty2.clone(),
+            }),
         }
     }
 
