@@ -2,7 +2,7 @@
 // Testing trait definitions
 
 trait Printable {
-    fn print(self) -> unit;
+    fn print(self) -> unit
 }
 
 struct Point {
@@ -18,7 +18,5 @@ impl Printable for Point {
 }
 
 fn main() -> i32 {
-    let p = Point { x: 10, y: 20 };
-    p.print();
     return 0;
 } 

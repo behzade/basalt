@@ -5,7 +5,7 @@
 fn fd_write(fd: i32, data: string) -> i32;
 
 #[extern("wasi")]
-fn random_get(buf: &mut [i32]) -> i32;
+fn random_get(buf: [i32]) -> i32;
 
 #[extern("wasi")]
 struct IoVec {
