@@ -48,4 +48,6 @@ This project is licensed under the [Apache 2.0 License](LICENSE).
 
 ## 💡 Development Notes
 
-This compiler has been developed with significant AI assistance. AI was used as a productivity multiplier for generating boilerplate code, exploring library APIs (like `chumsky` and `cranelift`), and creating test cases. As such inconsistencies in code quality are to be expected. TDD is used to aleviate these issue and a partial or full rewrite is planned once the compiler and stdlib reach a usable state.
+This compiler has been developed with significant AI assistance. AI was used as a productivity multiplier for generating boilerplate code, exploring library APIs (like `chumsky` and `cranelift`), and creating test cases.
+
+While this approach has accelerated development, it can lead to inconsistencies in code quality. A test-driven development (TDD) workflow is being used to mitigate these issues. A partial or full rewrite is planned once the language and standard library reach a more mature state.
