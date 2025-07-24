@@ -39,28 +39,36 @@ enum Action {
         /// The path to the file to parse. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// Type-check a file
-    TypeCheck {
-        /// The path to the file to type-check. If not provided, reads from stdin.
+    /// Type-check and generate HIR
+    Hir {
+        /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// Type-check a file and print the typed HIR (Hierarchical IR)
-    TypeCheckAst {
-        /// The path to the file to type-check. If not provided, reads from stdin.
-        path: Option<String>,
-    },
-    /// Lower HIR to MIR and print the MIR representation
+    /// Generate MIR from HIR
     Mir {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// Generate Cranelift IR from source code
-    Cranelift {
+    /// Generate Cranelift IR from MIR
+    Cir {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
         /// Validate the generated Cranelift IR
         #[arg(long)]
         validate: bool,
+    },
+    /// Compile Cranelift IR into WASM
+    Build {
+        /// The path to the file to process. If not provided, reads from stdin.
+        path: Option<String>,
+        /// Output file path for the WASM binary
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    /// Build and run the generated WASM with wasmtime
+    Run {
+        /// The path to the file to process. If not provided, reads from stdin.
+        path: Option<String>,
     },
 }
 
@@ -101,11 +109,7 @@ fn main() -> io::Result<()> {
                 }
             }
         }
-        Action::TypeCheck { path } => {
-            let (source_id, source_code) = read_source(path)?;
-            run_type_checker(&source_code, &source_id)?;
-        }
-        Action::TypeCheckAst { path } => {
+        Action::Hir { path } => {
             let (source_id, source_code) = read_source(path)?;
             run_type_checker(&source_code, &source_id)?;
         }
@@ -113,9 +117,17 @@ fn main() -> io::Result<()> {
             let (source_id, source_code) = read_source(path)?;
             run_mir_lowering(&source_code, &source_id)?;
         }
-        Action::Cranelift { path, validate } => {
+        Action::Cir { path, validate } => {
             let (source_id, source_code) = read_source(path)?;
             run_cranelift_generation(&source_code, &source_id, validate)?;
+        }
+        Action::Build { path, output } => {
+            let (source_id, source_code) = read_source(path)?;
+            run_wasm_build(&source_code, &source_id, output)?;
+        }
+        Action::Run { path } => {
+            let (source_id, source_code) = read_source(path)?;
+            run_wasm_execution(&source_code, &source_id)?;
         }
     }
 
@@ -286,6 +298,128 @@ fn run_cranelift_generation(source_code: &str, source_id: &str, validate: bool) 
                             println!("---");
                         }
                     }
+                }
+                Err(type_errors) => {
+                    report_type_errors(source_code, source_id, &type_errors);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Type checking errors occurred",
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs the WASM build process on the given source code.
+fn run_wasm_build(source_code: &str, source_id: &str, output: Option<String>) -> io::Result<()> {
+    // First, lex and parse the source code
+    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
+
+    if report_errors(source_code, source_id, &lex_errs, |e| {
+        (
+            e.span().into_range(),
+            format!("Unexpected character: {}", e.reason()),
+        )
+    }) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Lexing errors occurred",
+        ));
+    }
+
+    if let Some(tokens) = tokens {
+        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
+        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
+
+        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Parsing errors occurred",
+            ));
+        }
+
+        if let Some(ast) = ast {
+            // Type check to get HIR
+            let type_checker = TypeChecker::with_token_spans(tokens);
+            match type_checker.check_file(&ast) {
+                Ok(hir_items) => {
+                    // Lower HIR to MIR
+                    let mir_lowerer = MirLowerer::new(&hir_items);
+                    let mir_program = mir_lowerer.lower_to_mir();
+
+                    // Convert MIR to Cranelift IR
+                    let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
+
+                    // TODO: Implement WASM code generation from Cranelift IR
+                    // For now, just print a placeholder message
+                    println!("✓ Generated {} Cranelift functions", cranelift_functions.len());
+                    println!("TODO: Implement WASM code generation");
+                    
+                    // Determine output file path
+                    let output_path = output.unwrap_or_else(|| "output.wasm".to_string());
+                    println!("Would write WASM to: {}", output_path);
+                }
+                Err(type_errors) => {
+                    report_type_errors(source_code, source_id, &type_errors);
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "Type checking errors occurred",
+                    ));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Runs the WASM execution process on the given source code.
+fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
+    // First, lex and parse the source code
+    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
+
+    if report_errors(source_code, source_id, &lex_errs, |e| {
+        (
+            e.span().into_range(),
+            format!("Unexpected character: {}", e.reason()),
+        )
+    }) {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Lexing errors occurred",
+        ));
+    }
+
+    if let Some(tokens) = tokens {
+        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
+        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
+
+        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Parsing errors occurred",
+            ));
+        }
+
+        if let Some(ast) = ast {
+            // Type check to get HIR
+            let type_checker = TypeChecker::with_token_spans(tokens);
+            match type_checker.check_file(&ast) {
+                Ok(hir_items) => {
+                    // Lower HIR to MIR
+                    let mir_lowerer = MirLowerer::new(&hir_items);
+                    let mir_program = mir_lowerer.lower_to_mir();
+
+                    // Convert MIR to Cranelift IR
+                    let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
+
+                    // TODO: Implement WASM code generation and execution
+                    // For now, just print a placeholder message
+                    println!("✓ Generated {} Cranelift functions", cranelift_functions.len());
+                    println!("TODO: Implement WASM code generation and wasmtime execution");
                 }
                 Err(type_errors) => {
                     report_type_errors(source_code, source_id, &type_errors);
