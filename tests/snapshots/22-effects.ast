@@ -1,0 +1,190 @@
+[
+    Effect(
+        EffectDef {
+            name: "Print",
+            operations: [
+                EffectOp {
+                    name: "print",
+                    params: [
+                        Type {
+                            path: [
+                                "string",
+                            ],
+                            generics: [],
+                        },
+                    ],
+                    ret_type: Type {
+                        path: [
+                            "unit",
+                        ],
+                        generics: [],
+                    },
+                    is_public: true,
+                },
+            ],
+            is_public: true,
+        },
+    ),
+    Handler(
+        HandlerDef {
+            name: "MockPrint",
+            effects: [
+                "Print",
+            ],
+            functions: [
+                Function {
+                    attributes: [],
+                    name: "print",
+                    generics: [],
+                    params: [
+                        (
+                            Some(
+                                "msg",
+                            ),
+                            Type {
+                                path: [
+                                    "string",
+                                ],
+                                generics: [],
+                            },
+                        ),
+                    ],
+                    ret_type: Some(
+                        Type {
+                            path: [
+                                "unit",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                    effects: [],
+                    body: Block {
+                        stmts: [
+                            Return(
+                                Some(
+                                    Literal(
+                                        Unit,
+                                    ),
+                                ),
+                            ),
+                        ],
+                        last_expr: None,
+                    },
+                    is_public: true,
+                },
+            ],
+            is_public: true,
+        },
+    ),
+    Fn(
+        Function {
+            attributes: [],
+            name: "testprint",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "unit",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [
+                "Print",
+            ],
+            body: Block {
+                stmts: [
+                    Expr(
+                        Perform {
+                            path: [
+                                "Print",
+                                "print",
+                            ],
+                            args: [
+                                Literal(
+                                    Str(
+                                        "Hello, World!",
+                                    ),
+                                ),
+                            ],
+                        },
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Expr(
+                        Handle {
+                            body: Block {
+                                stmts: [
+                                    Expr(
+                                        Call {
+                                            fun: Path(
+                                                [
+                                                    "testprint",
+                                                ],
+                                            ),
+                                            args: [],
+                                        },
+                                    ),
+                                ],
+                                last_expr: None,
+                            },
+                            handler: Inline(
+                                [],
+                            ),
+                        },
+                    ),
+                    Expr(
+                        Handle {
+                            body: Call {
+                                fun: Path(
+                                    [
+                                        "testprint",
+                                    ],
+                                ),
+                                args: [],
+                            },
+                            handler: Path(
+                                [
+                                    "MockPrint",
+                                ],
+                            ),
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

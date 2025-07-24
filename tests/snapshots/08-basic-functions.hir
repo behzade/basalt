@@ -1,0 +1,262 @@
+DEBUG: Using function from context: add with params: [(Some("a"), Type { path: ["i64"], generics: [] }), (Some("b"), Type { path: ["i64"], generics: [] })]
+DEBUG: Adding parameter a with type I64 to scope
+DEBUG: Adding parameter b with type I64 to scope
+DEBUG: Using function from context: greet with params: [(Some("name"), Type { path: ["string"], generics: [] })]
+DEBUG: Adding parameter name with type Str to scope
+DEBUG: Using function from context: noReturn with params: []
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "add",
+        params: [
+            (
+                Some(
+                    "a",
+                ),
+                I64,
+            ),
+            (
+                Some(
+                    "b",
+                ),
+                I64,
+            ),
+        ],
+        ret_type: I64,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Binary {
+                                    op: Add,
+                                    lhs: Expr {
+                                        kind: Path(
+                                            [
+                                                "a",
+                                            ],
+                                        ),
+                                        ty: I64,
+                                    },
+                                    rhs: Expr {
+                                        kind: Path(
+                                            [
+                                                "b",
+                                            ],
+                                        ),
+                                        ty: I64,
+                                    },
+                                },
+                                ty: I64,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I64,
+        },
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "greet",
+        params: [
+            (
+                Some(
+                    "name",
+                ),
+                Str,
+            ),
+        ],
+        ret_type: Str,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Binary {
+                                    op: Add,
+                                    lhs: Expr {
+                                        kind: Literal(
+                                            Str(
+                                                "Hello ",
+                                            ),
+                                        ),
+                                        ty: Str,
+                                    },
+                                    rhs: Expr {
+                                        kind: Path(
+                                            [
+                                                "name",
+                                            ],
+                                        ),
+                                        ty: Str,
+                                    },
+                                },
+                                ty: Str,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: Str,
+        },
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "noReturn",
+        params: [],
+        ret_type: Unit,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "x",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Literal(
+                                I64(
+                                    42,
+                                ),
+                            ),
+                            ty: I32,
+                        },
+                    },
+                ],
+                last_expr: None,
+            },
+            ty: Unit,
+        },
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "sum",
+                        is_mut: false,
+                        value_ty: I64,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "add",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            I64,
+                                            I64,
+                                        ],
+                                        ret_type: I64,
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                10,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                20,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ],
+                            },
+                            ty: I64,
+                        },
+                    },
+                    Let {
+                        name: "greeting",
+                        is_mut: false,
+                        value_ty: Str,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "greet",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Str,
+                                        ],
+                                        ret_type: Str,
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Literal(
+                                            Str(
+                                                "World",
+                                            ),
+                                        ),
+                                        ty: Str,
+                                    },
+                                ],
+                            },
+                            ty: Str,
+                        },
+                    },
+                    Expr(
+                        Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "noReturn",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [],
+                                        ret_type: Unit,
+                                    },
+                                },
+                                args: [],
+                            },
+                            ty: Unit,
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

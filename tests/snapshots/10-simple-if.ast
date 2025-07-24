@@ -1,0 +1,69 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "condition",
+                        ty: None,
+                        value: Literal(
+                            Bool(
+                                true,
+                            ),
+                        ),
+                    },
+                    Expr(
+                        If {
+                            cond: Path(
+                                [
+                                    "condition",
+                                ],
+                            ),
+                            then_block: Block {
+                                stmts: [
+                                    Let {
+                                        is_mut: false,
+                                        name: "x",
+                                        ty: None,
+                                        value: Literal(
+                                            I64(
+                                                42,
+                                            ),
+                                        ),
+                                    },
+                                ],
+                                last_expr: None,
+                            },
+                            else_block: None,
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

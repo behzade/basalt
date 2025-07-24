@@ -1,0 +1,129 @@
+DEBUG: Using function from context: add with params: [(Some("a"), Type { path: ["i32"], generics: [] }), (Some("b"), Type { path: ["i32"], generics: [] })]
+DEBUG: Adding parameter a with type I32 to scope
+DEBUG: Adding parameter b with type I32 to scope
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "add",
+        params: [
+            (
+                Some(
+                    "a",
+                ),
+                I32,
+            ),
+            (
+                Some(
+                    "b",
+                ),
+                I32,
+            ),
+        ],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Binary {
+                                    op: Add,
+                                    lhs: Expr {
+                                        kind: Path(
+                                            [
+                                                "a",
+                                            ],
+                                        ),
+                                        ty: I32,
+                                    },
+                                    rhs: Expr {
+                                        kind: Path(
+                                            [
+                                                "b",
+                                            ],
+                                        ),
+                                        ty: I32,
+                                    },
+                                },
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "result",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "add",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            I32,
+                                            I32,
+                                        ],
+                                        ret_type: I32,
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                5,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                3,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ],
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

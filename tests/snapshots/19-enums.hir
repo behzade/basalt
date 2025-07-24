@@ -1,0 +1,177 @@
+DEBUG: Using function from context: main with params: []
+DEBUG: Checking pattern: Path { path: ["Color", "Red"], args: [] }
+DEBUG: Checking pattern: Path { path: ["Color", "Green"], args: [] }
+DEBUG: Checking pattern: Path { path: ["Color", "Blue"], args: [] }
+Enum(
+    EnumDef {
+        name: Some(
+            "Color",
+        ),
+        generics: [],
+        variants: [
+            (
+                "Red",
+                None,
+            ),
+            (
+                "Green",
+                None,
+            ),
+            (
+                "Blue",
+                None,
+            ),
+        ],
+        is_public: true,
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "color",
+                        is_mut: false,
+                        value_ty: Adt {
+                            name: [
+                                "Color",
+                            ],
+                            generics: [],
+                        },
+                        value: Expr {
+                            kind: EnumVariant {
+                                enum_name: "Color",
+                                variant_name: "Red",
+                            },
+                            ty: Adt {
+                                name: [
+                                    "Color",
+                                ],
+                                generics: [],
+                            },
+                        },
+                    },
+                    Let {
+                        name: "result",
+                        is_mut: false,
+                        value_ty: Str,
+                        value: Expr {
+                            kind: Match {
+                                scrutinee: Expr {
+                                    kind: Path(
+                                        [
+                                            "color",
+                                        ],
+                                    ),
+                                    ty: Adt {
+                                        name: [
+                                            "Color",
+                                        ],
+                                        generics: [],
+                                    },
+                                },
+                                arms: [
+                                    (
+                                        Pattern {
+                                            kind: AdtVariant {
+                                                path: [
+                                                    "Color",
+                                                    "Red",
+                                                ],
+                                                fields: [],
+                                            },
+                                            ty: Adt {
+                                                name: [
+                                                    "Color",
+                                                ],
+                                                generics: [],
+                                            },
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "red",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                    (
+                                        Pattern {
+                                            kind: AdtVariant {
+                                                path: [
+                                                    "Color",
+                                                    "Green",
+                                                ],
+                                                fields: [],
+                                            },
+                                            ty: Adt {
+                                                name: [
+                                                    "Color",
+                                                ],
+                                                generics: [],
+                                            },
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "green",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                    (
+                                        Pattern {
+                                            kind: AdtVariant {
+                                                path: [
+                                                    "Color",
+                                                    "Blue",
+                                                ],
+                                                fields: [],
+                                            },
+                                            ty: Adt {
+                                                name: [
+                                                    "Color",
+                                                ],
+                                                generics: [],
+                                            },
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "blue",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                ],
+                            },
+                            ty: Str,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

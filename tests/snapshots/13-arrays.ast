@@ -1,0 +1,116 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "arr",
+                        ty: None,
+                        value: Array(
+                            [
+                                Literal(
+                                    I64(
+                                        1,
+                                    ),
+                                ),
+                                Literal(
+                                    I64(
+                                        2,
+                                    ),
+                                ),
+                                Literal(
+                                    I64(
+                                        3,
+                                    ),
+                                ),
+                                Literal(
+                                    I64(
+                                        4,
+                                    ),
+                                ),
+                                Literal(
+                                    I64(
+                                        5,
+                                    ),
+                                ),
+                            ],
+                        ),
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "first",
+                        ty: None,
+                        value: Call {
+                            fun: Path(
+                                [
+                                    "get",
+                                ],
+                            ),
+                            args: [
+                                Path(
+                                    [
+                                        "arr",
+                                    ],
+                                ),
+                                Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "second",
+                        ty: None,
+                        value: Call {
+                            fun: Path(
+                                [
+                                    "get",
+                                ],
+                            ),
+                            args: [
+                                Path(
+                                    [
+                                        "arr",
+                                    ],
+                                ),
+                                Literal(
+                                    I64(
+                                        1,
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

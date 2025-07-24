@@ -1,0 +1,137 @@
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "a",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Binary {
+                                op: Add,
+                                lhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            10,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                rhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            5,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "b",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Binary {
+                                op: Sub,
+                                lhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            20,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                rhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            3,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "c",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Binary {
+                                op: Mul,
+                                lhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            4,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                rhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            6,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "d",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Binary {
+                                op: Div,
+                                lhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            15,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                rhs: Expr {
+                                    kind: Literal(
+                                        I64(
+                                            3,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

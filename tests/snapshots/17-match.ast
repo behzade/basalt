@@ -1,0 +1,90 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "value",
+                        ty: None,
+                        value: Literal(
+                            I64(
+                                42,
+                            ),
+                        ),
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "result",
+                        ty: None,
+                        value: Match {
+                            scrutinee: Path(
+                                [
+                                    "value",
+                                ],
+                            ),
+                            arms: [
+                                (
+                                    Literal(
+                                        I64(
+                                            0,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "zero",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        I64(
+                                            42,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "forty-two",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Wildcard,
+                                    Literal(
+                                        Str(
+                                            "other",
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

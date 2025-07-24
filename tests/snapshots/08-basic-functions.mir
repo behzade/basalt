@@ -1,0 +1,527 @@
+DEBUG: Using function from context: add with params: [(Some("a"), Type { path: ["i64"], generics: [] }), (Some("b"), Type { path: ["i64"], generics: [] })]
+DEBUG: Adding parameter a with type I64 to scope
+DEBUG: Adding parameter b with type I64 to scope
+DEBUG: Using function from context: greet with params: [(Some("name"), Type { path: ["string"], generics: [] })]
+DEBUG: Adding parameter name with type Str to scope
+DEBUG: Using function from context: noReturn with params: []
+DEBUG: Using function from context: main with params: []
+MirProgram {
+    functions: {
+        "noReturn": MirFunction {
+            name: "noReturn",
+            params: [],
+            return_type: Unit,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    1,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        42,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                2,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+        "add": MirFunction {
+            name: "add",
+            params: [
+                LocalId(
+                    1,
+                ),
+                LocalId(
+                    2,
+                ),
+            ],
+            return_type: I64,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    4,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            2,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            BinaryOp(
+                                Add,
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            3,
+                                        ),
+                                    },
+                                ),
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            4,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I64,
+                    is_param: true,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: I64,
+                    is_param: true,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                5,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+        "greet": MirFunction {
+            name: "greet",
+            params: [
+                LocalId(
+                    1,
+                ),
+            ],
+            return_type: Str,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "Hello ",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            BinaryOp(
+                                Add,
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            2,
+                                        ),
+                                    },
+                                ),
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            3,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: Str,
+                    is_param: true,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                4,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+        "main": MirFunction {
+            name: "main",
+            params: [],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        10,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        20,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "add",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        2,
+                                    ),
+                                },
+                            ),
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        3,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                1,
+                            ),
+                        },
+                        target: 1,
+                    },
+                },
+                BasicBlock {
+                    id: 1,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "World",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "greet",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        5,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                4,
+                            ),
+                        },
+                        target: 2,
+                    },
+                },
+                BasicBlock {
+                    id: 2,
+                    statements: [],
+                    terminator: Call {
+                        func: "noReturn",
+                        args: [],
+                        destination: Place {
+                            local: LocalId(
+                                6,
+                            ),
+                        },
+                        target: 3,
+                    },
+                },
+                BasicBlock {
+                    id: 3,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    5,
+                ): MirLocal {
+                    id: LocalId(
+                        5,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    6,
+                ): MirLocal {
+                    id: LocalId(
+                        6,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I64,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                7,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+    },
+}

@@ -1,0 +1,388 @@
+DEBUG: Adding struct Counter to context
+DEBUG: Processing impl block for target: Type { path: ["Counter"], generics: [] }
+DEBUG: Found struct Counter for impl block
+DEBUG: Fixing self parameter type for method increment
+DEBUG: Set self parameter type to Type { path: ["Counter"], generics: [] }
+DEBUG: Fixing self parameter type for method get_count
+DEBUG: Set self parameter type to Type { path: ["Counter"], generics: [] }
+DEBUG: Type-checking struct Counter with fields: [("count", Type { path: ["i32"], generics: [] })]
+DEBUG: Using function from context: new with params: []
+DEBUG: Using function from context: increment with params: [(Some("self"), Type { path: ["Counter"], generics: [] })]
+DEBUG: Adding parameter self with type Adt { name: ["Counter"], generics: [] } to scope
+DEBUG: Using function from context: get_count with params: [(Some("self"), Type { path: ["Counter"], generics: [] })]
+DEBUG: Adding parameter self with type Adt { name: ["Counter"], generics: [] } to scope
+DEBUG: Using function from context: main with params: []
+DEBUG: Enum not found: Counter
+Struct(
+    StructDef {
+        name: "Counter",
+        generics: [],
+        fields: [
+            (
+                "count",
+                I32,
+            ),
+        ],
+        is_public: false,
+    },
+)
+Impl(
+    ImplBlock {
+        trait_name: "Counter",
+        target_type: Adt {
+            name: [
+                "Counter",
+            ],
+            generics: [],
+        },
+        methods: [
+            Function {
+                name: "new",
+                params: [],
+                ret_type: Adt {
+                    name: [
+                        "Counter",
+                    ],
+                    generics: [],
+                },
+                body: Expr {
+                    kind: Block {
+                        stmts: [
+                            Return(
+                                Some(
+                                    Expr {
+                                        kind: StructInit {
+                                            path: [
+                                                "Counter",
+                                            ],
+                                            fields: {
+                                                "count": Expr {
+                                                    kind: Literal(
+                                                        I64(
+                                                            0,
+                                                        ),
+                                                    ),
+                                                    ty: I32,
+                                                },
+                                            },
+                                        },
+                                        ty: Adt {
+                                            name: [
+                                                "Counter",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                ),
+                            ),
+                        ],
+                        last_expr: None,
+                    },
+                    ty: Adt {
+                        name: [
+                            "Counter",
+                        ],
+                        generics: [],
+                    },
+                },
+                is_public: true,
+            },
+            Function {
+                name: "increment",
+                params: [
+                    (
+                        Some(
+                            "self",
+                        ),
+                        Adt {
+                            name: [
+                                "Counter",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                ],
+                ret_type: Unit,
+                body: Expr {
+                    kind: Block {
+                        stmts: [
+                            Expr(
+                                Expr {
+                                    kind: Binary {
+                                        op: Assign,
+                                        lhs: Expr {
+                                            kind: FieldAccess {
+                                                receiver: Expr {
+                                                    kind: Path(
+                                                        [
+                                                            "self",
+                                                        ],
+                                                    ),
+                                                    ty: Adt {
+                                                        name: [
+                                                            "Counter",
+                                                        ],
+                                                        generics: [],
+                                                    },
+                                                },
+                                                field: "count",
+                                            },
+                                            ty: I32,
+                                        },
+                                        rhs: Expr {
+                                            kind: Binary {
+                                                op: Add,
+                                                lhs: Expr {
+                                                    kind: FieldAccess {
+                                                        receiver: Expr {
+                                                            kind: Path(
+                                                                [
+                                                                    "self",
+                                                                ],
+                                                            ),
+                                                            ty: Adt {
+                                                                name: [
+                                                                    "Counter",
+                                                                ],
+                                                                generics: [],
+                                                            },
+                                                        },
+                                                        field: "count",
+                                                    },
+                                                    ty: I32,
+                                                },
+                                                rhs: Expr {
+                                                    kind: Literal(
+                                                        I64(
+                                                            1,
+                                                        ),
+                                                    ),
+                                                    ty: I32,
+                                                },
+                                            },
+                                            ty: I32,
+                                        },
+                                    },
+                                    ty: I32,
+                                },
+                            ),
+                        ],
+                        last_expr: None,
+                    },
+                    ty: Unit,
+                },
+                is_public: true,
+            },
+            Function {
+                name: "get_count",
+                params: [
+                    (
+                        Some(
+                            "self",
+                        ),
+                        Adt {
+                            name: [
+                                "Counter",
+                            ],
+                            generics: [],
+                        },
+                    ),
+                ],
+                ret_type: I32,
+                body: Expr {
+                    kind: Block {
+                        stmts: [
+                            Return(
+                                Some(
+                                    Expr {
+                                        kind: FieldAccess {
+                                            receiver: Expr {
+                                                kind: Path(
+                                                    [
+                                                        "self",
+                                                    ],
+                                                ),
+                                                ty: Adt {
+                                                    name: [
+                                                        "Counter",
+                                                    ],
+                                                    generics: [],
+                                                },
+                                            },
+                                            field: "count",
+                                        },
+                                        ty: I32,
+                                    },
+                                ),
+                            ),
+                        ],
+                        last_expr: None,
+                    },
+                    ty: I32,
+                },
+                is_public: true,
+            },
+        ],
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "counter",
+                        is_mut: true,
+                        value_ty: Error,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "Counter",
+                                            "new",
+                                        ],
+                                    ),
+                                    ty: Adt {
+                                        name: [
+                                            "Counter",
+                                        ],
+                                        generics: [],
+                                    },
+                                },
+                                args: [],
+                            },
+                            ty: Error,
+                        },
+                    },
+                    Expr(
+                        Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "increment",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "Counter",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Unit,
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "counter",
+                                            ],
+                                        ),
+                                        ty: Error,
+                                    },
+                                ],
+                            },
+                            ty: Unit,
+                        },
+                    ),
+                    Expr(
+                        Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "increment",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "Counter",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Unit,
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "counter",
+                                            ],
+                                        ),
+                                        ty: Error,
+                                    },
+                                ],
+                            },
+                            ty: Unit,
+                        },
+                    ),
+                    Let {
+                        name: "count",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "get_count",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "Counter",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: I32,
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "counter",
+                                            ],
+                                        ),
+                                        ty: Error,
+                                    },
+                                ],
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

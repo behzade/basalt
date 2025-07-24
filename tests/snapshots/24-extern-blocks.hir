@@ -1,0 +1,110 @@
+DEBUG: Adding struct IoVec to context
+DEBUG: Using function from context: fd_write with params: [(Some("fd"), Type { path: ["i32"], generics: [] }), (Some("data"), Type { path: ["string"], generics: [] })]
+DEBUG: Adding parameter fd with type I32 to scope
+DEBUG: Adding parameter data with type Str to scope
+DEBUG: Using function from context: random_get with params: [(Some("buf"), Type { path: ["array"], generics: [Type { path: ["i32"], generics: [] }] })]
+DEBUG: Adding parameter buf with type Adt { name: ["array"], generics: [I32] } to scope
+DEBUG: Type-checking struct IoVec with fields: [("ptr", Type { path: ["i32"], generics: [] }), ("len", Type { path: ["i32"], generics: [] })]
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "fd_write",
+        params: [
+            (
+                Some(
+                    "fd",
+                ),
+                I32,
+            ),
+            (
+                Some(
+                    "data",
+                ),
+                Str,
+            ),
+        ],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "random_get",
+        params: [
+            (
+                Some(
+                    "buf",
+                ),
+                Adt {
+                    name: [
+                        "array",
+                    ],
+                    generics: [
+                        I32,
+                    ],
+                },
+            ),
+        ],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)
+Struct(
+    StructDef {
+        name: "IoVec",
+        generics: [],
+        fields: [
+            (
+                "ptr",
+                I32,
+            ),
+            (
+                "len",
+                I32,
+            ),
+        ],
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

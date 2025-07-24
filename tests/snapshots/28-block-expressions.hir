@@ -1,0 +1,174 @@
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "a",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Block {
+                                stmts: [],
+                                last_expr: Some(
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                2,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ),
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "b",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Block {
+                                stmts: [
+                                    Let {
+                                        name: "x",
+                                        is_mut: false,
+                                        value_ty: I32,
+                                        value: Expr {
+                                            kind: Literal(
+                                                I64(
+                                                    10,
+                                                ),
+                                            ),
+                                            ty: I32,
+                                        },
+                                    },
+                                    Let {
+                                        name: "y",
+                                        is_mut: false,
+                                        value_ty: I32,
+                                        value: Expr {
+                                            kind: Literal(
+                                                I64(
+                                                    20,
+                                                ),
+                                            ),
+                                            ty: I32,
+                                        },
+                                    },
+                                ],
+                                last_expr: Some(
+                                    Expr {
+                                        kind: Binary {
+                                            op: Add,
+                                            lhs: Expr {
+                                                kind: Path(
+                                                    [
+                                                        "x",
+                                                    ],
+                                                ),
+                                                ty: I32,
+                                            },
+                                            rhs: Expr {
+                                                kind: Path(
+                                                    [
+                                                        "y",
+                                                    ],
+                                                ),
+                                                ty: I32,
+                                            },
+                                        },
+                                        ty: I32,
+                                    },
+                                ),
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "c",
+                        is_mut: false,
+                        value_ty: Unit,
+                        value: Expr {
+                            kind: Block {
+                                stmts: [
+                                    Expr(
+                                        Expr {
+                                            kind: If {
+                                                cond: Expr {
+                                                    kind: Literal(
+                                                        Bool(
+                                                            true,
+                                                        ),
+                                                    ),
+                                                    ty: Bool,
+                                                },
+                                                then_block: Expr {
+                                                    kind: Block {
+                                                        stmts: [],
+                                                        last_expr: Some(
+                                                            Expr {
+                                                                kind: Literal(
+                                                                    I64(
+                                                                        42,
+                                                                    ),
+                                                                ),
+                                                                ty: I32,
+                                                            },
+                                                        ),
+                                                    },
+                                                    ty: I32,
+                                                },
+                                                else_block: Some(
+                                                    Expr {
+                                                        kind: Block {
+                                                            stmts: [],
+                                                            last_expr: Some(
+                                                                Expr {
+                                                                    kind: Literal(
+                                                                        I64(
+                                                                            100,
+                                                                        ),
+                                                                    ),
+                                                                    ty: I32,
+                                                                },
+                                                            ),
+                                                        },
+                                                        ty: I32,
+                                                    },
+                                                ),
+                                            },
+                                            ty: I32,
+                                        },
+                                    ),
+                                ],
+                                last_expr: None,
+                            },
+                            ty: Unit,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

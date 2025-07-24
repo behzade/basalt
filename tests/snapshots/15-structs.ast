@@ -1,0 +1,117 @@
+[
+    Struct(
+        StructDef {
+            attributes: [],
+            name: "Point",
+            generics: [],
+            fields: [
+                (
+                    "x",
+                    Type {
+                        path: [
+                            "i32",
+                        ],
+                        generics: [],
+                    },
+                ),
+                (
+                    "y",
+                    Type {
+                        path: [
+                            "i32",
+                        ],
+                        generics: [],
+                    },
+                ),
+            ],
+            is_public: false,
+        },
+    ),
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "p",
+                        ty: None,
+                        value: StructInit {
+                            path: [
+                                "Point",
+                            ],
+                            generics: [],
+                            fields: [
+                                (
+                                    "x",
+                                    Literal(
+                                        I64(
+                                            10,
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    "y",
+                                    Literal(
+                                        I64(
+                                            20,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "x",
+                        ty: None,
+                        value: FieldAccess {
+                            receiver: Path(
+                                [
+                                    "p",
+                                ],
+                            ),
+                            field: "x",
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "y",
+                        ty: None,
+                        value: FieldAccess {
+                            receiver: Path(
+                                [
+                                    "p",
+                                ],
+                            ),
+                            field: "y",
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

@@ -1,0 +1,115 @@
+DEBUG: Using function from context: main with params: []
+DEBUG: Checking pattern: Literal(I64(0))
+DEBUG: Checking pattern: Literal(I64(42))
+DEBUG: Checking pattern: Wildcard
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "value",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Literal(
+                                I64(
+                                    42,
+                                ),
+                            ),
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "result",
+                        is_mut: false,
+                        value_ty: Str,
+                        value: Expr {
+                            kind: Match {
+                                scrutinee: Expr {
+                                    kind: Path(
+                                        [
+                                            "value",
+                                        ],
+                                    ),
+                                    ty: I32,
+                                },
+                                arms: [
+                                    (
+                                        Pattern {
+                                            kind: Literal(
+                                                I64(
+                                                    0,
+                                                ),
+                                            ),
+                                            ty: I32,
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "zero",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                    (
+                                        Pattern {
+                                            kind: Literal(
+                                                I64(
+                                                    42,
+                                                ),
+                                            ),
+                                            ty: I32,
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "forty-two",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                    (
+                                        Pattern {
+                                            kind: Wildcard,
+                                            ty: I32,
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "other",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                ],
+                            },
+                            ty: Str,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)
