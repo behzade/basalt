@@ -12,7 +12,7 @@ Its core features include:
 
 ## 🚧 Project Status: Work in Progress
 
-This project is currently in the early stages of development. It is a great reference for modern compiler architecture but is not yet ready for production use.
+This project is currently in the early stages of development. It is is not yet ready for production use.
 
 **What works:**
 * **Frontend:** A complete parser, type checker, and intermediate representation pipeline (AST → HIR → MIR).
