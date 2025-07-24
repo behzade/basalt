@@ -38,43 +38,41 @@ impl CraneliftCodegen {
         let mut builder_context = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(&mut func, &mut builder_context);
         
-        // Create all blocks first
-        let mut block_mapping = HashMap::new();
+        // --- Pass 1: Block Creation ---
+        // Create all blocks first so we can refer to them before they are filled.
+        let mut block_mapping: HashMap<usize, ir::Block> = HashMap::new();
         for (i, _) in mir_func.basic_blocks.iter().enumerate() {
             let block = builder.create_block();
             block_mapping.insert(i, block);
         }
         
-        // Convert parameters to SSA values (for entry block)
+        // --- Parameter and Local Variable Setup ---
         let entry_block = block_mapping[&0]; // Assume first block is entry
-        let mut param_values = Vec::new();
-        for param in &signature.params {
-            let val = builder.append_block_param(entry_block, param.value_type);
-            param_values.push(val);
-        }
-        
-        // Switch to entry block first
         builder.switch_to_block(entry_block);
-        
-        // Convert MIR locals to Cranelift locals
+        builder.append_block_params_for_function_params(entry_block);
+
         let mut local_mapping = HashMap::new();
+        // Map MIR function parameters to Cranelift entry block parameters.
+        for (i, param_id) in mir_func.params.iter().enumerate() {
+            let param_val = builder.block_params(entry_block)[i];
+            local_mapping.insert(*param_id, param_val);
+        }
+
+        // Declare and initialize all non-parameter locals to a zero value.
         for (local_id, mir_local) in &mir_func.locals {
             if !mir_local.is_param {
                 let cranelift_type = Self::convert_type(&mir_local.ty);
-                let val = builder.ins().iconst(cranelift_type, 0); // Initialize with default value
+                let val = builder.ins().iconst(cranelift_type, 0);
                 local_mapping.insert(*local_id, val);
-            } else {
-                // Parameters are already handled above
-                let param_index = mir_func.params.iter().position(|p| *p == *local_id).unwrap();
-                local_mapping.insert(*local_id, param_values[param_index]);
             }
         }
-        
-        // Convert each basic block
+        builder.seal_block(entry_block);
+
+        // --- Pass 2: Instruction Population (without terminators) ---
         for (i, mir_block) in mir_func.basic_blocks.iter().enumerate() {
             let cranelift_block = block_mapping[&i];
-            
-            // Skip switching for the first block since we're already there
+
+            // Only switch to blocks that are not the entry block (which is already active)
             if i > 0 {
                 builder.switch_to_block(cranelift_block);
             }
@@ -84,17 +82,31 @@ impl CraneliftCodegen {
                 Self::convert_statement(statement, &mut builder, &mut local_mapping);
             }
             
-            // Convert terminator
+            // If the block has no statements, add a no-op instruction to ensure the block is not empty
+            // This is necessary because we need to be able to switch to this block later for terminators
+            if mir_block.statements.is_empty() {
+                // Add a no-op instruction to prevent "you have to fill your block before switching"
+                let dummy_val = builder.ins().iconst(Type::int(32).unwrap(), 0);
+                // We don't need to store this value anywhere since it's just a no-op
+            }
+        }
+
+        // --- Pass 3: Seal Blocks and Add Terminators ---
+        for (i, mir_block) in mir_func.basic_blocks.iter().enumerate() {
+            let cranelift_block = block_mapping[&i];
+            builder.switch_to_block(cranelift_block);
+
+            // Seal all blocks except the entry block which was sealed earlier.
+            if i > 0 {
+                builder.seal_block(cranelift_block);
+            }
+            
             Self::convert_terminator(
                 &mir_block.terminator,
                 &mut builder,
                 &block_mapping,
                 &mut local_mapping,
-                i,
             );
-            
-            // Seal the block after it's completely filled
-            builder.seal_block(cranelift_block);
         }
         
         builder.finalize();
@@ -145,8 +157,7 @@ impl CraneliftCodegen {
         match statement {
             mir::Statement::Assign(place, rvalue) => {
                 let src_val = Self::convert_rvalue(rvalue, builder, local_mapping);
-                // For now, we'll store the value in the local mapping
-                // In a real implementation, we'd need proper SSA value handling
+                // Store the value in the local mapping
                 local_mapping.insert(place.local, src_val);
             }
         }
@@ -188,10 +199,16 @@ impl CraneliftCodegen {
                 Self::get_place_value(place, builder, local_mapping)
             }
             mir::Rvalue::Array(elements) => {
-                // For now, create a simple array representation
-                // In a real implementation, this would allocate memory
-                let first_element = Self::convert_operand(&elements[0], builder, local_mapping);
-                first_element
+                // Handle empty arrays safely
+                if elements.is_empty() {
+                    // Return a null pointer for empty arrays
+                    builder.ins().iconst(Type::int(64).unwrap(), 0)
+                } else {
+                    // For now, create a simple array representation using the first element
+                    // In a real implementation, this would allocate memory
+                    let first_element = Self::convert_operand(&elements[0], builder, local_mapping);
+                    first_element
+                }
             }
             mir::Rvalue::Map(_) => {
                 // For now, return a null pointer
@@ -264,7 +281,6 @@ impl CraneliftCodegen {
         builder: &mut FunctionBuilder,
         block_mapping: &HashMap<usize, ir::Block>,
         local_mapping: &mut HashMap<LocalId, ir::Value>,
-        current_block: usize,
     ) {
         match terminator {
             mir::Terminator::Goto { target } => {
@@ -340,8 +356,8 @@ impl CraneliftCodegen {
                             let target_block = block_mapping[target];
                             let otherwise_block = block_mapping[otherwise];
                             let const_val = builder.ins().iconst(Type::int(64).unwrap(), *value);
-                            builder.ins().icmp_imm(IntCC::Equal, scrutinee_val, *value as i64);
-                            builder.ins().brif(scrutinee_val, target_block, &[], otherwise_block, &[]);
+                            let cmp_result = builder.ins().icmp_imm(IntCC::Equal, scrutinee_val, *value as i64);
+                            builder.ins().brif(cmp_result, target_block, &[], otherwise_block, &[]);
                             return;
                         }
                     }
@@ -351,9 +367,10 @@ impl CraneliftCodegen {
                 builder.ins().jump(otherwise_block, &[]);
             }
             mir::Terminator::Return => {
-                // For now, return a default value
-                // In a real implementation, you'd return the actual return value
-                let return_val = builder.ins().iconst(Type::int(32).unwrap(), 0);
+                // The return value is always stored in LocalId(0)
+                let return_val = local_mapping.get(&LocalId(0)).copied().unwrap_or_else(|| {
+                    builder.ins().iconst(Type::int(32).unwrap(), 0)
+                });
                 builder.ins().return_(&[return_val]);
             }
             mir::Terminator::Unreachable => {
