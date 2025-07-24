@@ -38,17 +38,23 @@ impl CraneliftCodegen {
         let mut builder_context = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(&mut func, &mut builder_context);
         
-        // Create entry block
-        let entry_block = builder.create_block();
-        builder.switch_to_block(entry_block);
-        builder.seal_block(entry_block);
+        // Create all blocks first
+        let mut block_mapping = HashMap::new();
+        for (i, _) in mir_func.basic_blocks.iter().enumerate() {
+            let block = builder.create_block();
+            block_mapping.insert(i, block);
+        }
         
-        // Convert parameters to SSA values
+        // Convert parameters to SSA values (for entry block)
+        let entry_block = block_mapping[&0]; // Assume first block is entry
         let mut param_values = Vec::new();
         for param in &signature.params {
             let val = builder.append_block_param(entry_block, param.value_type);
             param_values.push(val);
         }
+        
+        // Switch to entry block first
+        builder.switch_to_block(entry_block);
         
         // Convert MIR locals to Cranelift locals
         let mut local_mapping = HashMap::new();
@@ -64,17 +70,14 @@ impl CraneliftCodegen {
             }
         }
         
-        // Convert basic blocks
-        let mut block_mapping = HashMap::new();
-        for (i, _) in mir_func.basic_blocks.iter().enumerate() {
-            let block = builder.create_block();
-            block_mapping.insert(i, block);
-        }
-        
         // Convert each basic block
         for (i, mir_block) in mir_func.basic_blocks.iter().enumerate() {
             let cranelift_block = block_mapping[&i];
-            builder.switch_to_block(cranelift_block);
+            
+            // Skip switching for the first block since we're already there
+            if i > 0 {
+                builder.switch_to_block(cranelift_block);
+            }
             
             // Convert statements
             for statement in &mir_block.statements {
@@ -89,6 +92,9 @@ impl CraneliftCodegen {
                 &mut local_mapping,
                 i,
             );
+            
+            // Seal the block after it's completely filled
+            builder.seal_block(cranelift_block);
         }
         
         builder.finalize();
@@ -138,12 +144,10 @@ impl CraneliftCodegen {
     ) {
         match statement {
             mir::Statement::Assign(place, rvalue) => {
-                let dest_val = Self::get_place_value(place, builder, local_mapping);
                 let src_val = Self::convert_rvalue(rvalue, builder, local_mapping);
-                // Use move instead of copy for now
-                // For now, just assign the value directly
-                // In a real implementation, we'd need proper copy/move semantics
-                let _ = (src_val, dest_val);
+                // For now, we'll store the value in the local mapping
+                // In a real implementation, we'd need proper SSA value handling
+                local_mapping.insert(place.local, src_val);
             }
         }
     }
@@ -209,9 +213,8 @@ impl CraneliftCodegen {
         match operand {
             mir::Operand::Constant(literal) => Self::convert_literal(literal, builder),
             mir::Operand::Copy(place) => {
-                let place_val = Self::get_place_value(place, builder, local_mapping);
-                // For now, just return the place value
-                place_val
+                // Get the value from the local mapping
+                local_mapping[&place.local]
             }
         }
     }
@@ -282,7 +285,7 @@ impl CraneliftCodegen {
                     builder.ins().jump(otherwise_block, &[]);
                 }
             }
-            mir::Terminator::Call { func, args, destination, target } => {
+            mir::Terminator::Call { func: _, args, destination, target } => {
                 // For now, we'll create a simple call mechanism
                 // In a real implementation, you'd need to handle function signatures properly
                 let mut arg_values = Vec::new();
@@ -296,9 +299,7 @@ impl CraneliftCodegen {
                 let result = builder.ins().iconst(Type::int(32).unwrap(), 0); // Placeholder result
                 
                 // Store result in destination
-                let dest_val = Self::get_place_value(destination, builder, local_mapping);
-                // For now, just assign the result
-                let _ = (result, dest_val);
+                local_mapping.insert(destination.local, result);
                 
                 // Jump to target block
                 let target_block = block_mapping[target];
