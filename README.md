@@ -35,12 +35,14 @@ Currently, you can compile and run `.bst` files as native executables.
     cd basalt
     ```
 
-2.  **Build and run a test file:**
-    The following command will compile `./tests/compile/05-function-call.bst` into a native object file, link it, and execute it.
-    ```sh
-    cargo run -- run ./tests/compile/04-return-literal.bst
-    ```
-    The program should exit with code `42`.
+2. Process a Test File
+You can process test files using various subcommands with the following structure:
+
+
+```sh
+cargo run -- <parse/hir/mir/cir/build/run> ./tests/<test-file-name>.bst
+```
+For example, the parse subcommand reads a .bst file and prints its corresponding Abstract Syntax Tree (AST) to standard output. This is useful for verifying the initial parsing stage of the compiler.
 
 ## ⚖️ License
 
