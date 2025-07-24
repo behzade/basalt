@@ -17,6 +17,44 @@ impl<'src> TypeChecker<'src> {
         self.check_expr_with_hint(expr, &infer_ty)
     }
 
+    /// Converts a HIR type back to an AST type for creating concrete instantiations.
+    fn hir_to_ast_type(&self, hir_ty: &Ty<'src>) -> ast::Type<'src> {
+        match hir_ty {
+            Ty::Bool => ast::Type { path: vec!["bool"], generics: vec![] },
+            Ty::I32 => ast::Type { path: vec!["i32"], generics: vec![] },
+            Ty::I64 => ast::Type { path: vec!["i64"], generics: vec![] },
+            Ty::F64 => ast::Type { path: vec!["f64"], generics: vec![] },
+            Ty::Str => ast::Type { path: vec!["str"], generics: vec![] },
+            Ty::Unit => ast::Type { path: vec!["unit"], generics: vec![] },
+            Ty::Array(element_ty) => {
+                let element_ast_ty = self.hir_to_ast_type(element_ty);
+                ast::Type { path: vec!["Array"], generics: vec![element_ast_ty] }
+            }
+            Ty::Map { key, value } => {
+                let key_ast_ty = self.hir_to_ast_type(key);
+                let value_ast_ty = self.hir_to_ast_type(value);
+                ast::Type { path: vec!["Map"], generics: vec![key_ast_ty, value_ast_ty] }
+            }
+            Ty::Adt { name, generics } => {
+                let ast_generics: Vec<ast::Type<'src>> = generics.iter()
+                    .map(|g| self.hir_to_ast_type(g))
+                    .collect();
+                ast::Type { path: name.clone(), generics: ast_generics }
+            }
+            Ty::Function { param_types, ret_type } => {
+                // For function types, we'll use a simple representation
+                ast::Type { path: vec!["function"], generics: vec![] }
+            }
+            Ty::Infer(_) => {
+                // For inference variables, we'll use a placeholder
+                ast::Type { path: vec!["infer"], generics: vec![] }
+            }
+            Ty::Error => {
+                ast::Type { path: vec!["error"], generics: vec![] }
+            }
+        }
+    }
+
     /// Checks an expression, using a `type_hint` to guide inference.
     pub fn check_expr_with_hint(
         &mut self,
@@ -458,6 +496,60 @@ impl<'src> TypeChecker<'src> {
         // This is a simplification. A real implementation would unify against
         // a function type, but for now we check for function names.
         if let hir::ExprKind::Path(path) = &hir_fun.kind {
+            // Check for method calls (e.g., counter.increment())
+            if path.len() == 1 && args.len() >= 1 {
+                let method_name = path[0];
+                
+                // Check all arguments first to avoid borrow checker issues
+                let mut hir_args = Vec::new();
+                for arg in args {
+                    let hir_arg = self.check_expr(arg)?;
+                    hir_args.push(hir_arg);
+                }
+                
+                let receiver = &hir_args[0];
+                
+                // Check if the receiver is a struct instance
+                if let Ty::Adt { name, .. } = &receiver.ty {
+                    let struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
+                    
+                    // Check if this method exists for this struct
+                    if let Some(func_def) = self.context.get_function(method_name) {
+                        // Check if the first parameter is 'self' or 'mut self'
+                        if let Some((first_param_name, first_param_ty)) = func_def.params.first() {
+                            if let Some(param_name) = first_param_name {
+                                if param_name == &"self" || param_name == &"mut self" {
+                                    // This looks like a method call
+                                    let expected_self_ty = self.lower_type(first_param_ty);
+                                    
+                                    // Check if the receiver type matches the expected self type
+                                    // For now, we'll just check if it's the same struct
+                                    if let Ty::Adt { name: expected_name, .. } = &expected_self_ty {
+                                        if expected_name == name {
+                                            // This is a valid method call
+                                            // Get the return type
+                                            let ret_ty = if let Some(ret_type) = &func_def.ret_type {
+                                                self.lower_type(ret_type)
+                                            } else {
+                                                Ty::Unit
+                                            };
+                                            
+                                            return Ok((
+                                                hir::ExprKind::Call {
+                                                    fun: Box::new(hir_fun),
+                                                    args: hir_args,
+                                                },
+                                                ret_ty,
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Check for module-qualified function calls (e.g., Std::Fmt::println)
             if path.len() >= 3 {
                 if let Some(_module_type) = self.resolve_module_symbol(path) {
@@ -568,18 +660,86 @@ impl<'src> TypeChecker<'src> {
                             // Check if this is a generic parameter of the function
                             if func_def.generics.contains(&param_name) {
                                 // Infer the type from the argument
-                                substitution.insert(param_name, hir_arg.ty.clone());
+                                substitution.insert(param_name, self.resolve_type(&hir_arg.ty));
+                            } else {
+                                // Not a generic parameter, unify normally
+                                let hir_param_ty = self.lower_type(param_ty);
+                                self.unify(&hir_arg.ty, &hir_param_ty)?;
                             }
+                        } else {
+                            // Not a simple generic parameter, unify normally
+                            let hir_param_ty = self.lower_type(param_ty);
+                            self.unify(&hir_arg.ty, &hir_param_ty)?;
                         }
+                    } else {
+                        // Not a generic parameter, unify normally
+                        let hir_param_ty = self.lower_type(param_ty);
+                        self.unify(&hir_arg.ty, &hir_param_ty)?;
                     }
                 }
 
-                // Apply substitution to return type
+                // If this is a generic function and we have substitutions, create a concrete instantiation
+                if !func_def.generics.is_empty() && !substitution.is_empty() {
+                    // Create a concrete instantiation of the function
+                    let mut concrete_func = func_def.clone();
+                    
+                    // Substitute generic parameters in the function signature
+                    for (param_name, param_ty) in &mut concrete_func.params {
+                        if let ast::Type { path, generics } = param_ty {
+                            if generics.is_empty() && path.len() == 1 {
+                                let param_name_str = path[0];
+                                if let Some(concrete_ty) = substitution.get(param_name_str) {
+                                    // Convert the concrete type back to AST type
+                                    let ast_ty = self.hir_to_ast_type(concrete_ty);
+                                    *param_ty = ast_ty;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Substitute generic parameters in the return type
+                    if let Some(ret_type) = &mut concrete_func.ret_type {
+                        if let ast::Type { path, generics } = ret_type {
+                            if generics.is_empty() && path.len() == 1 {
+                                let param_name_str = path[0];
+                                if let Some(concrete_ty) = substitution.get(param_name_str) {
+                                    // Convert the concrete type back to AST type
+                                    let ast_ty = self.hir_to_ast_type(concrete_ty);
+                                    *ret_type = ast_ty;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Clear the generics list since this is now a concrete function
+                    concrete_func.generics.clear();
+                    
+                    // Get the return type before moving the function
+                    let ret_ty = if let Some(ret_type) = &concrete_func.ret_type {
+                        self.lower_type(ret_type)
+                    } else {
+                        Ty::Unit
+                    };
+                    
+                    // Store the concrete instantiation
+                    self.context.add_function_instantiation(path[0], concrete_func);
+                    
+                    return Ok((
+                        hir::ExprKind::Call {
+                            fun: Box::new(hir_fun),
+                            args: hir_args,
+                        },
+                        ret_ty,
+                    ));
+                }
+
+                // Apply substitution to return type (for non-generic functions or when no substitution needed)
                 let ret_ty = if let Some(ret_type) = &func_def.ret_type {
                     if substitution.is_empty() {
                         self.lower_type(ret_type)
                     } else {
-                        self.substitute_generics(ret_type, &substitution)
+                        let substituted = self.substitute_generics(ret_type, &substitution);
+                        substituted
                     }
                 } else {
                     Ty::Unit
@@ -696,8 +856,37 @@ impl<'src> TypeChecker<'src> {
 
         // Create a substitution mapping from generic parameters to concrete types
         let mut substitution = HashMap::new();
-        for (generic_param, concrete_type) in struct_def.generics.iter().zip(generics.iter()) {
-            substitution.insert(*generic_param, self.lower_type(concrete_type));
+        
+        if generics.is_empty() && !struct_def.generics.is_empty() {
+            // No explicit generic parameters provided, infer them from field values
+            for (field_name, field_expr) in fields {
+                let (_, field_ty_ast) = struct_def
+                    .fields
+                    .iter()
+                    .find(|(n, _)| n == field_name)
+                    .ok_or(TypeError::UnknownStructField {
+                        struct_name,
+                        field_name: *field_name,
+                    })?;
+
+                // Check if the field type contains generic parameters
+                if let ast::Type { path: field_path, generics: field_generics } = field_ty_ast {
+                    if field_generics.is_empty() && field_path.len() == 1 {
+                        let param_name = field_path[0];
+                        // Check if this is a generic parameter of the struct
+                        if struct_def.generics.contains(&param_name) {
+                            // Infer the type from the field expression
+                            let hir_expr = self.check_expr(field_expr)?;
+                            substitution.insert(param_name, self.resolve_type(&hir_expr.ty));
+                        }
+                    }
+                }
+            }
+        } else {
+            // Explicit generic parameters provided, use them
+            for (generic_param, concrete_type) in struct_def.generics.iter().zip(generics.iter()) {
+                substitution.insert(*generic_param, self.lower_type(concrete_type));
+            }
         }
 
         let mut hir_fields = HashMap::new();
@@ -712,7 +901,12 @@ impl<'src> TypeChecker<'src> {
                 })?;
 
             // Apply generic substitution to the field type
-            let field_ty = self.substitute_generics(field_ty_ast, &substitution);
+            let field_ty = if substitution.is_empty() {
+                self.lower_type(field_ty_ast)
+            } else {
+                self.substitute_generics(field_ty_ast, &substitution)
+            };
+            
             let hir_expr = self.check_expr_with_hint(field_expr, &field_ty)?;
             self.unify(&hir_expr.ty, &field_ty)?;
             hir_fields.insert(*field_name, hir_expr);
@@ -728,9 +922,21 @@ impl<'src> TypeChecker<'src> {
             }
         }
 
+        // Create the final struct type with inferred or explicit generic parameters
+        let final_generics = if substitution.is_empty() {
+            generics.iter().map(|t| self.lower_type(t)).collect()
+        } else {
+            struct_def.generics.iter().map(|param| {
+                substitution.get(param).cloned().unwrap_or_else(|| {
+                    // If we couldn't infer a type for this parameter, create an inference variable
+                    self.new_infer_ty()
+                })
+            }).collect()
+        };
+
         let ty = Ty::Adt {
             name: path.to_vec(),
-            generics: generics.iter().map(|t| self.lower_type(t)).collect(),
+            generics: final_generics,
         };
         Ok((
             hir::ExprKind::StructInit {

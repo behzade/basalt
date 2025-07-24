@@ -101,11 +101,16 @@ impl<'src> TypeChecker<'src> {
         // For function definitions (not declarations), unify the actual body's return type with the function's declared return type.
         if let ast::Expr::Block { stmts, last_expr } = &func.body {
             if !stmts.is_empty() || last_expr.is_some() {
-                if let Err(_) = self.unify(&body.ty, &expected_ret_ty) {
-                    return Err(TypeError::MismatchedTypes {
-                        expected: self.resolve_type(&expected_ret_ty),
-                        found: self.resolve_type(&body.ty),
-                    });
+                
+                // For generic functions, we don't unify the return types during definition
+                // The unification will happen when the function is called with concrete types
+                if func.generics.is_empty() {
+                    if let Err(_) = self.unify(&body.ty, &expected_ret_ty) {
+                        return Err(TypeError::MismatchedTypes {
+                            expected: self.resolve_type(&expected_ret_ty),
+                            found: self.resolve_type(&body.ty),
+                        });
+                    }
                 }
             }
         }

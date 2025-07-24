@@ -304,17 +304,33 @@ impl<'src> TypeChecker<'src> {
                 self.context.add_trait(trait_def.clone());
             }
             ast::Item::Impl(impl_block) => {
-                // Add each method from the impl block to the context
-                for method in &impl_block.methods {
-                    self.context.add_trait_method(
-                        method.name,
-                        ast::TraitMethod {
-                            name: method.name,
-                            params: method.params.clone(),
-                            ret_type: method.ret_type.clone(),
-                            is_public: method.is_public,
-                        },
-                    );
+                // Check if this is a struct implementation or trait implementation
+                if let ast::Type { path, generics } = &impl_block.target_type {
+                    if path.len() == 1 {
+                        let target_name = path[0];
+                        // Check if this target type is a struct (not a trait)
+                        if self.context.get_struct(target_name).is_some() {
+                            // This is a struct implementation
+                            // Add methods as regular functions (they'll be resolved as struct methods)
+                            for method in &impl_block.methods {
+                                self.context.add_function(method.clone());
+                            }
+                        } else {
+                            // This is a trait implementation
+                            // Add each method from the impl block to the context as trait methods
+                            for method in &impl_block.methods {
+                                self.context.add_trait_method(
+                                    method.name,
+                                    ast::TraitMethod {
+                                        name: method.name,
+                                        params: method.params.clone(),
+                                        ret_type: method.ret_type.clone(),
+                                        is_public: method.is_public,
+                                    },
+                                );
+                            }
+                        }
+                    }
                 }
             }
             ast::Item::Effect(effect_def) => {

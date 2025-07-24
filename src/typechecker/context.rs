@@ -48,6 +48,8 @@ pub struct TypeContext<'src> {
     // --- Global Definitions ---
     /// Functions available in the global scope.
     functions: HashMap<&'src str, ast::Function<'src>>,
+    /// Function instantiations (concrete versions of generic functions).
+    function_instantiations: HashMap<String, ast::Function<'src>>,
     /// Extern functions available in the global scope.
     extern_functions: HashMap<&'src str, ast::Item<'src>>,
     /// Struct definitions available in the global scope.
@@ -72,6 +74,7 @@ impl<'src> TypeContext<'src> {
         let mut context = Self {
             scopes: vec![Scope::default()], // Start with the global scope.
             functions: HashMap::new(),
+            function_instantiations: HashMap::new(),
             extern_functions: HashMap::new(),
             structs: HashMap::new(),
             enums: HashMap::new(),
@@ -163,9 +166,23 @@ impl<'src> TypeContext<'src> {
         self.functions.insert(func.name, func);
     }
 
+    /// Adds a concrete function instantiation to the global context.
+    /// This is used for storing specialized versions of generic functions.
+    pub fn add_function_instantiation(&mut self, name: &'src str, instantiation: ast::Function<'src>) {
+        // Create a unique key for this instantiation
+        let key = format!("{}_instantiation", name);
+        self.function_instantiations.insert(key, instantiation);
+    }
+
     /// Retrieves a function definition from the global context.
     pub fn get_function(&self, name: &'src str) -> Option<&ast::Function<'src>> {
         self.functions.get(name)
+    }
+
+    /// Retrieves a concrete function instantiation from the global context.
+    pub fn get_function_instantiation(&self, name: &'src str) -> Option<&ast::Function<'src>> {
+        let key = format!("{}_instantiation", name);
+        self.function_instantiations.get(key.as_str())
     }
 
     /// Adds an extern function to the global context.
