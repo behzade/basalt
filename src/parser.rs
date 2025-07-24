@@ -568,6 +568,70 @@ fn expression_parsers<'src>() -> (
     (expr, stmt)
 }
 
+fn fn_decl_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ident = select! { Token::Ident(ident) => ident };
+
+    let ty = recursive(|type_p| {
+        ident
+            .clone()
+            .separated_by(just(Token::DoubleColon))
+            .at_least(1)
+            .collect::<Vec<_>>()
+            .then(
+                // Custom generic parameter parser that handles nested generics
+                select! { Token::Op(op) if op == "<" => () }
+                    .ignore_then(
+                        type_p
+                            .separated_by(just(Token::Comma))
+                            .allow_trailing()
+                            .collect::<Vec<_>>(),
+                    )
+                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
+                    .or_not(),
+            )
+            .map(|(path, generics)| Type {
+                path,
+                generics: generics.unwrap_or_default(),
+            })
+    })
+    .boxed();
+
+    let params = ident
+        .clone()
+        .then_ignore(just(Token::Colon))
+        .then(ty.clone())
+        .map(|(name, ty)| (Some(name), ty))
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LParen), just(Token::RParen));
+
+    // Optional pub keyword
+    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
+
+    pub_keyword
+        .then(just(Token::Fn))
+        .map(|(is_public, _)| is_public)
+        .then(ident)
+        .then(params)
+        .then(just(Token::Arrow).ignore_then(ty).or_not())
+        .then_ignore(just(Token::Semi))
+        .map(|(((is_public, name), params), ret_type)| Function {
+            name,
+            generics: Vec::new(), // Function declarations don't have generics
+            params,
+            ret_type,
+            effects: Vec::new(), // Function declarations don't have effects
+            body: Expr::Block {
+                stmts: vec![],
+                last_expr: None,
+            }, // Empty body for declarations
+            is_public,
+        })
+        .labelled("function declaration")
+}
+
 fn fn_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, stmt) = expression_parsers();
@@ -1019,18 +1083,22 @@ fn extern_parser<'src>()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
+    // Parse extern block: extern "module_name" { ... }
     just(Token::Extern)
-        .ignore_then(just(Token::Fn))
-        .ignore_then(ident)
-        .then(params)
-        .then(just(Token::Arrow).ignore_then(type_parser()))
-        .then_ignore(just(Token::Semi))
-        .map(|((name, params), ret_type)| Item::ExternFn {
-            name,
-            params,
-            ret_type,
+        .ignore_then(
+            select! { Token::Str(module_name) => module_name }
+        )
+        .then(
+            fn_decl_parser()
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .map(|(module_name, functions)| Item::ExternBlock {
+            module_name,
+            functions,
         })
-        .labelled("extern function declaration")
+        .labelled("extern block declaration")
 }
 
 fn impl_parser<'src>()

@@ -1,6 +1,7 @@
-extern fn basalt_print(input: i64) -> none;
+import Std::Io;
 
 fn main() -> i64 {
-    basalt_print(44);
+    // The user's code is clean, portable, and idiomatic.
+    Io::println("44");
     0
 }

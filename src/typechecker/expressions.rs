@@ -152,18 +152,18 @@ impl<'src> TypeChecker<'src> {
 
         // Check for extern functions
         if let Some(extern_item) = self.context.get_extern_function(name) {
-            if let ast::Item::ExternFn {
-                params, ret_type, ..
-            } = extern_item
-            {
-                let ret_ty = self.lower_type(ret_type);
-                return Ok((
-                    hir::ExprKind::Path(resolved_path),
-                    Ty::Function {
-                        param_types: params.iter().map(|(_, t)| self.lower_type(t)).collect(),
-                        ret_type: Box::new(ret_ty),
-                    },
-                ));
+            if let ast::Item::ExternBlock { functions, .. } = extern_item {
+                // Find the function with the matching name
+                if let Some(function) = functions.iter().find(|f| f.name == *name) {
+                    let ret_ty = function.ret_type.as_ref().map_or(Ty::Unit, |t| self.lower_type(t));
+                    return Ok((
+                        hir::ExprKind::Path(resolved_path),
+                        Ty::Function {
+                            param_types: function.params.iter().map(|(_, t)| self.lower_type(t)).collect(),
+                            ret_type: Box::new(ret_ty),
+                        },
+                    ));
+                }
             }
         }
 
@@ -509,34 +509,37 @@ impl<'src> TypeChecker<'src> {
 
             // Then check for extern functions
             if let Some(extern_item) = self.context.get_extern_function(path[0]) {
-                if let ast::Item::ExternFn {
-                    params, ret_type, ..
-                } = extern_item
-                {
-                    let params = params.clone(); // Clone to avoid borrow conflict
-                    let ret_type = ret_type.clone(); // Clone to avoid borrow conflict
+                if let ast::Item::ExternBlock { functions, .. } = extern_item {
+                    // Find the function with the matching name
+                    if let Some(function) = functions.iter().find(|f| f.name == path[0]) {
+                        let params = function.params.clone(); // Clone to avoid borrow conflict
+                        let ret_type = function.ret_type.as_ref().map_or(
+                            ast::Type { path: vec!["none"], generics: vec![] },
+                            |t| t.clone()
+                        ); // Clone to avoid borrow conflict
 
-                    if params.len() != args.len() {
-                        return Err(TypeError::WrongArgumentCount {
-                            expected: params.len(),
-                            found: args.len(),
-                        });
+                        if params.len() != args.len() {
+                            return Err(TypeError::WrongArgumentCount {
+                                expected: params.len(),
+                                found: args.len(),
+                            });
+                        }
+
+                        let mut hir_args = Vec::new();
+                        for (arg, (_, param_ty)) in args.iter().zip(params.iter()) {
+                            let lower_param_ty = self.lower_type(param_ty);
+                            let hir_arg = self.check_expr_with_hint(arg, &lower_param_ty)?;
+                            self.unify(&hir_arg.ty, &lower_param_ty)?;
+                            hir_args.push(hir_arg);
+                        }
+
+                        let ret_ty = self.lower_type(&ret_type);
+                        let kind = hir::ExprKind::Call {
+                            fun: Box::new(hir_fun),
+                            args: hir_args,
+                        };
+                        return Ok((kind, ret_ty));
                     }
-
-                    let mut hir_args = Vec::new();
-                    for (arg, (_, param_ty)) in args.iter().zip(params.iter()) {
-                        let lower_param_ty = self.lower_type(param_ty);
-                        let hir_arg = self.check_expr_with_hint(arg, &lower_param_ty)?;
-                        self.unify(&hir_arg.ty, &lower_param_ty)?;
-                        hir_args.push(hir_arg);
-                    }
-
-                    let ret_ty = self.lower_type(&ret_type);
-                    let kind = hir::ExprKind::Call {
-                        fun: Box::new(hir_fun),
-                        args: hir_args,
-                    };
-                    return Ok((kind, ret_ty));
                 }
             }
         }

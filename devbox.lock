@@ -53,6 +53,70 @@
           "store_path": "/nix/store/rnf8wb305f8508hnkjgi0i3vy2522b5w-rustup-1.28.2"
         }
       }
+    },
+    "wasmtime@latest": {
+      "last_modified": "2025-07-13T22:45:35Z",
+      "resolved": "github:NixOS/nixpkgs/a421ac6595024edcfbb1ef950a3712b89161c359#wasmtime",
+      "source": "devbox-search",
+      "version": "33.0.0",
+      "systems": {
+        "aarch64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/06bdd8iq0ca214fidhmpdsfpaz57hlmf-wasmtime-33.0.0",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/ymmb0fahsxphha9s9x3rdvhajjjbwh6c-wasmtime-33.0.0-dev"
+            }
+          ],
+          "store_path": "/nix/store/06bdd8iq0ca214fidhmpdsfpaz57hlmf-wasmtime-33.0.0"
+        },
+        "aarch64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/mqla78zjcpk0kf3n8vjsc42baj892gi1-wasmtime-33.0.0",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/m441dvzyavhb3adm38s098cb6rx8hp5z-wasmtime-33.0.0-dev"
+            }
+          ],
+          "store_path": "/nix/store/mqla78zjcpk0kf3n8vjsc42baj892gi1-wasmtime-33.0.0"
+        },
+        "x86_64-darwin": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/dv3g8m5kpjd4vzqxj27k4v6n3c7z73gv-wasmtime-33.0.0",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/8ax2jgb9yp78kaxfx8r1jq5038zarwq6-wasmtime-33.0.0-dev"
+            }
+          ],
+          "store_path": "/nix/store/dv3g8m5kpjd4vzqxj27k4v6n3c7z73gv-wasmtime-33.0.0"
+        },
+        "x86_64-linux": {
+          "outputs": [
+            {
+              "name": "out",
+              "path": "/nix/store/ah5jp7wx51znisl21l5bq1vrm56lsv6j-wasmtime-33.0.0",
+              "default": true
+            },
+            {
+              "name": "dev",
+              "path": "/nix/store/vvr06r3v1afvxb93f7p0i8mgcrwg2nz3-wasmtime-33.0.0-dev"
+            }
+          ],
+          "store_path": "/nix/store/ah5jp7wx51znisl21l5bq1vrm56lsv6j-wasmtime-33.0.0"
+        }
+      }
     }
   }
 }

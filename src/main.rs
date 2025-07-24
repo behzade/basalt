@@ -280,29 +280,40 @@ fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()>
                         path.file_name().unwrap().to_string_lossy().to_string()
                     };
 
-                    match compiler.compile_to_executable(&mir_program, &output_name) {
+                    let wasm_path = std::path::Path::new("dist").join(format!("{}.wasm", output_name));
+
+                    match compiler.compile_to_wasm(&mir_program, &wasm_path) {
                         Ok(()) => {
-                            println!("Successfully compiled to: dist/{}", output_name);
+                            println!("Successfully compiled to: {}", wasm_path.display());
 
                             if run {
-                                // Run the compiled executable
-                                let executable_path =
-                                    std::path::Path::new("dist").join(&output_name);
-                                let output = std::process::Command::new(executable_path)
+                                // Run the compiled Wasm executable with wasmtime
+                                println!("Executing wasmtime run {}", wasm_path.display());
+                                let output = std::process::Command::new("wasmtime")
+                                    .arg("run")
+                                    .arg(&wasm_path)
                                     .output()
                                     .map_err(|e| {
-                                    io::Error::new(
-                                        io::ErrorKind::Other,
-                                        format!("Failed to run executable: {}", e),
-                                    )
-                                })?;
+                                        io::Error::new(
+                                            io::ErrorKind::Other,
+                                            format!("Failed to run wasmtime: {}", e),
+                                        )
+                                    })?;
 
-                                // For Basalt programs, the exit code is the return value of main
-                                // Don't treat non-zero exit codes as failures
-
-                                // Print the output
+                                // Print the output from the Wasm module
                                 let stdout = String::from_utf8_lossy(&output.stdout);
-                                print!("{}", stdout);
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+                                
+                                if !stdout.is_empty() {
+                                    print!("{}", stdout);
+                                }
+                                if !stderr.is_empty() {
+                                    eprint!("{}", stderr);
+                                }
+                                
+                                if !output.status.success() {
+                                    eprintln!("Wasmtime exited with status: {}", output.status);
+                                }
                             }
                         }
                         Err(e) => {

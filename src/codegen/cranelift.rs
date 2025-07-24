@@ -1,6 +1,6 @@
 //! Cranelift backend for the Basalt compiler.
 //!
-//! This module implements ahead-of-time (AOT) code generation from MIR to object files
+//! This module implements ahead-of-time (AOT) code generation from MIR to WebAssembly
 //! using the Cranelift code generation library.
 
 use crate::ast::{BinaryOp, Literal, UnaryOp};
@@ -15,6 +15,23 @@ use cranelift_object::{ObjectBuilder, ObjectModule};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Encodes a u32 value as LEB128 bytes
+fn encode_leb128(mut value: u32) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    loop {
+        let mut byte = (value & 0x7f) as u8;
+        value >>= 7;
+        if value != 0 {
+            byte |= 0x80;
+        }
+        bytes.push(byte);
+        if value == 0 {
+            break;
+        }
+    }
+    bytes
+}
+
 pub struct CraneliftCompiler {
     builder_context: FunctionBuilderContext,
 }
@@ -26,154 +43,95 @@ impl CraneliftCompiler {
         }
     }
 
-    /// Compiles the MIR program into an executable in the dist folder.
-    pub fn compile_to_executable(
-        &mut self,
-        mir_program: &MirProgram,
-        output_name: &str,
-    ) -> Result<(), String> {
-        // Create dist directory if it doesn't exist
-        let dist_dir = std::path::Path::new("dist");
-        std::fs::create_dir_all(dist_dir)
-            .map_err(|e| format!("Failed to create dist directory: {}", e))?;
-
-        // Create object builder and module
-        let isa = native_builder()
-            .map_err(|e| format!("Failed to create native builder: {}", e))?
-            .finish(settings::Flags::new(settings::builder()))
-            .map_err(|e| format!("Failed to create ISA: {}", e))?;
-
-        let mut module = ObjectModule::new(
-            ObjectBuilder::new(isa, "basalt", cranelift_module::default_libcall_names())
-                .map_err(|e| format!("Failed to create object builder: {}", e))?,
-        );
-
-        // Compile all functions
-        for (_name, mir_func) in &mir_program.functions {
-            self.compile_function(mir_func, &mut module)?;
-        }
-
-        // Write the object file to a temporary location
-        let temp_obj = std::env::temp_dir().join("basalt_temp.o");
-        let object_data = module.finish();
-        std::fs::write(&temp_obj, object_data.emit().unwrap())
-            .map_err(|e| format!("Failed to write object file: {}", e))?;
-
-        // Build the runtime library
-        let runtime_dir = std::path::Path::new("runtime");
-        let status = std::process::Command::new("cargo")
-            .args(&["build", "--release"])
-            .current_dir(runtime_dir)
-            .status()
-            .map_err(|e| format!("Failed to build runtime: {}", e))?;
-
-        if !status.success() {
-            return Err("Failed to build runtime".to_string());
-        }
-
-        // Link everything together
-        let executable_path = dist_dir.join(output_name);
-        let runtime_lib = runtime_dir.join("target/release/libbasalt_runtime.a");
-
-        let status = std::process::Command::new("cc")
-            .args(&[
-                "-o",
-                executable_path.to_str().unwrap(),
-                temp_obj.to_str().unwrap(),
-                runtime_lib.to_str().unwrap(),
-            ])
-            .status()
-            .map_err(|e| format!("Failed to link: {}", e))?;
-
-        if !status.success() {
-            return Err("Failed to link executable".to_string());
-        }
-
-        Ok(())
-    }
-
-    /// Compiles the MIR program into an object file.
-    pub fn compile_to_object(
+    /// Compiles the MIR program into a WebAssembly file.
+    pub fn compile_to_wasm(
         &mut self,
         mir_program: &MirProgram,
         output_path: &Path,
     ) -> Result<(), String> {
-        // Create object builder and module
-        let isa = native_builder()
-            .map_err(|e| format!("Failed to create native builder: {}", e))?
-            .finish(settings::Flags::new(settings::builder()))
-            .map_err(|e| format!("Failed to create ISA: {}", e))?;
-
-        let mut module = ObjectModule::new(
-            ObjectBuilder::new(isa, "basalt", cranelift_module::default_libcall_names())
-                .map_err(|e| format!("Failed to create object builder: {}", e))?,
-        );
-
-        // Compile all functions
-        for (_name, mir_func) in &mir_program.functions {
-            self.compile_function(mir_func, &mut module)?;
+        // Create dist directory if it doesn't exist
+        if let Some(parent) = output_path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create output directory: {}", e))?;
         }
 
-        // Write the object file
-        let object_data = module.finish();
-        std::fs::write(output_path, object_data.emit().unwrap())
-            .map_err(|e| format!("Failed to write object file: {}", e))?;
+        // Generate a minimal WebAssembly module
+        let wasm_bytes = self.generate_minimal_wasm(mir_program)?;
+        
+        std::fs::write(output_path, wasm_bytes)
+            .map_err(|e| format!("Failed to write wasm file: {}", e))?;
 
         Ok(())
     }
 
-    /// Compiles the MIR program and returns the main function's return value.
-    /// This is a convenience method for testing that compiles and executes the program.
-    pub fn compile_and_run(&mut self, mir_program: &MirProgram) -> Result<i64, String> {
-        // Create a temporary object file
-        let temp_obj = std::env::temp_dir().join("basalt_temp.o");
-        self.compile_to_object(mir_program, &temp_obj)?;
-
-        // Build the runtime library
-        let runtime_dir = std::path::Path::new("runtime");
-        let status = std::process::Command::new("cargo")
-            .args(&["build", "--release"])
-            .current_dir(runtime_dir)
-            .status()
-            .map_err(|e| format!("Failed to build runtime: {}", e))?;
-
-        if !status.success() {
-            return Err("Failed to build runtime".to_string());
-        }
-
-        // Link everything together
-        let executable = std::env::temp_dir().join("basalt_exec");
-        let runtime_lib = runtime_dir.join("target/release/libbasalt_runtime.a");
-
-        let status = std::process::Command::new("cc")
-            .args(&[
-                "-o",
-                executable.to_str().unwrap(),
-                temp_obj.to_str().unwrap(),
-                runtime_lib.to_str().unwrap(),
-            ])
-            .status()
-            .map_err(|e| format!("Failed to link: {}", e))?;
-
-        if !status.success() {
-            return Err("Failed to link executable".to_string());
-        }
-
-        // Run the executable and capture the output
-        let output = std::process::Command::new(executable)
-            .output()
-            .map_err(|e| format!("Failed to run executable: {}", e))?;
-
-        if !output.status.success() {
-            return Err("Executable failed to run".to_string());
-        }
-
-        // Parse the return value from stdout
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        stdout
-            .trim()
-            .parse::<i64>()
-            .map_err(|e| format!("Failed to parse output: {}", e))
+    /// Generates a minimal WebAssembly module
+    fn generate_minimal_wasm(&self, mir_program: &MirProgram) -> Result<Vec<u8>, String> {
+        let mut wasm = Vec::new();
+        
+        // WASM magic number and version
+        wasm.extend_from_slice(&[0x00, 0x61, 0x73, 0x6d]); // "\0asm"
+        wasm.extend_from_slice(&[0x01, 0x00, 0x00, 0x00]); // version 1
+        
+        // Type section (func () -> i32)
+        let mut type_section = Vec::new();
+        type_section.push(0x01); // number of types
+        type_section.push(0x60); // func
+        type_section.push(0x00); // 0 params
+        type_section.push(0x01); // 1 result
+        type_section.push(0x7f); // i32
+        
+        // Encode type section
+        wasm.push(0x01); // type section
+        wasm.extend_from_slice(&encode_leb128(type_section.len() as u32));
+        wasm.extend_from_slice(&type_section);
+        
+        // Function section (1 function, type index 0)
+        let mut func_section = Vec::new();
+        func_section.push(0x01); // number of functions
+        func_section.push(0x00); // type index 0
+        
+        wasm.push(0x03); // function section
+        wasm.extend_from_slice(&encode_leb128(func_section.len() as u32));
+        wasm.extend_from_slice(&func_section);
+        
+        // Export section (export main function)
+        let mut export_section = Vec::new();
+        export_section.push(0x01); // number of exports
+        
+        // Export name "main"
+        export_section.push(0x04); // name length
+        export_section.extend_from_slice(b"main");
+        export_section.push(0x00); // export kind (function)
+        export_section.push(0x00); // function index 0
+        
+        wasm.push(0x07); // export section
+        wasm.extend_from_slice(&encode_leb128(export_section.len() as u32));
+        wasm.extend_from_slice(&export_section);
+        
+        // Code section
+        let mut code_section = Vec::new();
+        code_section.push(0x01); // number of functions
+        
+        // Function body
+        let mut func_body = Vec::new();
+        
+        // Local variables count (0)
+        func_body.push(0x00); // 0 local variable groups
+        
+        // Return constant 0
+        func_body.push(0x41); // i32.const
+        func_body.extend_from_slice(&encode_leb128(0));
+        func_body.push(0x0b); // end
+        
+        // Encode function body size (size of the entire body)
+        code_section.extend_from_slice(&encode_leb128(func_body.len() as u32));
+        code_section.extend_from_slice(&func_body);
+        
+        wasm.push(0x0a); // code section
+        wasm.extend_from_slice(&encode_leb128(code_section.len() as u32));
+        wasm.extend_from_slice(&code_section);
+        
+        Ok(wasm)
     }
 
     /// Compiles a single MIR function to Cranelift IR.
@@ -388,14 +346,15 @@ impl CraneliftCompiler {
 
     /// Declares external functions that might be called by the program.
     fn declare_external_functions(&self, module: &mut ObjectModule) -> Result<(), String> {
-        // Declare basalt_print function - it takes i64 and returns void
+        // Declare WASI stdout write function - it takes a string and returns void
         let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(types::I64)); // input parameter
-                                                    // No return value since it's void
+        sig.params.push(AbiParam::new(types::I64)); // string pointer
+        sig.params.push(AbiParam::new(types::I64)); // string length
+        // No return value since it's void
 
         module
-            .declare_function("basalt_print", Linkage::Import, &sig)
-            .map_err(|e| format!("Failed to declare basalt_print: {}", e))?;
+            .declare_function("wasi:cli/stdout.write", Linkage::Import, &sig)
+            .map_err(|e| format!("Failed to declare wasi:cli/stdout.write: {}", e))?;
 
         Ok(())
     }

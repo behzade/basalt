@@ -16,10 +16,9 @@ pub enum Item<'src> {
         path: Path<'src>,
         alias: Option<&'src str>,
     },
-    ExternFn {
-        name: &'src str,
-        params: Vec<(Option<&'src str>, Type<'src>)>,
-        ret_type: Type<'src>,
+    ExternBlock {
+        module_name: &'src str,
+        functions: Vec<Function<'src>>,
     },
     Fn(Function<'src>),
     Struct(StructDef<'src>),

@@ -288,8 +288,11 @@ impl<'src> TypeChecker<'src> {
             ast::Item::Fn(func) => {
                 self.context.add_function(func.clone());
             }
-            ast::Item::ExternFn { name, .. } => {
-                self.context.add_extern_function(name, item.clone());
+            ast::Item::ExternBlock { module_name, functions } => {
+                // Add each function from the extern block to the context
+                for function in functions {
+                    self.context.add_extern_function(function.name, item.clone());
+                }
             }
             ast::Item::Struct(struct_def) => {
                 self.context.add_struct(struct_def.clone());
@@ -550,17 +553,24 @@ impl<'src> TypeChecker<'src> {
                         },
                     );
                 }
-                ast::Item::ExternFn { name, ret_type, .. } => {
-                    symbols.insert(
-                        name.to_string(),
-                        crate::typechecker::context::SymbolSignature {
-                            name: name.to_string(),
-                            kind: crate::typechecker::context::SymbolKind::ExternFunction(
-                                ret_type.into(),
-                            ),
-                            type_info: ret_type.into(),
-                        },
-                    );
+                ast::Item::ExternBlock { module_name, functions } => {
+                    // Add each function from the extern block
+                    for function in functions {
+                        let ret_type = function.ret_type.as_ref().map_or(
+                            ast::Type { path: vec!["none"], generics: vec![] },
+                            |t| t.clone()
+                        );
+                        symbols.insert(
+                            function.name.to_string(),
+                            crate::typechecker::context::SymbolSignature {
+                                name: function.name.to_string(),
+                                kind: crate::typechecker::context::SymbolKind::ExternFunction(
+                                    ast::OwnedType::from(&ret_type),
+                                ),
+                                type_info: ast::OwnedType::from(&ret_type),
+                            },
+                        );
+                    }
                 }
                 _ => {} // Skip non-public items
             }

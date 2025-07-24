@@ -72,6 +72,10 @@ pub enum Item<'src> {
         params: Vec<(Option<&'src str>, Ty<'src>)>,
         ret_type: Ty<'src>,
     },
+    ExternBlock {
+        module_name: &'src str,
+        functions: Vec<ast::Function<'src>>,
+    },
     Fn(Function<'src>),
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
