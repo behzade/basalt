@@ -9,8 +9,9 @@ ariadne = "0.4.1"
 clap = { version = "4.5.4", features = ["derive"] }
 either = "1.9.0"
 cranelift = "0.104.1"
-cranelift-object = "0.104.1"
+cranelift-wasm = "0.104.1"
 cranelift-module = "0.104.1"
 cranelift-native = "0.104.1"
-object = "0.32"
+wasmparser = "0.235.0"
+target-lexicon = "0.13.2"
 

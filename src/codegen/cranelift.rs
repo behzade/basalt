@@ -1,411 +1,415 @@
-//! Cranelift backend for the Basalt compiler.
+//! Cranelift IR code generation from MIR.
 //!
-//! This module implements ahead-of-time (AOT) code generation from MIR to WebAssembly
-//! using the Cranelift code generation library.
+//! This module converts the Mid-level Intermediate Representation (MIR) into
+//! Cranelift IR for final code generation.
 
-use crate::ast::{BinaryOp, Literal, UnaryOp};
-use crate::mir::data::{
-    BasicBlock, LocalId, MirFunction, MirProgram, Operand, Rvalue, Statement, Terminator,
-};
-use cranelift::codegen::ir::{Function, UserFuncName};
-use cranelift::prelude::*;
-use cranelift_module::{Linkage, Module};
-use cranelift_native::builder as native_builder;
-use cranelift_object::{ObjectBuilder, ObjectModule};
+use crate::mir::{self, BasicBlock, LocalId, MirFunction, MirProgram, Operand, Place, Rvalue, Statement, Terminator, MirLocal, HandlerContext, PatternKind};
+use crate::ast;
+use cranelift::codegen::ir::{self, AbiParam, Function, InstBuilder, Signature, Type};
+use cranelift::prelude::IntCC;
+use cranelift::codegen::isa::CallConv;
+use cranelift::frontend::{FunctionBuilder, FunctionBuilderContext};
 use std::collections::HashMap;
-use std::path::Path;
 
-/// Encodes a u32 value as LEB128 bytes
-fn encode_leb128(mut value: u32) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    loop {
-        let mut byte = (value & 0x7f) as u8;
-        value >>= 7;
-        if value != 0 {
-            byte |= 0x80;
+/// Converts MIR to Cranelift IR and generates machine code.
+pub struct CraneliftCodegen;
+
+impl CraneliftCodegen {
+    /// Convert a MIR program to Cranelift IR functions.
+    pub fn convert_program(mir_program: &mir::MirProgram) -> HashMap<String, Function> {
+        let mut functions = HashMap::new();
+        
+        for (name, mir_func) in &mir_program.functions {
+            let cranelift_func = Self::convert_function(mir_func);
+            functions.insert(name.to_string(), cranelift_func);
         }
-        bytes.push(byte);
-        if value == 0 {
-            break;
-        }
+        
+        functions
     }
-    bytes
-}
-
-pub struct CraneliftCompiler {
-    builder_context: FunctionBuilderContext,
-}
-
-impl CraneliftCompiler {
-    pub fn new() -> Self {
-        Self {
-            builder_context: FunctionBuilderContext::new(),
-        }
-    }
-
-    /// Compiles the MIR program into a WebAssembly file.
-    pub fn compile_to_wasm(
-        &mut self,
-        mir_program: &MirProgram,
-        output_path: &Path,
-    ) -> Result<(), String> {
-        // Create dist directory if it doesn't exist
-        if let Some(parent) = output_path.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create output directory: {}", e))?;
-        }
-
-        // Generate a minimal WebAssembly module
-        let wasm_bytes = self.generate_minimal_wasm(mir_program)?;
+    
+    /// Convert a single MIR function to Cranelift IR.
+    fn convert_function(mir_func: &mir::MirFunction) -> Function {
+        // Convert function signature first
+        let signature = Self::convert_signature(mir_func);
         
-        std::fs::write(output_path, wasm_bytes)
-            .map_err(|e| format!("Failed to write wasm file: {}", e))?;
-
-        Ok(())
-    }
-
-    /// Generates a minimal WebAssembly module
-    fn generate_minimal_wasm(&self, mir_program: &MirProgram) -> Result<Vec<u8>, String> {
-        let mut wasm = Vec::new();
+        let mut func = Function::new();
+        func.signature = signature.clone();
         
-        // WASM magic number and version
-        wasm.extend_from_slice(&[0x00, 0x61, 0x73, 0x6d]); // "\0asm"
-        wasm.extend_from_slice(&[0x01, 0x00, 0x00, 0x00]); // version 1
-        
-        // Type section (func () -> i32)
-        let mut type_section = Vec::new();
-        type_section.push(0x01); // number of types
-        type_section.push(0x60); // func
-        type_section.push(0x00); // 0 params
-        type_section.push(0x01); // 1 result
-        type_section.push(0x7f); // i32
-        
-        // Encode type section
-        wasm.push(0x01); // type section
-        wasm.extend_from_slice(&encode_leb128(type_section.len() as u32));
-        wasm.extend_from_slice(&type_section);
-        
-        // Function section (1 function, type index 0)
-        let mut func_section = Vec::new();
-        func_section.push(0x01); // number of functions
-        func_section.push(0x00); // type index 0
-        
-        wasm.push(0x03); // function section
-        wasm.extend_from_slice(&encode_leb128(func_section.len() as u32));
-        wasm.extend_from_slice(&func_section);
-        
-        // Export section (export main function)
-        let mut export_section = Vec::new();
-        export_section.push(0x01); // number of exports
-        
-        // Export name "main"
-        export_section.push(0x04); // name length
-        export_section.extend_from_slice(b"main");
-        export_section.push(0x00); // export kind (function)
-        export_section.push(0x00); // function index 0
-        
-        wasm.push(0x07); // export section
-        wasm.extend_from_slice(&encode_leb128(export_section.len() as u32));
-        wasm.extend_from_slice(&export_section);
-        
-        // Code section
-        let mut code_section = Vec::new();
-        code_section.push(0x01); // number of functions
-        
-        // Function body
-        let mut func_body = Vec::new();
-        
-        // Local variables count (0)
-        func_body.push(0x00); // 0 local variable groups
-        
-        // Return constant 0
-        func_body.push(0x41); // i32.const
-        func_body.extend_from_slice(&encode_leb128(0));
-        func_body.push(0x0b); // end
-        
-        // Encode function body size (size of the entire body)
-        code_section.extend_from_slice(&encode_leb128(func_body.len() as u32));
-        code_section.extend_from_slice(&func_body);
-        
-        wasm.push(0x0a); // code section
-        wasm.extend_from_slice(&encode_leb128(code_section.len() as u32));
-        wasm.extend_from_slice(&code_section);
-        
-        Ok(wasm)
-    }
-
-    /// Compiles a single MIR function to Cranelift IR.
-    fn compile_function(
-        &self,
-        mir_func: &MirFunction,
-        module: &mut ObjectModule,
-    ) -> Result<(), String> {
-        // Create function signature
-        let mut sig = module.make_signature();
-
-        // Add parameters
-        for _param_id in &mir_func.params {
-            sig.params.push(AbiParam::new(types::I64));
-        }
-
-        // Add return type
-        sig.returns.push(AbiParam::new(types::I64));
-
-        // Declare the function - main should be exported globally
-        let linkage = if mir_func.name == "main" {
-            Linkage::Export
-        } else {
-            Linkage::Local
-        };
-        let func_id = module
-            .declare_function(&mir_func.name, linkage, &sig)
-            .map_err(|e| format!("Failed to declare function {}: {}", mir_func.name, e))?;
-
-        // Declare external functions that might be called
-        self.declare_external_functions(module)?;
-
-        // Create the function directly
-        let mut func = Function::with_name_signature(UserFuncName::user(0, func_id.as_u32()), sig);
-
         let mut builder_context = FunctionBuilderContext::new();
         let mut builder = FunctionBuilder::new(&mut func, &mut builder_context);
-
-        // Build the function body
-        self.build_function(mir_func, &mut builder)?;
-
-        // Finalize the function
-        builder.finalize();
-
-        // Define the function in the module
-        let mut ctx = cranelift::codegen::Context::for_function(func);
-        module
-            .define_function(func_id, &mut ctx)
-            .map_err(|e| format!("Failed to define function {}: {}", mir_func.name, e))?;
-
-        Ok(())
-    }
-
-    /// Builds a function from MIR to Cranelift IR.
-    fn build_function(
-        &self,
-        mir_func: &MirFunction,
-        builder: &mut FunctionBuilder,
-    ) -> Result<(), String> {
+        
         // Create entry block
         let entry_block = builder.create_block();
         builder.switch_to_block(entry_block);
         builder.seal_block(entry_block);
-
-        // Map MIR locals to Cranelift values
-        let mut local_values = HashMap::new();
-
-        // Set up parameters
-        if !mir_func.params.is_empty() {
-            let block_params = builder.block_params(entry_block);
-            if block_params.len() >= mir_func.params.len() {
-                for (i, param_id) in mir_func.params.iter().enumerate() {
-                    let param_val = block_params[i];
-                    local_values.insert(*param_id, param_val);
-                }
+        
+        // Convert parameters to SSA values
+        let mut param_values = Vec::new();
+        for param in &signature.params {
+            let val = builder.append_block_param(entry_block, param.value_type);
+            param_values.push(val);
+        }
+        
+        // Convert MIR locals to Cranelift locals
+        let mut local_mapping = HashMap::new();
+        for (local_id, mir_local) in &mir_func.locals {
+            if !mir_local.is_param {
+                let cranelift_type = Self::convert_type(&mir_local.ty);
+                let val = builder.ins().iconst(cranelift_type, 0); // Initialize with default value
+                local_mapping.insert(*local_id, val);
+            } else {
+                // Parameters are already handled above
+                let param_index = mir_func.params.iter().position(|p| *p == *local_id).unwrap();
+                local_mapping.insert(*local_id, param_values[param_index]);
             }
         }
-
-        // Initialize all locals that are used in the function
-        for (local_id, _local_info) in &mir_func.locals {
-            if !local_values.contains_key(local_id) {
-                // Initialize with a default value (0 for i64)
-                let default_val = builder.ins().iconst(types::I64, 0);
-                local_values.insert(*local_id, default_val);
+        
+        // Convert basic blocks
+        let mut block_mapping = HashMap::new();
+        for (i, _) in mir_func.basic_blocks.iter().enumerate() {
+            let block = builder.create_block();
+            block_mapping.insert(i, block);
+        }
+        
+        // Convert each basic block
+        for (i, mir_block) in mir_func.basic_blocks.iter().enumerate() {
+            let cranelift_block = block_mapping[&i];
+            builder.switch_to_block(cranelift_block);
+            
+            // Convert statements
+            for statement in &mir_block.statements {
+                Self::convert_statement(statement, &mut builder, &mut local_mapping);
             }
+            
+            // Convert terminator
+            Self::convert_terminator(
+                &mir_block.terminator,
+                &mut builder,
+                &block_mapping,
+                &mut local_mapping,
+                i,
+            );
         }
-
-        // Build the entry block (first block)
-        if let Some(entry_block) = mir_func.basic_blocks.first() {
-            self.build_basic_block(entry_block, builder, &mut local_values)?;
-        }
-
-        Ok(())
+        
+        builder.finalize();
+        func
     }
-
-    /// Builds a basic block from MIR to Cranelift IR.
-    fn build_basic_block(
-        &self,
-        block: &BasicBlock,
-        builder: &mut FunctionBuilder,
-        local_values: &mut HashMap<LocalId, Value>,
-    ) -> Result<(), String> {
-        // Build all statements in the block
-        for statement in &block.statements {
-            self.build_statement(statement, builder, local_values)?;
+    
+    /// Convert MIR function signature to Cranelift signature.
+    fn convert_signature(mir_func: &mir::MirFunction) -> Signature {
+        let mut signature = Signature::new(CallConv::SystemV);
+        
+        // Add parameters
+        for param_id in &mir_func.params {
+            let local = &mir_func.locals[param_id];
+            let param_type = Self::convert_type(&local.ty);
+            signature.params.push(AbiParam::new(param_type));
         }
-
-        // Build the terminator
-        self.build_terminator(&block.terminator, builder, local_values)?;
-
-        Ok(())
+        
+        // Add return value
+        let return_type = Self::convert_type(&mir_func.return_type);
+        signature.returns.push(AbiParam::new(return_type));
+        
+        signature
     }
-
-    /// Builds a statement from MIR to Cranelift IR.
-    fn build_statement(
-        &self,
-        statement: &Statement,
+    
+    /// Convert MIR type to Cranelift type.
+    fn convert_type(ty: &crate::hir::Ty) -> Type {
+        match ty {
+            crate::hir::Ty::Bool => Type::int(8).unwrap(),
+            crate::hir::Ty::I64 => Type::int(64).unwrap(),
+            crate::hir::Ty::F64 => Type::int(64).unwrap(), // Treat f64 as i64 for now
+            crate::hir::Ty::Str => Type::int(64).unwrap(), // String as pointer
+            crate::hir::Ty::Unit => Type::int(32).unwrap(), // Unit as i32 for simplicity
+            crate::hir::Ty::Adt { .. } => Type::int(64).unwrap(), // ADT as pointer
+            crate::hir::Ty::Array(_) => Type::int(64).unwrap(), // Array as pointer
+            crate::hir::Ty::Map { .. } => Type::int(64).unwrap(), // Map as pointer
+            crate::hir::Ty::Function { .. } => Type::int(64).unwrap(), // Function pointer
+            crate::hir::Ty::Infer(_) => Type::int(32).unwrap(), // Infer as i32 for simplicity
+            crate::hir::Ty::Error => Type::int(32).unwrap(), // Error as i32 for simplicity
+        }
+    }
+    
+    /// Convert MIR statement to Cranelift instructions.
+    fn convert_statement(
+        statement: &mir::Statement,
         builder: &mut FunctionBuilder,
-        local_values: &mut HashMap<LocalId, Value>,
-    ) -> Result<(), String> {
+        local_mapping: &mut HashMap<LocalId, ir::Value>,
+    ) {
         match statement {
-            Statement::Assign(place, rvalue) => {
-                let value = self.build_rvalue(rvalue, builder, local_values)?;
-                local_values.insert(place.local, value);
+            mir::Statement::Assign(place, rvalue) => {
+                let dest_val = Self::get_place_value(place, builder, local_mapping);
+                let src_val = Self::convert_rvalue(rvalue, builder, local_mapping);
+                // Use move instead of copy for now
+                // For now, just assign the value directly
+                // In a real implementation, we'd need proper copy/move semantics
+                let _ = (src_val, dest_val);
             }
         }
-        Ok(())
     }
-
-    /// Builds an rvalue from MIR to Cranelift IR.
-    fn build_rvalue(
-        &self,
-        rvalue: &Rvalue,
+    
+    /// Convert MIR rvalue to Cranelift value.
+    fn convert_rvalue(
+        rvalue: &mir::Rvalue,
         builder: &mut FunctionBuilder,
-        local_values: &mut HashMap<LocalId, Value>,
-    ) -> Result<Value, String> {
+        local_mapping: &HashMap<LocalId, ir::Value>,
+    ) -> ir::Value {
         match rvalue {
-            Rvalue::Use(operand) => self.build_operand(operand, builder, local_values),
-            Rvalue::BinaryOp(op, left, right) => {
-                let left_val = self.build_operand(left, builder, local_values)?;
-                let right_val = self.build_operand(right, builder, local_values)?;
-
+            mir::Rvalue::Use(operand) => Self::convert_operand(operand, builder, local_mapping),
+            mir::Rvalue::BinaryOp(op, lhs, rhs) => {
+                let lhs_val = Self::convert_operand(lhs, builder, local_mapping);
+                let rhs_val = Self::convert_operand(rhs, builder, local_mapping);
+                
                 match op {
-                    BinaryOp::Add => Ok(builder.ins().iadd(left_val, right_val)),
-                    BinaryOp::Sub => Ok(builder.ins().isub(left_val, right_val)),
-                    BinaryOp::Mul => Ok(builder.ins().imul(left_val, right_val)),
-                    BinaryOp::Div => Ok(builder.ins().sdiv(left_val, right_val)),
-                    BinaryOp::Eq => {
-                        let is_equal = builder.ins().icmp(IntCC::Equal, left_val, right_val);
-                        let one = builder.ins().iconst(types::I64, 1);
-                        let zero = builder.ins().iconst(types::I64, 0);
-                        Ok(builder.ins().select(is_equal, one, zero))
-                    }
-                    BinaryOp::Ne => {
-                        let is_not_equal = builder.ins().icmp(IntCC::NotEqual, left_val, right_val);
-                        let one = builder.ins().iconst(types::I64, 1);
-                        let zero = builder.ins().iconst(types::I64, 0);
-                        Ok(builder.ins().select(is_not_equal, one, zero))
-                    }
-                    BinaryOp::Lt => {
-                        let is_less = builder.ins().icmp(IntCC::SignedLessThan, left_val, right_val);
-                        let one = builder.ins().iconst(types::I64, 1);
-                        let zero = builder.ins().iconst(types::I64, 0);
-                        Ok(builder.ins().select(is_less, one, zero))
-                    }
-                    BinaryOp::Gt => {
-                        let is_greater = builder.ins().icmp(IntCC::SignedGreaterThan, left_val, right_val);
-                        let one = builder.ins().iconst(types::I64, 1);
-                        let zero = builder.ins().iconst(types::I64, 0);
-                        Ok(builder.ins().select(is_greater, one, zero))
-                    }
+                    ast::BinaryOp::Add => builder.ins().iadd(lhs_val, rhs_val),
+                    ast::BinaryOp::Sub => builder.ins().isub(lhs_val, rhs_val),
+                    ast::BinaryOp::Mul => builder.ins().imul(lhs_val, rhs_val),
+                    ast::BinaryOp::Div => builder.ins().udiv(lhs_val, rhs_val),
+                    ast::BinaryOp::Eq => builder.ins().icmp(IntCC::Equal, lhs_val, rhs_val),
+                    ast::BinaryOp::Ne => builder.ins().icmp(IntCC::NotEqual, lhs_val, rhs_val),
+                    ast::BinaryOp::Lt => builder.ins().icmp(IntCC::SignedLessThan, lhs_val, rhs_val),
+                    ast::BinaryOp::Gt => builder.ins().icmp(IntCC::SignedGreaterThan, lhs_val, rhs_val),
                 }
             }
-            Rvalue::UnaryOp(op, operand) => {
-                let operand_val = self.build_operand(operand, builder, local_values)?;
-
+            mir::Rvalue::UnaryOp(op, operand) => {
+                let operand_val = Self::convert_operand(operand, builder, local_mapping);
+                
                 match op {
-                    UnaryOp::Neg => Ok(builder.ins().ineg(operand_val)),
-                    UnaryOp::Not => {
-                        // For boolean negation, we need to convert to 0/1 and then negate
-                        // Since we're using i64 for booleans, we can use a simple approach
-                        let zero = builder.ins().iconst(types::I64, 0);
-                        let one = builder.ins().iconst(types::I64, 1);
-                        let is_zero = builder.ins().icmp(IntCC::Equal, operand_val, zero);
-                        Ok(builder.ins().select(is_zero, one, zero))
-                    }
+                    ast::UnaryOp::Neg => builder.ins().ineg(operand_val),
+                    ast::UnaryOp::Not => builder.ins().bnot(operand_val),
                 }
             }
-            _ => Err(format!("Unsupported rvalue: {:?}", rvalue)),
+            mir::Rvalue::Ref(place) => {
+                // For now, return the place value directly since we're using pointers
+                Self::get_place_value(place, builder, local_mapping)
+            }
+            mir::Rvalue::Array(elements) => {
+                // For now, create a simple array representation
+                // In a real implementation, this would allocate memory
+                let first_element = Self::convert_operand(&elements[0], builder, local_mapping);
+                first_element
+            }
+            mir::Rvalue::Map(_) => {
+                // For now, return a null pointer
+                builder.ins().iconst(Type::int(64).unwrap(), 0)
+            }
+            mir::Rvalue::StructInit { .. } => {
+                // For now, return a null pointer
+                builder.ins().iconst(Type::int(64).unwrap(), 0)
+            }
         }
     }
-
-    /// Builds an operand from MIR to Cranelift IR.
-    fn build_operand(
-        &self,
-        operand: &Operand,
+    
+    /// Convert MIR operand to Cranelift value.
+    fn convert_operand(
+        operand: &mir::Operand,
         builder: &mut FunctionBuilder,
-        local_values: &mut HashMap<LocalId, Value>,
-    ) -> Result<Value, String> {
+        local_mapping: &HashMap<LocalId, ir::Value>,
+    ) -> ir::Value {
         match operand {
-            Operand::Constant(literal) => match literal {
-                Literal::I64(value) => Ok(builder.ins().iconst(types::I64, *value as i64)),
-                Literal::Bool(value) => Ok(builder.ins().iconst(types::I64, if *value { 1 } else { 0 })),
-                _ => Err("Expected i64 or bool literal".to_string()),
-            },
-            Operand::Copy(place) => local_values
-                .get(&place.local)
-                .copied()
-                .ok_or_else(|| format!("Local {:?} not found", place.local)),
+            mir::Operand::Constant(literal) => Self::convert_literal(literal, builder),
+            mir::Operand::Copy(place) => {
+                let place_val = Self::get_place_value(place, builder, local_mapping);
+                // For now, just return the place value
+                place_val
+            }
         }
     }
-
-    /// Declares external functions that might be called by the program.
-    fn declare_external_functions(&self, module: &mut ObjectModule) -> Result<(), String> {
-        // Declare WASI stdout write function - it takes a string and returns void
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(types::I64)); // string pointer
-        sig.params.push(AbiParam::new(types::I64)); // string length
-        // No return value since it's void
-
-        module
-            .declare_function("wasi:cli/stdout.write", Linkage::Import, &sig)
-            .map_err(|e| format!("Failed to declare wasi:cli/stdout.write: {}", e))?;
-
-        Ok(())
-    }
-
-    /// Builds a terminator from MIR to Cranelift IR.
-    fn build_terminator(
-        &self,
-        terminator: &Terminator,
-        builder: &mut FunctionBuilder,
-        local_values: &mut HashMap<LocalId, Value>,
-    ) -> Result<(), String> {
-        match terminator {
-            Terminator::Return => {
-                // Return the value in local 0 (return value)
-                let return_val = local_values
-                    .get(&LocalId(0))
-                    .copied()
-                    .unwrap_or_else(|| builder.ins().iconst(types::I64, 0));
-                builder.ins().return_(&[return_val]);
+    
+    /// Convert MIR literal to Cranelift constant.
+    fn convert_literal(literal: &ast::Literal, builder: &mut FunctionBuilder) -> ir::Value {
+        match literal {
+            ast::Literal::I64(value) => {
+                if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
+                    builder.ins().iconst(Type::int(32).unwrap(), *value as i64)
+                } else {
+                    builder.ins().iconst(Type::int(64).unwrap(), *value)
+                }
             }
-            Terminator::Call {
-                func,
-                args,
-                destination,
-                target,
-            } => {
-                // Build argument values
+            ast::Literal::F64(value) => {
+                if value.fract() == 0.0 && *value <= f32::MAX as f64 && *value >= f32::MIN as f64 {
+                    builder.ins().f32const(ir::immediates::Ieee32::with_bits(*value as u32))
+                } else {
+                    builder.ins().f64const(ir::immediates::Ieee64::with_bits(*value as u64))
+                }
+            }
+            ast::Literal::Bool(value) => {
+                builder.ins().iconst(Type::int(8).unwrap(), if *value { 1 } else { 0 })
+            }
+            ast::Literal::Str(_) => {
+                // For now, return a null pointer for strings
+                builder.ins().iconst(Type::int(64).unwrap(), 0)
+            }
+            ast::Literal::Unit => {
+                builder.ins().iconst(Type::int(32).unwrap(), 0)
+            }
+        }
+    }
+    
+    /// Get the Cranelift value for a MIR place.
+    fn get_place_value(
+        place: &mir::Place,
+        builder: &mut FunctionBuilder,
+        local_mapping: &HashMap<LocalId, ir::Value>,
+    ) -> ir::Value {
+        local_mapping[&place.local]
+    }
+    
+    /// Convert MIR terminator to Cranelift control flow.
+    fn convert_terminator(
+        terminator: &mir::Terminator,
+        builder: &mut FunctionBuilder,
+        block_mapping: &HashMap<usize, ir::Block>,
+        local_mapping: &mut HashMap<LocalId, ir::Value>,
+        current_block: usize,
+    ) {
+        match terminator {
+            mir::Terminator::Goto { target } => {
+                let target_block = block_mapping[target];
+                builder.ins().jump(target_block, &[]);
+            }
+            mir::Terminator::SwitchInt { discr, targets, otherwise } => {
+                let discr_val = Self::convert_operand(discr, builder, local_mapping);
+                
+                // For now, implement a simple conditional jump
+                // In a real implementation, you'd create a proper jump table
+                if let Some((_, target)) = targets.first() {
+                    let target_block = block_mapping[target];
+                    let otherwise_block = block_mapping[otherwise];
+                    builder.ins().brif(discr_val, target_block, &[], otherwise_block, &[]);
+                } else {
+                    let otherwise_block = block_mapping[otherwise];
+                    builder.ins().jump(otherwise_block, &[]);
+                }
+            }
+            mir::Terminator::Call { func, args, destination, target } => {
+                // For now, we'll create a simple call mechanism
+                // In a real implementation, you'd need to handle function signatures properly
                 let mut arg_values = Vec::new();
                 for arg in args {
-                    let arg_val = self.build_operand(arg, builder, local_values)?;
+                    let arg_val = Self::convert_operand(arg, builder, local_mapping);
                     arg_values.push(arg_val);
                 }
-
-                // For external function calls, we need to create a proper function call
-                // Since we don't have access to the module here, we'll use a simple approach
-                // For now, we'll just store the result and continue
-                // TODO: Implement proper external function calling
-                let placeholder = builder.ins().iconst(types::I64, 0);
-                local_values.insert(destination.local, placeholder);
-
-                // Jump to the target block
-                let target_block = builder.create_block();
+                
+                // Create a placeholder for the function call
+                // In a real implementation, you'd resolve the function and call it
+                let result = builder.ins().iconst(Type::int(32).unwrap(), 0); // Placeholder result
+                
+                // Store result in destination
+                let dest_val = Self::get_place_value(destination, builder, local_mapping);
+                // For now, just assign the result
+                let _ = (result, dest_val);
+                
+                // Jump to target block
+                let target_block = block_mapping[target];
                 builder.ins().jump(target_block, &[]);
-                builder.switch_to_block(target_block);
-                builder.seal_block(target_block);
             }
-            _ => {
-                // For unsupported terminators, just return an error
-                return Err(format!("Unsupported terminator: {:?}", terminator));
+            mir::Terminator::PushHandler { effect, handler, target } => {
+                // For now, just jump to the target block
+                // In a real implementation, you'd push the handler onto a stack
+                let target_block = block_mapping[target];
+                builder.ins().jump(target_block, &[]);
+            }
+            mir::Terminator::PopHandler { target } => {
+                // For now, just jump to the target block
+                // In a real implementation, you'd pop the handler from the stack
+                let target_block = block_mapping[target];
+                builder.ins().jump(target_block, &[]);
+            }
+            mir::Terminator::Perform { effect, operation, args, destination, continuation, no_handler } => {
+                // For now, just jump to the no_handler block
+                // In a real implementation, you'd look up the handler and perform the operation
+                let no_handler_block = block_mapping[no_handler];
+                builder.ins().jump(no_handler_block, &[]);
+            }
+            mir::Terminator::Resume { value, target } => {
+                // For now, just jump to the target block
+                // In a real implementation, you'd resume with the value
+                let target_block = block_mapping[target];
+                builder.ins().jump(target_block, &[]);
+            }
+            mir::Terminator::PatternMatch { scrutinee, arms, otherwise } => {
+                let scrutinee_val = Self::convert_operand(scrutinee, builder, local_mapping);
+                
+                // For now, implement a simple switch-based pattern matching
+                // In a real implementation, you'd need more sophisticated pattern matching
+                if let Some((pattern, target)) = arms.first() {
+                    if let mir::PatternKind::Literal(literal) = &pattern.kind {
+                        if let ast::Literal::I64(value) = literal {
+                            let target_block = block_mapping[target];
+                            let otherwise_block = block_mapping[otherwise];
+                            let const_val = builder.ins().iconst(Type::int(64).unwrap(), *value);
+                            builder.ins().icmp_imm(IntCC::Equal, scrutinee_val, *value as i64);
+                            builder.ins().brif(scrutinee_val, target_block, &[], otherwise_block, &[]);
+                            return;
+                        }
+                    }
+                }
+                
+                let otherwise_block = block_mapping[otherwise];
+                builder.ins().jump(otherwise_block, &[]);
+            }
+            mir::Terminator::Return => {
+                // For now, return a default value
+                // In a real implementation, you'd return the actual return value
+                let return_val = builder.ins().iconst(Type::int(32).unwrap(), 0);
+                builder.ins().return_(&[return_val]);
+            }
+            mir::Terminator::Unreachable => {
+                builder.ins().trap(ir::TrapCode::UnreachableCodeReached);
             }
         }
-        Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mir::{MirFunction, MirLocal, BasicBlock, Statement, Terminator, Rvalue, Operand, Place};
+    use crate::ast::Literal;
+    use crate::hir::Ty;
+    
+    #[test]
+    fn test_convert_simple_function() {
+        // Create a simple MIR function: fn add(a: i64, b: i64) -> i64 { a + b }
+        let mut locals = HashMap::new();
+        locals.insert(LocalId(0), MirLocal { id: LocalId(0), ty: Ty::I64, is_param: false }); // return value
+        locals.insert(LocalId(1), MirLocal { id: LocalId(1), ty: Ty::I64, is_param: true });  // param a
+        locals.insert(LocalId(2), MirLocal { id: LocalId(2), ty: Ty::I64, is_param: true });  // param b
+        
+        let mut basic_blocks = Vec::new();
+        let mut statements = Vec::new();
+        
+        // _0 = _1 + _2
+        statements.push(Statement::Assign(
+            Place { local: LocalId(0) },
+            Rvalue::BinaryOp(
+                ast::BinaryOp::Add,
+                Operand::Copy(Place { local: LocalId(1) }),
+                Operand::Copy(Place { local: LocalId(2) }),
+            ),
+        ));
+        
+        basic_blocks.push(BasicBlock {
+            id: 0,
+            statements,
+            terminator: Terminator::Return,
+        });
+        
+        let mir_func = MirFunction {
+            name: "add",
+            params: vec![LocalId(1), LocalId(2)],
+            return_type: Ty::I64,
+            basic_blocks,
+            locals,
+            next_local_id: LocalId(3),
+            handler_context: mir::HandlerContext::new(),
+        };
+        
+        let cranelift_func = CraneliftCodegen::convert_function(&mir_func);
+        
+        // Basic validation that the function was created
+        assert_eq!(cranelift_func.signature.params.len(), 2);
+        assert_eq!(cranelift_func.signature.returns.len(), 1);
+    }
+} 

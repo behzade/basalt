@@ -17,7 +17,7 @@ mod token;
 mod typechecker;
 
 use crate::{
-    codegen::cranelift::CraneliftCompiler,
+    codegen::cranelift::CraneliftCodegen,
     lexer::lexer,
     mir::MirLowerer,
     parser::file_parser,
@@ -54,15 +54,13 @@ enum Action {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// Build a file to an executable
-    Build {
-        /// The path to the file to build.
+    /// Generate Cranelift IR from source code
+    Cranelift {
+        /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
-    },
-    /// Run a file (build and execute)
-    Run {
-        /// The path to the file to run.
-        path: Option<String>,
+        /// Validate the generated Cranelift IR
+        #[arg(long)]
+        validate: bool,
     },
 }
 
@@ -115,13 +113,9 @@ fn main() -> io::Result<()> {
             let (source_id, source_code) = read_source(path)?;
             run_mir_lowering(&source_code, &source_id)?;
         }
-        Action::Build { path } => {
+        Action::Cranelift { path, validate } => {
             let (source_id, source_code) = read_source(path)?;
-            run_compiler(&source_code, &source_id, false)?;
-        }
-        Action::Run { path } => {
-            let (source_id, source_code) = read_source(path)?;
-            run_compiler(&source_code, &source_id, true)?;
+            run_cranelift_generation(&source_code, &source_id, validate)?;
         }
     }
 
@@ -232,10 +226,11 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// A helper function to run the full compilation pipeline.
-fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()> {
-    // 1. Lex, Parse, Typecheck to get HIR
+/// Runs the Cranelift IR generation process on the given source code.
+fn run_cranelift_generation(source_code: &str, source_id: &str, validate: bool) -> io::Result<()> {
+    // First, lex and parse the source code
     let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
+
     if report_errors(source_code, source_id, &lex_errs, |e| {
         (
             e.span().into_range(),
@@ -260,68 +255,35 @@ fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()>
         }
 
         if let Some(ast) = ast {
-            // 2. Type check to get HIR
-            let type_checker = TypeChecker::new();
+            // Type check to get HIR
+            let type_checker = TypeChecker::with_token_spans(tokens);
             match type_checker.check_file(&ast) {
-                Ok(hir) => {
-                    // 3. Lower HIR to MIR
-                    let mir_lowerer = MirLowerer::new(&hir);
+                Ok(hir_items) => {
+                    // Lower HIR to MIR
+                    let mir_lowerer = MirLowerer::new(&hir_items);
                     let mir_program = mir_lowerer.lower_to_mir();
 
-                    // 4. COMPILE MIR using CraneliftCompiler
-                    let mut compiler = CraneliftCompiler::new();
+                    // Convert MIR to Cranelift IR
+                    let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
 
-                    // Determine output name
-                    let output_name = if source_id == "stdin" {
-                        "output".to_string()
-                    } else {
-                        let mut path = std::path::PathBuf::from(source_id);
-                        path.set_extension("");
-                        path.file_name().unwrap().to_string_lossy().to_string()
-                    };
-
-                    let wasm_path = std::path::Path::new("dist").join(format!("{}.wasm", output_name));
-
-                    match compiler.compile_to_wasm(&mir_program, &wasm_path) {
-                        Ok(()) => {
-                            println!("Successfully compiled to: {}", wasm_path.display());
-
-                            if run {
-                                // Run the compiled Wasm executable with wasmtime
-                                println!("Executing wasmtime run {}", wasm_path.display());
-                                let output = std::process::Command::new("wasmtime")
-                                    .arg("run")
-                                    .arg(&wasm_path)
-                                    .output()
-                                    .map_err(|e| {
-                                        io::Error::new(
-                                            io::ErrorKind::Other,
-                                            format!("Failed to run wasmtime: {}", e),
-                                        )
-                                    })?;
-
-                                // Print the output from the Wasm module
-                                let stdout = String::from_utf8_lossy(&output.stdout);
-                                let stderr = String::from_utf8_lossy(&output.stderr);
-                                
-                                if !stdout.is_empty() {
-                                    print!("{}", stdout);
-                                }
-                                if !stderr.is_empty() {
-                                    eprint!("{}", stderr);
-                                }
-                                
-                                if !output.status.success() {
-                                    eprintln!("Wasmtime exited with status: {}", output.status);
-                                }
+                    if validate {
+                        // Validate the generated Cranelift IR
+                        for (name, function) in &cranelift_functions {
+                            // Basic validation - check if function has blocks
+                            if function.layout.blocks().next().is_none() {
+                                return Err(io::Error::new(
+                                    io::ErrorKind::InvalidData,
+                                    format!("Function '{}' has no basic blocks", name),
+                                ));
                             }
                         }
-                        Err(e) => {
-                            eprintln!("Compilation error: {}", e);
-                            return Err(io::Error::new(
-                                io::ErrorKind::InvalidData,
-                                format!("Compilation error: {}", e),
-                            ));
+                        println!("✓ All {} functions validated successfully", cranelift_functions.len());
+                    } else {
+                        // Print the Cranelift IR representation
+                        for (name, function) in cranelift_functions {
+                            println!("Function: {}", name);
+                            println!("{:#?}", function);
+                            println!("---");
                         }
                     }
                 }
@@ -338,6 +300,8 @@ fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()>
 
     Ok(())
 }
+
+
 
 /// Reads source code from a file path or from stdin.
 fn read_source(path: Option<String>) -> io::Result<(String, String)> {

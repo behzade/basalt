@@ -9,6 +9,12 @@ pub mod data;
 use crate::{ast, hir};
 use builder::MirBuilder;
 use data::*;
+
+// Re-export commonly used types for easier access
+pub use data::{
+    BasicBlock, HandlerContext, LocalId, MirFunction, MirLocal, MirProgram, Operand, PatternKind,
+    Place, Rvalue, Statement, Terminator,
+};
 use std::collections::HashMap;
 
 /// The main struct responsible for the HIR -> MIR lowering process.
