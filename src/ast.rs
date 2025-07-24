@@ -240,6 +240,7 @@ pub enum BinaryOp {
     Ne,  // !=
     Lt,  // <
     Gt,  // >
+    Assign, // =
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -253,6 +254,7 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Ne => write!(f, "!="),
             BinaryOp::Lt => write!(f, "<"),
             BinaryOp::Gt => write!(f, ">"),
+            BinaryOp::Assign => write!(f, "="),
         }
     }
 }

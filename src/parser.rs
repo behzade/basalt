@@ -322,7 +322,13 @@ fn expression_parsers<'src>() -> (
     // Perform expression (must be defined after call_args)
     // Support both :: and . separators for effect operations
     let effect_path = ident
-        .then(just(Token::Op(".".to_string())).ignore_then(ident))
+        .then(
+            choice((
+                just(Token::Op(".".to_string())),
+                just(Token::DoubleColon),
+            ))
+            .ignore_then(ident)
+        )
         .map(|(effect_name, operation_name)| vec![effect_name, operation_name])
         .labelled("effect path");
 
@@ -337,14 +343,35 @@ fn expression_parsers<'src>() -> (
         .labelled("perform expression");
 
     // Handle expression parser
+    // Support both inline handlers and path-based handlers
+    let inline_handler = just(Token::LBrace)
+        .ignore_then(
+            // Parse handler functions (simplified for now)
+            ident
+                .then_ignore(just(Token::LParen))
+                .then(ident)
+                .then_ignore(just(Token::RParen))
+                .then(
+                    just(Token::LBrace)
+                        .ignore_then(stmt.clone().repeated().collect::<Vec<_>>())
+                        .then_ignore(just(Token::RBrace))
+                )
+                .repeated()
+                .collect::<Vec<_>>()
+        )
+        .then_ignore(just(Token::RBrace))
+        .map(|_| HandlerBody::Inline(vec![])); // Simplified for now
+
     let handle_expr = just(Token::Handle)
         .ignore_then(expr.clone())
         .then_ignore(just(Token::With))
-        .then(path.clone())
-        .then_ignore(just(Token::Semi))
-        .map(|(body, handler_path)| Expr::Handle {
+        .then(choice((
+            inline_handler,
+            path.clone().map(|p| HandlerBody::Path(p)),
+        )))
+        .map(|(body, handler)| Expr::Handle {
             body: Box::new(body),
-            handler: HandlerBody::Path(handler_path),
+            handler,
         })
         .labelled("handle expression");
 
@@ -537,6 +564,15 @@ fn expression_parsers<'src>() -> (
                 select! { Token::Op(op) if op == "!=" => () },
                 |l, _op, r, _extra| Expr::Binary {
                     op: BinaryOp::Ne,
+                    lhs: Box::new(l),
+                    rhs: Box::new(r),
+                },
+            ),
+            infix(
+                left(1),
+                select! { Token::Op(op) if op == "=" => () },
+                |l, _op, r, _extra| Expr::Binary {
+                    op: BinaryOp::Assign,
                     lhs: Box::new(l),
                     rhs: Box::new(r),
                 },

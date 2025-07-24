@@ -11,7 +11,6 @@ fn main() -> i32 {
         return 0;
     } with {
         print(msg) {
-            // In a real implementation, this would print to stdout
             return ();
         }
     }

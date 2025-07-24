@@ -184,6 +184,11 @@ impl CraneliftCodegen {
                     ast::BinaryOp::Ne => builder.ins().icmp(IntCC::NotEqual, lhs_val, rhs_val),
                     ast::BinaryOp::Lt => builder.ins().icmp(IntCC::SignedLessThan, lhs_val, rhs_val),
                     ast::BinaryOp::Gt => builder.ins().icmp(IntCC::SignedGreaterThan, lhs_val, rhs_val),
+                    ast::BinaryOp::Assign => {
+                        // For now, just return the right-hand side value
+                        // In a real implementation, this would assign to the left-hand side
+                        rhs_val
+                    },
                 }
             }
             mir::Rvalue::UnaryOp(op, operand) => {

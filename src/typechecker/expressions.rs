@@ -267,6 +267,11 @@ impl<'src> TypeChecker<'src> {
                 self.unify(&hir_lhs.ty, &hir_rhs.ty)?;
                 Ty::Bool
             }
+            ast::BinaryOp::Assign => {
+                // Assignment should return the type of the right-hand side
+                // For now, just return the right-hand side type
+                hir_rhs.ty.clone()
+            }
         };
 
         let kind = hir::ExprKind::Binary {
