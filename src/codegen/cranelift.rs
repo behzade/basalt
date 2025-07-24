@@ -3,7 +3,7 @@
 //! This module converts the Mid-level Intermediate Representation (MIR) into
 //! Cranelift IR for final code generation.
 
-use crate::mir::{self, BasicBlock, LocalId, MirFunction, MirProgram, Operand, Place, Rvalue, Statement, Terminator, MirLocal, HandlerContext, PatternKind};
+use crate::mir::{self, LocalId};
 use crate::ast;
 use cranelift::codegen::ir::{self, AbiParam, Function, InstBuilder, Signature, Type};
 use cranelift::prelude::IntCC;
