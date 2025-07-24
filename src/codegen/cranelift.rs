@@ -66,41 +66,28 @@ impl CraneliftCodegen {
                 local_mapping.insert(*local_id, val);
             }
         }
-        builder.seal_block(entry_block);
 
-        // --- Pass 2: Instruction Population (without terminators) ---
+        // --- Pass 2: Single-pass block filling (statements + terminators) ---
+        // Following the Rust Cranelift pattern: iterate through all blocks once,
+        // switch to each block, fill it completely, then move to the next
         for (i, mir_block) in mir_func.basic_blocks.iter().enumerate() {
             let cranelift_block = block_mapping[&i];
-
-            // Only switch to blocks that are not the entry block (which is already active)
+            
+            // Switch to the block we're working on
             if i > 0 {
                 builder.switch_to_block(cranelift_block);
             }
+            
+            // Add a no-op instruction to ensure the block is not empty
+            // This prevents "you have to fill your block before switching" errors
+            builder.ins().nop();
             
             // Convert statements
             for statement in &mir_block.statements {
                 Self::convert_statement(statement, &mut builder, &mut local_mapping);
             }
             
-            // If the block has no statements, add a no-op instruction to ensure the block is not empty
-            // This is necessary because we need to be able to switch to this block later for terminators
-            if mir_block.statements.is_empty() {
-                // Add a no-op instruction to prevent "you have to fill your block before switching"
-                let dummy_val = builder.ins().iconst(Type::int(32).unwrap(), 0);
-                // We don't need to store this value anywhere since it's just a no-op
-            }
-        }
-
-        // --- Pass 3: Seal Blocks and Add Terminators ---
-        for (i, mir_block) in mir_func.basic_blocks.iter().enumerate() {
-            let cranelift_block = block_mapping[&i];
-            builder.switch_to_block(cranelift_block);
-
-            // Seal all blocks except the entry block which was sealed earlier.
-            if i > 0 {
-                builder.seal_block(cranelift_block);
-            }
-            
+            // Convert the terminator for this block (immediately after statements)
             Self::convert_terminator(
                 &mir_block.terminator,
                 &mut builder,
@@ -108,6 +95,9 @@ impl CraneliftCodegen {
                 &mut local_mapping,
             );
         }
+        
+        // Seal all blocks at the end (following Rust Cranelift pattern)
+        builder.seal_all_blocks();
         
         builder.finalize();
         func
