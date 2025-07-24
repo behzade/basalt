@@ -1,0 +1,185 @@
+DEBUG: Adding struct IoVec to context
+DEBUG: Using function from context: fd_write with params: [(Some("fd"), Type { path: ["i32"], generics: [] }), (Some("data"), Type { path: ["string"], generics: [] })]
+DEBUG: Adding parameter fd with type I32 to scope
+DEBUG: Adding parameter data with type Str to scope
+DEBUG: Using function from context: random_get with params: [(Some("buf"), Type { path: ["array"], generics: [Type { path: ["i32"], generics: [] }] })]
+DEBUG: Adding parameter buf with type Adt { name: ["array"], generics: [I32] } to scope
+DEBUG: Type-checking struct IoVec with fields: [("ptr", Type { path: ["i32"], generics: [] }), ("len", Type { path: ["i32"], generics: [] })]
+DEBUG: Using function from context: main with params: []
+MirProgram {
+    functions: {
+        "fd_write": MirFunction {
+            name: "fd_write",
+            params: [
+                LocalId(
+                    1,
+                ),
+                LocalId(
+                    2,
+                ),
+            ],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I32,
+                    is_param: true,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: Str,
+                    is_param: true,
+                },
+            },
+            next_local_id: LocalId(
+                3,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+        "random_get": MirFunction {
+            name: "random_get",
+            params: [
+                LocalId(
+                    1,
+                ),
+            ],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "array",
+                        ],
+                        generics: [
+                            I32,
+                        ],
+                    },
+                    is_param: true,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                2,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+        "main": MirFunction {
+            name: "main",
+            params: [],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                1,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+    },
+}

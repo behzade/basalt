@@ -1,0 +1,86 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: true,
+                        name: "count",
+                        ty: None,
+                        value: Literal(
+                            I64(
+                                0,
+                            ),
+                        ),
+                    },
+                    Expr(
+                        While {
+                            cond: Binary {
+                                op: Lt,
+                                lhs: Path(
+                                    [
+                                        "count",
+                                    ],
+                                ),
+                                rhs: Literal(
+                                    I64(
+                                        5,
+                                    ),
+                                ),
+                            },
+                            body: Block {
+                                stmts: [
+                                    Assign(
+                                        Path(
+                                            [
+                                                "count",
+                                            ],
+                                        ),
+                                        Binary {
+                                            op: Add,
+                                            lhs: Path(
+                                                [
+                                                    "count",
+                                                ],
+                                            ),
+                                            rhs: Literal(
+                                                I64(
+                                                    1,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                ],
+                                last_expr: None,
+                            },
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

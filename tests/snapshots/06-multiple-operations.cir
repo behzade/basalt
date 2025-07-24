@@ -1,0 +1,25 @@
+DEBUG: Using function from context: main with params: []
+Function: main
+function u0:0() -> i32 system_v {
+block0:
+    v0 = iconst.i32 0
+    v1 = iconst.i32 0
+    v2 = iconst.i32 0
+    v3 = iconst.i32 0
+    v4 = iconst.i32 0
+    v5 = iconst.i32 0
+    v6 = iconst.i32 0
+    v7 = iconst.i32 0
+    nop 
+    v8 = iconst.i64 10
+    v9 = iconst.i64 5
+    v10 = iconst.i64 2
+    v11 = imul v9, v10  ; v9 = 5, v10 = 2
+    v12 = iadd v8, v11  ; v8 = 10
+    v13 = iconst.i64 3
+    v14 = isub v12, v13  ; v13 = 3
+    v15 = iconst.i64 0
+    return v15  ; v15 = 0
+}
+
+---

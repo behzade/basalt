@@ -1,0 +1,137 @@
+DEBUG: Adding struct Point to context
+DEBUG: Type-checking struct Point with fields: [("x", Type { path: ["i32"], generics: [] }), ("y", Type { path: ["i32"], generics: [] })]
+DEBUG: Using function from context: main with params: []
+Struct(
+    StructDef {
+        name: "Point",
+        generics: [],
+        fields: [
+            (
+                "x",
+                I32,
+            ),
+            (
+                "y",
+                I32,
+            ),
+        ],
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "p",
+                        is_mut: false,
+                        value_ty: Adt {
+                            name: [
+                                "Point",
+                            ],
+                            generics: [],
+                        },
+                        value: Expr {
+                            kind: StructInit {
+                                path: [
+                                    "Point",
+                                ],
+                                fields: {
+                                    "y": Expr {
+                                        kind: Literal(
+                                            I64(
+                                                20,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    "x": Expr {
+                                        kind: Literal(
+                                            I64(
+                                                10,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                },
+                            },
+                            ty: Adt {
+                                name: [
+                                    "Point",
+                                ],
+                                generics: [],
+                            },
+                        },
+                    },
+                    Let {
+                        name: "x",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: FieldAccess {
+                                receiver: Expr {
+                                    kind: Path(
+                                        [
+                                            "p",
+                                        ],
+                                    ),
+                                    ty: Adt {
+                                        name: [
+                                            "Point",
+                                        ],
+                                        generics: [],
+                                    },
+                                },
+                                field: "x",
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "y",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: FieldAccess {
+                                receiver: Expr {
+                                    kind: Path(
+                                        [
+                                            "p",
+                                        ],
+                                    ),
+                                    ty: Adt {
+                                        name: [
+                                            "Point",
+                                        ],
+                                        generics: [],
+                                    },
+                                },
+                                field: "y",
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

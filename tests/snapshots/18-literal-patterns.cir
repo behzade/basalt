@@ -1,0 +1,118 @@
+DEBUG: Using function from context: main with params: []
+DEBUG: Checking pattern: Literal(I64(0))
+DEBUG: Checking pattern: Literal(I64(1))
+DEBUG: Checking pattern: Literal(I64(2))
+DEBUG: Checking pattern: Literal(I64(42))
+DEBUG: Checking pattern: Literal(I64(100))
+DEBUG: Checking pattern: Wildcard
+DEBUG: Checking pattern: Literal(Bool(true))
+DEBUG: Checking pattern: Literal(Bool(false))
+DEBUG: Checking pattern: Literal(Str("hello"))
+DEBUG: Checking pattern: Literal(Str("world"))
+DEBUG: Checking pattern: Wildcard
+Function: main
+function u0:0() -> i32 system_v {
+block0:
+    v0 = iconst.i8 0
+    v1 = iconst.i64 0
+    v2 = iconst.i64 0
+    v3 = iconst.i32 0
+    v4 = iconst.i8 0
+    v5 = iconst.i64 0
+    v6 = iconst.i32 0
+    v7 = iconst.i32 0
+    v8 = iconst.i64 0
+    v9 = iconst.i64 0
+    nop 
+    v10 = iconst.i64 42
+    trap unreachable
+
+block1:
+    nop 
+    v11 = iconst.i64 0
+    v12 = iconst.i64 0
+    v13 = icmp_imm.i64 eq v10, 0  ; v10 = 42
+    brif v13, block1, block7
+
+block2:
+    nop 
+    v14 = iconst.i64 0
+    jump block8
+
+block3:
+    nop 
+    v15 = iconst.i64 0
+    jump block8
+
+block4:
+    nop 
+    v16 = iconst.i64 0
+    jump block8
+
+block5:
+    nop 
+    v17 = iconst.i64 0
+    jump block8
+
+block6:
+    nop 
+    v18 = iconst.i64 0
+    jump block8
+
+block7:
+    nop 
+    v19 = iconst.i32 0
+    jump block8
+
+block8:
+    nop 
+    v20 = iconst.i8 1
+    trap unreachable
+
+block9:
+    nop 
+    v21 = iconst.i64 0
+    jump block11
+
+block10:
+    nop 
+    v22 = iconst.i64 0
+    jump block12
+
+block11:
+    nop 
+    v23 = iconst.i32 0
+    jump block12
+
+block12:
+    nop 
+    v24 = iconst.i64 0
+    trap unreachable
+
+block13:
+    nop 
+    v25 = iconst.i64 0
+    jump block16
+
+block14:
+    nop 
+    v26 = iconst.i64 0
+    jump block17
+
+block15:
+    nop 
+    v27 = iconst.i64 0
+    jump block17
+
+block16:
+    nop 
+    v28 = iconst.i32 0
+    jump block17
+
+block17:
+    nop 
+    v29 = iconst.i64 0
+    return v29  ; v29 = 0
+}
+
+---

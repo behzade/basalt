@@ -1,0 +1,358 @@
+DEBUG: Adding struct Box to context
+DEBUG: Using function from context: identity with params: [(Some("x"), Type { path: ["T"], generics: [] })]
+DEBUG: Adding parameter x with type Adt { name: ["T"], generics: [] } to scope
+DEBUG: Type-checking struct Box with fields: [("value", Type { path: ["T"], generics: [] })]
+DEBUG: Using function from context: main with params: []
+MirProgram {
+    functions: {
+        "identity": MirFunction {
+            name: "identity",
+            params: [
+                LocalId(
+                    1,
+                ),
+            ],
+            return_type: Adt {
+                name: [
+                    "T",
+                ],
+                generics: [],
+            },
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "T",
+                        ],
+                        generics: [],
+                    },
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "T",
+                        ],
+                        generics: [],
+                    },
+                    is_param: true,
+                },
+            },
+            next_local_id: LocalId(
+                2,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+        "main": MirFunction {
+            name: "main",
+            params: [],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        42,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "identity",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        2,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                1,
+                            ),
+                        },
+                        target: 1,
+                    },
+                },
+                BasicBlock {
+                    id: 1,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    4,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "hello",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "identity",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        4,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                3,
+                            ),
+                        },
+                        target: 2,
+                    },
+                },
+                BasicBlock {
+                    id: 2,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    6,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        100,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            StructInit {
+                                path: "Box",
+                                fields: {
+                                    "value": Copy(
+                                        Place {
+                                            local: LocalId(
+                                                6,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "world",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    7,
+                                ),
+                            },
+                            StructInit {
+                                path: "Box",
+                                fields: {
+                                    "value": Copy(
+                                        Place {
+                                            local: LocalId(
+                                                8,
+                                            ),
+                                        },
+                                    ),
+                                },
+                            },
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "str",
+                        ],
+                        generics: [],
+                    },
+                    is_param: false,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    5,
+                ): MirLocal {
+                    id: LocalId(
+                        5,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "Box",
+                        ],
+                        generics: [
+                            I32,
+                        ],
+                    },
+                    is_param: false,
+                },
+                LocalId(
+                    8,
+                ): MirLocal {
+                    id: LocalId(
+                        8,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    6,
+                ): MirLocal {
+                    id: LocalId(
+                        6,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    7,
+                ): MirLocal {
+                    id: LocalId(
+                        7,
+                    ),
+                    ty: Adt {
+                        name: [
+                            "Box",
+                        ],
+                        generics: [
+                            Str,
+                        ],
+                    },
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                9,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+    },
+}

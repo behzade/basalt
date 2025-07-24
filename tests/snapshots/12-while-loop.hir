@@ -1,0 +1,111 @@
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "count",
+                        is_mut: true,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                            ty: I32,
+                        },
+                    },
+                    Expr(
+                        Expr {
+                            kind: While {
+                                cond: Expr {
+                                    kind: Binary {
+                                        op: Lt,
+                                        lhs: Expr {
+                                            kind: Path(
+                                                [
+                                                    "count",
+                                                ],
+                                            ),
+                                            ty: I32,
+                                        },
+                                        rhs: Expr {
+                                            kind: Literal(
+                                                I64(
+                                                    5,
+                                                ),
+                                            ),
+                                            ty: I32,
+                                        },
+                                    },
+                                    ty: Bool,
+                                },
+                                body: Expr {
+                                    kind: Block {
+                                        stmts: [
+                                            Assign(
+                                                Expr {
+                                                    kind: Path(
+                                                        [
+                                                            "count",
+                                                        ],
+                                                    ),
+                                                    ty: I32,
+                                                },
+                                                Expr {
+                                                    kind: Binary {
+                                                        op: Add,
+                                                        lhs: Expr {
+                                                            kind: Path(
+                                                                [
+                                                                    "count",
+                                                                ],
+                                                            ),
+                                                            ty: I32,
+                                                        },
+                                                        rhs: Expr {
+                                                            kind: Literal(
+                                                                I64(
+                                                                    1,
+                                                                ),
+                                                            ),
+                                                            ty: I32,
+                                                        },
+                                                    },
+                                                    ty: I32,
+                                                },
+                                            ),
+                                        ],
+                                        last_expr: None,
+                                    },
+                                    ty: Unit,
+                                },
+                            },
+                            ty: Unit,
+                        },
+                    ),
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

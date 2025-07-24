@@ -1,0 +1,108 @@
+[
+    Struct(
+        StructDef {
+            attributes: [],
+            name: "Person",
+            generics: [],
+            fields: [
+                (
+                    "name",
+                    Type {
+                        path: [
+                            "string",
+                        ],
+                        generics: [],
+                    },
+                ),
+                (
+                    "age",
+                    Type {
+                        path: [
+                            "i32",
+                        ],
+                        generics: [],
+                    },
+                ),
+                (
+                    "active",
+                    Type {
+                        path: [
+                            "bool",
+                        ],
+                        generics: [],
+                    },
+                ),
+            ],
+            is_public: false,
+        },
+    ),
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "person",
+                        ty: None,
+                        value: StructInit {
+                            path: [
+                                "Person",
+                            ],
+                            generics: [],
+                            fields: [
+                                (
+                                    "name",
+                                    Literal(
+                                        Str(
+                                            "Alice",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    "age",
+                                    Literal(
+                                        I64(
+                                            30,
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    "active",
+                                    Literal(
+                                        Bool(
+                                            true,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

@@ -1,0 +1,42 @@
+DEBUG: Using function from context: main with params: []
+DEBUG: Checking pattern: Path { path: ["Color", "Red"], args: [] }
+DEBUG: Checking pattern: Path { path: ["Color", "Green"], args: [] }
+DEBUG: Checking pattern: Path { path: ["Color", "Blue"], args: [] }
+Function: main
+function u0:0() -> i32 system_v {
+block0:
+    v0 = iconst.i64 0
+    v1 = iconst.i32 0
+    v2 = iconst.i64 0
+    v3 = iconst.i64 0
+    nop 
+    v4 = iconst.i32 0
+    trap unreachable
+
+block1:
+    nop 
+    v5 = iconst.i64 0
+    jump block4
+
+block2:
+    nop 
+    v6 = iconst.i64 0
+    jump block5
+
+block3:
+    nop 
+    v7 = iconst.i64 0
+    jump block5
+
+block4:
+    nop 
+    v8 = iconst.i32 0
+    jump block5
+
+block5:
+    nop 
+    v9 = iconst.i64 0
+    return v9  ; v9 = 0
+}
+
+---

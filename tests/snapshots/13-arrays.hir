@@ -1,0 +1,203 @@
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "arr",
+                        is_mut: false,
+                        value_ty: Array(
+                            I32,
+                        ),
+                        value: Expr {
+                            kind: Array(
+                                [
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                1,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                2,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                3,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                4,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                5,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ],
+                            ),
+                            ty: Array(
+                                I32,
+                            ),
+                        },
+                    },
+                    Let {
+                        name: "first",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "get",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "collection",
+                                                ],
+                                                generics: [],
+                                            },
+                                            Adt {
+                                                name: [
+                                                    "index",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Adt {
+                                            name: [
+                                                "element",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "arr",
+                                            ],
+                                        ),
+                                        ty: Array(
+                                            I32,
+                                        ),
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                0,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ],
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "second",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "get",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "collection",
+                                                ],
+                                                generics: [],
+                                            },
+                                            Adt {
+                                                name: [
+                                                    "index",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Adt {
+                                            name: [
+                                                "element",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "arr",
+                                            ],
+                                        ),
+                                        ty: Array(
+                                            I32,
+                                        ),
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                1,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ],
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

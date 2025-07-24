@@ -1,0 +1,230 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "value",
+                        ty: None,
+                        value: Literal(
+                            I64(
+                                42,
+                            ),
+                        ),
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "result",
+                        ty: None,
+                        value: Match {
+                            scrutinee: Path(
+                                [
+                                    "value",
+                                ],
+                            ),
+                            arms: [
+                                (
+                                    Literal(
+                                        I64(
+                                            0,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "zero",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        I64(
+                                            1,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "one",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        I64(
+                                            2,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "two",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        I64(
+                                            42,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "forty-two",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        I64(
+                                            100,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "hundred",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Wildcard,
+                                    Literal(
+                                        Str(
+                                            "other",
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "bool_val",
+                        ty: None,
+                        value: Literal(
+                            Bool(
+                                true,
+                            ),
+                        ),
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "bool_result",
+                        ty: None,
+                        value: Match {
+                            scrutinee: Path(
+                                [
+                                    "bool_val",
+                                ],
+                            ),
+                            arms: [
+                                (
+                                    Literal(
+                                        Bool(
+                                            true,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "yes",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        Bool(
+                                            false,
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "no",
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "str_val",
+                        ty: None,
+                        value: Literal(
+                            Str(
+                                "hello",
+                            ),
+                        ),
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "str_result",
+                        ty: None,
+                        value: Match {
+                            scrutinee: Path(
+                                [
+                                    "str_val",
+                                ],
+                            ),
+                            arms: [
+                                (
+                                    Literal(
+                                        Str(
+                                            "hello",
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "greeting",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Literal(
+                                        Str(
+                                            "world",
+                                        ),
+                                    ),
+                                    Literal(
+                                        Str(
+                                            "planet",
+                                        ),
+                                    ),
+                                ),
+                                (
+                                    Wildcard,
+                                    Literal(
+                                        Str(
+                                            "other",
+                                        ),
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

@@ -1,0 +1,257 @@
+DEBUG: Adding struct Counter to context
+DEBUG: Processing impl block for target: Type { path: ["Counter"], generics: [] }
+DEBUG: Found struct Counter for impl block
+DEBUG: Fixing self parameter type for method increment
+DEBUG: Set self parameter type to Type { path: ["Counter"], generics: [] }
+DEBUG: Fixing self parameter type for method get_count
+DEBUG: Set self parameter type to Type { path: ["Counter"], generics: [] }
+DEBUG: Type-checking struct Counter with fields: [("count", Type { path: ["i32"], generics: [] })]
+DEBUG: Using function from context: new with params: []
+DEBUG: Using function from context: increment with params: [(Some("self"), Type { path: ["Counter"], generics: [] })]
+DEBUG: Adding parameter self with type Adt { name: ["Counter"], generics: [] } to scope
+DEBUG: Using function from context: get_count with params: [(Some("self"), Type { path: ["Counter"], generics: [] })]
+DEBUG: Adding parameter self with type Adt { name: ["Counter"], generics: [] } to scope
+DEBUG: Using function from context: main with params: []
+DEBUG: Enum not found: Counter
+MirProgram {
+    functions: {
+        "main": MirFunction {
+            name: "main",
+            params: [],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [],
+                    terminator: Call {
+                        func: "Counter",
+                        args: [],
+                        destination: Place {
+                            local: LocalId(
+                                1,
+                            ),
+                        },
+                        target: 1,
+                    },
+                },
+                BasicBlock {
+                    id: 1,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "increment",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        3,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                2,
+                            ),
+                        },
+                        target: 2,
+                    },
+                },
+                BasicBlock {
+                    id: 2,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "increment",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        5,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                4,
+                            ),
+                        },
+                        target: 3,
+                    },
+                },
+                BasicBlock {
+                    id: 3,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    7,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Call {
+                        func: "get_count",
+                        args: [
+                            Copy(
+                                Place {
+                                    local: LocalId(
+                                        7,
+                                    ),
+                                },
+                            ),
+                        ],
+                        destination: Place {
+                            local: LocalId(
+                                6,
+                            ),
+                        },
+                        target: 4,
+                    },
+                },
+                BasicBlock {
+                    id: 4,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    6,
+                ): MirLocal {
+                    id: LocalId(
+                        6,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    7,
+                ): MirLocal {
+                    id: LocalId(
+                        7,
+                    ),
+                    ty: Error,
+                    is_param: false,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: Error,
+                    is_param: false,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: Error,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+                LocalId(
+                    5,
+                ): MirLocal {
+                    id: LocalId(
+                        5,
+                    ),
+                    ty: Error,
+                    is_param: false,
+                },
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: Unit,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                8,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+    },
+}

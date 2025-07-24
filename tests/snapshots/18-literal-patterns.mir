@@ -1,0 +1,691 @@
+DEBUG: Using function from context: main with params: []
+DEBUG: Checking pattern: Literal(I64(0))
+DEBUG: Checking pattern: Literal(I64(1))
+DEBUG: Checking pattern: Literal(I64(2))
+DEBUG: Checking pattern: Literal(I64(42))
+DEBUG: Checking pattern: Literal(I64(100))
+DEBUG: Checking pattern: Wildcard
+DEBUG: Checking pattern: Literal(Bool(true))
+DEBUG: Checking pattern: Literal(Bool(false))
+DEBUG: Checking pattern: Literal(Str("hello"))
+DEBUG: Checking pattern: Literal(Str("world"))
+DEBUG: Checking pattern: Wildcard
+MirProgram {
+    functions: {
+        "main": MirFunction {
+            name: "main",
+            params: [],
+            return_type: I32,
+            basic_blocks: [
+                BasicBlock {
+                    id: 0,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    1,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        42,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            1,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Unreachable,
+                },
+                BasicBlock {
+                    id: 1,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "zero",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: PatternMatch {
+                        scrutinee: Copy(
+                            Place {
+                                local: LocalId(
+                                    3,
+                                ),
+                            },
+                        ),
+                        arms: [
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        I64(
+                                            0,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                1,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        I64(
+                                            1,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                2,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        I64(
+                                            2,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                3,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        I64(
+                                            42,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                4,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        I64(
+                                            100,
+                                        ),
+                                    ),
+                                    ty: I32,
+                                },
+                                5,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Wildcard,
+                                    ty: I32,
+                                },
+                                6,
+                            ),
+                        ],
+                        otherwise: 7,
+                    },
+                },
+                BasicBlock {
+                    id: 2,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "one",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 3,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "two",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 4,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "forty-two",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 5,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "hundred",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 6,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "other",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 7,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    2,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 8,
+                    },
+                },
+                BasicBlock {
+                    id: 8,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    4,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Bool(
+                                        true,
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    6,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            4,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Unreachable,
+                },
+                BasicBlock {
+                    id: 9,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "yes",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: PatternMatch {
+                        scrutinee: Copy(
+                            Place {
+                                local: LocalId(
+                                    6,
+                                ),
+                            },
+                        ),
+                        arms: [
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        Bool(
+                                            true,
+                                        ),
+                                    ),
+                                    ty: Bool,
+                                },
+                                9,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        Bool(
+                                            false,
+                                        ),
+                                    ),
+                                    ty: Bool,
+                                },
+                                10,
+                            ),
+                        ],
+                        otherwise: 11,
+                    },
+                },
+                BasicBlock {
+                    id: 10,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "no",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 12,
+                    },
+                },
+                BasicBlock {
+                    id: 11,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    5,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 12,
+                    },
+                },
+                BasicBlock {
+                    id: 12,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    7,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "hello",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    9,
+                                ),
+                            },
+                            Use(
+                                Copy(
+                                    Place {
+                                        local: LocalId(
+                                            7,
+                                        ),
+                                    },
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Unreachable,
+                },
+                BasicBlock {
+                    id: 13,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "greeting",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: PatternMatch {
+                        scrutinee: Copy(
+                            Place {
+                                local: LocalId(
+                                    9,
+                                ),
+                            },
+                        ),
+                        arms: [
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        Str(
+                                            "hello",
+                                        ),
+                                    ),
+                                    ty: Str,
+                                },
+                                13,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Literal(
+                                        Str(
+                                            "world",
+                                        ),
+                                    ),
+                                    ty: Str,
+                                },
+                                14,
+                            ),
+                            (
+                                Pattern {
+                                    kind: Wildcard,
+                                    ty: Str,
+                                },
+                                15,
+                            ),
+                        ],
+                        otherwise: 16,
+                    },
+                },
+                BasicBlock {
+                    id: 14,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "planet",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 17,
+                    },
+                },
+                BasicBlock {
+                    id: 15,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Str(
+                                        "other",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 17,
+                    },
+                },
+                BasicBlock {
+                    id: 16,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    8,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    Unit,
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Goto {
+                        target: 17,
+                    },
+                },
+                BasicBlock {
+                    id: 17,
+                    statements: [
+                        Assign(
+                            Place {
+                                local: LocalId(
+                                    0,
+                                ),
+                            },
+                            Use(
+                                Constant(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    terminator: Return,
+                },
+            ],
+            locals: {
+                LocalId(
+                    1,
+                ): MirLocal {
+                    id: LocalId(
+                        1,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    2,
+                ): MirLocal {
+                    id: LocalId(
+                        2,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    4,
+                ): MirLocal {
+                    id: LocalId(
+                        4,
+                    ),
+                    ty: Bool,
+                    is_param: false,
+                },
+                LocalId(
+                    0,
+                ): MirLocal {
+                    id: LocalId(
+                        0,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    8,
+                ): MirLocal {
+                    id: LocalId(
+                        8,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    5,
+                ): MirLocal {
+                    id: LocalId(
+                        5,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    6,
+                ): MirLocal {
+                    id: LocalId(
+                        6,
+                    ),
+                    ty: Bool,
+                    is_param: false,
+                },
+                LocalId(
+                    3,
+                ): MirLocal {
+                    id: LocalId(
+                        3,
+                    ),
+                    ty: I32,
+                    is_param: false,
+                },
+                LocalId(
+                    7,
+                ): MirLocal {
+                    id: LocalId(
+                        7,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+                LocalId(
+                    9,
+                ): MirLocal {
+                    id: LocalId(
+                        9,
+                    ),
+                    ty: Str,
+                    is_param: false,
+                },
+            },
+            next_local_id: LocalId(
+                10,
+            ),
+            handler_context: HandlerContext {
+                handlers: [],
+            },
+        },
+    },
+}

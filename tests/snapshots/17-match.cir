@@ -1,0 +1,44 @@
+DEBUG: Using function from context: main with params: []
+DEBUG: Checking pattern: Literal(I64(0))
+DEBUG: Checking pattern: Literal(I64(42))
+DEBUG: Checking pattern: Wildcard
+Function: main
+function u0:0() -> i32 system_v {
+block0:
+    v0 = iconst.i32 0
+    v1 = iconst.i32 0
+    v2 = iconst.i32 0
+    v3 = iconst.i64 0
+    nop 
+    v4 = iconst.i64 42
+    trap unreachable
+
+block1:
+    nop 
+    v5 = iconst.i64 0
+    v6 = iconst.i64 0
+    v7 = icmp_imm.i64 eq v4, 0  ; v4 = 42
+    brif v7, block1, block4
+
+block2:
+    nop 
+    v8 = iconst.i64 0
+    jump block5
+
+block3:
+    nop 
+    v9 = iconst.i64 0
+    jump block5
+
+block4:
+    nop 
+    v10 = iconst.i32 0
+    jump block5
+
+block5:
+    nop 
+    v11 = iconst.i64 0
+    return v11  ; v11 = 0
+}
+
+---

@@ -1,0 +1,106 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "a",
+                        ty: None,
+                        value: Binary {
+                            op: Add,
+                            lhs: Literal(
+                                I64(
+                                    10,
+                                ),
+                            ),
+                            rhs: Literal(
+                                I64(
+                                    5,
+                                ),
+                            ),
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "b",
+                        ty: None,
+                        value: Binary {
+                            op: Sub,
+                            lhs: Literal(
+                                I64(
+                                    20,
+                                ),
+                            ),
+                            rhs: Literal(
+                                I64(
+                                    3,
+                                ),
+                            ),
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "c",
+                        ty: None,
+                        value: Binary {
+                            op: Mul,
+                            lhs: Literal(
+                                I64(
+                                    4,
+                                ),
+                            ),
+                            rhs: Literal(
+                                I64(
+                                    6,
+                                ),
+                            ),
+                        },
+                    },
+                    Let {
+                        is_mut: false,
+                        name: "d",
+                        ty: None,
+                        value: Binary {
+                            op: Div,
+                            lhs: Literal(
+                                I64(
+                                    15,
+                                ),
+                            ),
+                            rhs: Literal(
+                                I64(
+                                    3,
+                                ),
+                            ),
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

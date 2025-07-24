@@ -1,0 +1,121 @@
+[
+    Fn(
+        Function {
+            attributes: [],
+            name: "add",
+            generics: [],
+            params: [
+                (
+                    Some(
+                        "a",
+                    ),
+                    Type {
+                        path: [
+                            "i32",
+                        ],
+                        generics: [],
+                    },
+                ),
+                (
+                    Some(
+                        "b",
+                    ),
+                    Type {
+                        path: [
+                            "i32",
+                        ],
+                        generics: [],
+                    },
+                ),
+            ],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Return(
+                        Some(
+                            Binary {
+                                op: Add,
+                                lhs: Path(
+                                    [
+                                        "a",
+                                    ],
+                                ),
+                                rhs: Path(
+                                    [
+                                        "b",
+                                    ],
+                                ),
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+    Fn(
+        Function {
+            attributes: [],
+            name: "main",
+            generics: [],
+            params: [],
+            ret_type: Some(
+                Type {
+                    path: [
+                        "i32",
+                    ],
+                    generics: [],
+                },
+            ),
+            effects: [],
+            body: Block {
+                stmts: [
+                    Let {
+                        is_mut: false,
+                        name: "result",
+                        ty: None,
+                        value: Call {
+                            fun: Path(
+                                [
+                                    "add",
+                                ],
+                            ),
+                            args: [
+                                Literal(
+                                    I64(
+                                        5,
+                                    ),
+                                ),
+                                Literal(
+                                    I64(
+                                        3,
+                                    ),
+                                ),
+                            ],
+                        },
+                    },
+                    Return(
+                        Some(
+                            Literal(
+                                I64(
+                                    0,
+                                ),
+                            ),
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            is_public: false,
+        },
+    ),
+]

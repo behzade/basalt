@@ -1,0 +1,278 @@
+DEBUG: Adding struct Box to context
+DEBUG: Using function from context: identity with params: [(Some("x"), Type { path: ["T"], generics: [] })]
+DEBUG: Adding parameter x with type Adt { name: ["T"], generics: [] } to scope
+DEBUG: Type-checking struct Box with fields: [("value", Type { path: ["T"], generics: [] })]
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "identity",
+        params: [
+            (
+                Some(
+                    "x",
+                ),
+                Adt {
+                    name: [
+                        "T",
+                    ],
+                    generics: [],
+                },
+            ),
+        ],
+        ret_type: Adt {
+            name: [
+                "T",
+            ],
+            generics: [],
+        },
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Path(
+                                    [
+                                        "x",
+                                    ],
+                                ),
+                                ty: Adt {
+                                    name: [
+                                        "T",
+                                    ],
+                                    generics: [],
+                                },
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: Adt {
+                name: [
+                    "T",
+                ],
+                generics: [],
+            },
+        },
+        is_public: false,
+    },
+)
+Struct(
+    StructDef {
+        name: "Box",
+        generics: [
+            "T",
+        ],
+        fields: [
+            (
+                "value",
+                Adt {
+                    name: [
+                        "T",
+                    ],
+                    generics: [],
+                },
+            ),
+        ],
+        is_public: false,
+    },
+)
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "x",
+                        is_mut: false,
+                        value_ty: I32,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "identity",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "T",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Adt {
+                                            name: [
+                                                "T",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Literal(
+                                            I64(
+                                                42,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                ],
+                            },
+                            ty: I32,
+                        },
+                    },
+                    Let {
+                        name: "y",
+                        is_mut: false,
+                        value_ty: Adt {
+                            name: [
+                                "str",
+                            ],
+                            generics: [],
+                        },
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "identity",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "T",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Adt {
+                                            name: [
+                                                "T",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Literal(
+                                            Str(
+                                                "hello",
+                                            ),
+                                        ),
+                                        ty: Str,
+                                    },
+                                ],
+                            },
+                            ty: Adt {
+                                name: [
+                                    "str",
+                                ],
+                                generics: [],
+                            },
+                        },
+                    },
+                    Let {
+                        name: "box_int",
+                        is_mut: false,
+                        value_ty: Adt {
+                            name: [
+                                "Box",
+                            ],
+                            generics: [
+                                I32,
+                            ],
+                        },
+                        value: Expr {
+                            kind: StructInit {
+                                path: [
+                                    "Box",
+                                ],
+                                fields: {
+                                    "value": Expr {
+                                        kind: Literal(
+                                            I64(
+                                                100,
+                                            ),
+                                        ),
+                                        ty: I32,
+                                    },
+                                },
+                            },
+                            ty: Adt {
+                                name: [
+                                    "Box",
+                                ],
+                                generics: [
+                                    I32,
+                                ],
+                            },
+                        },
+                    },
+                    Let {
+                        name: "box_str",
+                        is_mut: false,
+                        value_ty: Adt {
+                            name: [
+                                "Box",
+                            ],
+                            generics: [
+                                Str,
+                            ],
+                        },
+                        value: Expr {
+                            kind: StructInit {
+                                path: [
+                                    "Box",
+                                ],
+                                fields: {
+                                    "value": Expr {
+                                        kind: Literal(
+                                            Str(
+                                                "world",
+                                            ),
+                                        ),
+                                        ty: Str,
+                                    },
+                                },
+                            },
+                            ty: Adt {
+                                name: [
+                                    "Box",
+                                ],
+                                generics: [
+                                    Str,
+                                ],
+                            },
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)

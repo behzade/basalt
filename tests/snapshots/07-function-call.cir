@@ -1,0 +1,36 @@
+DEBUG: Using function from context: add with params: [(Some("a"), Type { path: ["i32"], generics: [] }), (Some("b"), Type { path: ["i32"], generics: [] })]
+DEBUG: Adding parameter a with type I32 to scope
+DEBUG: Adding parameter b with type I32 to scope
+DEBUG: Using function from context: main with params: []
+Function: main
+function u0:0() -> i32 system_v {
+block0:
+    v0 = iconst.i32 0
+    v1 = iconst.i32 0
+    v2 = iconst.i32 0
+    v3 = iconst.i32 0
+    nop 
+    v4 = iconst.i64 5
+    v5 = iconst.i64 3
+    v6 = iconst.i32 0
+    jump block1
+
+block1:
+    nop 
+    v7 = iconst.i64 0
+    return v7  ; v7 = 0
+}
+
+---
+Function: add
+function u0:0(i32, i32) -> i32 system_v {
+block0(v0: i32, v1: i32):
+    v2 = iconst.i32 0
+    v3 = iconst.i32 0
+    v4 = iconst.i32 0
+    nop 
+    v5 = iadd v0, v1
+    return v5
+}
+
+---

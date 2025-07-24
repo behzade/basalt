@@ -1,0 +1,203 @@
+DEBUG: Using function from context: main with params: []
+Fn(
+    Function {
+        name: "main",
+        params: [],
+        ret_type: I32,
+        body: Expr {
+            kind: Block {
+                stmts: [
+                    Let {
+                        name: "map",
+                        is_mut: false,
+                        value_ty: Map {
+                            key: Str,
+                            value: Str,
+                        },
+                        value: Expr {
+                            kind: Map(
+                                [
+                                    (
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "key1",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "value1",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                    (
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "key2",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                        Expr {
+                                            kind: Literal(
+                                                Str(
+                                                    "value2",
+                                                ),
+                                            ),
+                                            ty: Str,
+                                        },
+                                    ),
+                                ],
+                            ),
+                            ty: Map {
+                                key: Str,
+                                value: Str,
+                            },
+                        },
+                    },
+                    Let {
+                        name: "value1",
+                        is_mut: false,
+                        value_ty: Str,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "get",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "collection",
+                                                ],
+                                                generics: [],
+                                            },
+                                            Adt {
+                                                name: [
+                                                    "index",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Adt {
+                                            name: [
+                                                "element",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "map",
+                                            ],
+                                        ),
+                                        ty: Map {
+                                            key: Str,
+                                            value: Str,
+                                        },
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            Str(
+                                                "key1",
+                                            ),
+                                        ),
+                                        ty: Str,
+                                    },
+                                ],
+                            },
+                            ty: Str,
+                        },
+                    },
+                    Let {
+                        name: "value2",
+                        is_mut: false,
+                        value_ty: Str,
+                        value: Expr {
+                            kind: Call {
+                                fun: Expr {
+                                    kind: Path(
+                                        [
+                                            "get",
+                                        ],
+                                    ),
+                                    ty: Function {
+                                        param_types: [
+                                            Adt {
+                                                name: [
+                                                    "collection",
+                                                ],
+                                                generics: [],
+                                            },
+                                            Adt {
+                                                name: [
+                                                    "index",
+                                                ],
+                                                generics: [],
+                                            },
+                                        ],
+                                        ret_type: Adt {
+                                            name: [
+                                                "element",
+                                            ],
+                                            generics: [],
+                                        },
+                                    },
+                                },
+                                args: [
+                                    Expr {
+                                        kind: Path(
+                                            [
+                                                "map",
+                                            ],
+                                        ),
+                                        ty: Map {
+                                            key: Str,
+                                            value: Str,
+                                        },
+                                    },
+                                    Expr {
+                                        kind: Literal(
+                                            Str(
+                                                "key2",
+                                            ),
+                                        ),
+                                        ty: Str,
+                                    },
+                                ],
+                            },
+                            ty: Str,
+                        },
+                    },
+                    Return(
+                        Some(
+                            Expr {
+                                kind: Literal(
+                                    I64(
+                                        0,
+                                    ),
+                                ),
+                                ty: I32,
+                            },
+                        ),
+                    ),
+                ],
+                last_expr: None,
+            },
+            ty: I32,
+        },
+        is_public: false,
+    },
+)
