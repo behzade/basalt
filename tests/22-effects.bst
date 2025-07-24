@@ -5,13 +5,25 @@ effect Print {
     fn print(msg: string) -> unit
 }
 
+handler MockPrint{Print} {
+    fn print(msg: string) -> unit {
+        return ();
+    }
+}
+
+fn testprint() -> unit / {Print} {
+    perform Print::print("Hello, World!");
+}
+
 fn main() -> i32 {
     handle {
-        perform Print::print("Hello, World!");
-        return 0;
+        testprint();
     } with {
-        print(msg) {
+        print(msg: string) {
             return ();
         }
-    }
-} 
+    };
+
+    handle testprint() with MockPrint;
+    return 0;
+}

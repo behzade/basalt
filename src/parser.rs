@@ -346,34 +346,15 @@ fn expression_parsers<'src>() -> (
     // Support both inline handlers and path-based handlers
     let inline_handler = just(Token::LBrace)
         .ignore_then(
-            // Parse handler functions (simplified for now)
-            ident
-                .then_ignore(just(Token::LParen))
-                .then(ident)
-                .then_ignore(just(Token::RParen))
-                .then(
-                    just(Token::LBrace)
-                        .ignore_then(stmt.clone().repeated().collect::<Vec<_>>())
-                        .then_ignore(just(Token::RBrace))
-                )
+            // Skip everything until the closing brace
+            none_of([Token::RBrace])
                 .repeated()
-                .collect::<Vec<_>>()
+                .ignore_then(just(Token::RBrace))
         )
         .then_ignore(just(Token::RBrace))
-        .map(|_| HandlerBody::Inline(vec![])); // Simplified for now
+        .map(|_| HandlerBody::Inline(vec![]));
 
-    let handle_expr = just(Token::Handle)
-        .ignore_then(expr.clone())
-        .then_ignore(just(Token::With))
-        .then(choice((
-            inline_handler,
-            path.clone().map(|p| HandlerBody::Path(p)),
-        )))
-        .map(|(body, handler)| Expr::Handle {
-            body: Box::new(body),
-            handler,
-        })
-        .labelled("handle expression");
+
 
     // Add perform and handle expressions to atom choices
     let atom_with_perform_and_handle = choice((
@@ -405,8 +386,6 @@ fn expression_parsers<'src>() -> (
         block.clone(),
         // Perform expression
         perform_expr.clone(),
-        // Handle expression
-        handle_expr.clone(),
         // Array literal
         array_literal.clone(),
     ))
@@ -609,6 +588,38 @@ fn expression_parsers<'src>() -> (
         .then(just(Token::Semi).or_not())
         .map(|(expr, _semi)| Stmt::Expr(expr));
 
+    // Handle statement parser (to avoid circular dependency)
+    let handle_stmt = just(Token::Handle)
+        .ignore_then(choice((
+            // Handle with block: handle { ... } with ...
+            block.clone(),
+            // Handle with expression: handle expr with ...
+            path.clone().then(
+                call_args
+                    .clone()
+                    .delimited_by(just(Token::LParen), just(Token::RParen))
+                    .or_not()
+            ).map(|(path, args)| {
+                match args {
+                    Some(args) => Expr::Call {
+                        fun: Box::new(Expr::Path(path)),
+                        args,
+                    },
+                    None => Expr::Path(path),
+                }
+            }),
+        )))
+        .then_ignore(just(Token::With))
+        .then(choice((
+            inline_handler.clone(),
+            path.clone().map(|p| HandlerBody::Path(p)),
+        )))
+        .then_ignore(just(Token::Semi))
+        .map(|(body, handler)| Stmt::Expr(Expr::Handle {
+            body: Box::new(body),
+            handler,
+        }));
+
     // Regular expressions that need semicolons
     let expr_stmt = expr.clone().then_ignore(just(Token::Semi)).map(Stmt::Expr);
 
@@ -620,6 +631,7 @@ fn expression_parsers<'src>() -> (
             .then_ignore(just(Token::Semi))
             .map(Stmt::Return),
         control_flow_stmt,
+        handle_stmt,
         expr_stmt,
     ))
     .labelled("statement");
@@ -1081,7 +1093,8 @@ fn handler_parser<'src>()
     let ident = select! { Token::Ident(ident) => ident };
 
     // Handler method parser (similar to impl methods)
-    let handler_method = ident
+    let handler_method = just(Token::Fn)
+        .ignore_then(ident)
         .then_ignore(just(Token::LParen))
         .then(
             ident
