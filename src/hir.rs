@@ -272,3 +272,4 @@ pub enum PatternKind<'src> {
     /// The wildcard pattern `_`.
     Wildcard,
 }
+

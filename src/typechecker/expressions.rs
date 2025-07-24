@@ -38,31 +38,30 @@ impl<'src> TypeChecker<'src> {
             ast::Expr::Call { fun, args } => self.check_call(fun, args)?,
             ast::Expr::Array(elements) => self.check_array(elements)?,
             ast::Expr::Map(pairs) => self.check_map(pairs)?,
-            ast::Expr::StructInit { path, generics, fields } => {
-                self.check_struct_init(path, generics, fields)?
+            ast::Expr::StructInit {
+                path,
+                generics,
+                fields,
+            } => self.check_struct_init(path, generics, fields)?,
+            ast::Expr::Match { scrutinee, arms } => self.check_match(scrutinee, arms, type_hint)?,
+            ast::Expr::While { cond, body } => self.check_while(cond, body)?,
+            ast::Expr::Perform { path, args } => self.check_perform(path, args)?,
+            ast::Expr::Handle { body, handler } => self.check_handle(body, handler)?,
+            _ => {
+                return Ok(hir::Expr {
+                    kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
+                    ty: Ty::Error,
+                });
             }
-            ast::Expr::Match { scrutinee, arms } => {
-                self.check_match(scrutinee, arms, type_hint)?
-            }
-            ast::Expr::While { cond, body } => {
-                self.check_while(cond, body)?
-            }
-            ast::Expr::Perform { path, args } => {
-                self.check_perform(path, args)?
-            }
-            ast::Expr::Handle { body, handler } => {
-                self.check_handle(body, handler)?
-            }
-            _ => return Ok(hir::Expr {
-                kind: hir::ExprKind::Literal(ast::Literal::Bool(true)),
-                ty: Ty::Error,
-            }),
         };
 
         Ok(hir::Expr { kind, ty })
     }
 
-    fn check_literal(&self, lit: &ast::Literal<'src>) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+    fn check_literal(
+        &self,
+        lit: &ast::Literal<'src>,
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
         let ty = match lit {
             ast::Literal::Bool(_) => Ty::Bool,
             ast::Literal::I64(_) => Ty::I64,
@@ -73,10 +72,13 @@ impl<'src> TypeChecker<'src> {
         Ok((hir::ExprKind::Literal(lit.clone()), ty))
     }
 
-    fn check_path(&mut self, path: &[&'src str]) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
+    fn check_path(
+        &mut self,
+        path: &[&'src str],
+    ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
         // First, try to resolve the path using import resolution
         let resolved_path = self.resolve_path(path);
-        
+
         // Check for module-qualified paths (e.g., Fmt::println)
         if resolved_path.len() >= 2 {
             // Try to resolve as a module symbol
@@ -84,13 +86,13 @@ impl<'src> TypeChecker<'src> {
                 let ty = self.lower_type(&module_type);
                 return Ok((hir::ExprKind::Path(resolved_path), ty));
             }
-            
+
             // If we couldn't resolve it as a module symbol, check if it looks like a module path
             if resolved_path.len() >= 3 {
                 let namespace = resolved_path[0];
                 let module = resolved_path[1];
                 let symbol = resolved_path[2];
-                
+
                 // Check if the module exists but the symbol doesn't
                 let module_path = format!("{}::{}", namespace, module);
                 if self.context.get_module_symbols(&module_path).is_some() {
@@ -100,18 +102,19 @@ impl<'src> TypeChecker<'src> {
                         symbol,
                     });
                 } else {
-                    return Err(TypeError::UnknownModule {
-                        namespace,
-                        module,
-                    });
+                    return Err(TypeError::UnknownModule { namespace, module });
                 }
             }
         }
-        
+
         // Check for enum variant first.
         if resolved_path.len() == 2 {
             if let Some(enum_def) = self.context.get_enum(resolved_path[0]) {
-                if enum_def.variants.iter().any(|(v, _)| v == &resolved_path[1]) {
+                if enum_def
+                    .variants
+                    .iter()
+                    .any(|(v, _)| v == &resolved_path[1])
+                {
                     // This is an enum variant, not a variable. Its type is the enum itself.
                     let enum_ty = self.lower_type(&ast::Type {
                         path: vec![resolved_path[0]],
@@ -123,8 +126,10 @@ impl<'src> TypeChecker<'src> {
         }
 
         // Check for functions and extern functions
-        let name = resolved_path.first().ok_or(TypeError::UnknownVariable(""))?;
-        
+        let name = resolved_path
+            .first()
+            .ok_or(TypeError::UnknownVariable(""))?;
+
         // Check for regular functions
         if let Some(func_def) = self.context.get_function(name) {
             let ret_ty = func_def
@@ -134,15 +139,22 @@ impl<'src> TypeChecker<'src> {
             return Ok((
                 hir::ExprKind::Path(resolved_path),
                 Ty::Function {
-                    param_types: func_def.params.iter().map(|(_, t)| self.lower_type(t)).collect(),
+                    param_types: func_def
+                        .params
+                        .iter()
+                        .map(|(_, t)| self.lower_type(t))
+                        .collect(),
                     ret_type: Box::new(ret_ty),
                 },
             ));
         }
-        
+
         // Check for extern functions
         if let Some(extern_item) = self.context.get_extern_function(name) {
-            if let ast::Item::ExternFn { params, ret_type, .. } = extern_item {
+            if let ast::Item::ExternFn {
+                params, ret_type, ..
+            } = extern_item
+            {
                 let ret_ty = self.lower_type(ret_type);
                 return Ok((
                     hir::ExprKind::Path(resolved_path),
@@ -163,7 +175,11 @@ impl<'src> TypeChecker<'src> {
             return Ok((
                 hir::ExprKind::Path(resolved_path),
                 Ty::Function {
-                    param_types: trait_method.params.iter().map(|(_, t)| self.lower_type(t)).collect(),
+                    param_types: trait_method
+                        .params
+                        .iter()
+                        .map(|(_, t)| self.lower_type(t))
+                        .collect(),
                     ret_type: Box::new(ret_ty),
                 },
             ));
@@ -198,10 +214,7 @@ impl<'src> TypeChecker<'src> {
         let hir_rhs = self.check_expr(rhs)?;
 
         let ty = match op {
-            ast::BinaryOp::Add
-            | ast::BinaryOp::Sub
-            | ast::BinaryOp::Mul
-            | ast::BinaryOp::Div => {
+            ast::BinaryOp::Add | ast::BinaryOp::Sub | ast::BinaryOp::Mul | ast::BinaryOp::Div => {
                 self.unify(&hir_lhs.ty, &hir_rhs.ty)?;
                 let resolved_lhs = self.resolve_type(&hir_lhs.ty);
                 if !matches!(resolved_lhs, Ty::I64 | Ty::F64 | Ty::Str) {
@@ -212,10 +225,7 @@ impl<'src> TypeChecker<'src> {
                 }
                 resolved_lhs
             }
-            ast::BinaryOp::Eq
-            | ast::BinaryOp::Ne
-            | ast::BinaryOp::Lt
-            | ast::BinaryOp::Gt => {
+            ast::BinaryOp::Eq | ast::BinaryOp::Ne | ast::BinaryOp::Lt | ast::BinaryOp::Gt => {
                 self.unify(&hir_lhs.ty, &hir_rhs.ty)?;
                 Ty::Bool
             }
@@ -313,10 +323,10 @@ impl<'src> TypeChecker<'src> {
             if path == &["get"] && args.len() == 2 {
                 let array_expr = self.check_expr(&args[0])?;
                 let index_expr = self.check_expr(&args[1])?;
-                
+
                 // Check that the index is an integer
                 self.unify(&index_expr.ty, &Ty::I64)?;
-                
+
                 // Check that the first argument is an array
                 if let Ty::Array(element_ty) = &array_expr.ty {
                     let kind = hir::ExprKind::Call {
@@ -355,7 +365,7 @@ impl<'src> TypeChecker<'src> {
                         let hir_arg = self.check_expr(arg)?;
                         hir_args.push(hir_arg);
                     }
-                    
+
                     let kind = hir::ExprKind::Call {
                         fun: Box::new(hir_fun),
                         args: hir_args,
@@ -363,15 +373,17 @@ impl<'src> TypeChecker<'src> {
                     return Ok((kind, Ty::Unit));
                 }
             }
-            
+
             // First check for enum variant construction (e.g., Option::Some(42))
             if path.len() == 2 {
                 if let Some(enum_def) = self.context.get_enum(path[0]) {
                     // Check if the second part is a variant of this enum
-                    if let Some(variant_info) = enum_def.variants.iter().find(|(name, _)| name == &path[1]) {
+                    if let Some(variant_info) =
+                        enum_def.variants.iter().find(|(name, _)| name == &path[1])
+                    {
                         let empty_vec = Vec::new();
                         let variant_types = variant_info.1.as_ref().unwrap_or(&empty_vec);
-                        
+
                         // Check that the number of arguments matches the variant fields
                         if args.len() != variant_types.len() {
                             return Err(TypeError::WrongArgumentCount {
@@ -407,10 +419,13 @@ impl<'src> TypeChecker<'src> {
                         for (arg, variant_type) in hir_args.iter().zip(variant_types.iter()) {
                             // Substitute generic parameters in the variant type
                             let mut substitution = HashMap::new();
-                            for (generic_param, infer_ty) in enum_def.generics.iter().zip(enum_generics.iter()) {
+                            for (generic_param, infer_ty) in
+                                enum_def.generics.iter().zip(enum_generics.iter())
+                            {
                                 substitution.insert(*generic_param, infer_ty.clone());
                             }
-                            let substituted_variant_ty = self.substitute_generics(variant_type, &substitution);
+                            let substituted_variant_ty =
+                                self.substitute_generics(variant_type, &substitution);
                             self.unify(&arg.ty, &substituted_variant_ty)?;
                         }
 
@@ -453,13 +468,16 @@ impl<'src> TypeChecker<'src> {
                 };
                 return Ok((kind, ret_ty));
             }
-            
+
             // Then check for extern functions
             if let Some(extern_item) = self.context.get_extern_function(path[0]) {
-                if let ast::Item::ExternFn { params, ret_type, .. } = extern_item {
+                if let ast::Item::ExternFn {
+                    params, ret_type, ..
+                } = extern_item
+                {
                     let params = params.clone(); // Clone to avoid borrow conflict
                     let ret_type = ret_type.clone(); // Clone to avoid borrow conflict
-                    
+
                     if params.len() != args.len() {
                         return Err(TypeError::WrongArgumentCount {
                             expected: params.len(),
@@ -484,7 +502,7 @@ impl<'src> TypeChecker<'src> {
                 }
             }
         }
-        
+
         // Fallback for unimplemented call types
         Ok((
             hir::ExprKind::Call {
@@ -564,7 +582,7 @@ impl<'src> TypeChecker<'src> {
                     struct_name,
                     field_name: *field_name,
                 })?;
-            
+
             // Apply generic substitution to the field type
             let field_ty = self.substitute_generics(field_ty_ast, &substitution);
             let hir_expr = self.check_expr_with_hint(field_expr, &field_ty)?;
@@ -677,11 +695,15 @@ impl<'src> TypeChecker<'src> {
         if path.len() >= 2 {
             let effect_name = path[0];
             let operation_name = path[1];
-            
+
             // Try to find the effect definition
             if let Some(effect_def) = self.context.get_effect(effect_name) {
                 // Find the operation in the effect
-                if let Some(operation) = effect_def.operations.iter().find(|op| op.name == operation_name) {
+                if let Some(operation) = effect_def
+                    .operations
+                    .iter()
+                    .find(|op| op.name == operation_name)
+                {
                     // Check argument count
                     if args.len() != operation.params.len() {
                         return Err(TypeError::WrongArgumentCount {
@@ -689,29 +711,39 @@ impl<'src> TypeChecker<'src> {
                             found: args.len(),
                         });
                     }
-                    
+
                     // Convert operation types to HIR types first
-                    let hir_param_types: Vec<Ty<'src>> = operation.params.iter().map(|t| self.lower_type(t)).collect();
+                    let hir_param_types: Vec<Ty<'src>> = operation
+                        .params
+                        .iter()
+                        .map(|t| self.lower_type(t))
+                        .collect();
                     let hir_ret_type = self.lower_type(&operation.ret_type);
-                    
+
                     // Check argument types
                     for (arg, param_ty) in hir_args.iter().zip(hir_param_types.iter()) {
                         self.unify(&arg.ty, param_ty)?;
                     }
-                    
-                    return Ok((hir::ExprKind::Perform {
-                        path: path.to_vec(),
-                        args: hir_args,
-                    }, hir_ret_type));
+
+                    return Ok((
+                        hir::ExprKind::Perform {
+                            path: path.to_vec(),
+                            args: hir_args,
+                        },
+                        hir_ret_type,
+                    ));
                 }
             }
         }
 
         // Fallback: assume unit type if we can't find the effect operation
-        Ok((hir::ExprKind::Perform {
-            path: path.to_vec(),
-            args: hir_args,
-        }, Ty::Unit))
+        Ok((
+            hir::ExprKind::Perform {
+                path: path.to_vec(),
+                args: hir_args,
+            },
+            Ty::Unit,
+        ))
     }
 
     fn check_handle(
@@ -720,7 +752,7 @@ impl<'src> TypeChecker<'src> {
         handler: &ast::HandlerBody<'src>,
     ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
         let hir_body = self.check_expr(body)?;
-        
+
         let hir_handler = match handler {
             ast::HandlerBody::Path(path) => hir::HandlerBody::Path(path.clone()),
             ast::HandlerBody::Inline(functions) => {
@@ -732,9 +764,13 @@ impl<'src> TypeChecker<'src> {
 
         // For now, assume handle returns the same type as the body
         // In a full implementation, we'd check effect row compatibility
-        Ok((hir::ExprKind::Handle {
-            body: Box::new(hir_body.clone()),
-            handler: hir_handler,
-        }, hir_body.ty))
+        Ok((
+            hir::ExprKind::Handle {
+                body: Box::new(hir_body.clone()),
+                handler: hir_handler,
+            },
+            hir_body.ty,
+        ))
     }
-} 
+}
+

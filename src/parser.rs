@@ -180,20 +180,21 @@ fn expression_parsers<'src>() -> (
 
     // Pattern parser for match expressions
     let mut pattern = Recursive::declare();
-    
+
     // Literal pattern parser
     let literal_pattern = choice((
         select! { Token::I64(n) => Pattern::Literal(Literal::I64(n)) },
         select! { Token::F64(n) => Pattern::Literal(Literal::F64(n)) },
         select! { Token::Bool(b) => Pattern::Literal(Literal::Bool(b)) },
         select! { Token::Str(s) => Pattern::Literal(Literal::Str(s)) },
-    )).labelled("literal pattern");
-    
+    ))
+    .labelled("literal pattern");
+
     // Wildcard pattern parser
     let wildcard_pattern = just(Token::Ident("_"))
         .map(|_| Pattern::Wildcard)
         .labelled("wildcard pattern");
-    
+
     // Enum variant pattern parser (with nested patterns as arguments)
     let enum_variant_pattern = path
         .clone()
@@ -212,21 +213,22 @@ fn expression_parsers<'src>() -> (
             args: args.unwrap_or_default(),
         })
         .labelled("enum variant pattern");
-    
+
     // Identifier pattern parser (for variable bindings)
     let identifier_pattern = select! { Token::Ident(name) => name }
         .filter(|name| name != &"_") // Exclude wildcard
         .map(Pattern::Identifier)
         .labelled("identifier pattern");
-    
+
     // Combine all pattern types with proper precedence
     let pattern_definition = choice((
         literal_pattern,
         wildcard_pattern,
         enum_variant_pattern,
         identifier_pattern,
-    )).labelled("pattern");
-    
+    ))
+    .labelled("pattern");
+
     pattern.define(pattern_definition);
 
     // If expression parser

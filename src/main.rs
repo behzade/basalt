@@ -214,7 +214,7 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
                     // Lower HIR to MIR
                     let mir_lowerer = MirLowerer::new(&hir_items);
                     let mir_program = mir_lowerer.lower_to_mir();
-                    
+
                     // Print the MIR representation
                     println!("{:#?}", mir_program);
                 }
@@ -231,8 +231,6 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
 
     Ok(())
 }
-
-
 
 /// A helper function to run the full compilation pipeline.
 fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()> {
@@ -269,10 +267,10 @@ fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()>
                     // 3. Lower HIR to MIR
                     let mir_lowerer = MirLowerer::new(&hir);
                     let mir_program = mir_lowerer.lower_to_mir();
-                    
+
                     // 4. COMPILE MIR using CraneliftCompiler
                     let mut compiler = CraneliftCompiler::new();
-                    
+
                     // Determine output name
                     let output_name = if source_id == "stdin" {
                         "output".to_string()
@@ -281,21 +279,27 @@ fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()>
                         path.set_extension("");
                         path.file_name().unwrap().to_string_lossy().to_string()
                     };
-                    
+
                     match compiler.compile_to_executable(&mir_program, &output_name) {
                         Ok(()) => {
                             println!("Successfully compiled to: dist/{}", output_name);
-                            
+
                             if run {
                                 // Run the compiled executable
-                                let executable_path = std::path::Path::new("dist").join(&output_name);
+                                let executable_path =
+                                    std::path::Path::new("dist").join(&output_name);
                                 let output = std::process::Command::new(executable_path)
                                     .output()
-                                    .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to run executable: {}", e)))?;
-                                
+                                    .map_err(|e| {
+                                    io::Error::new(
+                                        io::ErrorKind::Other,
+                                        format!("Failed to run executable: {}", e),
+                                    )
+                                })?;
+
                                 // For Basalt programs, the exit code is the return value of main
                                 // Don't treat non-zero exit codes as failures
-                                
+
                                 // Print the output
                                 let stdout = String::from_utf8_lossy(&output.stdout);
                                 print!("{}", stdout);
@@ -323,8 +327,6 @@ fn run_compiler(source_code: &str, source_id: &str, run: bool) -> io::Result<()>
 
     Ok(())
 }
-
-
 
 /// Reads source code from a file path or from stdin.
 fn read_source(path: Option<String>) -> io::Result<(String, String)> {
@@ -419,7 +421,7 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
     for e in errors {
         // Try to find a better location based on the error content
         let span = find_error_location(source_code, e);
-        
+
         let msg = match e {
             TypeError::MismatchedTypes { expected, found } => {
                 format!(
@@ -431,16 +433,28 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             TypeError::UnknownFunction(name) => format!("Unknown function: `{}`", name),
             TypeError::UnknownStruct(name) => format!("Unknown struct: `{}`", name),
             TypeError::UnknownEnum(name) => format!("Unknown enum: `{}`", name),
-            TypeError::UnknownEnumVariant { enum_name, variant_name } => {
+            TypeError::UnknownEnumVariant {
+                enum_name,
+                variant_name,
+            } => {
                 format!("Unknown enum variant: `{}::{}`", enum_name, variant_name)
             }
             TypeError::WrongArgumentCount { expected, found } => {
-                format!("Wrong number of arguments: expected {}, found {}", expected, found)
+                format!(
+                    "Wrong number of arguments: expected {}, found {}",
+                    expected, found
+                )
             }
-            TypeError::UnknownStructField { struct_name, field_name } => {
+            TypeError::UnknownStructField {
+                struct_name,
+                field_name,
+            } => {
                 format!("Unknown struct field: `{}.{}`", struct_name, field_name)
             }
-            TypeError::MissingStructField { struct_name, field_name } => {
+            TypeError::MissingStructField {
+                struct_name,
+                field_name,
+            } => {
                 format!("Missing struct field: `{}.{}`", struct_name, field_name)
             }
             TypeError::InvalidOperator { op, ty } => {
@@ -453,16 +467,32 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
                 format!("Cannot unify types `{}` and `{}`", t1, t2)
             }
             TypeError::UnknownModule { namespace, module } => {
-                format!("Module `{}::{}` not found. Check if the module exists and is properly structured.", namespace, module)
+                format!(
+                    "Module `{}::{}` not found. Check if the module exists and is properly structured.",
+                    namespace, module
+                )
             }
-            TypeError::UnknownModuleSymbol { namespace, module, symbol } => {
-                format!("Symbol `{}` not found in module `{}::{}`. The module exists but doesn't export this symbol.", symbol, namespace, module)
+            TypeError::UnknownModuleSymbol {
+                namespace,
+                module,
+                symbol,
+            } => {
+                format!(
+                    "Symbol `{}` not found in module `{}::{}`. The module exists but doesn't export this symbol.",
+                    symbol, namespace, module
+                )
             }
-            TypeError::MissingImport { symbol, suggested_import } => {
+            TypeError::MissingImport {
+                symbol,
+                suggested_import,
+            } => {
                 if let Some(import) = suggested_import {
                     format!("Unknown symbol `{}`. Try adding: {}", symbol, import)
                 } else {
-                    format!("Unknown symbol `{}`. You may need to import it from a module.", symbol)
+                    format!(
+                        "Unknown symbol `{}`. You may need to import it from a module.",
+                        symbol
+                    )
                 }
             }
         };
@@ -517,7 +547,11 @@ fn find_error_location(source_code: &str, error: &TypeError) -> std::ops::Range<
                 default_pos..default_pos + 1
             }
         }
-        TypeError::UnknownModuleSymbol { namespace, module, symbol } => {
+        TypeError::UnknownModuleSymbol {
+            namespace,
+            module,
+            symbol,
+        } => {
             // Look for the full path in the source code
             let full_path = format!("{}::{}::{}", namespace, module, symbol);
             if let Some(pos) = source_code.find(&full_path) {

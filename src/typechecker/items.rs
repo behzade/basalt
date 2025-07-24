@@ -128,9 +128,9 @@ impl<'src> TypeChecker<'src> {
                 .map(|(name, types)| {
                     (
                         *name,
-                        types.as_ref().map(|t_vec| {
-                            t_vec.iter().map(|t| self.lower_type(t)).collect()
-                        }),
+                        types
+                            .as_ref()
+                            .map(|t_vec| t_vec.iter().map(|t| self.lower_type(t)).collect()),
                     )
                 })
                 .collect(),
@@ -183,7 +183,7 @@ impl<'src> TypeChecker<'src> {
                 hir_methods.push(func);
             }
         }
-        
+
         let hir_impl = hir::ImplBlock {
             trait_name: impl_block.trait_name,
             target_type: self.lower_type(&impl_block.target_type),
@@ -238,4 +238,5 @@ impl<'src> TypeChecker<'src> {
         };
         Ok(hir::Item::Handler(hir_handler))
     }
-} 
+}
+

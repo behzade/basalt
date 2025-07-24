@@ -86,7 +86,8 @@ impl<'src> TypeChecker<'src> {
 
         if self.errors.is_empty() {
             // Resolve all inference variables in the final HIR
-            let resolved_items = hir_items.into_iter()
+            let resolved_items = hir_items
+                .into_iter()
                 .map(|item| self.resolve_item_inference(item))
                 .collect();
             Ok(resolved_items)
@@ -119,13 +120,20 @@ impl<'src> TypeChecker<'src> {
     /// Resolves all inference variables in a statement
     fn resolve_stmt_inference(&self, stmt: hir::Stmt<'src>) -> hir::Stmt<'src> {
         match stmt {
-            hir::Stmt::Let { name, is_mut, value_ty, value } => hir::Stmt::Let {
+            hir::Stmt::Let {
+                name,
+                is_mut,
+                value_ty,
+                value,
+            } => hir::Stmt::Let {
                 name,
                 is_mut,
                 value_ty: self.resolve_type(&value_ty),
                 value: self.resolve_expr_inference(value),
             },
-            hir::Stmt::Return(expr) => hir::Stmt::Return(expr.map(|e| self.resolve_expr_inference(e))),
+            hir::Stmt::Return(expr) => {
+                hir::Stmt::Return(expr.map(|e| self.resolve_expr_inference(e)))
+            }
             hir::Stmt::Assign(lhs, rhs) => hir::Stmt::Assign(
                 self.resolve_expr_inference(lhs),
                 self.resolve_expr_inference(rhs),
@@ -139,7 +147,9 @@ impl<'src> TypeChecker<'src> {
         hir::ImplBlock {
             trait_name: impl_block.trait_name,
             target_type: self.resolve_type(&impl_block.target_type),
-            methods: impl_block.methods.into_iter()
+            methods: impl_block
+                .methods
+                .into_iter()
                 .map(|m| self.resolve_function_inference(m))
                 .collect(),
         }
@@ -151,13 +161,21 @@ impl<'src> TypeChecker<'src> {
         let resolved_kind = match expr.kind {
             hir::ExprKind::Literal(lit) => hir::ExprKind::Literal(lit),
             hir::ExprKind::Array(elements) => hir::ExprKind::Array(
-                elements.into_iter().map(|e| self.resolve_expr_inference(e)).collect()
+                elements
+                    .into_iter()
+                    .map(|e| self.resolve_expr_inference(e))
+                    .collect(),
             ),
             hir::ExprKind::Map(pairs) => hir::ExprKind::Map(
-                pairs.into_iter().map(|(k, v)| (
-                    self.resolve_expr_inference(k),
-                    self.resolve_expr_inference(v)
-                )).collect()
+                pairs
+                    .into_iter()
+                    .map(|(k, v)| {
+                        (
+                            self.resolve_expr_inference(k),
+                            self.resolve_expr_inference(v),
+                        )
+                    })
+                    .collect(),
             ),
             hir::ExprKind::Path(path) => hir::ExprKind::Path(path),
             hir::ExprKind::Unary { op, rhs } => hir::ExprKind::Unary {
@@ -171,27 +189,45 @@ impl<'src> TypeChecker<'src> {
             },
             hir::ExprKind::Call { fun, args } => hir::ExprKind::Call {
                 fun: Box::new(self.resolve_expr_inference(*fun)),
-                args: args.into_iter().map(|a| self.resolve_expr_inference(a)).collect(),
+                args: args
+                    .into_iter()
+                    .map(|a| self.resolve_expr_inference(a))
+                    .collect(),
             },
             hir::ExprKind::StructInit { path, fields } => hir::ExprKind::StructInit {
                 path,
-                fields: fields.into_iter().map(|(k, v)| (k, self.resolve_expr_inference(v))).collect(),
+                fields: fields
+                    .into_iter()
+                    .map(|(k, v)| (k, self.resolve_expr_inference(v)))
+                    .collect(),
             },
             hir::ExprKind::Block { stmts, last_expr } => hir::ExprKind::Block {
-                stmts: stmts.into_iter().map(|s| self.resolve_stmt_inference(s)).collect(),
+                stmts: stmts
+                    .into_iter()
+                    .map(|s| self.resolve_stmt_inference(s))
+                    .collect(),
                 last_expr: last_expr.map(|e| Box::new(self.resolve_expr_inference(*e))),
             },
-            hir::ExprKind::If { cond, then_block, else_block } => hir::ExprKind::If {
+            hir::ExprKind::If {
+                cond,
+                then_block,
+                else_block,
+            } => hir::ExprKind::If {
                 cond: Box::new(self.resolve_expr_inference(*cond)),
                 then_block: Box::new(self.resolve_expr_inference(*then_block)),
                 else_block: else_block.map(|e| Box::new(self.resolve_expr_inference(*e))),
             },
             hir::ExprKind::Match { scrutinee, arms } => hir::ExprKind::Match {
                 scrutinee: Box::new(self.resolve_expr_inference(*scrutinee)),
-                arms: arms.into_iter().map(|(pat, expr)| (
-                    self.resolve_pattern_inference(pat),
-                    self.resolve_expr_inference(expr)
-                )).collect(),
+                arms: arms
+                    .into_iter()
+                    .map(|(pat, expr)| {
+                        (
+                            self.resolve_pattern_inference(pat),
+                            self.resolve_expr_inference(expr),
+                        )
+                    })
+                    .collect(),
             },
             hir::ExprKind::While { cond, body } => hir::ExprKind::While {
                 cond: Box::new(self.resolve_expr_inference(*cond)),
@@ -199,14 +235,20 @@ impl<'src> TypeChecker<'src> {
             },
             hir::ExprKind::Perform { path, args } => hir::ExprKind::Perform {
                 path,
-                args: args.into_iter().map(|a| self.resolve_expr_inference(a)).collect(),
+                args: args
+                    .into_iter()
+                    .map(|a| self.resolve_expr_inference(a))
+                    .collect(),
             },
             hir::ExprKind::Handle { body, handler } => hir::ExprKind::Handle {
                 body: Box::new(self.resolve_expr_inference(*body)),
                 handler,
             },
         };
-        hir::Expr { kind: resolved_kind, ty: resolved_ty }
+        hir::Expr {
+            kind: resolved_kind,
+            ty: resolved_ty,
+        }
     }
 
     /// Resolves all inference variables in a pattern
@@ -229,7 +271,8 @@ impl<'src> TypeChecker<'src> {
 
     /// Find the span for a given token or expression
     fn find_span_for_token(&self, token: &Token<'src>) -> Option<SimpleSpan> {
-        self.token_spans.iter()
+        self.token_spans
+            .iter()
             .find(|(t, _)| std::mem::discriminant(t) == std::mem::discriminant(token))
             .map(|(_, span)| *span)
     }
@@ -260,12 +303,15 @@ impl<'src> TypeChecker<'src> {
             ast::Item::Impl(impl_block) => {
                 // Add each method from the impl block to the context
                 for method in &impl_block.methods {
-                    self.context.add_trait_method(method.name, ast::TraitMethod {
-                        name: method.name,
-                        params: method.params.clone(),
-                        ret_type: method.ret_type.clone(),
-                        is_public: method.is_public,
-                    });
+                    self.context.add_trait_method(
+                        method.name,
+                        ast::TraitMethod {
+                            name: method.name,
+                            params: method.params.clone(),
+                            ret_type: method.ret_type.clone(),
+                            is_public: method.is_public,
+                        },
+                    );
                 }
             }
             ast::Item::Effect(effect_def) => {
@@ -300,21 +346,22 @@ impl<'src> TypeChecker<'src> {
         if path.len() < 3 {
             return None; // Need at least namespace::module::symbol
         }
-        
+
         let namespace = path[0];
         let module = path[1];
         let symbol = path[2];
-        
+
         // Create module path for caching
         let module_path = format!("{}::{}", namespace, module);
-        
+
         // Load module symbols if not cached
         if self.context.get_module_symbols(&module_path).is_none() {
             if let Some(symbols) = self.load_module_symbols(namespace, module) {
-                self.context.add_module_symbols(module_path.clone(), symbols);
+                self.context
+                    .add_module_symbols(module_path.clone(), symbols);
             }
         }
-        
+
         // Check if we have cached symbols for this module
         if let Some(symbols) = self.context.get_module_symbols(&module_path) {
             if let Some(signature) = symbols.get(symbol) {
@@ -326,22 +373,30 @@ impl<'src> TypeChecker<'src> {
                 });
             }
         }
-        
+
         None
     }
-    
+
     /// Load public symbols from a module
-    fn load_module_symbols(&mut self, namespace: &str, module: &str) -> Option<HashMap<String, crate::typechecker::context::SymbolSignature>> {
+    fn load_module_symbols(
+        &mut self,
+        namespace: &str,
+        module: &str,
+    ) -> Option<HashMap<String, crate::typechecker::context::SymbolSignature>> {
         // Determine the module path based on namespace
         let module_path = if namespace == "Self" {
             format!("./{}/", module.to_lowercase())
         } else {
-            format!("./modules/{}/{}/", namespace.to_lowercase(), module.to_lowercase())
+            format!(
+                "./modules/{}/{}/",
+                namespace.to_lowercase(),
+                module.to_lowercase()
+            )
         };
-        
+
         // Load all .bst files in the module directory
         let mut symbols = HashMap::new();
-        
+
         if let Ok(entries) = std::fs::read_dir(&module_path) {
             for entry in entries {
                 if let Ok(entry) = entry {
@@ -358,52 +413,60 @@ impl<'src> TypeChecker<'src> {
                 }
             }
         }
-        
+
         if symbols.is_empty() {
             None
         } else {
             Some(symbols)
         }
     }
-    
+
     /// Parse a module file and extract public symbols
-    fn parse_module_file(&mut self, contents: &str) -> Option<HashMap<String, crate::typechecker::context::SymbolSignature>> {
+    fn parse_module_file(
+        &mut self,
+        contents: &str,
+    ) -> Option<HashMap<String, crate::typechecker::context::SymbolSignature>> {
         use crate::lexer::lexer;
         use crate::parser::file_parser;
         use chumsky::Parser;
-        
+
         // Lex the file
         let (tokens, lex_errors) = lexer().parse(contents).into_output_errors();
         if !lex_errors.is_empty() {
             return None; // Skip files with lex errors
         }
-        
+
         let tokens = tokens?;
         let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-        
+
         // Parse the file
         let (ast, parse_errors) = file_parser().parse(&token_slice).into_output_errors();
         if !parse_errors.is_empty() {
             println!("DEBUG: Parse errors: {:?}", parse_errors);
             return None; // Skip files with parse errors
         }
-        
+
         let ast = ast?;
-        
+
         // Extract public symbols
         let mut symbols = HashMap::new();
         for item in &ast {
             match item {
                 ast::Item::Fn(func) if func.is_public => {
-                    let ret_type = func.ret_type.as_ref().map(|t| t.into()).unwrap_or_else(|| ast::OwnedType {
-                        path: vec!["none".to_string()],
-                        generics: vec![],
+                    let ret_type = func.ret_type.as_ref().map(|t| t.into()).unwrap_or_else(|| {
+                        ast::OwnedType {
+                            path: vec!["none".to_string()],
+                            generics: vec![],
+                        }
                     });
-                    symbols.insert(func.name.to_string(), crate::typechecker::context::SymbolSignature {
-                        name: func.name.to_string(),
-                        kind: crate::typechecker::context::SymbolKind::Function(func.into()),
-                        type_info: ret_type,
-                    });
+                    symbols.insert(
+                        func.name.to_string(),
+                        crate::typechecker::context::SymbolSignature {
+                            name: func.name.to_string(),
+                            kind: crate::typechecker::context::SymbolKind::Function(func.into()),
+                            type_info: ret_type,
+                        },
+                    );
                 }
                 ast::Item::Struct(struct_def) if struct_def.is_public => {
                     let mut generics = Vec::new();
@@ -413,68 +476,96 @@ impl<'src> TypeChecker<'src> {
                             generics: vec![],
                         });
                     }
-                    symbols.insert(struct_def.name.to_string(), crate::typechecker::context::SymbolSignature {
-                        name: struct_def.name.to_string(),
-                        kind: crate::typechecker::context::SymbolKind::Struct(struct_def.into()),
-                        type_info: ast::OwnedType {
-                            path: vec![struct_def.name.to_string()],
-                            generics,
+                    symbols.insert(
+                        struct_def.name.to_string(),
+                        crate::typechecker::context::SymbolSignature {
+                            name: struct_def.name.to_string(),
+                            kind: crate::typechecker::context::SymbolKind::Struct(
+                                struct_def.into(),
+                            ),
+                            type_info: ast::OwnedType {
+                                path: vec![struct_def.name.to_string()],
+                                generics,
+                            },
                         },
-                    });
+                    );
                 }
                 ast::Item::Enum(enum_def) if enum_def.is_public => {
                     if let Some(name) = &enum_def.name {
-                        symbols.insert(name.to_string(), crate::typechecker::context::SymbolSignature {
-                            name: name.to_string(),
-                            kind: crate::typechecker::context::SymbolKind::Enum(enum_def.into()),
-                            type_info: ast::OwnedType {
-                                path: vec![name.to_string()],
-                                generics: vec![],
+                        symbols.insert(
+                            name.to_string(),
+                            crate::typechecker::context::SymbolSignature {
+                                name: name.to_string(),
+                                kind: crate::typechecker::context::SymbolKind::Enum(
+                                    enum_def.into(),
+                                ),
+                                type_info: ast::OwnedType {
+                                    path: vec![name.to_string()],
+                                    generics: vec![],
+                                },
                             },
-                        });
+                        );
                     }
                 }
                 ast::Item::Trait(trait_def) if trait_def.is_public => {
-                    symbols.insert(trait_def.name.to_string(), crate::typechecker::context::SymbolSignature {
-                        name: trait_def.name.to_string(),
-                        kind: crate::typechecker::context::SymbolKind::Trait(trait_def.into()),
-                        type_info: ast::OwnedType {
-                            path: vec![trait_def.name.to_string()],
-                            generics: vec![],
+                    symbols.insert(
+                        trait_def.name.to_string(),
+                        crate::typechecker::context::SymbolSignature {
+                            name: trait_def.name.to_string(),
+                            kind: crate::typechecker::context::SymbolKind::Trait(trait_def.into()),
+                            type_info: ast::OwnedType {
+                                path: vec![trait_def.name.to_string()],
+                                generics: vec![],
+                            },
                         },
-                    });
+                    );
                 }
                 ast::Item::Effect(effect_def) if effect_def.is_public => {
-                    symbols.insert(effect_def.name.to_string(), crate::typechecker::context::SymbolSignature {
-                        name: effect_def.name.to_string(),
-                        kind: crate::typechecker::context::SymbolKind::Effect(effect_def.into()),
-                        type_info: ast::OwnedType {
-                            path: vec![effect_def.name.to_string()],
-                            generics: vec![],
+                    symbols.insert(
+                        effect_def.name.to_string(),
+                        crate::typechecker::context::SymbolSignature {
+                            name: effect_def.name.to_string(),
+                            kind: crate::typechecker::context::SymbolKind::Effect(
+                                effect_def.into(),
+                            ),
+                            type_info: ast::OwnedType {
+                                path: vec![effect_def.name.to_string()],
+                                generics: vec![],
+                            },
                         },
-                    });
+                    );
                 }
                 ast::Item::Handler(handler_def) if handler_def.is_public => {
-                    symbols.insert(handler_def.name.to_string(), crate::typechecker::context::SymbolSignature {
-                        name: handler_def.name.to_string(),
-                        kind: crate::typechecker::context::SymbolKind::Handler(handler_def.into()),
-                        type_info: ast::OwnedType {
-                            path: vec![handler_def.name.to_string()],
-                            generics: vec![],
+                    symbols.insert(
+                        handler_def.name.to_string(),
+                        crate::typechecker::context::SymbolSignature {
+                            name: handler_def.name.to_string(),
+                            kind: crate::typechecker::context::SymbolKind::Handler(
+                                handler_def.into(),
+                            ),
+                            type_info: ast::OwnedType {
+                                path: vec![handler_def.name.to_string()],
+                                generics: vec![],
+                            },
                         },
-                    });
+                    );
                 }
                 ast::Item::ExternFn { name, ret_type, .. } => {
-                    symbols.insert(name.to_string(), crate::typechecker::context::SymbolSignature {
-                        name: name.to_string(),
-                        kind: crate::typechecker::context::SymbolKind::ExternFunction(ret_type.into()),
-                        type_info: ret_type.into(),
-                    });
+                    symbols.insert(
+                        name.to_string(),
+                        crate::typechecker::context::SymbolSignature {
+                            name: name.to_string(),
+                            kind: crate::typechecker::context::SymbolKind::ExternFunction(
+                                ret_type.into(),
+                            ),
+                            type_info: ret_type.into(),
+                        },
+                    );
                 }
                 _ => {} // Skip non-public items
             }
         }
-        
+
         if symbols.is_empty() {
             None
         } else {
@@ -492,22 +583,22 @@ impl<'src> TypeChecker<'src> {
             ("Std::Math", vec!["add", "sub", "mul", "div", "sqrt", "pow"]),
             ("Self::Utils", vec!["helper_function", "utility"]),
         ];
-        
+
         for (module_path, symbols) in common_modules.iter() {
             if symbols.contains(&symbol) {
                 return Some(format!("import {};", module_path));
             }
         }
-        
+
         // If it looks like a standard library module name, suggest importing it
         if symbol == "Std" {
             return Some("import Std::Fmt;".to_string());
         }
-        
+
         if symbol == "Self" {
             return Some("import Self::Utils;".to_string());
         }
-        
+
         None
     }
 }

@@ -6,7 +6,7 @@
 mod builder;
 pub mod data;
 
-use crate::{hir, hir::Ty, ast};
+use crate::{ast, hir, hir::Ty};
 use builder::MirBuilder;
 use data::*;
 use std::collections::HashMap;
@@ -119,7 +119,11 @@ impl<'src> MirLowerer<'src> {
                 let rvalue = Rvalue::UnaryOp(*op, Operand::Copy(Place { local: rhs_temp }));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
-            hir::ExprKind::If { cond, then_block, else_block } => {
+            hir::ExprKind::If {
+                cond,
+                then_block,
+                else_block,
+            } => {
                 // Lower the condition into a temporary local.
                 let cond_temp = builder.new_local(cond.ty.clone(), false);
                 self.lower_expr(cond, builder, locals, Place { local: cond_temp });
@@ -133,25 +137,31 @@ impl<'src> MirLowerer<'src> {
                 builder.set_terminator(Terminator::SwitchInt {
                     discr: Operand::Copy(Place { local: cond_temp }),
                     targets: vec![(1, then_block_id)], // true -> then block
-                    otherwise: else_block_id,           // false -> else block
+                    otherwise: else_block_id,          // false -> else block
                 });
 
                 // Lower the then block.
                 builder.switch_to_block(then_block_id);
                 self.lower_expr(then_block, builder, locals, destination.clone());
-                builder.set_terminator(Terminator::Goto { target: merge_block_id });
+                builder.set_terminator(Terminator::Goto {
+                    target: merge_block_id,
+                });
 
                 // Lower the else block if it exists.
                 if let Some(else_expr) = else_block {
                     builder.switch_to_block(else_block_id);
                     self.lower_expr(else_expr, builder, locals, destination);
-                    builder.set_terminator(Terminator::Goto { target: merge_block_id });
+                    builder.set_terminator(Terminator::Goto {
+                        target: merge_block_id,
+                    });
                 } else {
                     // No else block - assign unit to destination and goto merge
                     builder.switch_to_block(else_block_id);
                     let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                     builder.push_statement(Statement::Assign(destination.clone(), rvalue));
-                    builder.set_terminator(Terminator::Goto { target: merge_block_id });
+                    builder.set_terminator(Terminator::Goto {
+                        target: merge_block_id,
+                    });
                 }
 
                 // Continue from merge block.
@@ -164,9 +174,9 @@ impl<'src> MirLowerer<'src> {
                 }
 
                 // Check if any statement was a return
-                let has_return = stmts.iter().any(|stmt| {
-                    matches!(stmt, hir::Stmt::Return(_))
-                });
+                let has_return = stmts
+                    .iter()
+                    .any(|stmt| matches!(stmt, hir::Stmt::Return(_)));
 
                 // Lower the last expression if it exists and no return statement was encountered.
                 if let Some(expr) = last_expr {
@@ -196,9 +206,10 @@ impl<'src> MirLowerer<'src> {
                 // Terminate current block with the call.
                 builder.set_terminator(Terminator::Call {
                     func: match &**fun {
-                        hir::Expr { kind: hir::ExprKind::Path(path), .. } => {
-                            path.first().expect("Function path cannot be empty")
-                        }
+                        hir::Expr {
+                            kind: hir::ExprKind::Path(path),
+                            ..
+                        } => path.first().expect("Function path cannot be empty"),
                         _ => panic!("Expected function call to have a path expression"),
                     },
                     args: arg_operands,
@@ -220,11 +231,13 @@ impl<'src> MirLowerer<'src> {
 
                 // Extract effect and operation names from path
                 let effect_name = path.first().expect("Effect path cannot be empty");
-                let operation_name = path.get(1).expect("Effect operation path must have operation name");
+                let operation_name = path
+                    .get(1)
+                    .expect("Effect operation path must have operation name");
 
                 // Create continuation block for after the effect is handled
                 let continuation_bb = builder.new_basic_block();
-                
+
                 // Create block for when no handler is found
                 let no_handler_bb = builder.new_basic_block();
 
@@ -242,7 +255,9 @@ impl<'src> MirLowerer<'src> {
                 builder.switch_to_block(no_handler_bb);
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination.clone(), rvalue));
-                builder.set_terminator(Terminator::Goto { target: continuation_bb });
+                builder.set_terminator(Terminator::Goto {
+                    target: continuation_bb,
+                });
 
                 // Switch to continuation block
                 builder.switch_to_block(continuation_bb);
@@ -251,32 +266,33 @@ impl<'src> MirLowerer<'src> {
                 match handler {
                     hir::HandlerBody::Path(handler_path) => {
                         // Extract handler name from path
-                        let handler_name = handler_path.first().expect("Handler path cannot be empty");
-                        
+                        let handler_name =
+                            handler_path.first().expect("Handler path cannot be empty");
+
                         // For now, we'll assume the handler handles all effects
                         // In a real implementation, we'd check the handler's effect signature
                         let effect_name = "IO"; // Placeholder - should come from handler definition
-                        
+
                         // Create blocks for the handle structure
                         let body_block = builder.new_basic_block();
                         let after_handle_block = builder.new_basic_block();
-                        
+
                         // Push handler and jump to body
                         builder.set_terminator(Terminator::PushHandler {
                             effect: effect_name,
                             handler: handler_name,
                             target: body_block,
                         });
-                        
+
                         // Lower the body in the body block
                         builder.switch_to_block(body_block);
                         self.lower_expr(body, builder, locals, destination);
-                        
+
                         // Pop handler and continue
                         builder.set_terminator(Terminator::PopHandler {
                             target: after_handle_block,
                         });
-                        
+
                         // Switch to after-handle block
                         builder.switch_to_block(after_handle_block);
                     }
@@ -284,7 +300,7 @@ impl<'src> MirLowerer<'src> {
                         // For inline handlers, we'd need to create local handler functions
                         // and push them onto the effect stack
                         // This is more complex and would require additional MIR constructs
-                        
+
                         // For now, just lower the body without any handler
                         self.lower_expr(body, builder, locals, destination);
                     }
@@ -295,10 +311,19 @@ impl<'src> MirLowerer<'src> {
                 let mut element_operands = Vec::new();
                 for element in elements {
                     let element_temp = builder.new_local(element.ty.clone(), false);
-                    self.lower_expr(element, builder, locals, Place { local: element_temp });
-                    element_operands.push(Operand::Copy(Place { local: element_temp }));
+                    self.lower_expr(
+                        element,
+                        builder,
+                        locals,
+                        Place {
+                            local: element_temp,
+                        },
+                    );
+                    element_operands.push(Operand::Copy(Place {
+                        local: element_temp,
+                    }));
                 }
-                
+
                 // Create array Rvalue
                 let rvalue = Rvalue::Array(element_operands);
                 builder.push_statement(Statement::Assign(destination, rvalue));
@@ -309,16 +334,16 @@ impl<'src> MirLowerer<'src> {
                 for (key, value) in entries {
                     let key_temp = builder.new_local(key.ty.clone(), false);
                     let value_temp = builder.new_local(value.ty.clone(), false);
-                    
+
                     self.lower_expr(key, builder, locals, Place { local: key_temp });
                     self.lower_expr(value, builder, locals, Place { local: value_temp });
-                    
+
                     entry_operands.push((
                         Operand::Copy(Place { local: key_temp }),
-                        Operand::Copy(Place { local: value_temp })
+                        Operand::Copy(Place { local: value_temp }),
                     ));
                 }
-                
+
                 // Create map Rvalue
                 let rvalue = Rvalue::Map(entry_operands);
                 builder.push_statement(Statement::Assign(destination, rvalue));
@@ -331,7 +356,7 @@ impl<'src> MirLowerer<'src> {
                     self.lower_expr(field_expr, builder, locals, Place { local: field_temp });
                     field_operands.insert(*field_name, Operand::Copy(Place { local: field_temp }));
                 }
-                
+
                 // Create struct initialization Rvalue
                 let struct_name = path.first().expect("Struct path cannot be empty");
                 let rvalue = Rvalue::StructInit {
@@ -343,7 +368,14 @@ impl<'src> MirLowerer<'src> {
             hir::ExprKind::Match { scrutinee, arms } => {
                 // Lower the scrutinee into a temporary local.
                 let scrutinee_temp = builder.new_local(scrutinee.ty.clone(), false);
-                self.lower_expr(scrutinee, builder, locals, Place { local: scrutinee_temp });
+                self.lower_expr(
+                    scrutinee,
+                    builder,
+                    locals,
+                    Place {
+                        local: scrutinee_temp,
+                    },
+                );
 
                 // Create blocks for each arm and a merge block.
                 let mut arm_blocks = Vec::new();
@@ -361,34 +393,47 @@ impl<'src> MirLowerer<'src> {
                                     name,
                                     is_mut: *is_mut,
                                 }
-                            },
+                            }
                             hir::PatternKind::AdtVariant { path, fields } => {
                                 // Handle field bindings
                                 for field in fields {
-                                    if let hir::PatternKind::Binding { name, is_mut } = &field.kind {
-                                        let field_local = builder.new_local(field.ty.clone(), false);
+                                    if let hir::PatternKind::Binding { name, is_mut } = &field.kind
+                                    {
+                                        let field_local =
+                                            builder.new_local(field.ty.clone(), false);
                                         locals.insert(name, field_local);
                                     }
                                 }
                                 PatternKind::AdtVariant {
                                     path: path.first().expect("Pattern path cannot be empty"),
-                                    fields: fields.iter().map(|f| Pattern {
-                                        kind: match &f.kind {
-                                            hir::PatternKind::Literal(lit) => PatternKind::Literal(lit.clone()),
-                                            hir::PatternKind::Binding { name, is_mut } => PatternKind::Binding {
-                                                name,
-                                                is_mut: *is_mut,
+                                    fields: fields
+                                        .iter()
+                                        .map(|f| Pattern {
+                                            kind: match &f.kind {
+                                                hir::PatternKind::Literal(lit) => {
+                                                    PatternKind::Literal(lit.clone())
+                                                }
+                                                hir::PatternKind::Binding { name, is_mut } => {
+                                                    PatternKind::Binding {
+                                                        name,
+                                                        is_mut: *is_mut,
+                                                    }
+                                                }
+                                                hir::PatternKind::AdtVariant { path, fields } => {
+                                                    PatternKind::AdtVariant {
+                                                        path: path
+                                                            .first()
+                                                            .expect("Pattern path cannot be empty"),
+                                                        fields: Vec::new(), // Simplified for now
+                                                    }
+                                                }
+                                                hir::PatternKind::Wildcard => PatternKind::Wildcard,
                                             },
-                                            hir::PatternKind::AdtVariant { path, fields } => PatternKind::AdtVariant {
-                                                path: path.first().expect("Pattern path cannot be empty"),
-                                                fields: Vec::new(), // Simplified for now
-                                            },
-                                            hir::PatternKind::Wildcard => PatternKind::Wildcard,
-                                        },
-                                        ty: f.ty.clone(),
-                                    }).collect(),
+                                            ty: f.ty.clone(),
+                                        })
+                                        .collect(),
                                 }
-                            },
+                            }
                             hir::PatternKind::Wildcard => PatternKind::Wildcard,
                         },
                         ty: pattern.ty.clone(),
@@ -402,24 +447,30 @@ impl<'src> MirLowerer<'src> {
                 for ((pattern, expr), arm_block) in arms.iter().zip(arm_blocks.iter()) {
                     builder.switch_to_block(arm_block.1);
                     self.lower_expr(expr, builder, locals, destination.clone());
-                    builder.set_terminator(Terminator::Goto { target: merge_block });
+                    builder.set_terminator(Terminator::Goto {
+                        target: merge_block,
+                    });
                 }
-                
+
                 // Set up the default block to assign unit and goto merge
                 builder.switch_to_block(default_block);
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
-                builder.set_terminator(Terminator::Goto { target: merge_block });
-                
+                builder.set_terminator(Terminator::Goto {
+                    target: merge_block,
+                });
+
                 // Set the pattern match terminator in the current block (which should be the original block)
                 // We need to manually set it in the correct block since we've been switching around
                 let original_block = builder.basic_blocks.len() - 2 - arms.len();
                 builder.basic_blocks[original_block].terminator = Terminator::PatternMatch {
-                    scrutinee: Operand::Copy(Place { local: scrutinee_temp }),
+                    scrutinee: Operand::Copy(Place {
+                        local: scrutinee_temp,
+                    }),
                     arms: arm_blocks,
                     otherwise: default_block,
                 };
-                
+
                 // Continue from merge block
                 builder.switch_to_block(merge_block);
             }
@@ -441,7 +492,7 @@ impl<'src> MirLowerer<'src> {
                 builder.set_terminator(Terminator::SwitchInt {
                     discr: Operand::Copy(Place { local: cond_temp }),
                     targets: vec![(1, body_bb)], // if true, go to body
-                    otherwise: exit_bb,           // if false, exit loop
+                    otherwise: exit_bb,          // if false, exit loop
                 });
 
                 // Lower the body.
@@ -452,7 +503,7 @@ impl<'src> MirLowerer<'src> {
 
                 // Continue from exit block.
                 builder.switch_to_block(exit_bb);
-                
+
                 // Assign unit value to destination (while loops return unit).
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
@@ -492,8 +543,12 @@ impl<'src> MirLowerer<'src> {
                 // Find the local variable being assigned to.
                 let lhs_local = match &lhs.kind {
                     hir::ExprKind::Path(path) => {
-                        let name = path.first().expect("Assignment target path cannot be empty");
-                        locals.get(name).expect("Assignment target not found in locals")
+                        let name = path
+                            .first()
+                            .expect("Assignment target path cannot be empty");
+                        locals
+                            .get(name)
+                            .expect("Assignment target not found in locals")
                     }
                     _ => panic!("Complex assignment targets not yet supported"),
                 };
@@ -508,4 +563,5 @@ impl<'src> MirLowerer<'src> {
             }
         }
     }
-} 
+}
+

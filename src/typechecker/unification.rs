@@ -2,7 +2,7 @@
 //!
 //! Contains the logic for type unification.
 
-use super::{TypeError, TypeChecker};
+use super::{TypeChecker, TypeError};
 use crate::hir::Ty;
 
 impl<'src> TypeChecker<'src> {
@@ -18,7 +18,7 @@ impl<'src> TypeChecker<'src> {
             | (Ty::F64, Ty::F64)
             | (Ty::Str, Ty::Str)
             | (Ty::Unit, Ty::Unit) => Ok(()),
-            
+
             // FIX: Dereference the Box<Ty> to get a &Ty for the recursive call.
             (Ty::Array(inner1), Ty::Array(inner2)) => self.unify(&inner1, &inner2),
 
@@ -77,10 +77,7 @@ impl<'src> TypeChecker<'src> {
         }
 
         if self.occurs(id, ty) {
-            return Err(TypeError::UnificationError(
-                Ty::Infer(id),
-                ty.clone(),
-            ));
+            return Err(TypeError::UnificationError(Ty::Infer(id), ty.clone()));
         }
 
         self.substitutions.insert(id, ty.clone());
@@ -97,9 +94,7 @@ impl<'src> TypeChecker<'src> {
             Ty::Function {
                 param_types,
                 ret_type,
-            } => {
-                param_types.iter().any(|p| self.occurs(id, p)) || self.occurs(id, &ret_type)
-            }
+            } => param_types.iter().any(|p| self.occurs(id, p)) || self.occurs(id, &ret_type),
             _ => false,
         }
     }

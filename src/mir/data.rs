@@ -4,8 +4,8 @@
 //! The MIR simplifies control flow into a graph of basic blocks and makes memory
 //! operations more explicit.
 
-use crate::hir;
 use crate::ast;
+use crate::hir;
 use std::collections::HashMap;
 
 //================================================================================//
@@ -75,7 +75,9 @@ pub struct HandlerEntry<'src> {
 
 impl<'src> HandlerContext<'src> {
     pub fn new() -> Self {
-        Self { handlers: Vec::new() }
+        Self {
+            handlers: Vec::new(),
+        }
     }
 
     /// Push a new handler onto the stack
@@ -185,7 +187,10 @@ pub enum PatternKind<'src> {
     /// An identifier that binds the matched value to a new variable, e.g., `x`.
     Binding { name: &'src str, is_mut: bool },
     /// A path to an enum variant, e.g., `Option::Some(x)`.
-    AdtVariant { path: &'src str, fields: Vec<Pattern<'src>> },
+    AdtVariant {
+        path: &'src str,
+        fields: Vec<Pattern<'src>>,
+    },
     /// The wildcard pattern `_`.
     Wildcard,
 }
@@ -199,9 +204,7 @@ pub enum PatternKind<'src> {
 #[derive(Debug)]
 pub enum Terminator<'src> {
     /// Unconditional jump to another block.
-    Goto {
-        target: BasicBlockId,
-    },
+    Goto { target: BasicBlockId },
     /// Conditional jump. If the operand is true, jumps to `true_target`;
     /// otherwise, jumps to `false_target`.
     SwitchInt {
@@ -233,7 +236,7 @@ pub enum Terminator<'src> {
         args: Vec<Operand<'src>>,
         destination: Place,
         continuation: BasicBlockId, // Block to resume after handler returns
-        no_handler: BasicBlockId, // Block to jump to if no handler found
+        no_handler: BasicBlockId,   // Block to jump to if no handler found
     },
     /// Resume execution after an effect operation was handled.
     Resume {
@@ -250,4 +253,5 @@ pub enum Terminator<'src> {
     Return,
     /// Unreachable code (should never be executed).
     Unreachable,
-} 
+}
+

@@ -17,7 +17,7 @@ impl<'src> TypeChecker<'src> {
     ) -> Result<hir::Pattern<'src>, TypeError<'src>> {
         // Debug: Print the pattern being checked
         println!("DEBUG: Checking pattern: {:?}", pattern);
-        
+
         // Unify the pattern's expected type with the scrutinee type
         let pattern_ty = expected_ty.clone();
 
@@ -32,29 +32,37 @@ impl<'src> TypeChecker<'src> {
                     &ast::Literal::Str(_) => hir::Ty::Str,
                     &ast::Literal::Unit => hir::Ty::Unit,
                 };
-                
+
                 // Unify this literal type with the scrutinee's type
                 self.unify(&literal_ty, expected_ty)?;
-                
+
                 hir::PatternKind::Literal(lit.clone())
             }
-            
+
             // Case ast::Pattern::Wildcard:
             ast::Pattern::Wildcard => {
                 // This pattern matches anything. It doesn't add bindings.
                 hir::PatternKind::Wildcard
             }
-            
+
             // Case ast::Pattern::Identifier(name):
             ast::Pattern::Identifier(name) => {
                 // This is the existing logic for variable bindings
                 // First, check if this could be a nullary enum variant
-                if let hir::Ty::Adt { name: enum_name, .. } = expected_ty {
+                if let hir::Ty::Adt {
+                    name: enum_name, ..
+                } = expected_ty
+                {
                     // Check if the scrutinee type is an ADT and if this name matches a variant
-                    if let Some(enum_def) = self.context.get_enum(enum_name.first().unwrap_or(&"")) {
-                        if let Some(variant_info) = enum_def.variants.iter().find(|(v, _)| v == name) {
+                    if let Some(enum_def) = self.context.get_enum(enum_name.first().unwrap_or(&""))
+                    {
+                        if let Some(variant_info) =
+                            enum_def.variants.iter().find(|(v, _)| v == name)
+                        {
                             // Check if this variant has no fields (nullary variant)
-                            if variant_info.1.is_none() || variant_info.1.as_ref().unwrap().is_empty() {
+                            if variant_info.1.is_none()
+                                || variant_info.1.as_ref().unwrap().is_empty()
+                            {
                                 // This is a nullary variant pattern
                                 return Ok(hir::Pattern {
                                     kind: hir::PatternKind::AdtVariant {
@@ -67,7 +75,7 @@ impl<'src> TypeChecker<'src> {
                         }
                     }
                 }
-                
+
                 // If it's not a nullary variant, treat it as a binding
                 self.context.add_variable(name, pattern_ty.clone());
                 hir::PatternKind::Binding {
@@ -75,7 +83,7 @@ impl<'src> TypeChecker<'src> {
                     is_mut: false, // For now, assume all bindings are immutable
                 }
             }
-            
+
             // Case ast::Pattern::Path { .. }:
             ast::Pattern::Path { path, args } => {
                 // Handle the case where we have a single identifier as a path (e.g., "x" in "Some(x)")
@@ -100,12 +108,12 @@ impl<'src> TypeChecker<'src> {
                     // For unqualified paths like `Some(x)`, search through all known enums
                     // to find the one containing this variant
                     let variant_name = path[0];
-                    let (enum_name, _) = self.context
-                        .find_enum_by_variant(variant_name)
-                        .ok_or(TypeError::UnknownEnumVariant {
+                    let (enum_name, _) = self.context.find_enum_by_variant(variant_name).ok_or(
+                        TypeError::UnknownEnumVariant {
                             enum_name: "unknown",
                             variant_name,
-                        })?;
+                        },
+                    )?;
                     (enum_name, variant_name)
                 } else {
                     return Err(TypeError::InvalidPattern {
@@ -140,23 +148,28 @@ impl<'src> TypeChecker<'src> {
                 }
 
                 // Convert variant types to HIR types first to avoid borrow issues
-                let hir_variant_types: Vec<hir::Ty<'src>> = variant_types
-                    .iter()
-                    .map(|ty| self.lower_type(ty))
-                    .collect();
+                let hir_variant_types: Vec<hir::Ty<'src>> =
+                    variant_types.iter().map(|ty| self.lower_type(ty)).collect();
 
                 // Substitute generic parameters in the variant types
                 let mut substituted_variant_types = Vec::new();
-                if let hir::Ty::Adt { generics: enum_generics, .. } = expected_ty {
+                if let hir::Ty::Adt {
+                    generics: enum_generics,
+                    ..
+                } = expected_ty
+                {
                     // Create a substitution mapping from enum generic parameters to concrete types
                     let mut substitution = HashMap::new();
-                    for (generic_param, concrete_type) in enum_def.generics.iter().zip(enum_generics.iter()) {
+                    for (generic_param, concrete_type) in
+                        enum_def.generics.iter().zip(enum_generics.iter())
+                    {
                         substitution.insert(*generic_param, concrete_type.clone());
                     }
-                    
+
                     // Substitute generic parameters in each variant type
                     for variant_type in &hir_variant_types {
-                        let substituted_type = self.substitute_generics_in_hir_type(variant_type, &substitution);
+                        let substituted_type =
+                            self.substitute_generics_in_hir_type(variant_type, &substitution);
                         substituted_variant_types.push(substituted_type);
                     }
                 } else {
@@ -185,7 +198,11 @@ impl<'src> TypeChecker<'src> {
     }
 
     /// Substitutes generic type parameters in an HIR type with concrete types.
-    fn substitute_generics_in_hir_type(&self, ty: &hir::Ty<'src>, substitution: &HashMap<&'src str, hir::Ty<'src>>) -> hir::Ty<'src> {
+    fn substitute_generics_in_hir_type(
+        &self,
+        ty: &hir::Ty<'src>,
+        substitution: &HashMap<&'src str, hir::Ty<'src>>,
+    ) -> hir::Ty<'src> {
         match ty {
             hir::Ty::Bool => hir::Ty::Bool,
             hir::Ty::I64 => hir::Ty::I64,
@@ -209,24 +226,28 @@ impl<'src> TypeChecker<'src> {
                 if name.len() == 1 && substitution.contains_key(name[0]) {
                     return substitution[name[0]].clone();
                 }
-                
+
                 // Otherwise, recursively substitute in the generic parameters
                 let substituted_generics: Vec<hir::Ty<'src>> = generics
                     .iter()
                     .map(|g| self.substitute_generics_in_hir_type(g, substitution))
                     .collect();
-                
+
                 hir::Ty::Adt {
                     name: name.clone(),
                     generics: substituted_generics,
                 }
             }
-            hir::Ty::Function { param_types, ret_type } => {
+            hir::Ty::Function {
+                param_types,
+                ret_type,
+            } => {
                 let substituted_param_types: Vec<hir::Ty<'src>> = param_types
                     .iter()
                     .map(|p| self.substitute_generics_in_hir_type(p, substitution))
                     .collect();
-                let substituted_ret_type = self.substitute_generics_in_hir_type(ret_type, substitution);
+                let substituted_ret_type =
+                    self.substitute_generics_in_hir_type(ret_type, substitution);
                 hir::Ty::Function {
                     param_types: substituted_param_types,
                     ret_type: Box::new(substituted_ret_type),
@@ -236,4 +257,5 @@ impl<'src> TypeChecker<'src> {
             hir::Ty::Error => hir::Ty::Error,
         }
     }
-} 
+}
+

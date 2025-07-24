@@ -99,4 +99,5 @@ impl<'src> TypeChecker<'src> {
 
         Ok(hir::Stmt::Assign(hir_lhs, hir_rhs))
     }
-} 
+}
+

@@ -45,14 +45,18 @@ impl<'src> TypeChecker<'src> {
     }
 
     /// Substitutes generic type parameters in an `ast::Type` with concrete types.
-    pub fn substitute_generics(&self, ast_ty: &ast::Type<'src>, substitution: &HashMap<&'src str, hir::Ty<'src>>) -> hir::Ty<'src> {
+    pub fn substitute_generics(
+        &self,
+        ast_ty: &ast::Type<'src>,
+        substitution: &HashMap<&'src str, hir::Ty<'src>>,
+    ) -> hir::Ty<'src> {
         let name = ast_ty.path.first().unwrap_or(&"");
-        
+
         // Check if this is a generic parameter that needs substitution
         if substitution.contains_key(name) {
             return substitution[name].clone();
         }
-        
+
         match *name {
             "bool" => Ty::Bool,
             "i64" => Ty::I64,
@@ -92,4 +96,5 @@ impl<'src> TypeChecker<'src> {
             }
         }
     }
-} 
+}
+

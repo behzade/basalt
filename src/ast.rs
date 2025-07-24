@@ -157,7 +157,7 @@ pub struct StructDef<'src> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumDef<'src> {
-    pub name: Option<&'src str>, // Enums can be anonymous
+    pub name: Option<&'src str>,  // Enums can be anonymous
     pub generics: Vec<&'src str>, // Generic type parameters (e.g., ["T", "E"])
     pub variants: Vec<(&'src str, Option<Vec<Type<'src>>>)>,
     pub is_public: bool, // Whether this enum is public/exported
@@ -443,7 +443,11 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
         Self {
             name: func.name.to_string(),
             generics: func.generics.iter().map(|s| s.to_string()).collect(),
-            params: func.params.iter().map(|(name, ty)| (name.map(|s| s.to_string()), ty.into())).collect(),
+            params: func
+                .params
+                .iter()
+                .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
+                .collect(),
             ret_type: func.ret_type.as_ref().map(|t| t.into()),
             effects: func.effects.iter().map(|s| s.to_string()).collect(),
             body: (&func.body).into(),
@@ -457,7 +461,11 @@ impl<'src> From<&StructDef<'src>> for OwnedStructDef {
         Self {
             name: struct_def.name.to_string(),
             generics: struct_def.generics.iter().map(|s| s.to_string()).collect(),
-            fields: struct_def.fields.iter().map(|(name, ty)| (name.to_string(), ty.into())).collect(),
+            fields: struct_def
+                .fields
+                .iter()
+                .map(|(name, ty)| (name.to_string(), ty.into()))
+                .collect(),
             is_public: struct_def.is_public,
         }
     }
@@ -468,9 +476,18 @@ impl<'src> From<&EnumDef<'src>> for OwnedEnumDef {
         Self {
             name: enum_def.name.map(|s| s.to_string()),
             generics: enum_def.generics.iter().map(|s| s.to_string()).collect(),
-            variants: enum_def.variants.iter().map(|(name, types)| {
-                (name.to_string(), types.as_ref().map(|ts| ts.iter().map(|t| t.into()).collect()))
-            }).collect(),
+            variants: enum_def
+                .variants
+                .iter()
+                .map(|(name, types)| {
+                    (
+                        name.to_string(),
+                        types
+                            .as_ref()
+                            .map(|ts| ts.iter().map(|t| t.into()).collect()),
+                    )
+                })
+                .collect(),
             is_public: enum_def.is_public,
         }
     }
@@ -490,7 +507,11 @@ impl<'src> From<&TraitMethod<'src>> for OwnedTraitMethod {
     fn from(method: &TraitMethod<'src>) -> Self {
         Self {
             name: method.name.to_string(),
-            params: method.params.iter().map(|(name, ty)| (name.map(|s| s.to_string()), ty.into())).collect(),
+            params: method
+                .params
+                .iter()
+                .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
+                .collect(),
             ret_type: method.ret_type.as_ref().map(|t| t.into()),
             is_public: method.is_public,
         }
@@ -534,7 +555,9 @@ impl<'src> From<&Expr<'src>> for OwnedExpr {
         match expr {
             Expr::Literal(lit) => OwnedExpr::Literal(lit.into()),
             Expr::Array(elements) => OwnedExpr::Array(elements.iter().map(|e| e.into()).collect()),
-            Expr::Map(entries) => OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect()),
+            Expr::Map(entries) => {
+                OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect())
+            }
             Expr::Path(path) => OwnedExpr::Path(path.iter().map(|s| s.to_string()).collect()),
             Expr::Unary { op, rhs } => OwnedExpr::Unary {
                 op: *op,
@@ -549,23 +572,37 @@ impl<'src> From<&Expr<'src>> for OwnedExpr {
                 fun: Box::new((&**fun).into()),
                 args: args.iter().map(|a| a.into()).collect(),
             },
-            Expr::StructInit { path, generics, fields } => OwnedExpr::StructInit {
+            Expr::StructInit {
+                path,
+                generics,
+                fields,
+            } => OwnedExpr::StructInit {
                 path: path.iter().map(|s| s.to_string()).collect(),
                 generics: generics.iter().map(|g| g.into()).collect(),
-                fields: fields.iter().map(|(name, expr)| (name.to_string(), expr.into())).collect(),
+                fields: fields
+                    .iter()
+                    .map(|(name, expr)| (name.to_string(), expr.into()))
+                    .collect(),
             },
             Expr::Block { stmts, last_expr } => OwnedExpr::Block {
                 stmts: stmts.iter().map(|s| s.into()).collect(),
                 last_expr: last_expr.as_ref().map(|e| Box::new((&**e).into())),
             },
-            Expr::If { cond, then_block, else_block } => OwnedExpr::If {
+            Expr::If {
+                cond,
+                then_block,
+                else_block,
+            } => OwnedExpr::If {
                 cond: Box::new((&**cond).into()),
                 then_block: Box::new((&**then_block).into()),
                 else_block: else_block.as_ref().map(|e| Box::new((&**e).into())),
             },
             Expr::Match { scrutinee, arms } => OwnedExpr::Match {
                 scrutinee: Box::new((&**scrutinee).into()),
-                arms: arms.iter().map(|(pat, expr)| (pat.into(), expr.into())).collect(),
+                arms: arms
+                    .iter()
+                    .map(|(pat, expr)| (pat.into(), expr.into()))
+                    .collect(),
             },
             Expr::While { cond, body } => OwnedExpr::While {
                 cond: Box::new((&**cond).into()),
@@ -587,7 +624,12 @@ impl<'src> From<&Expr<'src>> for OwnedExpr {
 impl<'src> From<&Stmt<'src>> for OwnedStmt {
     fn from(stmt: &Stmt<'src>) -> Self {
         match stmt {
-            Stmt::Let { is_mut, name, ty, value } => OwnedStmt::Let {
+            Stmt::Let {
+                is_mut,
+                name,
+                ty,
+                value,
+            } => OwnedStmt::Let {
                 is_mut: *is_mut,
                 name: name.to_string(),
                 ty: ty.as_ref().map(|t| t.into()),
@@ -630,8 +672,12 @@ impl<'src> From<&Literal<'src>> for OwnedLiteral {
 impl<'src> From<&HandlerBody<'src>> for OwnedHandlerBody {
     fn from(body: &HandlerBody<'src>) -> Self {
         match body {
-            HandlerBody::Path(path) => OwnedHandlerBody::Path(path.iter().map(|s| s.to_string()).collect()),
-            HandlerBody::Inline(functions) => OwnedHandlerBody::Inline(functions.iter().map(|f| f.into()).collect()),
+            HandlerBody::Path(path) => {
+                OwnedHandlerBody::Path(path.iter().map(|s| s.to_string()).collect())
+            }
+            HandlerBody::Inline(functions) => {
+                OwnedHandlerBody::Inline(functions.iter().map(|f| f.into()).collect())
+            }
         }
     }
 }

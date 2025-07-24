@@ -60,7 +60,7 @@ pub struct TypeContext<'src> {
     trait_methods: HashMap<&'src str, ast::TraitMethod<'src>>,
     /// Effect definitions available in the global scope.
     effects: HashMap<&'src str, ast::EffectDef<'src>>,
-    
+
     // --- Import System ---
     /// Cached module symbols (namespace::module -> symbols)
     module_symbols: HashMap<String, HashMap<String, SymbolSignature>>,
@@ -192,7 +192,10 @@ impl<'src> TypeContext<'src> {
     }
 
     /// Finds an enum that contains a specific variant.
-    pub fn find_enum_by_variant(&self, variant_name: &'src str) -> Option<(&'src str, &ast::EnumDef<'src>)> {
+    pub fn find_enum_by_variant(
+        &self,
+        variant_name: &'src str,
+    ) -> Option<(&'src str, &ast::EnumDef<'src>)> {
         for (name, enum_def) in &self.enums {
             if enum_def.variants.iter().any(|(v, _)| v == &variant_name) {
                 return Some((name, enum_def));
@@ -204,12 +207,19 @@ impl<'src> TypeContext<'src> {
     // --- Import System ---
 
     /// Add module symbols to cache
-    pub fn add_module_symbols(&mut self, module_path: String, symbols: HashMap<String, SymbolSignature>) {
+    pub fn add_module_symbols(
+        &mut self,
+        module_path: String,
+        symbols: HashMap<String, SymbolSignature>,
+    ) {
         self.module_symbols.insert(module_path, symbols);
     }
 
     /// Get module symbols from cache
-    pub fn get_module_symbols(&self, module_path: &str) -> Option<&HashMap<String, SymbolSignature>> {
+    pub fn get_module_symbols(
+        &self,
+        module_path: &str,
+    ) -> Option<&HashMap<String, SymbolSignature>> {
         self.module_symbols.get(module_path)
     }
 }
