@@ -17,6 +17,7 @@ mod token;
 mod typechecker;
 
 use crate::{
+    codegen::compile::NativeCodegen,
     codegen::cranelift::CraneliftCodegen,
     lexer::lexer,
     mir::MirLowerer,
@@ -57,15 +58,15 @@ enum Action {
         #[arg(long)]
         validate: bool,
     },
-    /// Compile Cranelift IR into WASM
+    /// Compile Cranelift IR into native object file
     Build {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
-        /// Output file path for the WASM binary
+        /// Output file path for the object file
         #[arg(short, long)]
         output: Option<String>,
     },
-    /// Build and run the generated WASM with wasmtime
+    /// Build and run the generated native executable
     Run {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
@@ -289,7 +290,10 @@ fn run_cranelift_generation(source_code: &str, source_id: &str, validate: bool) 
                                 ));
                             }
                         }
-                        println!("✓ All {} functions validated successfully", cranelift_functions.len());
+                        println!(
+                            "✓ All {} functions validated successfully",
+                            cranelift_functions.len()
+                        );
                     } else {
                         // Print the Cranelift IR representation
                         for (name, function) in cranelift_functions {
@@ -352,15 +356,40 @@ fn run_wasm_build(source_code: &str, source_id: &str, output: Option<String>) ->
 
                     // Convert MIR to Cranelift IR
                     let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
+                    let function_count = cranelift_functions.len();
 
-                    // TODO: Implement WASM code generation from Cranelift IR
-                    // For now, just print a placeholder message
-                    println!("✓ Generated {} Cranelift functions", cranelift_functions.len());
-                    println!("TODO: Implement WASM code generation");
-                    
-                    // Determine output file path
-                    let output_path = output.unwrap_or_else(|| "output.wasm".to_string());
-                    println!("Would write WASM to: {}", output_path);
+                    // Generate native object file from Cranelift IR
+                    match NativeCodegen::generate_object(cranelift_functions) {
+                        Ok(object_bytes) => {
+                            println!("✓ Generated {} Cranelift functions", function_count);
+                            println!(
+                                "✓ Generated native object file ({} bytes)",
+                                object_bytes.len()
+                            );
+
+                            // Determine output file path
+                            let output_path = output.unwrap_or_else(|| "output.o".to_string());
+
+                            // Write object file to disk
+                            match std::fs::write(&output_path, object_bytes) {
+                                Ok(_) => println!("✓ Wrote object file to: {}", output_path),
+                                Err(e) => {
+                                    eprintln!("Error writing object file: {}", e);
+                                    return Err(io::Error::new(
+                                        io::ErrorKind::Other,
+                                        format!("Failed to write object file: {}", e),
+                                    ));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error generating object file: {}", e);
+                            return Err(io::Error::new(
+                                io::ErrorKind::Other,
+                                format!("Failed to generate object file: {}", e),
+                            ));
+                        }
+                    }
                 }
                 Err(type_errors) => {
                     report_type_errors(source_code, source_id, &type_errors);
@@ -415,11 +444,121 @@ fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
 
                     // Convert MIR to Cranelift IR
                     let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
+                    let function_count = cranelift_functions.len();
 
-                    // TODO: Implement WASM code generation and execution
-                    // For now, just print a placeholder message
-                    println!("✓ Generated {} Cranelift functions", cranelift_functions.len());
-                    println!("TODO: Implement WASM code generation and wasmtime execution");
+                    // Generate native object file from Cranelift IR
+                    match NativeCodegen::generate_object(cranelift_functions) {
+                        Ok(object_bytes) => {
+                            println!("✓ Generated {} Cranelift functions", function_count);
+                            println!(
+                                "✓ Generated native object file ({} bytes)",
+                                object_bytes.len()
+                            );
+
+                            // Write object file to temporary file
+                            let temp_obj_path = "temp_output.o";
+                            match std::fs::write(temp_obj_path, object_bytes) {
+                                Ok(_) => {
+                                    println!("✓ Wrote temporary object file to: {}", temp_obj_path);
+
+                                    // Link and execute with system linker
+                                    println!("Linking and running...");
+                                    match std::process::Command::new("cc")
+                                        .arg(temp_obj_path)
+                                        .arg("-o")
+                                        .arg("temp_executable")
+                                        .output()
+                                    {
+                                        Ok(link_output) => {
+                                            if link_output.status.success() {
+                                                // Execute the binary
+                                                match std::process::Command::new(
+                                                    "./temp_executable",
+                                                )
+                                                .output()
+                                                {
+                                                    Ok(exec_output) => {
+                                                        if exec_output.status.success() {
+                                                            println!(
+                                                                "✓ Native execution successful"
+                                                            );
+                                                            if !exec_output.stdout.is_empty() {
+                                                                println!(
+                                                                    "Output: {}",
+                                                                    String::from_utf8_lossy(
+                                                                        &exec_output.stdout
+                                                                    )
+                                                                );
+                                                            }
+                                                        } else {
+                                                            eprintln!("✗ Native execution failed");
+                                                            if !exec_output.stderr.is_empty() {
+                                                                eprintln!(
+                                                                    "Error: {}",
+                                                                    String::from_utf8_lossy(
+                                                                        &exec_output.stderr
+                                                                    )
+                                                                );
+                                                            }
+                                                        }
+
+                                                        // Clean up temporary files
+                                                        let _ = std::fs::remove_file(temp_obj_path);
+                                                        let _ =
+                                                            std::fs::remove_file("temp_executable");
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!(
+                                                            "Error running executable: {}",
+                                                            e
+                                                        );
+                                                        // Clean up temporary files
+                                                        let _ = std::fs::remove_file(temp_obj_path);
+                                                        let _ =
+                                                            std::fs::remove_file("temp_executable");
+                                                    }
+                                                }
+                                            } else {
+                                                eprintln!("✗ Linking failed");
+                                                if !link_output.stderr.is_empty() {
+                                                    eprintln!(
+                                                        "Error: {}",
+                                                        String::from_utf8_lossy(
+                                                            &link_output.stderr
+                                                        )
+                                                    );
+                                                }
+                                                // Clean up temporary file
+                                                let _ = std::fs::remove_file(temp_obj_path);
+                                            }
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Error running linker: {}", e);
+                                            eprintln!(
+                                                "Make sure 'cc' (gcc/clang) is installed and available in PATH"
+                                            );
+                                            // Clean up temporary file
+                                            let _ = std::fs::remove_file(temp_obj_path);
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("Error writing temporary object file: {}", e);
+                                    return Err(io::Error::new(
+                                        io::ErrorKind::Other,
+                                        format!("Failed to write temporary object file: {}", e),
+                                    ));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Error generating object file: {}", e);
+                            return Err(io::Error::new(
+                                io::ErrorKind::Other,
+                                format!("Failed to generate object file: {}", e),
+                            ));
+                        }
+                    }
                 }
                 Err(type_errors) => {
                     report_type_errors(source_code, source_id, &type_errors);
@@ -434,8 +573,6 @@ fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
 
     Ok(())
 }
-
-
 
 /// Reads source code from a file path or from stdin.
 fn read_source(path: Option<String>) -> io::Result<(String, String)> {
@@ -532,8 +669,14 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
         let span = find_error_location(source_code, e);
 
         let msg = match e {
-            &TypeError::MismatchedTypes { ref expected, ref found } => {
-                format!("Mismatched types: expected `{}`, found `{}`", expected, found)
+            &TypeError::MismatchedTypes {
+                ref expected,
+                ref found,
+            } => {
+                format!(
+                    "Mismatched types: expected `{}`, found `{}`",
+                    expected, found
+                )
             }
             &TypeError::UnknownVariable(name) => {
                 format!("Unknown variable: `{}`", name)
@@ -547,22 +690,43 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             &TypeError::UnknownEnum(name) => {
                 format!("Unknown enum: `{}`", name)
             }
-            &TypeError::UnknownEnumVariant { enum_name, variant_name } => {
+            &TypeError::UnknownEnumVariant {
+                enum_name,
+                variant_name,
+            } => {
                 format!("Unknown variant `{}` in enum `{}`", variant_name, enum_name)
             }
             &TypeError::WrongArgumentCount { expected, found } => {
-                format!("Wrong number of arguments: expected {}, found {}", expected, found)
+                format!(
+                    "Wrong number of arguments: expected {}, found {}",
+                    expected, found
+                )
             }
             &TypeError::WrongNumberOfArguments { expected, found } => {
-                format!("Wrong number of arguments: expected {}, found {}", expected, found)
+                format!(
+                    "Wrong number of arguments: expected {}, found {}",
+                    expected, found
+                )
             }
-            &TypeError::WrongArgumentType { ref expected, ref found } => {
-                format!("Wrong argument type: expected `{}`, found `{}`", expected, found)
+            &TypeError::WrongArgumentType {
+                ref expected,
+                ref found,
+            } => {
+                format!(
+                    "Wrong argument type: expected `{}`, found `{}`",
+                    expected, found
+                )
             }
-            &TypeError::UnknownStructField { struct_name, field_name } => {
+            &TypeError::UnknownStructField {
+                struct_name,
+                field_name,
+            } => {
                 format!("Unknown struct field: `{}.{}`", struct_name, field_name)
             }
-            &TypeError::MissingStructField { struct_name, field_name } => {
+            &TypeError::MissingStructField {
+                struct_name,
+                field_name,
+            } => {
                 format!("Missing struct field: `{}.{}`", struct_name, field_name)
             }
             &TypeError::InvalidOperator { ref op, ref ty } => {
@@ -577,12 +741,25 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
             &TypeError::UnknownModule { namespace, module } => {
                 format!("Unknown module: `{}::{}`", namespace, module)
             }
-            &TypeError::UnknownModuleSymbol { namespace, module, symbol } => {
-                format!("Unknown symbol `{}` in module `{}::{}`", symbol, namespace, module)
+            &TypeError::UnknownModuleSymbol {
+                namespace,
+                module,
+                symbol,
+            } => {
+                format!(
+                    "Unknown symbol `{}` in module `{}::{}`",
+                    symbol, namespace, module
+                )
             }
-            &TypeError::MissingImport { symbol, ref suggested_import } => {
+            &TypeError::MissingImport {
+                symbol,
+                ref suggested_import,
+            } => {
                 if let Some(suggestion) = suggested_import {
-                    format!("Unknown symbol `{}`. Try importing it: {}", symbol, suggestion)
+                    format!(
+                        "Unknown symbol `{}`. Try importing it: {}",
+                        symbol, suggestion
+                    )
                 } else {
                     format!("Unknown symbol `{}`", symbol)
                 }

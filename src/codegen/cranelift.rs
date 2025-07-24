@@ -249,11 +249,8 @@ impl CraneliftCodegen {
     fn convert_literal(literal: &ast::Literal, builder: &mut FunctionBuilder) -> ir::Value {
         match literal {
             ast::Literal::I64(value) => {
-                if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
-                    builder.ins().iconst(Type::int(32).unwrap(), *value as i64)
-                } else {
-                    builder.ins().iconst(Type::int(64).unwrap(), *value)
-                }
+                // Always create i64 constants for i64 literals to match function signatures
+                builder.ins().iconst(Type::int(64).unwrap(), *value)
             }
             ast::Literal::F64(value) => {
                 if value.fract() == 0.0 && *value <= f32::MAX as f64 && *value >= f32::MIN as f64 {

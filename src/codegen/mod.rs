@@ -4,3 +4,4 @@
 //! from the Mid-level Intermediate Representation (MIR).
 
 pub mod cranelift;
+pub mod compile;
