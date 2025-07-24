@@ -78,15 +78,36 @@ impl<'src> TypeChecker<'src> {
             .as_ref()
             .map_or(Ty::Unit, |rt| self.lower_type(rt));
 
-        // Pass the expected return type to the body checker.
-        let body = self.check_expr_with_hint(&func.body, &expected_ret_ty)?;
+        // Check if this is a function declaration (empty body) or a function definition
+        let body = if let ast::Expr::Block { stmts, last_expr } = &func.body {
+            if stmts.is_empty() && last_expr.is_none() {
+                // This is a function declaration (extern function), don't check the body
+                hir::Expr {
+                    kind: hir::ExprKind::Block {
+                        stmts: vec![],
+                        last_expr: None,
+                    },
+                    ty: expected_ret_ty.clone(),
+                }
+            } else {
+                // This is a function definition, check the body
+                self.check_expr_with_hint(&func.body, &expected_ret_ty)?
+            }
+        } else {
+            // This is a function definition, check the body
+            self.check_expr_with_hint(&func.body, &expected_ret_ty)?
+        };
 
-        // Unify the actual body's return type with the function's declared return type.
-        if let Err(_) = self.unify(&body.ty, &expected_ret_ty) {
-            return Err(TypeError::MismatchedTypes {
-                expected: self.resolve_type(&expected_ret_ty),
-                found: self.resolve_type(&body.ty),
-            });
+        // For function definitions (not declarations), unify the actual body's return type with the function's declared return type.
+        if let ast::Expr::Block { stmts, last_expr } = &func.body {
+            if !stmts.is_empty() || last_expr.is_some() {
+                if let Err(_) = self.unify(&body.ty, &expected_ret_ty) {
+                    return Err(TypeError::MismatchedTypes {
+                        expected: self.resolve_type(&expected_ret_ty),
+                        found: self.resolve_type(&body.ty),
+                    });
+                }
+            }
         }
 
         self.context.leave_scope();

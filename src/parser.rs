@@ -1302,13 +1302,18 @@ fn impl_parser<'src>()
                 .or_not()
         )
         .then(methods)
-        .map(|((trait_name, target_type), methods)| ImplBlock {
-            trait_name,
-            target_type: target_type.unwrap_or_else(|| Type {
-                path: vec![trait_name], // If no "for" type, use the trait name as the type
+        .map(|((trait_name, target_type), methods)| {
+            // If no "for" type is specified, assume this is a struct implementation
+            // and use the trait_name as the target type
+            let actual_target_type = target_type.unwrap_or_else(|| Type {
+                path: vec![trait_name], // Use the trait_name as the target type
                 generics: vec![],
-            }),
-            methods,
+            });
+            ImplBlock {
+                trait_name,
+                target_type: actual_target_type,
+                methods,
+            }
         })
         .labelled("impl block")
 }

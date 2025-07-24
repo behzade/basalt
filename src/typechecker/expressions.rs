@@ -331,7 +331,6 @@ impl<'src> TypeChecker<'src> {
         self.context.enter_scope();
         let mut hir_stmts = Vec::new();
         let mut block_ty = Ty::Unit; // Default to unit
-        let mut has_return = false;
 
         for stmt in stmts {
             // Check if this is a return statement
@@ -340,28 +339,31 @@ impl<'src> TypeChecker<'src> {
                 self.unify(&hir_expr.ty, type_hint)?;
                 block_ty = hir_expr.ty.clone();
                 hir_stmts.push(hir::Stmt::Return(Some(hir_expr)));
-                has_return = true;
-                // Don't break here - continue processing to find the last reachable return
             } else {
-                hir_stmts.push(self.check_stmt(stmt)?);
+                let hir_stmt = self.check_stmt(stmt)?;
+                hir_stmts.push(hir_stmt);
             }
         }
 
-        let (hir_last, final_ty) = if has_return {
-            (None, block_ty)
-        } else if let Some(last) = last_expr {
-            let hir_last = self.check_expr_with_hint(last, type_hint)?;
-            (Some(Box::new(hir_last.clone())), hir_last.ty)
+        // Check the last expression if present
+        let hir_last_expr = if let Some(expr) = last_expr {
+            let hir_expr = self.check_expr_with_hint(expr, type_hint)?;
+            self.unify(&hir_expr.ty, type_hint)?;
+            block_ty = hir_expr.ty.clone();
+            Some(Box::new(hir_expr))
         } else {
-            (None, Ty::Unit)
+            None
         };
 
         self.context.leave_scope();
-        let kind = hir::ExprKind::Block {
-            stmts: hir_stmts,
-            last_expr: hir_last,
-        };
-        Ok((kind, final_ty))
+
+        Ok((
+            hir::ExprKind::Block {
+                stmts: hir_stmts,
+                last_expr: hir_last_expr,
+            },
+            block_ty,
+        ))
     }
 
     fn check_call(
@@ -377,30 +379,28 @@ impl<'src> TypeChecker<'src> {
                 let array_expr = self.check_expr(&args[0])?;
                 let index_expr = self.check_expr(&args[1])?;
 
-                // Check that the index is an integer
-                self.unify(&index_expr.ty, &Ty::I64)?;
-
                 // Check that the first argument is an array
                 if let Ty::Array(element_ty) = &array_expr.ty {
+                    // For array access, the index should be an integer
+                    self.unify(&index_expr.ty, &Ty::I64)?;
                     let kind = hir::ExprKind::Call {
                         fun: Box::new(hir_fun),
                         args: vec![array_expr.clone(), index_expr.clone()],
                     };
                     return Ok((kind, element_ty.as_ref().clone()));
+                } else if let Ty::Map { key: key_ty, value: value_ty } = &array_expr.ty {
+                    // For map access, the key should match the map's key type
+                    self.unify(&index_expr.ty, key_ty)?;
+                    let kind = hir::ExprKind::Call {
+                        fun: Box::new(hir_fun),
+                        args: vec![array_expr.clone(), index_expr.clone()],
+                    };
+                    return Ok((kind, value_ty.as_ref().clone()));
                 } else {
-                    // If it's not an array, check if it's a map (for map access)
-                    if let Ty::Map { value, .. } = &array_expr.ty {
-                        let kind = hir::ExprKind::Call {
-                            fun: Box::new(hir_fun),
-                            args: vec![array_expr.clone(), index_expr.clone()],
-                        };
-                        return Ok((kind, value.as_ref().clone()));
-                    } else {
-                        return Err(TypeError::MismatchedTypes {
-                            expected: Ty::Array(Box::new(Ty::Infer(0))),
-                            found: array_expr.ty,
-                        });
-                    }
+                    return Err(TypeError::MismatchedTypes {
+                        expected: Ty::Array(Box::new(Ty::Infer(0))),
+                        found: array_expr.ty,
+                    });
                 }
             }
 
@@ -414,14 +414,38 @@ impl<'src> TypeChecker<'src> {
 
                 // Check that the first argument is a struct (ADT)
                 if let Ty::Adt { name, .. } = &struct_expr.ty {
-                    // For now, return an inference variable for the field type
-                    // In a real implementation, we'd look up the struct definition
-                    let field_ty = self.new_infer_ty();
-                    let kind = hir::ExprKind::Call {
-                        fun: Box::new(hir_fun),
-                        args: vec![struct_expr.clone(), field_name_expr.clone()],
-                    };
-                    return Ok((kind, field_ty));
+                    // Look up the struct definition to get the field type
+                    let struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
+                    if let Some(struct_def) = self.context.get_struct(struct_name) {
+                        // Extract the field name from the string literal
+                        if let ast::Expr::Literal(ast::Literal::Str(field_name)) = &args[1] {
+                            // Find the field in the struct definition
+                            if let Some((_, field_ty_ast)) = struct_def.fields.iter().find(|(n, _)| n == field_name) {
+                                // Convert the AST type to HIR type
+                                let field_ty = self.lower_type(field_ty_ast);
+                                let kind = hir::ExprKind::Call {
+                                    fun: Box::new(hir_fun),
+                                    args: vec![struct_expr.clone(), field_name_expr.clone()],
+                                };
+                                return Ok((kind, field_ty));
+                            } else {
+                                return Err(TypeError::UnknownStructField {
+                                    struct_name,
+                                    field_name,
+                                });
+                            }
+                        } else {
+                            // If the field name is not a string literal, we can't determine the field type at compile time
+                            let field_ty = self.new_infer_ty();
+                            let kind = hir::ExprKind::Call {
+                                fun: Box::new(hir_fun),
+                                args: vec![struct_expr.clone(), field_name_expr.clone()],
+                            };
+                            return Ok((kind, field_ty));
+                        }
+                    } else {
+                        return Err(TypeError::UnknownStruct(struct_name));
+                    }
                 } else {
                     return Err(TypeError::MismatchedTypes {
                         expected: Ty::Adt { name: vec!["struct"], generics: vec![] },
@@ -530,22 +554,44 @@ impl<'src> TypeChecker<'src> {
                 }
 
                 let mut hir_args = Vec::new();
+                let mut substitution = HashMap::new();
+
+                // Check arguments and collect type information for generic inference
                 for (arg, (_, param_ty)) in args.iter().zip(func_def.params.iter()) {
-                    let lower_param_ty = self.lower_type(param_ty);
-                    let hir_arg = self.check_expr_with_hint(arg, &lower_param_ty)?;
-                    self.unify(&hir_arg.ty, &lower_param_ty)?;
-                    hir_args.push(hir_arg);
+                    let hir_arg = self.check_expr(arg)?;
+                    hir_args.push(hir_arg.clone());
+
+                    // If the parameter type is a generic parameter, try to infer it from the argument
+                    if let ast::Type { path: param_path, generics: param_generics } = param_ty {
+                        if param_generics.is_empty() && param_path.len() == 1 {
+                            let param_name = param_path[0];
+                            // Check if this is a generic parameter of the function
+                            if func_def.generics.contains(&param_name) {
+                                // Infer the type from the argument
+                                substitution.insert(param_name, hir_arg.ty.clone());
+                            }
+                        }
+                    }
                 }
 
-                let ret_ty = func_def
-                    .ret_type
-                    .as_ref()
-                    .map_or(Ty::Unit, |t| self.lower_type(t));
-                let kind = hir::ExprKind::Call {
-                    fun: Box::new(hir_fun),
-                    args: hir_args,
+                // Apply substitution to return type
+                let ret_ty = if let Some(ret_type) = &func_def.ret_type {
+                    if substitution.is_empty() {
+                        self.lower_type(ret_type)
+                    } else {
+                        self.substitute_generics(ret_type, &substitution)
+                    }
+                } else {
+                    Ty::Unit
                 };
-                return Ok((kind, ret_ty));
+
+                return Ok((
+                    hir::ExprKind::Call {
+                        fun: Box::new(hir_fun),
+                        args: hir_args,
+                    },
+                    ret_ty,
+                ));
             }
 
             // Then check for extern functions

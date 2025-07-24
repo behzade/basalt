@@ -57,13 +57,11 @@ impl<'src> TypeChecker<'src> {
             value_ty
         };
 
-        self.context
-            .add_variable(name, self.resolve_type(&final_ty));
-
+        self.context.add_variable(name, final_ty.clone());
         Ok(hir::Stmt::Let {
-            name,
             is_mut: *is_mut,
-            value_ty: self.resolve_type(&final_ty),
+            name,
+            value_ty: final_ty,
             value: hir_value,
         })
     }
