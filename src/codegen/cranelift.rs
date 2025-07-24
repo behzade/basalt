@@ -137,13 +137,13 @@ impl CraneliftCodegen {
             crate::hir::Ty::Bool => Type::int(8).unwrap(),
             crate::hir::Ty::I32 => Type::int(32).unwrap(),
             crate::hir::Ty::I64 => Type::int(64).unwrap(),
-            crate::hir::Ty::F64 => Type::int(64).unwrap(), // Treat f64 as i64 for now
-            crate::hir::Ty::Str => Type::int(64).unwrap(), // Treat string as i64 for now
+            crate::hir::Ty::F64 => Type::int(64).unwrap(), // F64 as i64 for now - need proper float support
+            crate::hir::Ty::Str => Type::int(64).unwrap(), // String as pointer for now
             crate::hir::Ty::Unit => Type::int(32).unwrap(), // Unit as i32 for simplicity
-            crate::hir::Ty::Array(_) => Type::int(64).unwrap(), // Array as i64 for now
-            crate::hir::Ty::Map { .. } => Type::int(64).unwrap(), // Map as i64 for now
-            crate::hir::Ty::Adt { .. } => Type::int(64).unwrap(), // ADT as i64 for now
-            crate::hir::Ty::Function { .. } => Type::int(64).unwrap(), // Function as i64 for now
+            crate::hir::Ty::Array(_) => Type::int(64).unwrap(), // Array as pointer for now
+            crate::hir::Ty::Map { .. } => Type::int(64).unwrap(), // Map as pointer for now
+            crate::hir::Ty::Adt { .. } => Type::int(64).unwrap(), // ADT as pointer for now
+            crate::hir::Ty::Function { .. } => Type::int(64).unwrap(), // Function as pointer for now
             crate::hir::Ty::Infer(_) => Type::int(32).unwrap(), // Infer as i32 for simplicity
             crate::hir::Ty::Error => Type::int(32).unwrap(), // Error as i32 for simplicity
         }
@@ -220,9 +220,22 @@ impl CraneliftCodegen {
                 // For now, return a null pointer
                 builder.ins().iconst(Type::int(64).unwrap(), 0)
             }
-            mir::Rvalue::StructInit { .. } => {
-                // For now, return a null pointer
-                builder.ins().iconst(Type::int(64).unwrap(), 0)
+            mir::Rvalue::StructInit { path, fields } => {
+                // For now, create a simple struct by combining field values
+                // In a real implementation, this would allocate memory and store fields
+                let mut field_values = Vec::new();
+                for (field_name, field_operand) in fields {
+                    let field_val = Self::convert_operand(field_operand, builder, local_mapping);
+                    field_values.push(field_val);
+                }
+                
+                // For now, just return the first field value as a simple representation
+                // This is a placeholder - real implementation would create proper struct layout
+                if let Some(first_field) = field_values.first() {
+                    *first_field
+                } else {
+                    builder.ins().iconst(Type::int(64).unwrap(), 0)
+                }
             }
         }
     }
