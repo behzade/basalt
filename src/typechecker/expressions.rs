@@ -149,34 +149,20 @@ impl<'src> TypeChecker<'src> {
         // First, try to resolve the path using import resolution
         let resolved_path = self.resolve_path(path);
 
-        // Check for module-qualified paths (e.g., Fmt::println)
-        if resolved_path.len() >= 2 {
-            // Try to resolve as a module symbol
-            if let Some(module_type) = self.resolve_module_symbol(&resolved_path) {
-                let ty = self.lower_type(&module_type);
-                return Ok((hir::ExprKind::ModulePath {
-                    module: resolved_path[0],
-                    symbol: resolved_path[1],
-                }, ty));
-            }
+        // For module-qualified paths (e.g., Std::Io::println), just create a Path expression
+        // and let the check_call function handle the module resolution
+        if resolved_path.len() >= 3 {
+            // Check if the module exists but the symbol doesn't
+            let namespace = resolved_path[0];
+            let module = resolved_path[1];
+            let symbol = resolved_path[2];
 
-            // If we couldn't resolve it as a module symbol, check if it looks like a module path
-            if resolved_path.len() >= 3 {
-                let namespace = resolved_path[0];
-                let module = resolved_path[1];
-                let symbol = resolved_path[2];
-
-                // Check if the module exists but the symbol doesn't
-                let module_path = format!("{}::{}", namespace, module);
-                if self.context.get_module_symbols(&module_path).is_some() {
-                    return Err(TypeError::UnknownModuleSymbol {
-                        namespace,
-                        module,
-                        symbol,
-                    });
-                } else {
-                    return Err(TypeError::UnknownModule { namespace, module });
-                }
+            let module_path = format!("{}::{}", namespace, module);
+            if self.context.get_module_symbols(&module_path).is_some() {
+                // Module exists, create a Path expression for the function call
+                return Ok((hir::ExprKind::Path(resolved_path), self.new_infer_ty()));
+            } else {
+                return Err(TypeError::UnknownModule { namespace, module });
             }
         }
 
