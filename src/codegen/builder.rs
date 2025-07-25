@@ -173,23 +173,62 @@ impl<'a> WasmBuilder<'a> {
         match rvalue {
             mir::Rvalue::Use(op) => self.build_operand(op, f, func),
             mir::Rvalue::BinaryOp(op, lhs, rhs) => {
+                // Determine the operand types to choose the correct operation
+                let lhs_type = self.get_operand_type(lhs, func);
+                let rhs_type = self.get_operand_type(rhs, func);
+                
+                // Use the wider type for the operation (i64 > i32)
+                let operation_type = if matches!(lhs_type, ValType::I64) || matches!(rhs_type, ValType::I64) {
+                    ValType::I64
+                } else {
+                    ValType::I32
+                };
+                
                 self.build_operand(lhs, f, func); // Push LHS
                 self.build_operand(rhs, f, func); // Push RHS
-                let instruction = match op {
-                    ast::BinaryOp::Add => Instruction::I32Add,
-                    ast::BinaryOp::Sub => Instruction::I32Sub,
-                    ast::BinaryOp::Mul => Instruction::I32Mul,
-                    ast::BinaryOp::Div => Instruction::I32DivS, // Signed division
-                    ast::BinaryOp::Eq => Instruction::I32Eq,
-                    ast::BinaryOp::Ne => Instruction::I32Ne,
-                    ast::BinaryOp::Lt => Instruction::I32LtS,
-                    ast::BinaryOp::Gt => Instruction::I32GtS,
+                
+                let instruction = match (op, operation_type) {
+                    (ast::BinaryOp::Add, ValType::I32) => Instruction::I32Add,
+                    (ast::BinaryOp::Add, ValType::I64) => Instruction::I64Add,
+                    (ast::BinaryOp::Sub, ValType::I32) => Instruction::I32Sub,
+                    (ast::BinaryOp::Sub, ValType::I64) => Instruction::I64Sub,
+                    (ast::BinaryOp::Mul, ValType::I32) => Instruction::I32Mul,
+                    (ast::BinaryOp::Mul, ValType::I64) => Instruction::I64Mul,
+                    (ast::BinaryOp::Div, ValType::I32) => Instruction::I32DivS, // Signed division
+                    (ast::BinaryOp::Div, ValType::I64) => Instruction::I64DivS, // Signed division
+                    (ast::BinaryOp::Eq, ValType::I32) => Instruction::I32Eq,
+                    (ast::BinaryOp::Eq, ValType::I64) => Instruction::I64Eq,
+                    (ast::BinaryOp::Ne, ValType::I32) => Instruction::I32Ne,
+                    (ast::BinaryOp::Ne, ValType::I64) => Instruction::I64Ne,
+                    (ast::BinaryOp::Lt, ValType::I32) => Instruction::I32LtS,
+                    (ast::BinaryOp::Lt, ValType::I64) => Instruction::I64LtS,
+                    (ast::BinaryOp::Gt, ValType::I32) => Instruction::I32GtS,
+                    (ast::BinaryOp::Gt, ValType::I64) => Instruction::I64GtS,
                     _ => Instruction::Nop,
                 };
                 f.instruction(&instruction);
             },
             // ... Other Rvalue types
             _ => {}
+        }
+    }
+
+    /// Helper function to determine the WebAssembly type of an operand
+    fn get_operand_type(&self, op: &'a mir::Operand, func: &'a mir::MirFunction<'a>) -> ValType {
+        match op {
+            mir::Operand::Constant(lit) => match lit {
+                ast::Literal::I32(_) => ValType::I32,
+                ast::Literal::I64(_) => ValType::I64,
+                ast::Literal::Bool(_) => ValType::I32,
+                ast::Literal::F64(_) => ValType::F64,
+                ast::Literal::Str(_) => ValType::I32, // Placeholder
+                ast::Literal::Unit => ValType::I32,
+            },
+            mir::Operand::Copy(place) => {
+                // Get the type from the local variable
+                let local = &func.locals[&place.local];
+                self.mir_ty_to_valtype(&local.ty)
+            }
         }
     }
 
