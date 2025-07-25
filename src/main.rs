@@ -598,7 +598,11 @@ fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
 }
 
 /// Runs the WebAssembly compilation process on the given source code.
-fn run_wasm_compilation(source_code: &str, source_id: &str, output: Option<String>) -> io::Result<()> {
+fn run_wasm_compilation(
+    source_code: &str,
+    source_id: &str,
+    output: Option<String>,
+) -> io::Result<()> {
     // First, lex and parse the source code
     let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
 
@@ -637,7 +641,10 @@ fn run_wasm_compilation(source_code: &str, source_id: &str, output: Option<Strin
                     // Compile MIR directly to Wasm using our new backend
                     match compile_program_to_wasm(&mir_program) {
                         Ok(wasm_bytes) => {
-                            println!("✓ Generated WebAssembly module ({} bytes)", wasm_bytes.len());
+                            println!(
+                                "✓ Generated WebAssembly module ({} bytes)",
+                                wasm_bytes.len()
+                            );
 
                             // Determine output file path
                             let output_path = output.unwrap_or_else(|| "output.wasm".to_string());
@@ -717,13 +724,19 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                     // Compile MIR directly to Wasm using our new backend
                     match compile_program_to_wasm(&mir_program) {
                         Ok(wasm_bytes) => {
-                            println!("✓ Generated WebAssembly module ({} bytes)", wasm_bytes.len());
+                            println!(
+                                "✓ Generated WebAssembly module ({} bytes)",
+                                wasm_bytes.len()
+                            );
 
                             // Write Wasm file to temporary file
                             let temp_wasm_path = "temp_output.wasm";
                             match std::fs::write(temp_wasm_path, wasm_bytes) {
                                 Ok(_) => {
-                                    println!("✓ Wrote temporary WebAssembly file to: {}", temp_wasm_path);
+                                    println!(
+                                        "✓ Wrote temporary WebAssembly file to: {}",
+                                        temp_wasm_path
+                                    );
 
                                     // Execute with Wasmtime
                                     println!("Executing with Wasmtime...");
@@ -737,7 +750,9 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                                                 if !exec_output.stdout.is_empty() {
                                                     println!(
                                                         "Output: {}",
-                                                        String::from_utf8_lossy(&exec_output.stdout)
+                                                        String::from_utf8_lossy(
+                                                            &exec_output.stdout
+                                                        )
                                                     );
                                                 }
                                             } else {
@@ -745,7 +760,9 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                                                 if !exec_output.stderr.is_empty() {
                                                     eprintln!(
                                                         "Error: {}",
-                                                        String::from_utf8_lossy(&exec_output.stderr)
+                                                        String::from_utf8_lossy(
+                                                            &exec_output.stderr
+                                                        )
                                                     );
                                                 }
                                             }
@@ -768,7 +785,10 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                                     eprintln!("Error writing temporary WebAssembly file: {}", e);
                                     return Err(io::Error::new(
                                         io::ErrorKind::Other,
-                                        format!("Failed to write temporary WebAssembly file: {}", e),
+                                        format!(
+                                            "Failed to write temporary WebAssembly file: {}",
+                                            e
+                                        ),
                                     ));
                                 }
                             }
@@ -985,6 +1005,15 @@ fn report_type_errors(source_code: &str, source_id: &str, errors: &[TypeError]) 
                 } else {
                     format!("Unknown symbol `{}`", symbol)
                 }
+            }
+            &TypeError::LiteralOverflow {
+                value,
+                ref target_type,
+            } => {
+                format!(
+                    "Literal `{}` overflows target type `{}`",
+                    value, target_type
+                )
             }
         };
 

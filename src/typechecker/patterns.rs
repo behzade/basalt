@@ -27,6 +27,7 @@ impl<'src> TypeChecker<'src> {
                 // Determine the type of the literal
                 let literal_ty = match lit {
                     &ast::Literal::Bool(_) => hir::Ty::Bool,
+                    &ast::Literal::I32(_) => hir::Ty::I32,
                     &ast::Literal::I64(_) => hir::Ty::I64,
                     &ast::Literal::F64(_) => hir::Ty::F64,
                     &ast::Literal::Str(_) => hir::Ty::Str,

@@ -77,6 +77,21 @@ impl<'src> MirLowerer<'src> {
         builder.build(func.name, param_locals, func.ret_type.clone())
     }
 
+    /// Coerces a literal to the expected type, handling type conversions as needed.
+    fn coerce_literal_to_type(&self, lit: &ast::Literal<'src>, expected_ty: &hir::Ty<'src>) -> ast::Literal<'src> {
+        match (lit, expected_ty) {
+            (ast::Literal::I64(value), hir::Ty::I32) => {
+                // Convert to I32 literal when expected type is I32
+                // The typechecker should have already verified the value fits
+                ast::Literal::I32(*value as i32)
+            }
+            _ => {
+                // For other cases, just return the literal as-is
+                lit.clone()
+            }
+        }
+    }
+
     /// Lowers an HIR expression into a series of MIR statements and terminators.
     /// The result of the expression is placed in `destination`.
     fn lower_expr(
@@ -88,7 +103,10 @@ impl<'src> MirLowerer<'src> {
     ) {
         match &expr.kind {
             hir::ExprKind::Literal(lit) => {
-                let rvalue = Rvalue::Use(Operand::Constant(lit.clone()));
+                // Get the expected type from the destination
+                let expected_ty = &builder.locals[&destination.local].ty;
+                let coerced_lit = self.coerce_literal_to_type(lit, expected_ty);
+                let rvalue = Rvalue::Use(Operand::Constant(coerced_lit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
             hir::ExprKind::Path(path) => {

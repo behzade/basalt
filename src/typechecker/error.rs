@@ -61,6 +61,10 @@ pub enum TypeError<'src> {
         symbol: &'src str,
         suggested_import: Option<String>,
     },
+    LiteralOverflow {
+        value: i64,
+        target_type: String,
+    },
 }
 
 impl<'src> fmt::Display for hir::Ty<'src> {
@@ -200,6 +204,9 @@ impl<'src> fmt::Display for TypeError<'src> {
                 } else {
                     write!(f, "Unknown symbol `{}`", symbol)
                 }
+            }
+            TypeError::LiteralOverflow { value, target_type} => {
+                write!(f, "Literal overflow: value {} does not fit in type {}", value, target_type)
             }
         }
     }

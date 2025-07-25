@@ -248,6 +248,10 @@ impl CraneliftCodegen {
     /// Convert MIR literal to Cranelift constant.
     fn convert_literal(literal: &ast::Literal, builder: &mut FunctionBuilder) -> ir::Value {
         match literal {
+            ast::Literal::I32(value) => {
+                // Create i32 constants for i32 literals
+                builder.ins().iconst(Type::int(32).unwrap(), *value as i64)
+            }
             ast::Literal::I64(value) => {
                 // Always create i64 constants for i64 literals to match function signatures
                 builder.ins().iconst(Type::int(64).unwrap(), *value)

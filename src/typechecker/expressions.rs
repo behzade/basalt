@@ -62,7 +62,7 @@ impl<'src> TypeChecker<'src> {
         type_hint: &Ty<'src>,
     ) -> Result<hir::Expr<'src>, TypeError<'src>> {
         let (kind, ty) = match expr {
-            ast::Expr::Literal(lit) => self.check_literal(lit)?,
+            ast::Expr::Literal(lit) => self.check_literal(lit, type_hint)?,
             ast::Expr::Path(path) => self.check_path(path)?,
             ast::Expr::Unary { op, rhs } => self.check_unary(op, rhs)?,
             ast::Expr::Binary { op, lhs, rhs } => self.check_binary(op, lhs, rhs)?,
@@ -104,22 +104,42 @@ impl<'src> TypeChecker<'src> {
     fn check_literal(
         &self,
         lit: &ast::Literal<'src>,
+        type_hint: &Ty<'src>,
     ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
-        let ty = match lit {
-            ast::Literal::Bool(_) => Ty::Bool,
-            ast::Literal::I64(value) => {
-                // Use i32 for small integers, i64 for larger ones
-                if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
-                    Ty::I32
+        let (inferred_ty, coerced_lit) = match lit {
+            ast::Literal::Bool(_) => {
+                if matches!(type_hint, Ty::Bool) {
+                    (Ty::Bool, lit.clone())
                 } else {
-                    Ty::I64
+                    (Ty::Bool, lit.clone())
                 }
             }
-            ast::Literal::F64(_) => Ty::F64,
-            ast::Literal::Str(_) => Ty::Str,
-            ast::Literal::Unit => Ty::Unit,
+            ast::Literal::I32(_) => (Ty::I32, lit.clone()),
+            ast::Literal::I64(value) => {
+                // Check if the type hint expects i32
+                if matches!(type_hint, Ty::I32) {
+                    // Check if the value fits in i32
+                    if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
+                        // Coerce to i32 literal
+                        (Ty::I32, ast::Literal::I32(*value as i32))
+                    } else {
+                        // Value doesn't fit in i32 - return overflow error
+                        return Err(TypeError::LiteralOverflow {
+                            value: *value,
+                            target_type: "i32".to_string(),
+                        });
+                    }
+                } else {
+                    // Type hint is i64 or something else, keep as i64
+                    (Ty::I64, lit.clone())
+                }
+            }
+            ast::Literal::F64(_) => (Ty::F64, lit.clone()),
+            ast::Literal::Str(_) => (Ty::Str, lit.clone()),
+            ast::Literal::Unit => (Ty::Unit, lit.clone()),
         };
-        Ok((hir::ExprKind::Literal(lit.clone()), ty))
+        
+        Ok((hir::ExprKind::Literal(coerced_lit), inferred_ty))
     }
 
     fn check_path(

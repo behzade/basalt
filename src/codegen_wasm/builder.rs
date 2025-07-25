@@ -183,10 +183,17 @@ impl<'a> WasmBuilder<'a> {
         match op {
             mir::Operand::Constant(lit) => {
                 let instruction = match lit {
+                    ast::Literal::I32(v) => Instruction::I32Const(*v),
                     ast::Literal::I64(v) => {
-                        // For now, convert i64 to i32 for compatibility
-                        // In a real implementation, you'd need proper type checking
-                        Instruction::I32Const(*v as i32)
+                        // Check if the function returns i32 and the value fits in i32
+                        if matches!(func.return_type, crate::hir::Ty::I32) && 
+                           *v <= i32::MAX as i64 && *v >= i32::MIN as i64 {
+                            // Generate i32 constant for i32 return type
+                            Instruction::I32Const(*v as i32)
+                        } else {
+                            // Generate i64 constant for i64 return type or large values
+                            Instruction::I64Const(*v)
+                        }
                     },
                     ast::Literal::Bool(v) => Instruction::I32Const(if *v { 1 } else { 0 }),
                     ast::Literal::F64(v) => Instruction::F64Const(*v),

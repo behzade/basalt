@@ -121,6 +121,7 @@ pub struct Type<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal<'src> {
     Bool(bool),
+    I32(i32),
     I64(i64),
     F64(f64),
     Str(&'src str),
@@ -434,6 +435,7 @@ pub enum OwnedPattern {
 #[derive(Debug, Clone)]
 pub enum OwnedLiteral {
     Bool(bool),
+    I32(i32),
     I64(i64),
     F64(f64),
     Str(String),
@@ -684,6 +686,7 @@ impl<'src> From<&Literal<'src>> for OwnedLiteral {
     fn from(lit: &Literal<'src>) -> Self {
         match lit {
             Literal::Bool(b) => OwnedLiteral::Bool(*b),
+            Literal::I32(i) => OwnedLiteral::I32(*i),
             Literal::I64(i) => OwnedLiteral::I64(*i),
             Literal::F64(f) => OwnedLiteral::F64(*f),
             Literal::Str(s) => OwnedLiteral::Str(s.to_string()),
