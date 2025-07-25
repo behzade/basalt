@@ -1,0 +1,257 @@
+use crate::mir;
+use crate::ast;
+use std::collections::HashMap;
+use wasm_encoder::{
+    CodeSection, ExportKind, ExportSection, Function, FunctionSection, GlobalSection,
+    ImportSection, Instruction, Module, TypeSection, ValType,
+};
+
+/// Builds a .wasm module from a MIR program.
+pub struct WasmBuilder<'a> {
+    module: Module,
+    type_section: TypeSection,
+    import_section: ImportSection,
+    function_section: FunctionSection,
+    global_section: GlobalSection,
+    export_section: ExportSection,
+    code_section: CodeSection,
+    mir_program: Option<&'a mir::MirProgram<'a>>,
+    // Maps a function name to its index in the Wasm module's function index space.
+    function_indices: HashMap<&'a str, u32>,
+    // Track the next available type index
+    next_type_index: u32,
+}
+
+impl<'a> WasmBuilder<'a> {
+    pub fn new() -> Self {
+        Self {
+            module: Module::new(),
+            type_section: TypeSection::new(),
+            import_section: ImportSection::new(),
+            function_section: FunctionSection::new(),
+            global_section: GlobalSection::new(),
+            export_section: ExportSection::new(),
+            code_section: CodeSection::new(),
+            mir_program: None,
+            function_indices: HashMap::new(),
+            next_type_index: 0,
+        }
+    }
+
+    /// The main entry point for building the module.
+    pub fn build(
+        &mut self,
+        program: &'a mir::MirProgram<'a>,
+    ) -> Result<Vec<u8>, String> {
+        self.mir_program = Some(program);
+
+        // 1. Process Imports (WASI)
+        self.build_imports();
+
+        // 2. Define function types and function bodies
+        self.build_functions();
+
+        // 3. Define exports
+        self.build_exports();
+
+        // 4. Assemble the final module
+        self.module.section(&self.type_section);
+        self.module.section(&self.import_section);
+        self.module.section(&self.function_section);
+        self.module.section(&self.global_section);
+        self.module.section(&self.export_section);
+        self.module.section(&self.code_section);
+
+        Ok(self.module.clone().finish())
+    }
+
+    fn build_imports(&mut self) {
+        // Import fd_write for printing to stdout.
+        // It has the signature: (i32, i32, i32, i32) -> i32
+        // Which corresponds to: (fd, iovs_ptr, iovs_len, nwritten_ptr) -> errno
+        let params = vec![ValType::I32, ValType::I32, ValType::I32, ValType::I32];
+        let results = vec![ValType::I32];
+        self.type_section.ty().function(params, results);
+        // Type index 0 for the fd_write function
+        let type_index = self.next_type_index;
+        self.next_type_index += 1;
+
+        self.import_section.import(
+            "wasi_snapshot_preview1", // WASI module name
+            "fd_write",
+            wasm_encoder::EntityType::Function(type_index),
+        );
+        self.function_indices.insert("fd_write", 0); // It's the first function, index 0.
+    }
+
+    fn build_functions(&mut self) {
+        let program = self.mir_program.unwrap();
+
+        // Pass 1: Define all function types and get their type indices.
+        let mut func_to_type_index = HashMap::new();
+        
+        for (name, func) in &program.functions {
+            let params: Vec<ValType> = func.params.iter()
+                .map(|p| self.mir_ty_to_valtype(&func.locals[p].ty))
+                .collect();
+
+            let results: Vec<ValType> = if self.is_unit_type(&func.return_type) {
+                vec![]
+            } else {
+                vec![self.mir_ty_to_valtype(&func.return_type)]
+            };
+
+            // Add the function type to the type section
+            self.type_section.ty().function(params, results);
+            func_to_type_index.insert(*name, self.next_type_index);
+            self.next_type_index += 1;
+        }
+
+        // Pass 2: Build the function and code sections.
+        for (name, func) in &program.functions {
+            let type_index = func_to_type_index[name];
+            let func_index = self.import_section.len() + self.function_section.len();
+            self.function_indices.insert(name, func_index);
+            self.function_section.function(type_index);
+
+            // Now, generate the code for the function body
+            let wasm_func_body = self.build_function_body(func);
+            self.code_section.function(&wasm_func_body);
+        }
+    }
+
+    fn build_function_body(&self, func: &'a mir::MirFunction<'a>) -> Function {
+        let mut wasm_func = Function::new_with_locals_types(
+            func.locals
+                .values()
+                .filter(|l| !l.is_param) // Only declare non-parameter locals
+                .map(|l| self.mir_ty_to_valtype(&l.ty))
+        );
+
+        // Your MIR is already in basic blocks, which maps perfectly to Wasm's block structure.
+        for block in &func.basic_blocks {
+            // Here, you would walk through statements and terminators.
+            // This is a simplified example for an assignment and return.
+            for stmt in &block.statements {
+                self.build_statement(stmt, &mut wasm_func, func);
+            }
+            self.build_terminator(&block.terminator, &mut wasm_func, func);
+        }
+
+        // Every block in Wasm must end with a terminating instruction.
+        // We add an explicit 'end' for the whole function body.
+        wasm_func.instruction(&Instruction::End);
+        wasm_func
+    }
+
+    fn build_statement(&self, stmt: &'a mir::Statement, f: &mut Function, func: &'a mir::MirFunction<'a>) {
+        match stmt {
+            mir::Statement::Assign(place, rvalue) => {
+                // 1. Evaluate the Rvalue and push its result onto the stack.
+                self.build_rvalue(rvalue, f, func);
+                // 2. Store the result from the stack into the local.
+                f.instruction(&Instruction::LocalSet(place.local.0 as u32));
+            }
+        }
+    }
+
+    fn build_rvalue(&self, rvalue: &'a mir::Rvalue, f: &mut Function, func: &'a mir::MirFunction<'a>) {
+        match rvalue {
+            mir::Rvalue::Use(op) => self.build_operand(op, f, func),
+            mir::Rvalue::BinaryOp(op, lhs, rhs) => {
+                self.build_operand(lhs, f, func); // Push LHS
+                self.build_operand(rhs, f, func); // Push RHS
+                let instruction = match op {
+                    ast::BinaryOp::Add => Instruction::I32Add,
+                    ast::BinaryOp::Sub => Instruction::I32Sub,
+                    ast::BinaryOp::Mul => Instruction::I32Mul,
+                    ast::BinaryOp::Div => Instruction::I32DivS, // Signed division
+                    ast::BinaryOp::Eq => Instruction::I32Eq,
+                    ast::BinaryOp::Ne => Instruction::I32Ne,
+                    ast::BinaryOp::Lt => Instruction::I32LtS,
+                    ast::BinaryOp::Gt => Instruction::I32GtS,
+                    _ => Instruction::Nop,
+                };
+                f.instruction(&instruction);
+            },
+            // ... Other Rvalue types
+            _ => {}
+        }
+    }
+
+    fn build_operand(&self, op: &'a mir::Operand, f: &mut Function, func: &'a mir::MirFunction<'a>) {
+        match op {
+            mir::Operand::Constant(lit) => {
+                let instruction = match lit {
+                    ast::Literal::I64(v) => {
+                        // For now, convert i64 to i32 for compatibility
+                        // In a real implementation, you'd need proper type checking
+                        Instruction::I32Const(*v as i32)
+                    },
+                    ast::Literal::Bool(v) => Instruction::I32Const(if *v { 1 } else { 0 }),
+                    ast::Literal::F64(v) => Instruction::F64Const(*v),
+                    ast::Literal::Str(s) => {
+                        // For strings, we'll need to handle them differently
+                        // For now, just use a placeholder
+                        Instruction::I32Const(0)
+                    }
+                    ast::Literal::Unit => Instruction::I32Const(0),
+                };
+                f.instruction(&instruction);
+            }
+            mir::Operand::Copy(place) => {
+                // Push the value of the local onto the stack.
+                f.instruction(&Instruction::LocalGet(place.local.0 as u32));
+            }
+        }
+    }
+
+    fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, func: &'a mir::MirFunction<'a>) {
+        match term {
+            mir::Terminator::Return => {
+                // The return value should already be on the stack from the last expression.
+                f.instruction(&Instruction::Return);
+            }
+            mir::Terminator::Goto { target } => {
+                // `br` instruction jumps to a block label.
+                // Wasm blocks are indexed from the outside in.
+                // `br 0` breaks from the innermost block. You will need to manage a
+                // block depth counter to jump to the correct label.
+                // For a flat CFG like MIR, this requires careful label management.
+                // A simple goto might map to `br label_index`.
+                f.instruction(&Instruction::Br(*target as u32));
+            }
+            // ... Other terminators
+            _ => {}
+        }
+    }
+
+    fn build_exports(&mut self) {
+        if let Some(main_index) = self.function_indices.get("main") {
+            self.export_section.export(
+                "_start", // WASI expects a `_start` function for the entry point
+                ExportKind::Func,
+                *main_index,
+            );
+        }
+    }
+
+    /// Converts a MIR type to a Wasm ValType.
+    fn mir_ty_to_valtype(&self, ty: &crate::hir::Ty) -> ValType {
+        match ty {
+            crate::hir::Ty::I32 | crate::hir::Ty::Bool => ValType::I32,
+            crate::hir::Ty::I64 => ValType::I64,
+            crate::hir::Ty::F64 => ValType::F64,
+            // For GC types, we use `i32` as a placeholder until full GC support is widespread.
+            // This is a temporary solution - in a real implementation, you'd need proper GC support.
+            crate::hir::Ty::Array(_) | crate::hir::Ty::Map {..} | crate::hir::Ty::Adt {..} => ValType::I32,
+            // A string could be a reference to a GC-managed object.
+            crate::hir::Ty::Str => ValType::I32,
+            _ => ValType::I32, // Default/Unit
+        }
+    }
+
+    fn is_unit_type(&self, ty: &crate::hir::Ty) -> bool {
+        matches!(ty, crate::hir::Ty::Unit)
+    }
+} 
