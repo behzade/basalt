@@ -1,6 +1,5 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::prelude::*;
-// FIX: Removed `use chumsky::Parser;` as it's no longer needed.
 use clap::Parser as ClapParser;
 use std::fs;
 use std::io::{self, Read};
@@ -8,9 +7,7 @@ use std::io::{self, Read};
 // --- Module Declarations ---
 mod ast;
 mod codegen;
-mod codegen_wasm;
 mod hir;
-
 mod lexer;
 mod mir;
 mod parser;
@@ -18,9 +15,7 @@ mod token;
 mod typechecker;
 
 use crate::{
-    codegen::compile::NativeCodegen,
-    codegen::cranelift::CraneliftCodegen,
-    codegen_wasm::compile_program_to_wasm,
+    codegen::compile_program_to_wasm,
     lexer::lexer,
     mir::MirLowerer,
     parser::file_parser,
@@ -52,37 +47,16 @@ enum Action {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
-    /// Generate Cranelift IR from MIR
-    Cir {
-        /// The path to the file to process. If not provided, reads from stdin.
-        path: Option<String>,
-        /// Validate the generated Cranelift IR
-        #[arg(long)]
-        validate: bool,
-    },
-    /// Compile Cranelift IR into native object file
+    /// Compile to WebAssembly (.wasm file)
     Build {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
-        /// Output file path for the object file
+        /// Output file path for the .wasm file (defaults to dist/output.wasm)
         #[arg(short, long)]
         output: Option<String>,
     },
-    /// Build and run the generated native executable
+    /// Build and run the generated WebAssembly using Wasmtime
     Run {
-        /// The path to the file to process. If not provided, reads from stdin.
-        path: Option<String>,
-    },
-    /// Compile to WebAssembly (.wasm file)
-    Wasm {
-        /// The path to the file to process. If not provided, reads from stdin.
-        path: Option<String>,
-        /// Output file path for the .wasm file
-        #[arg(short, long)]
-        output: Option<String>,
-    },
-    /// Run WebAssembly code using Wasmtime
-    WasmRun {
         /// The path to the file to process. If not provided, reads from stdin.
         path: Option<String>,
     },
@@ -109,7 +83,6 @@ fn main() -> io::Result<()> {
             }
 
             if let Some(tokens) = tokens {
-                // FIX: Reverted to the original parser invocation.
                 let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
                 let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
 
@@ -133,25 +106,13 @@ fn main() -> io::Result<()> {
             let (source_id, source_code) = read_source(path)?;
             run_mir_lowering(&source_code, &source_id)?;
         }
-        Action::Cir { path, validate } => {
-            let (source_id, source_code) = read_source(path)?;
-            run_cranelift_generation(&source_code, &source_id, validate)?;
-        }
         Action::Build { path, output } => {
             let (source_id, source_code) = read_source(path)?;
-            run_wasm_build(&source_code, &source_id, output)?;
+            run_wasm_compilation(&source_code, &source_id, output)?;
         }
         Action::Run { path } => {
             let (source_id, source_code) = read_source(path)?;
             run_wasm_execution(&source_code, &source_id)?;
-        }
-        Action::Wasm { path, output } => {
-            let (source_id, source_code) = read_source(path)?;
-            run_wasm_compilation(&source_code, &source_id, output)?;
-        }
-        Action::WasmRun { path } => {
-            let (source_id, source_code) = read_source(path)?;
-            run_wasm_execution_with_wasmtime(&source_code, &source_id)?;
         }
     }
 
@@ -176,7 +137,6 @@ fn run_type_checker(source_code: &str, source_id: &str) -> io::Result<()> {
 
     // --- Parsing ---
     let tokens = tokens.unwrap(); // Safe to unwrap due to check above
-    // FIX: Reverted to the original parser invocation.
     let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
     let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
     if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
@@ -262,341 +222,6 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
     Ok(())
 }
 
-/// Runs the Cranelift IR generation process on the given source code.
-fn run_cranelift_generation(source_code: &str, source_id: &str, validate: bool) -> io::Result<()> {
-    // First, lex and parse the source code
-    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
-
-    if report_errors(source_code, source_id, &lex_errs, |e| {
-        (
-            e.span().into_range(),
-            format!("Unexpected character: {}", e.reason()),
-        )
-    }) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Lexing errors occurred",
-        ));
-    }
-
-    if let Some(tokens) = tokens {
-        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
-
-        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Parsing errors occurred",
-            ));
-        }
-
-        if let Some(ast) = ast {
-            // Type check to get HIR
-            let type_checker = TypeChecker::with_token_spans(tokens);
-            match type_checker.check_file(&ast) {
-                Ok(hir_items) => {
-                    // Lower HIR to MIR
-                    let mir_lowerer = MirLowerer::new(&hir_items);
-                    let mir_program = mir_lowerer.lower_to_mir();
-
-                    // Convert MIR to Cranelift IR
-                    let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
-
-                    if validate {
-                        // Validate the generated Cranelift IR
-                        for (name, function) in &cranelift_functions {
-                            // Basic validation - check if function has blocks
-                            if function.layout.blocks().next().is_none() {
-                                return Err(io::Error::new(
-                                    io::ErrorKind::InvalidData,
-                                    format!("Function '{}' has no basic blocks", name),
-                                ));
-                            }
-                        }
-                        println!(
-                            "✓ All {} functions validated successfully",
-                            cranelift_functions.len()
-                        );
-                    } else {
-                        // Print the Cranelift IR representation
-                        for (name, function) in cranelift_functions {
-                            println!("Function: {}", name);
-                            println!("{:#?}", function);
-                            println!("---");
-                        }
-                    }
-                }
-                Err(type_errors) => {
-                    report_type_errors(source_code, source_id, &type_errors);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Type checking errors occurred",
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Runs the native build process on the given source code.
-fn run_wasm_build(source_code: &str, source_id: &str, output: Option<String>) -> io::Result<()> {
-    // First, lex and parse the source code
-    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
-
-    if report_errors(source_code, source_id, &lex_errs, |e| {
-        (
-            e.span().into_range(),
-            format!("Unexpected character: {}", e.reason()),
-        )
-    }) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Lexing errors occurred",
-        ));
-    }
-
-    if let Some(tokens) = tokens {
-        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
-
-        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Parsing errors occurred",
-            ));
-        }
-
-        if let Some(ast) = ast {
-            // Type check to get HIR
-            let type_checker = TypeChecker::with_token_spans(tokens);
-            match type_checker.check_file(&ast) {
-                Ok(hir_items) => {
-                    // Lower HIR to MIR
-                    let mir_lowerer = MirLowerer::new(&hir_items);
-                    let mir_program = mir_lowerer.lower_to_mir();
-
-                    // Convert MIR to Cranelift IR
-                    let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
-                    let function_count = cranelift_functions.len();
-
-                    // Generate native object file from Cranelift IR
-                    match NativeCodegen::generate_object(cranelift_functions) {
-                        Ok(object_bytes) => {
-                            println!("✓ Generated {} Cranelift functions", function_count);
-                            println!(
-                                "✓ Generated native object file ({} bytes)",
-                                object_bytes.len()
-                            );
-
-                            // Determine output file path
-                            let output_path = output.unwrap_or_else(|| "output.o".to_string());
-
-                            // Write object file to disk
-                            match std::fs::write(&output_path, object_bytes) {
-                                Ok(_) => println!("✓ Wrote object file to: {}", output_path),
-                                Err(e) => {
-                                    eprintln!("Error writing object file: {}", e);
-                                    return Err(io::Error::new(
-                                        io::ErrorKind::Other,
-                                        format!("Failed to write object file: {}", e),
-                                    ));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Error generating object file: {}", e);
-                            return Err(io::Error::new(
-                                io::ErrorKind::Other,
-                                format!("Failed to generate object file: {}", e),
-                            ));
-                        }
-                    }
-                }
-                Err(type_errors) => {
-                    report_type_errors(source_code, source_id, &type_errors);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Type checking errors occurred",
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Runs the WASM execution process on the given source code.
-fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
-    // First, lex and parse the source code
-    let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
-
-    if report_errors(source_code, source_id, &lex_errs, |e| {
-        (
-            e.span().into_range(),
-            format!("Unexpected character: {}", e.reason()),
-        )
-    }) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Lexing errors occurred",
-        ));
-    }
-
-    if let Some(tokens) = tokens {
-        let token_slice: Vec<_> = tokens.iter().map(|(tok, _)| tok.clone()).collect();
-        let (ast, parse_errs) = file_parser().parse(&token_slice).into_output_errors();
-
-        if report_parser_errors(source_code, source_id, &parse_errs, &tokens) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Parsing errors occurred",
-            ));
-        }
-
-        if let Some(ast) = ast {
-            // Type check to get HIR
-            let type_checker = TypeChecker::with_token_spans(tokens);
-            match type_checker.check_file(&ast) {
-                Ok(hir_items) => {
-                    // Lower HIR to MIR
-                    let mir_lowerer = MirLowerer::new(&hir_items);
-                    let mir_program = mir_lowerer.lower_to_mir();
-
-                    // Convert MIR to Cranelift IR
-                    let cranelift_functions = CraneliftCodegen::convert_program(&mir_program);
-                    let function_count = cranelift_functions.len();
-
-                    // Generate native object file from Cranelift IR
-                    match NativeCodegen::generate_object(cranelift_functions) {
-                        Ok(object_bytes) => {
-                            println!("✓ Generated {} Cranelift functions", function_count);
-                            println!(
-                                "✓ Generated native object file ({} bytes)",
-                                object_bytes.len()
-                            );
-
-                            // Write object file to temporary file
-                            let temp_obj_path = "temp_output.o";
-                            match std::fs::write(temp_obj_path, object_bytes) {
-                                Ok(_) => {
-                                    println!("✓ Wrote temporary object file to: {}", temp_obj_path);
-
-                                    // Link and execute with system linker
-                                    println!("Linking and running...");
-                                    match std::process::Command::new("cc")
-                                        .arg(temp_obj_path)
-                                        .arg("-o")
-                                        .arg("temp_executable")
-                                        .output()
-                                    {
-                                        Ok(link_output) => {
-                                            if link_output.status.success() {
-                                                // Execute the binary
-                                                match std::process::Command::new(
-                                                    "./temp_executable",
-                                                )
-                                                .output()
-                                                {
-                                                    Ok(exec_output) => {
-                                                        if exec_output.status.success() {
-                                                            println!(
-                                                                "✓ Native execution successful"
-                                                            );
-                                                            if !exec_output.stdout.is_empty() {
-                                                                println!(
-                                                                    "Output: {}",
-                                                                    String::from_utf8_lossy(
-                                                                        &exec_output.stdout
-                                                                    )
-                                                                );
-                                                            }
-                                                        } else {
-                                                            eprintln!("✗ Native execution failed");
-                                                            if !exec_output.stderr.is_empty() {
-                                                                eprintln!(
-                                                                    "Error: {}",
-                                                                    String::from_utf8_lossy(
-                                                                        &exec_output.stderr
-                                                                    )
-                                                                );
-                                                            }
-                                                        }
-
-                                                        // Clean up temporary files
-                                                        let _ = std::fs::remove_file(temp_obj_path);
-                                                        let _ =
-                                                            std::fs::remove_file("temp_executable");
-                                                    }
-                                                    Err(e) => {
-                                                        eprintln!(
-                                                            "Error running executable: {}",
-                                                            e
-                                                        );
-                                                        // Clean up temporary files
-                                                        let _ = std::fs::remove_file(temp_obj_path);
-                                                        let _ =
-                                                            std::fs::remove_file("temp_executable");
-                                                    }
-                                                }
-                                            } else {
-                                                eprintln!("✗ Linking failed");
-                                                if !link_output.stderr.is_empty() {
-                                                    eprintln!(
-                                                        "Error: {}",
-                                                        String::from_utf8_lossy(
-                                                            &link_output.stderr
-                                                        )
-                                                    );
-                                                }
-                                                // Clean up temporary file
-                                                let _ = std::fs::remove_file(temp_obj_path);
-                                            }
-                                        }
-                                        Err(e) => {
-                                            eprintln!("Error running linker: {}", e);
-                                            eprintln!(
-                                                "Make sure 'cc' (gcc/clang) is installed and available in PATH"
-                                            );
-                                            // Clean up temporary file
-                                            let _ = std::fs::remove_file(temp_obj_path);
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    eprintln!("Error writing temporary object file: {}", e);
-                                    return Err(io::Error::new(
-                                        io::ErrorKind::Other,
-                                        format!("Failed to write temporary object file: {}", e),
-                                    ));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Error generating object file: {}", e);
-                            return Err(io::Error::new(
-                                io::ErrorKind::Other,
-                                format!("Failed to generate object file: {}", e),
-                            ));
-                        }
-                    }
-                }
-                Err(type_errors) => {
-                    report_type_errors(source_code, source_id, &type_errors);
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        "Type checking errors occurred",
-                    ));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
 /// Runs the WebAssembly compilation process on the given source code.
 fn run_wasm_compilation(
     source_code: &str,
@@ -638,7 +263,7 @@ fn run_wasm_compilation(
                     let mir_lowerer = MirLowerer::new(&hir_items);
                     let mir_program = mir_lowerer.lower_to_mir();
 
-                    // Compile MIR directly to Wasm using our new backend
+                    // Compile MIR directly to Wasm using our backend
                     match compile_program_to_wasm(&mir_program) {
                         Ok(wasm_bytes) => {
                             println!(
@@ -646,8 +271,15 @@ fn run_wasm_compilation(
                                 wasm_bytes.len()
                             );
 
-                            // Determine output file path
-                            let output_path = output.unwrap_or_else(|| "output.wasm".to_string());
+                            // Determine output file path (default to dist/output.wasm)
+                            let output_path = output.unwrap_or_else(|| "dist/output.wasm".to_string());
+
+                            // Ensure dist directory exists
+                            if let Some(parent) = std::path::Path::new(&output_path).parent() {
+                                if !parent.exists() {
+                                    std::fs::create_dir_all(parent)?;
+                                }
+                            }
 
                             // Write Wasm file to disk
                             match std::fs::write(&output_path, wasm_bytes) {
@@ -685,7 +317,7 @@ fn run_wasm_compilation(
 }
 
 /// Runs the WebAssembly execution process using Wasmtime.
-fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::Result<()> {
+fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
     // First, lex and parse the source code
     let (tokens, lex_errs) = lexer().parse(source_code).into_output_errors();
 
@@ -721,7 +353,7 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                     let mir_lowerer = MirLowerer::new(&hir_items);
                     let mir_program = mir_lowerer.lower_to_mir();
 
-                    // Compile MIR directly to Wasm using our new backend
+                    // Compile MIR directly to Wasm using our backend
                     match compile_program_to_wasm(&mir_program) {
                         Ok(wasm_bytes) => {
                             println!(
@@ -729,8 +361,12 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                                 wasm_bytes.len()
                             );
 
-                            // Write Wasm file to temporary file
-                            let temp_wasm_path = "temp_output.wasm";
+                            // Write Wasm file to temporary file in dist directory
+                            let temp_wasm_path = "dist/temp_output.wasm";
+                            
+                            // Ensure dist directory exists
+                            std::fs::create_dir_all("dist")?;
+
                             match std::fs::write(temp_wasm_path, wasm_bytes) {
                                 Ok(_) => {
                                     println!(
@@ -772,6 +408,7 @@ fn run_wasm_execution_with_wasmtime(source_code: &str, source_id: &str) -> io::R
                                         }
                                         Err(e) => {
                                             eprintln!("Error executing with Wasmtime: {}", e);
+                                            eprintln!("Make sure 'wasmtime' is installed and available in PATH");
                                             // Clean up temporary file
                                             let _ = std::fs::remove_file(temp_wasm_path);
                                             return Err(io::Error::new(
