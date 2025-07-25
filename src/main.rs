@@ -361,23 +361,23 @@ fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
                                 wasm_bytes.len()
                             );
 
-                            // Write Wasm file to temporary file in dist directory
-                            let temp_wasm_path = "dist/temp_output.wasm";
+                            // Write Wasm file to output.wasm
+                            let output_wasm_path = "dist/output.wasm";
                             
                             // Ensure dist directory exists
                             std::fs::create_dir_all("dist")?;
 
-                            match std::fs::write(temp_wasm_path, wasm_bytes) {
+                            match std::fs::write(output_wasm_path, wasm_bytes) {
                                 Ok(_) => {
                                     println!(
-                                        "✓ Wrote temporary WebAssembly file to: {}",
-                                        temp_wasm_path
+                                        "✓ Wrote WebAssembly file to: {}",
+                                        output_wasm_path
                                     );
 
                                     // Execute with Wasmtime
                                     println!("Executing with Wasmtime...");
                                     match std::process::Command::new("wasmtime")
-                                        .arg(temp_wasm_path)
+                                        .arg(output_wasm_path)
                                         .output()
                                     {
                                         Ok(exec_output) => {
@@ -402,15 +402,10 @@ fn run_wasm_execution(source_code: &str, source_id: &str) -> io::Result<()> {
                                                     );
                                                 }
                                             }
-
-                                            // Clean up temporary file
-                                            let _ = std::fs::remove_file(temp_wasm_path);
                                         }
                                         Err(e) => {
                                             eprintln!("Error executing with Wasmtime: {}", e);
                                             eprintln!("Make sure 'wasmtime' is installed and available in PATH");
-                                            // Clean up temporary file
-                                            let _ = std::fs::remove_file(temp_wasm_path);
                                             return Err(io::Error::new(
                                                 io::ErrorKind::Other,
                                                 format!("Failed to execute with Wasmtime: {}", e),

@@ -121,12 +121,26 @@ impl<'a> WasmBuilder<'a> {
     }
 
     fn build_function_body(&self, func: &'a mir::MirFunction<'a>) -> Function {
-        let mut wasm_func = Function::new_with_locals_types(
-            func.locals
-                .values()
-                .filter(|l| !l.is_param) // Only declare non-parameter locals
-                .map(|l| self.mir_ty_to_valtype(&l.ty))
-        );
+        // Collect locals in order by LocalId to ensure consistent ordering
+        let mut locals_vec: Vec<_> = func.locals
+            .iter()
+            .filter(|(_, l)| !l.is_param) // Only declare non-parameter locals
+            .collect();
+        locals_vec.sort_by_key(|(id, _)| id.0); // Sort by LocalId
+        
+        println!("DEBUG: Found {} non-parameter locals", locals_vec.len());
+        for (id, local) in &locals_vec {
+            println!("DEBUG: Local {}: {:?} -> {:?}", id.0, local.ty, self.mir_ty_to_valtype(&local.ty));
+        }
+        
+        let local_types: Vec<_> = locals_vec
+            .iter()
+            .map(|(_, l)| self.mir_ty_to_valtype(&l.ty))
+            .collect();
+        
+        println!("DEBUG: Creating WebAssembly function with {} local types: {:?}", local_types.len(), local_types);
+        
+        let mut wasm_func = Function::new_with_locals_types(local_types);
 
         // Your MIR is already in basic blocks, which maps perfectly to Wasm's block structure.
         for block in &func.basic_blocks {
@@ -185,15 +199,8 @@ impl<'a> WasmBuilder<'a> {
                 let instruction = match lit {
                     ast::Literal::I32(v) => Instruction::I32Const(*v),
                     ast::Literal::I64(v) => {
-                        // Check if the function returns i32 and the value fits in i32
-                        if matches!(func.return_type, crate::hir::Ty::I32) && 
-                           *v <= i32::MAX as i64 && *v >= i32::MIN as i64 {
-                            // Generate i32 constant for i32 return type
-                            Instruction::I32Const(*v as i32)
-                        } else {
-                            // Generate i64 constant for i64 return type or large values
-                            Instruction::I64Const(*v)
-                        }
+                        // Always generate i64 constant for i64 literals
+                        Instruction::I64Const(*v)
                     },
                     ast::Literal::Bool(v) => Instruction::I32Const(if *v { 1 } else { 0 }),
                     ast::Literal::F64(v) => Instruction::F64Const(*v),
