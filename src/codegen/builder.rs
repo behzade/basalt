@@ -259,7 +259,7 @@ impl<'a> WasmBuilder<'a> {
         }
     }
 
-    fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, _func: &'a mir::MirFunction<'a>) {
+    fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, func: &'a mir::MirFunction<'a>) {
         match term {
             mir::Terminator::Return => {
                 // The return value should be in local[0] (the return local).
@@ -275,6 +275,28 @@ impl<'a> WasmBuilder<'a> {
                 // For a flat CFG like MIR, this requires careful label management.
                 // A simple goto might map to `br label_index`.
                 f.instruction(&Instruction::Br(*target as u32));
+            }
+            mir::Terminator::Call { func: func_name, args, destination, target: _ } => {
+                // Push all arguments onto the stack
+                for arg in args {
+                    self.build_operand(arg, f, func);
+                }
+                
+                // Call the function
+                if let Some(func_index) = self.function_indices.get(func_name) {
+                    f.instruction(&Instruction::Call(*func_index));
+                } else {
+                    // If function not found, this is an error
+                    f.instruction(&Instruction::Unreachable);
+                }
+                
+                // Store the result in the destination if it's not unit
+                if !self.is_unit_type(&func.locals[&destination.local].ty) {
+                    f.instruction(&Instruction::LocalSet(destination.local.0 as u32));
+                }
+                
+                // For now, just continue execution linearly instead of jumping
+                // TODO: Implement proper control flow handling
             }
             // ... Other terminators
             _ => {}
