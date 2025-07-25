@@ -216,7 +216,9 @@ impl<'a> WasmBuilder<'a> {
     fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, func: &'a mir::MirFunction<'a>) {
         match term {
             mir::Terminator::Return => {
-                // The return value should already be on the stack from the last expression.
+                // The return value should be in local[0] (the return local).
+                // We need to put it on the stack before returning.
+                f.instruction(&Instruction::LocalGet(0));
                 f.instruction(&Instruction::Return);
             }
             mir::Terminator::Goto { target } => {
