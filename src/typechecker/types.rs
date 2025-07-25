@@ -18,6 +18,7 @@ impl<'src> TypeChecker<'src> {
             "string" => Ty::Str,
             "none" => Ty::Unit,
             "unit" => Ty::Unit,
+            "Unit" => Ty::Unit,
             "any" => Ty::Error, // Use Error as a placeholder for any type
             "Array" => {
                 let inner = ast_ty

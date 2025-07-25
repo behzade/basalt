@@ -1,12 +1,12 @@
 // Std::Fmt::print module
 
-pub fn println(message: string) -> Unit {
+pub fn println(message: string) -> unit {
     // Implementation would go here
     // For now, just return unit
     ()
 }
 
-pub fn print(message: string) -> Unit {
+pub fn print(message: string) -> unit {
     // Implementation would go here
     // For now, just return unit
     ()
