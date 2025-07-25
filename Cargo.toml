@@ -9,7 +9,3 @@ ariadne = "0.4.1"
 clap = { version = "4.5.4", features = ["derive"] }
 either = "1.9.0"
 wasm-encoder = "0.222.0"
-
-[dev-dependencies]
-wasm-tools = "1.211.0"
-wasmtime = "23.0.0"
