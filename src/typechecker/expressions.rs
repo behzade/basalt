@@ -158,6 +158,14 @@ impl<'src> TypeChecker<'src> {
             let symbol = resolved_path[2];
 
             let module_path = format!("{}::{}", namespace, module);
+            
+            // Try to load module symbols if not already cached
+            if self.context.get_module_symbols(&module_path).is_none() {
+                if let Some(symbols) = self.load_module_symbols(namespace, module) {
+                    self.context.add_module_symbols(module_path.clone(), symbols);
+                }
+            }
+            
             if self.context.get_module_symbols(&module_path).is_some() {
                 // Module exists, create a Path expression for the function call
                 return Ok((hir::ExprKind::Path(resolved_path), self.new_infer_ty()));
