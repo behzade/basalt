@@ -41,7 +41,7 @@ impl<'src> TypeChecker<'src> {
                     .collect();
                 ast::Type { path: name.clone(), generics: ast_generics }
             }
-            Ty::Function { param_types, ret_type } => {
+            Ty::Function { param_types: _, ret_type: _ } => {
                 // For function types, we'll use a simple representation
                 ast::Type { path: vec!["function"], generics: vec![] }
             }
@@ -262,7 +262,7 @@ impl<'src> TypeChecker<'src> {
         }
 
         // Check for struct types
-        if let Some(struct_def) = self.context.get_struct(name) {
+        if let Some(_struct_def) = self.context.get_struct(name) {
             let struct_ty = Ty::Adt {
                 name: vec![name],
                 generics: vec![],
@@ -504,7 +504,7 @@ impl<'src> TypeChecker<'src> {
                 
                 // Check if the receiver is a struct instance
                 if let Ty::Adt { name, .. } = &receiver.ty {
-                    let struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
+                    let _struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
                     
                     // Check if this method exists for this struct
                     if let Some(func_def) = self.context.get_function(method_name) {
@@ -677,7 +677,7 @@ impl<'src> TypeChecker<'src> {
                     let mut concrete_func = func_def.clone();
                     
                     // Substitute generic parameters in the function signature
-                    for (param_name, param_ty) in &mut concrete_func.params {
+                    for (_param_name, param_ty) in &mut concrete_func.params {
                         if let ast::Type { path, generics } = param_ty {
                             if generics.is_empty() && path.len() == 1 {
                                 let param_name_str = path[0];

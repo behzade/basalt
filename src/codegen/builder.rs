@@ -232,7 +232,7 @@ impl<'a> WasmBuilder<'a> {
         }
     }
 
-    fn build_operand(&self, op: &'a mir::Operand, f: &mut Function, func: &'a mir::MirFunction<'a>) {
+    fn build_operand(&self, op: &'a mir::Operand, f: &mut Function, _func: &'a mir::MirFunction<'a>) {
         match op {
             mir::Operand::Constant(lit) => {
                 let instruction = match lit {
@@ -243,7 +243,7 @@ impl<'a> WasmBuilder<'a> {
                     },
                     ast::Literal::Bool(v) => Instruction::I32Const(if *v { 1 } else { 0 }),
                     ast::Literal::F64(v) => Instruction::F64Const(*v),
-                    ast::Literal::Str(s) => {
+                    ast::Literal::Str(_s) => {
                         // For strings, we'll need to handle them differently
                         // For now, just use a placeholder
                         Instruction::I32Const(0)
@@ -259,7 +259,7 @@ impl<'a> WasmBuilder<'a> {
         }
     }
 
-    fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, func: &'a mir::MirFunction<'a>) {
+    fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, _func: &'a mir::MirFunction<'a>) {
         match term {
             mir::Terminator::Return => {
                 // The return value should be in local[0] (the return local).

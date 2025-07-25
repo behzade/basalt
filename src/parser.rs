@@ -1196,7 +1196,7 @@ fn extern_parser<'src>()
         }),
     ));
 
-    let params = param
+    let _params = param
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
@@ -1235,7 +1235,7 @@ fn impl_parser<'src>()
         .or_not()
         .then(ident)
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|((mut_kw, name), ty)| (Some(name), ty.unwrap_or_else(|| Type { path: vec!["unit"], generics: vec![] })));
+        .map(|((_mut_kw, name), ty)| (Some(name), ty.unwrap_or_else(|| Type { path: vec!["unit"], generics: vec![] })));
 
     let impl_method = just(Token::Fn)
         .ignore_then(ident)
@@ -1364,14 +1364,14 @@ fn item_parser<'src>()
     // Items with attributes
     let attributed_fn = attribute_parser()
         .then(fn_decl_parser())
-        .map(|(attr, func)| {
+        .map(|(_attr, func)| {
             // For now, just return the function without processing the attribute
             Item::Fn(func)
         });
 
     let attributed_struct = attribute_parser()
         .then(struct_parser())
-        .map(|(attr, struct_def)| {
+        .map(|(_attr, struct_def)| {
             // For now, just return the struct without processing the attribute
             Item::Struct(struct_def)
         });

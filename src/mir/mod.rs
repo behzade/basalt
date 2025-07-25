@@ -12,7 +12,7 @@ use data::*;
 
 // Re-export commonly used types for easier access
 pub use data::{
-    BasicBlock, HandlerContext, LocalId, MirFunction, MirLocal, MirProgram, Operand, PatternKind,
+    LocalId, MirFunction, MirProgram, Operand, PatternKind,
     Place, Rvalue, Statement, Terminator,
 };
 use std::collections::HashMap;
@@ -118,19 +118,19 @@ impl<'src> MirLowerer<'src> {
                 let rvalue = Rvalue::Use(Operand::Copy(Place { local: *local_id }));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
-            hir::ExprKind::EnumVariant { enum_name, variant_name } => {
+            hir::ExprKind::EnumVariant { enum_name: _, variant_name: _ } => {
                 // This is an enum variant, treat it as a constant for now
                 // In a real implementation, this would create proper enum variant construction
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
-            hir::ExprKind::ModulePath { module, symbol } => {
+            hir::ExprKind::ModulePath { module: _, symbol: _ } => {
                 // This is a module-qualified path, treat it as a constant for now
                 // In a real implementation, this would resolve the module symbol
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 builder.push_statement(Statement::Assign(destination, rvalue));
             }
-            hir::ExprKind::FieldAccess { receiver, field } => {
+            hir::ExprKind::FieldAccess { receiver, field: _ } => {
                 // Lower the receiver into a temporary local
                 let receiver_temp = builder.new_local(receiver.ty.clone(), false);
                 self.lower_expr(receiver, builder, locals, Place { local: receiver_temp });
@@ -259,11 +259,11 @@ impl<'src> MirLowerer<'src> {
                             ..
                         } => path.first().expect("Function path cannot be empty"),
                         hir::Expr {
-                            kind: hir::ExprKind::EnumVariant { enum_name, variant_name },
+                            kind: hir::ExprKind::EnumVariant { enum_name: _, variant_name },
                             ..
                         } => variant_name, // Use the variant name as the function name
                         hir::Expr {
-                            kind: hir::ExprKind::ModulePath { module, symbol },
+                            kind: hir::ExprKind::ModulePath { module: _, symbol },
                             ..
                         } => symbol, // Use the symbol name as the function name
                         _ => panic!("Expected function call to have a path, enum variant, or module path expression"),
