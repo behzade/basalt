@@ -57,11 +57,6 @@ enum Action {
         #[arg(short, long)]
         output: Option<String>,
     },
-    /// Build and run the generated WebAssembly using Wasmtime
-    Run {
-        /// The path to the file to process. If not provided, reads from stdin.
-        path: Option<String>,
-    },
 }
 
 fn main() -> io::Result<()> {
@@ -110,15 +105,12 @@ fn main() -> io::Result<()> {
         }
         Action::Build { path, output } => {
             let entry_path = path.ok_or_else(|| {
-                io::Error::new(io::ErrorKind::InvalidInput, "Build command requires a file path")
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "Build command requires a file path",
+                )
             })?;
             run_wasm_compilation(&entry_path, output)?;
-        }
-        Action::Run { path } => {
-            let entry_path = path.ok_or_else(|| {
-                io::Error::new(io::ErrorKind::InvalidInput, "Run command requires a file path")
-            })?;
-            run_wasm_execution(&entry_path)?;
         }
     }
 
@@ -229,16 +221,16 @@ fn run_mir_lowering(source_code: &str, source_id: &str) -> io::Result<()> {
 }
 
 /// Runs the WebAssembly compilation process on the given source code.
-fn run_wasm_compilation(
-    entry_path: &str,
-    output: Option<String>,
-) -> io::Result<()> {
+fn run_wasm_compilation(entry_path: &str, output: Option<String>) -> io::Result<()> {
     // Load the complete project starting from the entry point
     let project = ProjectLoader::load(entry_path)
         .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
 
-    println!("✓ Loaded project with {} items from {} files", 
-             project.items.len(), project.file_items.len());
+    println!(
+        "✓ Loaded project with {} items from {} files",
+        project.items.len(),
+        project.file_items.len()
+    );
 
     // Type check to get HIR
     let type_checker = TypeChecker::new();
@@ -274,120 +266,6 @@ fn run_wasm_compilation(
                             return Err(io::Error::new(
                                 io::ErrorKind::Other,
                                 format!("Failed to write WebAssembly file: {}", e),
-                            ));
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error generating WebAssembly: {}", e);
-                    return Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        format!("Failed to generate WebAssembly: {}", e),
-                    ));
-                }
-            }
-        }
-        Err(type_errors) => {
-            // For now, we'll report errors without source context since we have multiple files
-            eprintln!("Type checking errors occurred:");
-            for error in &type_errors {
-                eprintln!("  {}", error);
-            }
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Type checking errors occurred",
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-/// Runs the WebAssembly execution process using Wasmtime.
-fn run_wasm_execution(entry_path: &str) -> io::Result<()> {
-    // Load the complete project starting from the entry point
-    let project = ProjectLoader::load(entry_path)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-
-    println!("✓ Loaded project with {} items from {} files", 
-             project.items.len(), project.file_items.len());
-
-    // Type check to get HIR
-    let type_checker = TypeChecker::new();
-    match type_checker.check_file(&project.items) {
-        Ok(hir_items) => {
-            // Lower HIR to MIR
-            let mir_lowerer = MirLowerer::new(&hir_items);
-            let mir_program = mir_lowerer.lower_to_mir();
-
-            // Compile MIR directly to Wasm using our backend
-            match compile_program_to_wasm(&mir_program) {
-                Ok(wasm_bytes) => {
-                    println!(
-                        "✓ Generated WebAssembly module ({} bytes)",
-                        wasm_bytes.len()
-                    );
-
-                    // Write Wasm file to output.wasm
-                    let output_wasm_path = "dist/output.wasm";
-                    
-                    // Ensure dist directory exists
-                    std::fs::create_dir_all("dist")?;
-
-                    match std::fs::write(output_wasm_path, wasm_bytes) {
-                        Ok(_) => {
-                            println!(
-                                "✓ Wrote WebAssembly file to: {}",
-                                output_wasm_path
-                            );
-
-                            // Execute with Wasmtime
-                            println!("Executing with Wasmtime...");
-                            match std::process::Command::new("wasmtime")
-                                .arg(output_wasm_path)
-                                .output()
-                            {
-                                Ok(exec_output) => {
-                                    if exec_output.status.success() {
-                                        println!("✓ WebAssembly execution successful");
-                                        if !exec_output.stdout.is_empty() {
-                                            println!(
-                                                "Output: {}",
-                                                String::from_utf8_lossy(
-                                                    &exec_output.stdout
-                                                )
-                                            );
-                                        }
-                                    } else {
-                                        eprintln!("✗ WebAssembly execution failed");
-                                        if !exec_output.stderr.is_empty() {
-                                            eprintln!(
-                                                "Error: {}",
-                                                String::from_utf8_lossy(
-                                                    &exec_output.stderr
-                                                )
-                                            );
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    eprintln!("Error executing with Wasmtime: {}", e);
-                                    eprintln!("Make sure 'wasmtime' is installed and available in PATH");
-                                    return Err(io::Error::new(
-                                        io::ErrorKind::Other,
-                                        format!("Failed to execute with Wasmtime: {}", e),
-                                    ));
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Error writing temporary WebAssembly file: {}", e);
-                            return Err(io::Error::new(
-                                io::ErrorKind::Other,
-                                format!(
-                                    "Failed to write temporary WebAssembly file: {}",
-                                    e
-                                ),
                             ));
                         }
                     }
