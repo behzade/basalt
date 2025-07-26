@@ -646,27 +646,34 @@ impl<'a> WasmBuilder<'a> {
                 // Generate Instruction::LocalGet for the base Place to push the struct reference onto the stack
                 f.instruction(&Instruction::LocalGet(base.local.0 as u32));
                 
-                // Look up the type_index of the struct's type
-                // For now, we'll assume it's a struct type
-                let adt_type = hir::Ty::Adt {
-                    name: vec!["unknown"], // We'd need to track the actual type
-                    generics: vec![],
-                };
+                // Get the actual type of the base variable
+                let local = &func.locals[&base.local];
+                let base_type = &local.ty;
                 
-                if let Some(type_index) = self.type_map.get(&adt_type) {
-                    // Determine the field_idx by finding the field's position in the original struct definition
-                    if let Some(field_names) = self.struct_defs.get("unknown") {
-                        if let Some(field_idx) = field_names.iter().position(|&f| f == *field) {
-                            // Use proper WasmGC instruction to get the field
-                            f.instruction(&Instruction::StructGet {
-                                struct_type_index: *type_index,
-                                field_index: field_idx as u32,
-                            });
+                // Look up the type_index of the struct's type
+                if let Some(type_index) = self.type_map.get(base_type) {
+                    // Find the struct name from the type
+                    if let hir::Ty::Adt { name, .. } = base_type {
+                        if let Some(struct_name) = name.first() {
+                            // Determine the field_idx by finding the field's position in the original struct definition
+                            if let Some(field_names) = self.struct_defs.get(struct_name) {
+                                if let Some(field_idx) = field_names.iter().position(|&f| f == *field) {
+                                    // Use proper WasmGC instruction to get the field
+                                    f.instruction(&Instruction::StructGet {
+                                        struct_type_index: *type_index,
+                                        field_index: field_idx as u32,
+                                    });
+                                } else {
+                                    f.instruction(&Instruction::I32Const(0)); // Field not found
+                                }
+                            } else {
+                                f.instruction(&Instruction::I32Const(0)); // Struct definition not found
+                            }
                         } else {
-                            f.instruction(&Instruction::I32Const(0)); // Field not found
+                            f.instruction(&Instruction::I32Const(0)); // No struct name
                         }
                     } else {
-                        f.instruction(&Instruction::I32Const(0)); // Struct definition not found
+                        f.instruction(&Instruction::I32Const(0)); // Not an ADT type
                     }
                 } else {
                     f.instruction(&Instruction::I32Const(0)); // Type not found
