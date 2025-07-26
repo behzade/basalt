@@ -125,14 +125,14 @@ impl<'src> MirLowerer<'src> {
                 vec![MirInstruction::Assign(destination, rvalue)]
             }
             hir::ExprKind::EnumVariant { enum_name: _, variant_name: _ } => {
-                // This is an enum variant, treat it as a constant for now
-                // In a real implementation, this would create proper enum variant construction
+                // TODO: Implement proper enum variant construction
+                // This should create an enum variant with the specified fields
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 vec![MirInstruction::Assign(destination, rvalue)]
             }
             hir::ExprKind::ModulePath { module: _, symbol: _ } => {
-                // This is a module-qualified path, treat it as a constant for now
-                // In a real implementation, this would resolve the module symbol
+                // TODO: Implement proper module symbol resolution
+                // This should resolve the symbol from the specified module
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 vec![MirInstruction::Assign(destination, rvalue)]
             }
@@ -308,9 +308,8 @@ impl<'src> MirLowerer<'src> {
                         let handler_name =
                             handler_path.first().expect("Handler path cannot be empty");
 
-                        // For now, we'll assume the handler handles all effects
-                        // In a real implementation, we'd check the handler's effect signature
-                        let effect_name = "IO"; // Placeholder - should come from handler definition
+                        // TODO: Check the handler's effect signature to determine which effects it handles
+                        let effect_name = "IO"; // Should come from handler definition
 
                         // Lower the body
                         let body_instructions = self.lower_expr(body, builder, locals, destination);
@@ -597,8 +596,7 @@ impl<'src> MirLowerer<'src> {
                 }
             }
             hir::Stmt::Assign(lhs, rhs) => {
-                // For now, we'll handle simple assignments to local variables.
-                // This is a simplified version - real MIR would handle more complex cases.
+                // TODO: Support complex assignment targets like struct fields
                 let rhs_temp = builder.new_local(rhs.ty.clone(), false);
                 let mut instructions = self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
 
