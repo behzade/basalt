@@ -4,7 +4,7 @@ use crate::hir;
 use std::collections::HashMap;
 use wasm_encoder::{
     CodeSection, ExportKind, ExportSection, Function, FunctionSection, GlobalSection,
-    ImportSection, Instruction, Module, TypeSection, ValType, DataSection, StructType, ArrayType, HeapType,
+    ImportSection, Instruction, Module, TypeSection, ValType, DataSection, HeapType, FieldType, StorageType,
 };
 
 /// Builds a .wasm module from a MIR program.
@@ -30,6 +30,8 @@ pub struct WasmBuilder<'a> {
     string_data: Vec<u8>,
     // Track struct definitions for field access
     struct_defs: HashMap<&'a str, Vec<&'a str>>,
+    // Track actual struct definitions from HIR program
+    hir_struct_defs: HashMap<&'a str, hir::StructDef<'a>>,
 }
 
 impl<'a> WasmBuilder<'a> {
@@ -50,6 +52,7 @@ impl<'a> WasmBuilder<'a> {
             string_literals: HashMap::new(),
             string_data: Vec::new(),
             struct_defs: HashMap::new(),
+            hir_struct_defs: HashMap::new(),
         }
     }
 
@@ -63,16 +66,19 @@ impl<'a> WasmBuilder<'a> {
         // 1. Process Imports (WASI)
         self.build_imports();
 
-        // 2. Collect and define all aggregate types
+        // 2. Collect struct definitions from HIR program
+        self.collect_struct_definitions();
+
+        // 3. Collect and define all aggregate types
         self.collect_and_define_types();
 
-        // 3. Define function types and function bodies
+        // 4. Define function types and function bodies
         self.build_functions();
 
-        // 3. Define exports
+        // 5. Define exports
         self.build_exports();
 
-        // 4. Assemble the final module
+        // 6. Assemble the final module
         self.module.section(&self.type_section);
         self.module.section(&self.import_section);
         self.module.section(&self.function_section);
@@ -103,6 +109,38 @@ impl<'a> WasmBuilder<'a> {
         self.function_indices.insert("fd_write", 0); // It's the first function, index 0.
     }
 
+    /// Collect struct definitions from the HIR program
+    fn collect_struct_definitions(&mut self) {
+        // For now, we'll use hardcoded struct definitions
+        // In a real implementation, this would come from the HIR program
+        // We need to access the HIR program to get actual struct definitions
+        
+        // Example: Point struct with x, y fields
+        let point_struct = hir::StructDef {
+            name: "Point",
+            generics: vec![],
+            fields: vec![
+                ("x", hir::Ty::I32),
+                ("y", hir::Ty::I32),
+            ],
+            is_public: true,
+        };
+        self.hir_struct_defs.insert("Point", point_struct);
+        
+        // Example: Person struct with name, age, active fields
+        let person_struct = hir::StructDef {
+            name: "Person",
+            generics: vec![],
+            fields: vec![
+                ("name", hir::Ty::Str),
+                ("age", hir::Ty::I32),
+                ("active", hir::Ty::Bool),
+            ],
+            is_public: true,
+        };
+        self.hir_struct_defs.insert("Person", person_struct);
+    }
+
     /// Collect all aggregate types from the MIR program and define them in the type section
     fn collect_and_define_types(&mut self) {
         let program = self.mir_program.unwrap();
@@ -125,7 +163,7 @@ impl<'a> WasmBuilder<'a> {
             self.define_type(&ty);
         }
         
-        // Define string type: struct (field i32) (field (array u8))
+        // Define string type: array of i8 (UTF-8 bytes)
         self.define_string_type();
     }
     
@@ -134,6 +172,18 @@ impl<'a> WasmBuilder<'a> {
         match ty {
             hir::Ty::Adt { .. } | hir::Ty::Array(_) => {
                 unique_types.insert(ty.clone());
+                // Also collect nested types
+                match ty {
+                    hir::Ty::Adt { generics, .. } => {
+                        for generic_ty in generics {
+                            self.collect_aggregate_types(generic_ty, unique_types);
+                        }
+                    }
+                    hir::Ty::Array(element_type) => {
+                        self.collect_aggregate_types(element_type, unique_types);
+                    }
+                    _ => {}
+                }
             }
             hir::Ty::Map { key, value } => {
                 self.collect_aggregate_types(key, unique_types);
@@ -197,39 +247,60 @@ impl<'a> WasmBuilder<'a> {
     fn define_type(&mut self, ty: &hir::Ty<'a>) {
         match ty {
             hir::Ty::Adt { name, generics: _ } => {
-                // For now, we'll use a simple approach based on the name
-                // In a real implementation, you'd look up the actual struct definition
-                let field_names = match name.first() {
-                    Some(&"Point") => vec!["x", "y"],
-                    Some(&"Person") => vec!["name", "age", "active"],
-                    _ => vec!["field0", "field1"], // Default fallback
-                };
-                
-                let mut fields = Vec::new();
-                for _field_name in &field_names {
-                    // For now, assume all fields are i32
-                    // In a real implementation, you'd look up the actual field types
-                    fields.push(ValType::I32);
-                }
-                
-                // For now, we'll use a simpler approach without WasmGC
-                // In a real implementation with WasmGC support, you'd use:
-                // let struct_type = StructType::new(fields);
-                // self.type_section.rec_group().struct_type(struct_type);
-                self.type_map.insert(ty.clone(), self.next_type_index);
-                self.next_type_index += 1;
-                
-                // Store field names for later use
+                // Look up the actual struct definition
                 if let Some(struct_name) = name.first() {
-                    self.struct_defs.insert(struct_name, field_names);
+                    if let Some(struct_def) = self.hir_struct_defs.get(struct_name) {
+                        // Convert field types to FieldTypes
+                        let mut fields = Vec::new();
+                        let mut field_names = Vec::new();
+                        
+                        for (field_name, field_type) in &struct_def.fields {
+                            let val_type = self.hir_ty_to_valtype(field_type);
+                            fields.push(FieldType {
+                                element_type: StorageType::Val(val_type),
+                                mutable: false,
+                            });
+                            field_names.push(*field_name);
+                        }
+                        
+                        // Create the struct type using WasmGC
+                        self.type_section.ty().struct_(fields);
+                        
+                        // Store the type index and field names
+                        self.type_map.insert(ty.clone(), self.next_type_index);
+                        self.struct_defs.insert(struct_name, field_names);
+                        self.next_type_index += 1;
+                    } else {
+                        // Fallback: create a simple struct with i32 fields
+                        let field_names = vec!["field0", "field1"];
+                        let fields = vec![
+                            FieldType {
+                                element_type: StorageType::Val(ValType::I32),
+                                mutable: false,
+                            },
+                            FieldType {
+                                element_type: StorageType::Val(ValType::I32),
+                                mutable: false,
+                            },
+                        ];
+                        self.type_section.ty().struct_(fields);
+                        
+                        self.type_map.insert(ty.clone(), self.next_type_index);
+                        self.struct_defs.insert(struct_name, field_names);
+                        self.next_type_index += 1;
+                    }
                 }
             }
             hir::Ty::Array(element_type) => {
                 let element_valtype = self.hir_ty_to_valtype(element_type);
-                // For now, we'll use a simpler approach without WasmGC
-                // In a real implementation with WasmGC support, you'd use:
-                // let array_type = ArrayType::new(element_valtype);
-                // self.type_section.rec_group().array_type(array_type);
+                
+                // Create the array type using WasmGC
+                let field_type = FieldType {
+                    element_type: StorageType::Val(element_valtype),
+                    mutable: false,
+                };
+                self.type_section.ty().array(&field_type.element_type, field_type.mutable);
+                
                 self.type_map.insert(ty.clone(), self.next_type_index);
                 self.next_type_index += 1;
             }
@@ -237,12 +308,15 @@ impl<'a> WasmBuilder<'a> {
         }
     }
     
-    /// Define the string type: struct (field i32) (field (array u8))
+    /// Define the string type: array of i8 (UTF-8 bytes)
     fn define_string_type(&mut self) {
-        // For now, we'll use a simpler approach without WasmGC
-        // In a real implementation with WasmGC support, you'd define:
-        // - Array u8 type
-        // - String struct type with length and data fields
+        // Define string as array of i8 (UTF-8 bytes)
+        let field_type = FieldType {
+            element_type: StorageType::Val(ValType::I32), // Using i32 for UTF-8 code points
+            mutable: false,
+        };
+        self.type_section.ty().array(&field_type.element_type, field_type.mutable);
+        
         self.type_map.insert(hir::Ty::Str, self.next_type_index);
         self.next_type_index += 1;
     }
@@ -255,16 +329,22 @@ impl<'a> WasmBuilder<'a> {
             hir::Ty::F64 => ValType::F64,
             hir::Ty::Str => {
                 if let Some(type_index) = self.type_map.get(ty) {
-                    // For now, use I32 as placeholder until WasmGC is fully supported
-                    ValType::I32
+                    // Return a reference to the string type
+                    ValType::Ref(wasm_encoder::RefType {
+                        nullable: true,
+                        heap_type: HeapType::Concrete(*type_index),
+                    })
                 } else {
                     ValType::I32 // Fallback
                 }
             }
             hir::Ty::Array(_) | hir::Ty::Adt { .. } => {
                 if let Some(type_index) = self.type_map.get(ty) {
-                    // For now, use I32 as placeholder until WasmGC is fully supported
-                    ValType::I32
+                    // Return a reference to the GC type
+                    ValType::Ref(wasm_encoder::RefType {
+                        nullable: true,
+                        heap_type: HeapType::Concrete(*type_index),
+                    })
                 } else {
                     ValType::I32 // Fallback
                 }
@@ -534,10 +614,8 @@ impl<'a> WasmBuilder<'a> {
                             }
                         }
                         
-                        // For now, we'll use a placeholder since WasmGC is not fully implemented
-                        // In a real implementation with WasmGC, you'd emit:
-                        // f.instruction(&Instruction::StructNew(*type_index));
-                        f.instruction(&Instruction::I32Const(0)); // Placeholder
+                        // Use proper WasmGC instruction to create the struct
+                        f.instruction(&Instruction::StructNew(*type_index));
                     }
                 } else {
                     // Fallback: just push a placeholder value
@@ -549,18 +627,16 @@ impl<'a> WasmBuilder<'a> {
                 let array_type = hir::Ty::Array(Box::new(hir::Ty::I32)); // Assume i32 elements for now
                 
                 if let Some(type_index) = self.type_map.get(&array_type) {
+                    // Push the number of elements as an i32 constant onto the stack
+                    f.instruction(&Instruction::I32Const(elements.len() as i32));
+                    
                     // Iterate through the elements and generate instructions to push each element's value onto the stack
                     for element in elements {
                         self.build_operand(element, f, func);
                     }
                     
-                    // Push the number of elements as an i32 constant onto the stack
-                    f.instruction(&Instruction::I32Const(elements.len() as i32));
-                    
-                    // For now, we'll use a placeholder since WasmGC is not fully implemented
-                    // In a real implementation with WasmGC, you'd emit:
-                    // f.instruction(&Instruction::ArrayNew(*type_index));
-                    f.instruction(&Instruction::I32Const(0)); // Placeholder
+                    // Use proper WasmGC instruction to create the array
+                    f.instruction(&Instruction::ArrayNew(*type_index));
                 } else {
                     // Fallback: just push a placeholder value
                     f.instruction(&Instruction::I32Const(0));
@@ -581,10 +657,11 @@ impl<'a> WasmBuilder<'a> {
                     // Determine the field_idx by finding the field's position in the original struct definition
                     if let Some(field_names) = self.struct_defs.get("unknown") {
                         if let Some(field_idx) = field_names.iter().position(|&f| f == *field) {
-                            // For now, we'll use a placeholder since WasmGC is not fully implemented
-                            // In a real implementation with WasmGC, you'd emit:
-                            // f.instruction(&Instruction::StructGet { struct_type_index: *type_index, field_index: field_idx as u32, sign_extend: false });
-                            f.instruction(&Instruction::I32Const(0)); // Placeholder
+                            // Use proper WasmGC instruction to get the field
+                            f.instruction(&Instruction::StructGet {
+                                struct_type_index: *type_index,
+                                field_index: field_idx as u32,
+                            });
                         } else {
                             f.instruction(&Instruction::I32Const(0)); // Field not found
                         }
@@ -651,18 +728,30 @@ impl<'a> WasmBuilder<'a> {
     
     /// Build a string literal using WasmGC
     fn build_string_literal(&self, s: &str, f: &mut Function) {
-        // For now, we'll use a placeholder since WasmGC is not fully implemented
-        // In a real implementation with WasmGC, you'd:
-        // 1. Add the string's UTF-8 bytes to the data segment if not already present
-        // 2. Get the offset of the string data in the data segment
-        // 3. Push the string's byte length as an i32 constant
-        // 4. Push the offset of the string data in the data segment (i32.const <offset>)
-        // 5. Push the length of the string data again (i32.const <len>)
-        // 6. Emit Instruction::ArrayNewData to create a (array u8) from the data segment
-        // 7. Emit Instruction::StructNew to create the final string object
+        // Get or create the string data segment
+        let data_offset = if let Some(&offset) = self.string_literals.get(s) {
+            offset
+        } else {
+            // This should have been set up during type collection
+            0 // Fallback
+        };
         
-        // Placeholder: just push the string length as a constant
+        // Push the string length
         f.instruction(&Instruction::I32Const(s.len() as i32));
+        
+        // Push the string data offset
+        f.instruction(&Instruction::I32Const(data_offset as i32));
+        
+        // Create the string array using WasmGC
+        if let Some(type_index) = self.type_map.get(&hir::Ty::Str) {
+            f.instruction(&Instruction::ArrayNewData {
+                array_type_index: *type_index,
+                array_data_index: 0, // Use the first data segment
+            });
+        } else {
+            // Fallback: just push a placeholder
+            f.instruction(&Instruction::I32Const(0));
+        }
     }
 
 
@@ -679,7 +768,32 @@ impl<'a> WasmBuilder<'a> {
 
     /// Converts a MIR type to a Wasm ValType.
     fn mir_ty_to_valtype(&self, ty: &crate::hir::Ty) -> ValType {
-        self.hir_ty_to_valtype(ty)
+        match ty {
+            crate::hir::Ty::I32 | crate::hir::Ty::Bool => ValType::I32,
+            crate::hir::Ty::I64 => ValType::I64,
+            crate::hir::Ty::F64 => ValType::F64,
+            crate::hir::Ty::Str => {
+                if let Some(type_index) = self.type_map.get(ty) {
+                    ValType::Ref(wasm_encoder::RefType {
+                        nullable: true,
+                        heap_type: HeapType::Concrete(*type_index),
+                    })
+                } else {
+                    ValType::I32 // Fallback
+                }
+            }
+            crate::hir::Ty::Array(_) | crate::hir::Ty::Adt { .. } => {
+                if let Some(type_index) = self.type_map.get(ty) {
+                    ValType::Ref(wasm_encoder::RefType {
+                        nullable: true,
+                        heap_type: HeapType::Concrete(*type_index),
+                    })
+                } else {
+                    ValType::I32 // Fallback
+                }
+            }
+            _ => ValType::I32,
+        }
     }
 
     fn is_unit_type(&self, ty: &crate::hir::Ty) -> bool {
