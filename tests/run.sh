@@ -25,7 +25,7 @@ TEMP_DIR="tests/temp"
 
 # Test type configuration (compatible with bash 3.2)
 # Format: test_type:command:display_name
-TEST_TYPES="ast:parse:AST hir:hir:HIR mir:mir:MIR cir:cir:Cranelift IR build:build:Compilation wasm:wasm:WebAssembly"
+TEST_TYPES="ast:parse:AST hir:hir:HIR mir:mir:MIR cir:cir:Cranelift IR build:build:Compilation build:build:Build"
 
 # Default test type
 DEFAULT_TEST_TYPE="ast"
@@ -85,7 +85,7 @@ run_test_command() {
             # For these types, we pass the file as an argument
             ./target/debug/basalt "$command" "$test_file" 2>&1
             ;;
-        "wasm")
+        "build")
             # For WebAssembly, we need to capture the actual WASM output
             # First, run the command to generate the WASM file
             ./target/debug/basalt "$command" "$test_file" >/dev/null 2>&1
@@ -314,7 +314,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        ast|hir|mir|cir|wasm|compile)
+        ast|hir|mir|cir|build|compile)
             TEST_TYPE="$1"
             shift
             ;;

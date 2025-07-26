@@ -142,32 +142,149 @@ impl<'a> WasmBuilder<'a> {
         
         let mut wasm_func = Function::new_with_locals_types(local_types);
 
-        // Your MIR is already in basic blocks, which maps perfectly to Wasm's block structure.
-        for block in &func.basic_blocks {
-            // Here, you would walk through statements and terminators.
-            // This is a simplified example for an assignment and return.
-            for stmt in &block.statements {
-                self.build_statement(stmt, &mut wasm_func, func);
-            }
-            self.build_terminator(&block.terminator, &mut wasm_func, func);
-        }
+        // Build the function body using structured instructions
+        self.build_instructions(&func.body, &mut wasm_func, func);
 
-        // Every block in Wasm must end with a terminating instruction.
+        // Every function must end with a terminating instruction.
         // We add an explicit 'end' for the whole function body.
         wasm_func.instruction(&Instruction::End);
         wasm_func
     }
 
-    fn build_statement(&self, stmt: &'a mir::Statement, f: &mut Function, func: &'a mir::MirFunction<'a>) {
-        match stmt {
-            mir::Statement::Assign(place, rvalue) => {
+    /// Recursively builds WebAssembly instructions from structured MIR instructions
+    fn build_instructions(
+        &self,
+        instructions: &'a [mir::MirInstruction<'a>],
+        f: &mut Function,
+        func: &'a mir::MirFunction<'a>,
+    ) {
+        for instruction in instructions {
+            self.build_instruction(instruction, f, func);
+        }
+    }
+
+    /// Builds a single MIR instruction into WebAssembly instructions
+    fn build_instruction(
+        &self,
+        instruction: &'a mir::MirInstruction<'a>,
+        f: &mut Function,
+        func: &'a mir::MirFunction<'a>,
+    ) {
+        match instruction {
+            mir::MirInstruction::Assign(place, rvalue) => {
                 // 1. Evaluate the Rvalue and push its result onto the stack.
                 self.build_rvalue(rvalue, f, func);
                 // 2. Store the result from the stack into the local.
                 f.instruction(&Instruction::LocalSet(place.local.0 as u32));
             }
+            mir::MirInstruction::Block { body } => {
+                // Emit block instruction
+                f.instruction(&Instruction::Block(wasm_encoder::BlockType::Empty));
+                // Recursively build the body
+                self.build_instructions(body, f, func);
+                // Emit end instruction
+                f.instruction(&Instruction::End);
+            }
+            mir::MirInstruction::Loop { body } => {
+                // Emit loop instruction
+                f.instruction(&Instruction::Loop(wasm_encoder::BlockType::Empty));
+                // Recursively build the body
+                self.build_instructions(body, f, func);
+                // Emit end instruction
+                f.instruction(&Instruction::End);
+            }
+            mir::MirInstruction::If { condition, then_block, else_block } => {
+                // Build the condition
+                self.build_operand(condition, f, func);
+                
+                // Emit if instruction
+                f.instruction(&Instruction::If(wasm_encoder::BlockType::Empty));
+                
+                // Build the then block
+                self.build_instructions(then_block, f, func);
+                
+                if !else_block.is_empty() {
+                    // Emit else instruction
+                    f.instruction(&Instruction::Else);
+                    // Build the else block
+                    self.build_instructions(else_block, f, func);
+                }
+                
+                // Emit end instruction
+                f.instruction(&Instruction::End);
+            }
+            mir::MirInstruction::Break(label) => {
+                f.instruction(&Instruction::Br(*label));
+            }
+            mir::MirInstruction::ConditionalBreak(condition, label) => {
+                // Build the condition
+                self.build_operand(condition, f, func);
+                // Emit br_if instruction
+                f.instruction(&Instruction::BrIf(*label));
+            }
+            mir::MirInstruction::Call { func: func_name, args, destination } => {
+                // Push all arguments onto the stack
+                for arg in args {
+                    self.build_operand(arg, f, func);
+                }
+                
+                // Call the function
+                if let Some(func_index) = self.function_indices.get(func_name) {
+                    f.instruction(&Instruction::Call(*func_index));
+                } else {
+                    // If function not found, this is an error
+                    f.instruction(&Instruction::Unreachable);
+                }
+                
+                // Store the result in the destination if it's not unit
+                if !self.is_unit_type(&func.locals[&destination.local].ty) {
+                    f.instruction(&Instruction::LocalSet(destination.local.0 as u32));
+                }
+            }
+            mir::MirInstruction::Perform { effect: _, operation: _, args: _, destination: _ } => {
+                // For now, just emit unreachable as a placeholder
+                // In a real implementation, this would handle dynamic effect dispatch
+                f.instruction(&Instruction::Unreachable);
+            }
+            mir::MirInstruction::PushHandler { effect: _, handler: _, body } => {
+                // For now, just execute the body without handler management
+                // In a real implementation, this would push the handler onto a stack
+                self.build_instructions(body, f, func);
+            }
+            mir::MirInstruction::PopHandler => {
+                // For now, do nothing
+                // In a real implementation, this would pop the handler from the stack
+            }
+            mir::MirInstruction::Resume { value } => {
+                // Build the resume value
+                self.build_operand(value, f, func);
+                // For now, just continue execution
+            }
+            mir::MirInstruction::PatternMatch { scrutinee, arms, otherwise } => {
+                // Build the scrutinee
+                self.build_operand(scrutinee, f, func);
+                
+                // For now, just execute the first matching arm or the default
+                // In a real implementation, this would implement proper pattern matching
+                if let Some((_pattern, arm_body)) = arms.first() {
+                    self.build_instructions(arm_body, f, func);
+                } else {
+                    self.build_instructions(otherwise, f, func);
+                }
+            }
+            mir::MirInstruction::Return => {
+                // The return value should be in local[0] (the return local).
+                // We need to put it on the stack before returning.
+                f.instruction(&Instruction::LocalGet(0));
+                f.instruction(&Instruction::Return);
+            }
+            mir::MirInstruction::Unreachable => {
+                f.instruction(&Instruction::Unreachable);
+            }
         }
     }
+
+
 
     fn build_rvalue(&self, rvalue: &'a mir::Rvalue, f: &mut Function, func: &'a mir::MirFunction<'a>) {
         match rvalue {
@@ -259,49 +376,7 @@ impl<'a> WasmBuilder<'a> {
         }
     }
 
-    fn build_terminator(&self, term: &'a mir::Terminator, f: &mut Function, func: &'a mir::MirFunction<'a>) {
-        match term {
-            mir::Terminator::Return => {
-                // The return value should be in local[0] (the return local).
-                // We need to put it on the stack before returning.
-                f.instruction(&Instruction::LocalGet(0));
-                f.instruction(&Instruction::Return);
-            }
-            mir::Terminator::Goto { target } => {
-                // `br` instruction jumps to a block label.
-                // Wasm blocks are indexed from the outside in.
-                // `br 0` breaks from the innermost block. You will need to manage a
-                // block depth counter to jump to the correct label.
-                // For a flat CFG like MIR, this requires careful label management.
-                // A simple goto might map to `br label_index`.
-                f.instruction(&Instruction::Br(*target as u32));
-            }
-            mir::Terminator::Call { func: func_name, args, destination, target: _ } => {
-                // Push all arguments onto the stack
-                for arg in args {
-                    self.build_operand(arg, f, func);
-                }
-                
-                // Call the function
-                if let Some(func_index) = self.function_indices.get(func_name) {
-                    f.instruction(&Instruction::Call(*func_index));
-                } else {
-                    // If function not found, this is an error
-                    f.instruction(&Instruction::Unreachable);
-                }
-                
-                // Store the result in the destination if it's not unit
-                if !self.is_unit_type(&func.locals[&destination.local].ty) {
-                    f.instruction(&Instruction::LocalSet(destination.local.0 as u32));
-                }
-                
-                // For now, just continue execution linearly instead of jumping
-                // TODO: Implement proper control flow handling
-            }
-            // ... Other terminators
-            _ => {}
-        }
-    }
+
 
     fn build_exports(&mut self) {
         if let Some(main_index) = self.function_indices.get("main") {

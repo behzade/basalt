@@ -1,8 +1,8 @@
 //! src/mir/data.rs
 //!
 //! Defines the core data structures for the Mid-level Intermediate Representation (MIR).
-//! The MIR simplifies control flow into a graph of basic blocks and makes memory
-//! operations more explicit.
+//! The MIR uses structured control flow that maps directly to WebAssembly's nested
+//! block, loop, and if instructions.
 
 use crate::ast;
 use crate::hir;
@@ -11,9 +11,6 @@ use std::collections::HashMap;
 //================================================================================//
 //                                Core Data Structures
 //================================================================================//
-
-/// A unique identifier for a basic block within a function.
-pub type BasicBlockId = usize;
 
 /// Represents the entire program in MIR form.
 #[derive(Debug)]
@@ -27,20 +24,11 @@ pub struct MirFunction<'src> {
     pub name: &'src str,
     pub params: Vec<LocalId>,
     pub return_type: hir::Ty<'src>,
-    pub basic_blocks: Vec<BasicBlock<'src>>,
+    pub body: Vec<MirInstruction<'src>>,
     pub locals: HashMap<LocalId, MirLocal<'src>>,
     pub next_local_id: LocalId,
     /// Handler context that this function expects to receive
     pub handler_context: HandlerContext<'src>,
-}
-
-/// A "basic block" is a straight line of code with no jumps in or out, except
-/// at the beginning and end, respectively.
-#[derive(Debug)]
-pub struct BasicBlock<'src> {
-    pub id: BasicBlockId,
-    pub statements: Vec<Statement<'src>>,
-    pub terminator: Terminator<'src>,
 }
 
 /// A local variable or temporary within a function.
@@ -114,6 +102,79 @@ impl<'src> HandlerContext<'src> {
             handlers: self.handlers.clone(),
         }
     }
+}
+
+//================================================================================//
+//                              Structured Instructions
+//================================================================================//
+
+/// A structured instruction in MIR that maps directly to WebAssembly control flow.
+#[derive(Debug)]
+pub enum MirInstruction<'src> {
+    /// Simple assignment statement
+    Assign(Place, Rvalue<'src>),
+    
+    /// WebAssembly block instruction
+    Block { body: Vec<MirInstruction<'src>> },
+    
+    /// WebAssembly loop instruction
+    Loop { body: Vec<MirInstruction<'src>> },
+    
+    /// WebAssembly if/else instruction
+    If { 
+        condition: Operand<'src>, 
+        then_block: Vec<MirInstruction<'src>>, 
+        else_block: Vec<MirInstruction<'src>> 
+    },
+    
+    /// WebAssembly br instruction - break from N-th enclosing Block or Loop
+    Break(u32),
+    
+    /// WebAssembly br_if instruction - conditional break
+    ConditionalBreak(Operand<'src>, u32),
+    
+    /// Function call
+    Call { 
+        func: &'src str, 
+        args: Vec<Operand<'src>>, 
+        destination: Place 
+    },
+    
+    /// Effect operation using dynamic handler lookup
+    Perform {
+        effect: &'src str,
+        operation: &'src str,
+        args: Vec<Operand<'src>>,
+        destination: Place,
+    },
+    
+    /// Push a handler onto the dynamic handler stack
+    PushHandler {
+        effect: &'src str,
+        handler: &'src str,
+        body: Vec<MirInstruction<'src>>,
+    },
+    
+    /// Pop a handler from the dynamic handler stack
+    PopHandler,
+    
+    /// Resume execution after an effect operation was handled
+    Resume {
+        value: Operand<'src>,
+    },
+    
+    /// Pattern matching for match expressions
+    PatternMatch {
+        scrutinee: Operand<'src>,
+        arms: Vec<(Pattern<'src>, Vec<MirInstruction<'src>>)>,
+        otherwise: Vec<MirInstruction<'src>>,
+    },
+    
+    /// Return from the current function
+    Return,
+    
+    /// Unreachable code (should never be executed)
+    Unreachable,
 }
 
 //================================================================================//
@@ -193,65 +254,5 @@ pub enum PatternKind<'src> {
     },
     /// The wildcard pattern `_`.
     Wildcard,
-}
-
-//================================================================================//
-//                                  Terminators
-//================================================================================//
-
-/// A "terminator" is an operation that ends a basic block, determining
-/// which block to execute next.
-#[derive(Debug)]
-pub enum Terminator<'src> {
-    /// Unconditional jump to another block.
-    Goto { target: BasicBlockId },
-    /// Conditional jump. If the operand is true, jumps to `true_target`;
-    /// otherwise, jumps to `false_target`.
-    SwitchInt {
-        discr: Operand<'src>,
-        targets: Vec<(u64, BasicBlockId)>, // (value, target_block)
-        otherwise: BasicBlockId,
-    },
-    /// A function call.
-    Call {
-        func: &'src str, // For now, simple function name.
-        args: Vec<Operand<'src>>,
-        destination: Place,
-        target: BasicBlockId, // Block to jump to after the call.
-    },
-    /// Push a handler onto the dynamic handler stack
-    PushHandler {
-        effect: &'src str,
-        handler: &'src str,
-        target: BasicBlockId, // Block to execute with handler in scope
-    },
-    /// Pop a handler from the dynamic handler stack
-    PopHandler {
-        target: BasicBlockId, // Block to execute after handler is popped
-    },
-    /// An effect operation that uses dynamic handler lookup
-    Perform {
-        effect: &'src str,
-        operation: &'src str,
-        args: Vec<Operand<'src>>,
-        destination: Place,
-        continuation: BasicBlockId, // Block to resume after handler returns
-        no_handler: BasicBlockId,   // Block to jump to if no handler found
-    },
-    /// Resume execution after an effect operation was handled.
-    Resume {
-        value: Operand<'src>,
-        target: BasicBlockId,
-    },
-    /// Pattern matching for match expressions.
-    PatternMatch {
-        scrutinee: Operand<'src>,
-        arms: Vec<(Pattern<'src>, BasicBlockId)>,
-        otherwise: BasicBlockId,
-    },
-    /// Return from the current function.
-    Return,
-    /// Unreachable code (should never be executed).
-    Unreachable,
 }
 
