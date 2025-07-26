@@ -148,6 +148,8 @@ impl<'a> WasmBuilder<'a> {
     fn collect_string_literals(&mut self) {
         let program = self.mir_program.unwrap();
         let mut current_offset: u32 = 0;
+        self.string_data.clear();
+        self.string_literals.clear();
 
         // Collect string literals from all instructions
         for (_name, func) in &program.functions {
@@ -155,14 +157,17 @@ impl<'a> WasmBuilder<'a> {
                 if let mir::MirInstruction::Assign(_, mir::Rvalue::Use(mir::Operand::Constant(ast::Literal::Str(s)))) = instruction {
                     if !self.string_literals.contains_key(s) {
                         self.string_literals.insert(s, current_offset);
+                        self.string_data.extend_from_slice(s.as_bytes());
                         current_offset += s.len() as u32;
                     }
                 }
             }
         }
 
-        // For now, we'll skip adding data segments to avoid the API issue
-        // The string literals are collected but not added to data section yet
+        // Add a passive data segment for all string bytes if any
+        if !self.string_data.is_empty() {
+            self.data_section.passive(self.string_data.clone());
+        }
     }
 
     /// Collect all aggregate types from the MIR program and define them in the type section
@@ -334,14 +339,28 @@ impl<'a> WasmBuilder<'a> {
     
     /// Define the string type: array of i8 (UTF-8 bytes)
     fn define_string_type(&mut self) {
-        // Define string as array of i8 (UTF-8 bytes)
-        let field_type = FieldType {
-            element_type: StorageType::Val(ValType::I32), // Using i32 for UTF-8 code points
-            mutable: false,
-        };
-        self.type_section.ty().array(&field_type.element_type, field_type.mutable);
-        
-        self.type_map.insert(hir::Ty::Str, self.next_type_index);
+        // Define array type for UTF-8 bytes (use I32 for now)
+        let array_type_index = self.next_type_index;
+        self.type_section.ty().array(&StorageType::Val(ValType::I32), false);
+        self.type_map.insert(hir::Ty::Array(Box::new(hir::Ty::I32)), array_type_index);
+        self.next_type_index += 1;
+
+        // Define struct type: (i32, array i32)
+        let struct_type_index = self.next_type_index;
+        self.type_section.ty().struct_([
+            FieldType {
+                element_type: StorageType::Val(ValType::I32),
+                mutable: false,
+            },
+            FieldType {
+                element_type: StorageType::Val(ValType::Ref(wasm_encoder::RefType {
+                    nullable: false,
+                    heap_type: HeapType::Concrete(array_type_index),
+                })),
+                mutable: false,
+            },
+        ]);
+        self.type_map.insert(hir::Ty::Str, struct_type_index);
         self.next_type_index += 1;
     }
     
@@ -767,16 +786,26 @@ impl<'a> WasmBuilder<'a> {
         }
     }
     
-    /// Build a string literal - simplified version without data segments
+    /// Build a string literal using ArrayNewFixed
     fn build_string_literal(&self, s: &str, f: &mut Function) {
-        // For now, create a null reference as a placeholder
-        // This avoids the data count section issue but provides the correct type
-        if let Some(type_index) = self.type_map.get(&hir::Ty::Str) {
-            f.instruction(&Instruction::RefNull(HeapType::Concrete(*type_index)));
-        } else {
-            // Fallback: just push a null reference with a concrete type index
-            f.instruction(&Instruction::RefNull(HeapType::Concrete(0)));
+        // Get type indices
+        let array_type_index = *self.type_map.get(&hir::Ty::Array(Box::new(hir::Ty::I32))).expect("array i32 type");
+        let struct_type_index = *self.type_map.get(&hir::Ty::Str).expect("string struct type");
+        let len = s.len() as i32;
+
+        // Push string length
+        f.instruction(&Instruction::I32Const(len));
+        
+        // Push each byte of the string onto the stack
+        for byte in s.bytes() {
+            f.instruction(&Instruction::I32Const(byte as i32));
         }
+        
+        // Create array with the fixed size and initial values
+        f.instruction(&Instruction::ArrayNewFixed { array_type_index, array_size: len as u32 });
+        
+        // Create struct (size, array)
+        f.instruction(&Instruction::StructNew(struct_type_index));
     }
 
 
