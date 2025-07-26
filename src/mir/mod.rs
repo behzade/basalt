@@ -136,15 +136,16 @@ impl<'src> MirLowerer<'src> {
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
                 vec![MirInstruction::Assign(destination, rvalue)]
             }
-            hir::ExprKind::FieldAccess { receiver, field: _ } => {
+            hir::ExprKind::FieldAccess { receiver, field } => {
                 // Lower the receiver into a temporary local
                 let receiver_temp = builder.new_local(receiver.ty.clone(), false);
                 let mut instructions = self.lower_expr(receiver, builder, locals, Place { local: receiver_temp });
                 
-                // For now, just return the receiver value as a placeholder
-                // In a real implementation, this would create proper field access instructions
-                // that extract the specific field from the struct
-                let rvalue = Rvalue::Use(Operand::Copy(Place { local: receiver_temp }));
+                // Create a projection to access the specific field
+                let rvalue = Rvalue::Projection {
+                    base: Place { local: receiver_temp },
+                    field,
+                };
                 instructions.push(MirInstruction::Assign(destination, rvalue));
                 instructions
             }
@@ -508,10 +509,9 @@ impl<'src> MirLowerer<'src> {
                 // The pattern for while (cond) { body } is:
                 // loop
                 //   ;; ... code for cond ...
-                //   i32.eqz ;; check if cond is false
-                //   br_if 1 ;; break out of the loop (label 1)
+                //   ;; check if cond is false and break if so
                 //   ;; ... code for body ...
-                //   br 0 ;; branch to the start of the loop (label 0)
+                //   br 0 ;; branch to the start of the loop
                 // end
 
                 let mut loop_body = Vec::new();
@@ -519,11 +519,40 @@ impl<'src> MirLowerer<'src> {
                 // Add condition evaluation
                 loop_body.extend(cond_instructions);
                 
-                // Add conditional break (br_if 1) - break out of loop if condition is false
-                loop_body.push(MirInstruction::ConditionalBreak(
-                    Operand::Copy(Place { local: cond_temp }),
-                    1, // break out of the loop
-                ));
+                // Add conditional break - break out of loop if condition is false
+                // For boolean conditions, we want to break when condition is false
+                // For integer conditions, we want to break when condition is zero
+                // The ConditionalBreak instruction breaks when the condition is true
+                // So for while loops, we want to break when the condition is false
+                if matches!(cond.ty, hir::Ty::Bool) {
+                    // For boolean, we want to break when condition is false
+                    // So we need to check if condition == false
+                    let false_temp = builder.new_local(hir::Ty::Bool, false);
+                    loop_body.push(MirInstruction::Assign(
+                        Place { local: false_temp },
+                        Rvalue::Use(Operand::Constant(ast::Literal::Bool(false)))
+                    ));
+                    let eq_temp = builder.new_local(hir::Ty::Bool, false);
+                    loop_body.push(MirInstruction::Assign(
+                        Place { local: eq_temp },
+                        Rvalue::BinaryOp(
+                            ast::BinaryOp::Eq,
+                            Operand::Copy(Place { local: cond_temp }),
+                            Operand::Copy(Place { local: false_temp })
+                        )
+                    ));
+                    loop_body.push(MirInstruction::ConditionalBreak(
+                        Operand::Copy(Place { local: eq_temp }),
+                        0, // break out of the immediate enclosing loop
+                    ));
+                } else {
+                    // For integers, we want to break when condition is zero
+                    // So we break when condition == 0
+                    loop_body.push(MirInstruction::ConditionalBreak(
+                        Operand::Copy(Place { local: cond_temp }),
+                        0, // break out of the immediate enclosing loop
+                    ));
+                }
                 
                 // Add body instructions
                 loop_body.extend(body_instructions);

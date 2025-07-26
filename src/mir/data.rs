@@ -210,6 +210,11 @@ pub enum Rvalue<'src> {
         path: &'src str,
         fields: HashMap<&'src str, Operand<'src>>,
     },
+    /// Project a field from a struct.
+    Projection {
+        base: Place,
+        field: &'src str,
+    },
 }
 
 /// A "place" is a location in memory, like a local variable or a field of a struct.
