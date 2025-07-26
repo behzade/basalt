@@ -1,0 +1,26 @@
+
+output.wasm:	file format wasm 0x1
+
+Code Disassembly:
+
+000060 func[1]:
+ 000061: 01 7f                      | local[2] type=i32
+ 000063: 41 00                      | i32.const 0
+ 000065: 21 00                      | local.set 0
+ 000067: 20 00                      | local.get 0
+ 000069: 0f                         | return
+ 00006a: 0b                         | end
+00006c func[2]:
+ 00006d: 01 7f                      | local[1] type=i32
+ 00006f: 41 00                      | i32.const 0
+ 000071: 21 00                      | local.set 0
+ 000073: 20 00                      | local.get 0
+ 000075: 0f                         | return
+ 000076: 0b                         | end
+000078 func[3] <_start>:
+ 000079: 01 7f                      | local[0] type=i32
+ 00007b: 41 00                      | i32.const 0
+ 00007d: 21 00                      | local.set 0
+ 00007f: 20 00                      | local.get 0
+ 000081: 0f                         | return
+ 000082: 0b                         | end

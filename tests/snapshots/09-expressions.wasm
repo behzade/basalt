@@ -1,0 +1,48 @@
+
+output.wasm:	file format wasm 0x1
+
+Code Disassembly:
+
+000053 func[1] <_start>:
+ 000054: 09 7e                      | local[0..8] type=i64
+ 000056: 01 7f                      | local[9] type=i32
+ 000058: 04 7e                      | local[10..13] type=i64
+ 00005a: 41 2a                      | i32.const 42
+ 00005c: 21 01                      | local.set 1
+ 00005e: 20 01                      | local.get 1
+ 000060: 21 03                      | local.set 3
+ 000062: 41 0a                      | i32.const 10
+ 000064: 21 04                      | local.set 4
+ 000066: 20 03                      | local.get 3
+ 000068: 20 04                      | local.get 4
+ 00006a: 6a                         | i32.add
+ 00006b: 21 02                      | local.set 2
+ 00006d: 20 02                      | local.get 2
+ 00006f: 21 06                      | local.set 6
+ 000071: 41 02                      | i32.const 2
+ 000073: 21 07                      | local.set 7
+ 000075: 20 06                      | local.get 6
+ 000077: 20 07                      | local.get 7
+ 000079: 6c                         | i32.mul
+ 00007a: 21 05                      | local.set 5
+ 00007c: 20 05                      | local.get 5
+ 00007e: 21 09                      | local.set 9
+ 000080: 41 05                      | i32.const 5
+ 000082: 21 0a                      | local.set 10
+ 000084: 20 09                      | local.get 9
+ 000086: 20 0a                      | local.get 10
+ 000088: 6b                         | i32.sub
+ 000089: 21 08                      | local.set 8
+ 00008b: 20 08                      | local.get 8
+ 00008d: 21 0c                      | local.set 12
+ 00008f: 41 03                      | i32.const 3
+ 000091: 21 0d                      | local.set 13
+ 000093: 20 0c                      | local.get 12
+ 000095: 20 0d                      | local.get 13
+ 000097: 6d                         | i32.div_s
+ 000098: 21 0b                      | local.set 11
+ 00009a: 41 00                      | i32.const 0
+ 00009c: 21 00                      | local.set 0
+ 00009e: 20 00                      | local.get 0
+ 0000a0: 0f                         | return
+ 0000a1: 0b                         | end

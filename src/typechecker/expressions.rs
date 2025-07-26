@@ -41,7 +41,7 @@ impl<'src> TypeChecker<'src> {
                     .collect();
                 ast::Type { path: name.clone(), generics: ast_generics }
             }
-            Ty::Function { param_types, ret_type } => {
+            Ty::Function { param_types: _, ret_type: _ } => {
                 // For function types, we'll use a simple representation
                 ast::Type { path: vec!["function"], generics: vec![] }
             }
@@ -62,7 +62,7 @@ impl<'src> TypeChecker<'src> {
         type_hint: &Ty<'src>,
     ) -> Result<hir::Expr<'src>, TypeError<'src>> {
         let (kind, ty) = match expr {
-            ast::Expr::Literal(lit) => self.check_literal(lit)?,
+            ast::Expr::Literal(lit) => self.check_literal(lit, type_hint)?,
             ast::Expr::Path(path) => self.check_path(path)?,
             ast::Expr::Unary { op, rhs } => self.check_unary(op, rhs)?,
             ast::Expr::Binary { op, lhs, rhs } => self.check_binary(op, lhs, rhs)?,
@@ -104,22 +104,42 @@ impl<'src> TypeChecker<'src> {
     fn check_literal(
         &self,
         lit: &ast::Literal<'src>,
+        type_hint: &Ty<'src>,
     ) -> Result<(hir::ExprKind<'src>, Ty<'src>), TypeError<'src>> {
-        let ty = match lit {
-            ast::Literal::Bool(_) => Ty::Bool,
-            ast::Literal::I64(value) => {
-                // Use i32 for small integers, i64 for larger ones
-                if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
-                    Ty::I32
+        let (inferred_ty, coerced_lit) = match lit {
+            ast::Literal::Bool(_) => {
+                if matches!(type_hint, Ty::Bool) {
+                    (Ty::Bool, lit.clone())
                 } else {
-                    Ty::I64
+                    (Ty::Bool, lit.clone())
                 }
             }
-            ast::Literal::F64(_) => Ty::F64,
-            ast::Literal::Str(_) => Ty::Str,
-            ast::Literal::Unit => Ty::Unit,
+            ast::Literal::I32(_) => (Ty::I32, lit.clone()),
+            ast::Literal::I64(value) => {
+                // Check if the type hint expects i32
+                if matches!(type_hint, Ty::I32) {
+                    // Check if the value fits in i32
+                    if *value <= i32::MAX as i64 && *value >= i32::MIN as i64 {
+                        // Coerce to i32 literal
+                        (Ty::I32, ast::Literal::I32(*value as i32))
+                    } else {
+                        // Value doesn't fit in i32 - return overflow error
+                        return Err(TypeError::LiteralOverflow {
+                            value: *value,
+                            target_type: "i32".to_string(),
+                        });
+                    }
+                } else {
+                    // Type hint is i64 or something else, keep as i64
+                    (Ty::I64, lit.clone())
+                }
+            }
+            ast::Literal::F64(_) => (Ty::F64, lit.clone()),
+            ast::Literal::Str(_) => (Ty::Str, lit.clone()),
+            ast::Literal::Unit => (Ty::Unit, lit.clone()),
         };
-        Ok((hir::ExprKind::Literal(lit.clone()), ty))
+        
+        Ok((hir::ExprKind::Literal(coerced_lit), inferred_ty))
     }
 
     fn check_path(
@@ -129,34 +149,28 @@ impl<'src> TypeChecker<'src> {
         // First, try to resolve the path using import resolution
         let resolved_path = self.resolve_path(path);
 
-        // Check for module-qualified paths (e.g., Fmt::println)
-        if resolved_path.len() >= 2 {
-            // Try to resolve as a module symbol
-            if let Some(module_type) = self.resolve_module_symbol(&resolved_path) {
-                let ty = self.lower_type(&module_type);
-                return Ok((hir::ExprKind::ModulePath {
-                    module: resolved_path[0],
-                    symbol: resolved_path[1],
-                }, ty));
-            }
+        // For module-qualified paths (e.g., Std::Io::println), just create a Path expression
+        // and let the check_call function handle the module resolution
+        if resolved_path.len() >= 3 {
+            // Check if the module exists but the symbol doesn't
+            let namespace = resolved_path[0];
+            let module = resolved_path[1];
+            let symbol = resolved_path[2];
 
-            // If we couldn't resolve it as a module symbol, check if it looks like a module path
-            if resolved_path.len() >= 3 {
-                let namespace = resolved_path[0];
-                let module = resolved_path[1];
-                let symbol = resolved_path[2];
-
-                // Check if the module exists but the symbol doesn't
-                let module_path = format!("{}::{}", namespace, module);
-                if self.context.get_module_symbols(&module_path).is_some() {
-                    return Err(TypeError::UnknownModuleSymbol {
-                        namespace,
-                        module,
-                        symbol,
-                    });
-                } else {
-                    return Err(TypeError::UnknownModule { namespace, module });
+            let module_path = format!("{}::{}", namespace, module);
+            
+            // Try to load module symbols if not already cached
+            if self.context.get_module_symbols(&module_path).is_none() {
+                if let Some(symbols) = self.load_module_symbols(namespace, module) {
+                    self.context.add_module_symbols(module_path.clone(), symbols);
                 }
+            }
+            
+            if self.context.get_module_symbols(&module_path).is_some() {
+                // Module exists, create a Path expression for the function call
+                return Ok((hir::ExprKind::Path(resolved_path), self.new_infer_ty()));
+            } else {
+                return Err(TypeError::UnknownModule { namespace, module });
             }
         }
 
@@ -242,7 +256,7 @@ impl<'src> TypeChecker<'src> {
         }
 
         // Check for struct types
-        if let Some(struct_def) = self.context.get_struct(name) {
+        if let Some(_struct_def) = self.context.get_struct(name) {
             let struct_ty = Ty::Adt {
                 name: vec![name],
                 generics: vec![],
@@ -484,7 +498,7 @@ impl<'src> TypeChecker<'src> {
                 
                 // Check if the receiver is a struct instance
                 if let Ty::Adt { name, .. } = &receiver.ty {
-                    let struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
+                    let _struct_name = name.first().ok_or(TypeError::UnknownStruct(""))?;
                     
                     // Check if this method exists for this struct
                     if let Some(func_def) = self.context.get_function(method_name) {
@@ -657,7 +671,7 @@ impl<'src> TypeChecker<'src> {
                     let mut concrete_func = func_def.clone();
                     
                     // Substitute generic parameters in the function signature
-                    for (param_name, param_ty) in &mut concrete_func.params {
+                    for (_param_name, param_ty) in &mut concrete_func.params {
                         if let ast::Type { path, generics } = param_ty {
                             if generics.is_empty() && path.len() == 1 {
                                 let param_name_str = path[0];

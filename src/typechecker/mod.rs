@@ -38,6 +38,10 @@ pub struct TypeChecker<'src> {
 }
 
 impl<'src> TypeChecker<'src> {
+    fn to_static_str(s: &str) -> &'static str {
+        Box::leak(Box::new(s.to_string()))
+    }
+
     pub fn new() -> Self {
         Self {
             context: TypeContext::new(),
@@ -95,7 +99,7 @@ impl<'src> TypeChecker<'src> {
                     };
                     
                     // Check if the struct exists
-                    if let Some(struct_def) = self.context.get_struct(target_name) {
+                    if let Some(_struct_def) = self.context.get_struct(target_name) {
                         println!("DEBUG: Found struct {} for impl block", target_name);
                         
                         // Process each method in the impl block
@@ -144,7 +148,7 @@ impl<'src> TypeChecker<'src> {
                 ast::Item::Effect(effect_def) => {
                     self.context.add_effect(effect_def.clone());
                 }
-                ast::Item::Handler(handler_def) => {
+                ast::Item::Handler(_handler_def) => {
                     // For now, just add the handler name to the context
                     // In a full implementation, we'd process the handler functions
                 }
@@ -413,7 +417,7 @@ impl<'src> TypeChecker<'src> {
                 };
                 
                 // Check if the struct exists
-                if let Some(struct_def) = self.context.get_struct(target_name) {
+                if let Some(_struct_def) = self.context.get_struct(target_name) {
                     println!("DEBUG: Found struct {} for impl block", target_name);
                     
                     // Process each method in the impl block
@@ -737,6 +741,513 @@ impl<'src> TypeChecker<'src> {
         }
 
         None
+    }
+
+    /// Convert a static item to a borrowed item for processing
+    fn convert_static_item_to_borrowed(&self, item: &ast::Item<'static>) -> ast::Item<'src> {
+        // This is a temporary conversion - in practice, we'd need to handle lifetimes properly
+        // For now, we'll use a simple approach by converting to owned and back
+        match item {
+            ast::Item::Stmt(stmt) => ast::Item::Stmt(self.convert_static_stmt_to_borrowed(stmt)),
+            ast::Item::Import { path, alias } => ast::Item::Import {
+                path: path.iter().map(|s| *s).collect(),
+                alias: alias.as_ref().map(|s| *s),
+            },
+            ast::Item::ExternBlock { module_name, functions } => ast::Item::ExternBlock {
+                module_name,
+                functions: functions.iter().map(|f| self.convert_static_function_to_borrowed(f)).collect(),
+            },
+            ast::Item::Fn(func) => ast::Item::Fn(self.convert_static_function_to_borrowed(func)),
+            ast::Item::Struct(struct_def) => ast::Item::Struct(self.convert_static_struct_to_borrowed(struct_def)),
+            ast::Item::Enum(enum_def) => ast::Item::Enum(self.convert_static_enum_to_borrowed(enum_def)),
+            ast::Item::Trait(trait_def) => ast::Item::Trait(self.convert_static_trait_to_borrowed(trait_def)),
+            ast::Item::Impl(impl_block) => ast::Item::Impl(self.convert_static_impl_to_borrowed(impl_block)),
+            ast::Item::Effect(effect_def) => ast::Item::Effect(self.convert_static_effect_to_borrowed(effect_def)),
+            ast::Item::Handler(handler_def) => ast::Item::Handler(self.convert_static_handler_to_borrowed(handler_def)),
+        }
+    }
+
+    /// Convert a static HIR item to a static HIR item (identity conversion for now)
+    fn convert_hir_item_to_static(&self, item: &hir::Item<'src>) -> hir::Item<'static> {
+        // This is a placeholder - in a real implementation, we'd need proper lifetime conversion
+        // For now, we'll use a simple approach
+        match item {
+            hir::Item::Stmt(stmt) => hir::Item::Stmt(self.convert_hir_stmt_to_static(stmt)),
+            hir::Item::Import { path, alias } => hir::Item::Import {
+                path: path.iter().map(|s| Self::to_static_str(s)).collect(),
+                alias: alias.as_ref().map(|s| Self::to_static_str(s)),
+            },
+            hir::Item::ExternFn { name, params, ret_type } => hir::Item::ExternFn {
+                name: Self::to_static_str(name),
+                params: params.iter().map(|(name, ty)| (
+                    name.as_ref().map(|s| Self::to_static_str(s)),
+                    self.convert_hir_type_to_static(ty)
+                )).collect(),
+                ret_type: self.convert_hir_type_to_static(ret_type),
+            },
+            hir::Item::ExternBlock { module_name, functions } => hir::Item::ExternBlock {
+                module_name: Self::to_static_str(module_name),
+                functions: functions.iter().map(|f| self.convert_ast_function_to_static(f)).collect(),
+            },
+            hir::Item::Fn(func) => hir::Item::Fn(self.convert_hir_function_to_static(func)),
+            hir::Item::Struct(struct_def) => hir::Item::Struct(self.convert_hir_struct_to_static(struct_def)),
+            hir::Item::Enum(enum_def) => hir::Item::Enum(self.convert_hir_enum_to_static(enum_def)),
+            hir::Item::Trait(trait_def) => hir::Item::Trait(self.convert_hir_trait_to_static(trait_def)),
+            hir::Item::Impl(impl_block) => hir::Item::Impl(self.convert_hir_impl_to_static(impl_block)),
+            hir::Item::Effect(effect_def) => hir::Item::Effect(self.convert_hir_effect_to_static(effect_def)),
+            hir::Item::Handler(handler_def) => hir::Item::Handler(self.convert_hir_handler_to_static(handler_def)),
+        }
+    }
+
+    /// Convert a static error to a static error (identity conversion for now)
+    fn convert_error_to_static(&self, error: &TypeError<'src>) -> TypeError<'static> {
+        // This is a placeholder - in a real implementation, we'd need proper lifetime conversion
+        match error {
+            TypeError::MismatchedTypes { expected, found } => TypeError::MismatchedTypes {
+                expected: self.convert_hir_type_to_static(expected),
+                found: self.convert_hir_type_to_static(found),
+            },
+            TypeError::UnknownVariable(name) => TypeError::UnknownVariable(name.to_string().leak()),
+            TypeError::UnknownFunction(name) => TypeError::UnknownFunction(name.to_string().leak()),
+            TypeError::UnknownStruct(name) => TypeError::UnknownStruct(name.to_string().leak()),
+            TypeError::UnknownEnum(name) => TypeError::UnknownEnum(name.to_string().leak()),
+            TypeError::UnknownEnumVariant { enum_name, variant_name } => TypeError::UnknownEnumVariant {
+                enum_name: enum_name.to_string().leak(),
+                variant_name: variant_name.to_string().leak(),
+            },
+            TypeError::WrongArgumentCount { expected, found } => TypeError::WrongArgumentCount {
+                expected: *expected,
+                found: *found,
+            },
+            TypeError::WrongNumberOfArguments { expected, found } => TypeError::WrongNumberOfArguments {
+                expected: *expected,
+                found: *found,
+            },
+            TypeError::WrongArgumentType { expected, found } => TypeError::WrongArgumentType {
+                expected: self.convert_hir_type_to_static(expected),
+                found: self.convert_hir_type_to_static(found),
+            },
+            TypeError::UnknownStructField { struct_name, field_name } => TypeError::UnknownStructField {
+                struct_name: struct_name.to_string().leak(),
+                field_name: field_name.to_string().leak(),
+            },
+            TypeError::MissingStructField { struct_name, field_name } => TypeError::MissingStructField {
+                struct_name: struct_name.to_string().leak(),
+                field_name: field_name.to_string().leak(),
+            },
+            TypeError::InvalidOperator { op, ty } => TypeError::InvalidOperator {
+                op: op.clone(),
+                ty: self.convert_hir_type_to_static(ty),
+            },
+            TypeError::InvalidPattern { pattern } => TypeError::InvalidPattern {
+                pattern: pattern.clone(),
+            },
+            TypeError::UnificationError(ty1, ty2) => TypeError::UnificationError(
+                self.convert_hir_type_to_static(ty1),
+                self.convert_hir_type_to_static(ty2),
+            ),
+            TypeError::UnknownModule { namespace, module } => TypeError::UnknownModule {
+                namespace: namespace.to_string().leak(),
+                module: module.to_string().leak(),
+            },
+            TypeError::UnknownModuleSymbol { namespace, module, symbol } => TypeError::UnknownModuleSymbol {
+                namespace: namespace.to_string().leak(),
+                module: module.to_string().leak(),
+                symbol: symbol.to_string().leak(),
+            },
+            TypeError::MissingImport { symbol, suggested_import } => TypeError::MissingImport {
+                symbol: symbol.to_string().leak(),
+                suggested_import: suggested_import.clone(),
+            },
+            TypeError::LiteralOverflow { value, target_type } => TypeError::LiteralOverflow {
+                value: *value,
+                target_type: target_type.clone(),
+            },
+        }
+    }
+
+    // Helper conversion methods for static to borrowed
+    fn convert_static_stmt_to_borrowed(&self, stmt: &ast::Stmt<'static>) -> ast::Stmt<'src> {
+        match stmt {
+            ast::Stmt::Let { is_mut, name, ty, value } => ast::Stmt::Let {
+                is_mut: *is_mut,
+                name,
+                ty: ty.as_ref().map(|t| self.convert_static_type_to_borrowed(t)),
+                value: self.convert_static_expr_to_borrowed(value),
+            },
+            ast::Stmt::Return(expr) => ast::Stmt::Return(
+                expr.as_ref().map(|e| self.convert_static_expr_to_borrowed(e))
+            ),
+            ast::Stmt::Assign(lhs, rhs) => ast::Stmt::Assign(
+                self.convert_static_expr_to_borrowed(lhs),
+                self.convert_static_expr_to_borrowed(rhs),
+            ),
+            ast::Stmt::Expr(expr) => ast::Stmt::Expr(
+                self.convert_static_expr_to_borrowed(expr)
+            ),
+            ast::Stmt::Error => ast::Stmt::Error,
+        }
+    }
+
+    fn convert_static_expr_to_borrowed(&self, expr: &ast::Expr<'static>) -> ast::Expr<'src> {
+        match expr {
+            ast::Expr::Literal(lit) => ast::Expr::Literal(self.convert_static_literal_to_borrowed(lit)),
+            ast::Expr::Array(items) => ast::Expr::Array(
+                items.iter().map(|e| self.convert_static_expr_to_borrowed(e)).collect()
+            ),
+            ast::Expr::Map(items) => ast::Expr::Map(
+                items.iter().map(|(k, v)| (
+                    self.convert_static_expr_to_borrowed(k),
+                    self.convert_static_expr_to_borrowed(v)
+                )).collect()
+            ),
+            ast::Expr::Path(path) => ast::Expr::Path(path.clone()),
+            ast::Expr::FieldAccess { receiver, field } => ast::Expr::FieldAccess {
+                receiver: Box::new(self.convert_static_expr_to_borrowed(receiver)),
+                field,
+            },
+            ast::Expr::Unary { op, rhs } => ast::Expr::Unary {
+                op: op.clone(),
+                rhs: Box::new(self.convert_static_expr_to_borrowed(rhs)),
+            },
+            ast::Expr::Binary { op, lhs, rhs } => ast::Expr::Binary {
+                op: op.clone(),
+                lhs: Box::new(self.convert_static_expr_to_borrowed(lhs)),
+                rhs: Box::new(self.convert_static_expr_to_borrowed(rhs)),
+            },
+            ast::Expr::Call { fun, args } => ast::Expr::Call {
+                fun: Box::new(self.convert_static_expr_to_borrowed(fun)),
+                args: args.iter().map(|e| self.convert_static_expr_to_borrowed(e)).collect(),
+            },
+            ast::Expr::StructInit { path, generics, fields } => ast::Expr::StructInit {
+                path: path.clone(),
+                generics: generics.iter().map(|t| self.convert_static_type_to_borrowed(t)).collect(),
+                fields: fields.iter().map(|(name, expr)| (
+                    *name,
+                    self.convert_static_expr_to_borrowed(expr)
+                )).collect(),
+            },
+            ast::Expr::Block { stmts, last_expr } => ast::Expr::Block {
+                stmts: stmts.iter().map(|s| self.convert_static_stmt_to_borrowed(s)).collect(),
+                last_expr: last_expr.as_ref().map(|e| Box::new(self.convert_static_expr_to_borrowed(e))),
+            },
+            ast::Expr::If { cond, then_block, else_block } => ast::Expr::If {
+                cond: Box::new(self.convert_static_expr_to_borrowed(cond)),
+                then_block: Box::new(self.convert_static_expr_to_borrowed(then_block)),
+                else_block: else_block.as_ref().map(|e| Box::new(self.convert_static_expr_to_borrowed(e))),
+            },
+            ast::Expr::Match { scrutinee, arms } => ast::Expr::Match {
+                scrutinee: Box::new(self.convert_static_expr_to_borrowed(scrutinee)),
+                arms: arms.iter().map(|(pat, expr)| (
+                    self.convert_static_pattern_to_borrowed(pat),
+                    self.convert_static_expr_to_borrowed(expr)
+                )).collect(),
+            },
+            ast::Expr::While { cond, body } => ast::Expr::While {
+                cond: Box::new(self.convert_static_expr_to_borrowed(cond)),
+                body: Box::new(self.convert_static_expr_to_borrowed(body)),
+            },
+            ast::Expr::Perform { path, args } => ast::Expr::Perform {
+                path: path.clone(),
+                args: args.iter().map(|e| self.convert_static_expr_to_borrowed(e)).collect(),
+            },
+            ast::Expr::Handle { body, handler } => ast::Expr::Handle {
+                body: Box::new(self.convert_static_expr_to_borrowed(body)),
+                handler: self.convert_static_handler_body_to_borrowed(handler),
+            },
+            ast::Expr::Error => ast::Expr::Error,
+        }
+    }
+
+    fn convert_static_function_to_borrowed(&self, func: &ast::Function<'static>) -> ast::Function<'src> {
+        ast::Function {
+            name: func.name,
+            generics: func.generics.clone(),
+            params: func.params.iter().map(|(name, ty)| (
+                name.map(|s| s),
+                self.convert_static_type_to_borrowed(ty)
+            )).collect(),
+            ret_type: func.ret_type.as_ref().map(|t| self.convert_static_type_to_borrowed(t)),
+            effects: func.effects.clone(),
+            body: self.convert_static_expr_to_borrowed(&func.body),
+            is_public: func.is_public,
+        }
+    }
+
+    fn convert_static_struct_to_borrowed(&self, struct_def: &ast::StructDef<'static>) -> ast::StructDef<'src> {
+        ast::StructDef {
+            name: struct_def.name,
+            generics: struct_def.generics.clone(),
+                          fields: struct_def.fields.iter().map(|(name, ty)| (
+                *name,
+                self.convert_static_type_to_borrowed(ty)
+            )).collect(),
+            is_public: struct_def.is_public,
+        }
+    }
+
+    fn convert_static_enum_to_borrowed(&self, enum_def: &ast::EnumDef<'static>) -> ast::EnumDef<'src> {
+        ast::EnumDef {
+            name: enum_def.name.map(|s| s),
+            generics: enum_def.generics.clone(),
+                          variants: enum_def.variants.iter().map(|(name, types)| (
+                *name,
+                types.as_ref().map(|ts| ts.iter().map(|t| self.convert_static_type_to_borrowed(t)).collect())
+            )).collect(),
+            is_public: enum_def.is_public,
+        }
+    }
+
+    fn convert_static_trait_to_borrowed(&self, trait_def: &ast::TraitDef<'static>) -> ast::TraitDef<'src> {
+        ast::TraitDef {
+            name: trait_def.name,
+            methods: trait_def.methods.iter().map(|m| ast::TraitMethod {
+                name: m.name,
+                params: m.params.iter().map(|(name, ty)| (
+                    name.map(|s| s),
+                    self.convert_static_type_to_borrowed(ty)
+                )).collect(),
+                ret_type: m.ret_type.as_ref().map(|t| self.convert_static_type_to_borrowed(t)),
+                is_public: m.is_public,
+            }).collect(),
+            is_public: trait_def.is_public,
+        }
+    }
+
+    fn convert_static_impl_to_borrowed(&self, impl_block: &ast::ImplBlock<'static>) -> ast::ImplBlock<'src> {
+        ast::ImplBlock {
+            trait_name: impl_block.trait_name,
+            target_type: self.convert_static_type_to_borrowed(&impl_block.target_type),
+            methods: impl_block.methods.iter().map(|f| self.convert_static_function_to_borrowed(f)).collect(),
+        }
+    }
+
+    fn convert_static_effect_to_borrowed(&self, effect_def: &ast::EffectDef<'static>) -> ast::EffectDef<'src> {
+        ast::EffectDef {
+            name: effect_def.name,
+            operations: effect_def.operations.iter().map(|op| ast::EffectOp {
+                name: op.name,
+                params: op.params.iter().map(|t| self.convert_static_type_to_borrowed(t)).collect(),
+                ret_type: self.convert_static_type_to_borrowed(&op.ret_type),
+                is_public: op.is_public,
+            }).collect(),
+            is_public: effect_def.is_public,
+        }
+    }
+
+    fn convert_static_handler_to_borrowed(&self, handler_def: &ast::HandlerDef<'static>) -> ast::HandlerDef<'src> {
+        ast::HandlerDef {
+            name: handler_def.name,
+            effects: handler_def.effects.clone(),
+            functions: handler_def.functions.iter().map(|f| self.convert_static_function_to_borrowed(f)).collect(),
+            is_public: handler_def.is_public,
+        }
+    }
+
+    fn convert_static_type_to_borrowed(&self, ty: &ast::Type<'static>) -> ast::Type<'src> {
+        ast::Type {
+            path: ty.path.clone(),
+            generics: ty.generics.iter().map(|t| self.convert_static_type_to_borrowed(t)).collect(),
+        }
+    }
+
+    fn convert_static_pattern_to_borrowed(&self, pat: &ast::Pattern<'static>) -> ast::Pattern<'src> {
+        match pat {
+            ast::Pattern::Literal(lit) => ast::Pattern::Literal(self.convert_static_literal_to_borrowed(lit)),
+            ast::Pattern::Identifier(name) => ast::Pattern::Identifier(name),
+            ast::Pattern::Path { path, args } => ast::Pattern::Path {
+                path: path.clone(),
+                args: args.iter().map(|p| self.convert_static_pattern_to_borrowed(p)).collect(),
+            },
+            ast::Pattern::Wildcard => ast::Pattern::Wildcard,
+        }
+    }
+
+    fn convert_static_literal_to_borrowed(&self, lit: &ast::Literal<'static>) -> ast::Literal<'src> {
+        match lit {
+            ast::Literal::Bool(b) => ast::Literal::Bool(*b),
+            ast::Literal::I32(i) => ast::Literal::I32(*i),
+            ast::Literal::I64(i) => ast::Literal::I64(*i),
+            ast::Literal::F64(f) => ast::Literal::F64(*f),
+            ast::Literal::Str(s) => ast::Literal::Str(s),
+            ast::Literal::Unit => ast::Literal::Unit,
+        }
+    }
+
+    fn convert_static_handler_body_to_borrowed(&self, body: &ast::HandlerBody<'static>) -> ast::HandlerBody<'src> {
+        match body {
+            ast::HandlerBody::Path(path) => ast::HandlerBody::Path(path.clone()),
+            ast::HandlerBody::Inline(functions) => ast::HandlerBody::Inline(
+                functions.iter().map(|f| self.convert_static_function_to_borrowed(f)).collect()
+            ),
+        }
+    }
+
+    // Helper conversion methods for HIR to static
+    fn convert_hir_function_to_static(&self, func: &hir::Function<'src>) -> hir::Function<'static> {
+        // Placeholder implementation - would need proper conversion
+        hir::Function {
+            name: Self::to_static_str(func.name),
+            params: func.params.iter().map(|&(ref name, ref ty)| (
+                name.map(|s| Self::to_static_str(s)),
+                self.convert_hir_type_to_static(ty)
+            )).collect(),
+            ret_type: self.convert_hir_type_to_static(&func.ret_type),
+            body: self.convert_hir_expr_to_static(&func.body),
+            is_public: func.is_public,
+        }
+    }
+
+    fn convert_hir_struct_to_static(&self, struct_def: &hir::StructDef<'src>) -> hir::StructDef<'static> {
+        hir::StructDef {
+            name: Self::to_static_str(struct_def.name),
+            generics: struct_def.generics.iter().map(|s| Self::to_static_str(s)).collect(),
+            fields: struct_def.fields.iter().map(|(name, ty)| (
+                Self::to_static_str(name),
+                self.convert_hir_type_to_static(ty)
+            )).collect(),
+            is_public: struct_def.is_public,
+        }
+    }
+
+    fn convert_hir_enum_to_static(&self, enum_def: &hir::EnumDef<'src>) -> hir::EnumDef<'static> {
+        hir::EnumDef {
+            name: enum_def.name.as_deref().map(|s| Self::to_static_str(s)),
+            generics: enum_def.generics.iter().map(|s| Self::to_static_str(s)).collect(),
+            variants: enum_def.variants.iter().map(|(name, types)| (
+                Self::to_static_str(name),
+                types.as_ref().map(|ts| ts.iter().map(|t| self.convert_hir_type_to_static(t)).collect())
+            )).collect(),
+            is_public: enum_def.is_public,
+        }
+    }
+
+    fn convert_hir_trait_to_static(&self, trait_def: &hir::TraitDef<'src>) -> hir::TraitDef<'static> {
+        hir::TraitDef {
+            name: Self::to_static_str(trait_def.name),
+            methods: trait_def.methods.iter().map(|m| hir::TraitMethod {
+                name: Self::to_static_str(m.name),
+                params: m.params.iter().map(|(name, ty)| (
+                    name.map(|s| Self::to_static_str(s)),
+                    self.convert_hir_type_to_static(ty)
+                )).collect(),
+                ret_type: self.convert_hir_type_to_static(&m.ret_type),
+                is_public: m.is_public,
+            }).collect(),
+            is_public: trait_def.is_public,
+        }
+    }
+
+    fn convert_hir_impl_to_static(&self, impl_block: &hir::ImplBlock<'src>) -> hir::ImplBlock<'static> {
+        hir::ImplBlock {
+            trait_name: impl_block.trait_name.to_string().leak(),
+            target_type: self.convert_hir_type_to_static(&impl_block.target_type),
+            methods: impl_block.methods.iter().map(|f| self.convert_hir_function_to_static(f)).collect(),
+        }
+    }
+
+    fn convert_hir_effect_to_static(&self, effect_def: &hir::EffectDef<'src>) -> hir::EffectDef<'static> {
+        hir::EffectDef {
+            name: effect_def.name.to_string().leak(),
+            operations: effect_def.operations.iter().map(|op| hir::EffectOp {
+                name: op.name.to_string().leak(),
+                params: op.params.iter().map(|t| self.convert_hir_type_to_static(t)).collect(),
+                ret_type: self.convert_hir_type_to_static(&op.ret_type),
+                is_public: op.is_public,
+            }).collect(),
+            is_public: effect_def.is_public,
+        }
+    }
+
+    fn convert_hir_handler_to_static(&self, handler_def: &hir::HandlerDef<'src>) -> hir::HandlerDef<'static> {
+        hir::HandlerDef {
+            name: handler_def.name.to_string().leak(),
+            effects: handler_def.effects.iter().map(|s| Self::to_static_str(s)).collect(),
+            functions: handler_def.functions.iter().map(|f| self.convert_hir_function_to_static(f)).collect(),
+            is_public: handler_def.is_public,
+        }
+    }
+
+    fn convert_hir_type_to_static(&self, ty: &hir::Ty<'src>) -> hir::Ty<'static> {
+        match ty {
+            hir::Ty::Infer(id) => hir::Ty::Infer(*id),
+            hir::Ty::Unit => hir::Ty::Unit,
+            hir::Ty::Bool => hir::Ty::Bool,
+            hir::Ty::I32 => hir::Ty::I32,
+            hir::Ty::I64 => hir::Ty::I64,
+            hir::Ty::F64 => hir::Ty::F64,
+            hir::Ty::Str => hir::Ty::Str,
+            hir::Ty::Adt { name, generics } => hir::Ty::Adt {
+                name: name.iter().map(|s| Self::to_static_str(s)).collect(),
+                generics: generics.iter().map(|t| self.convert_hir_type_to_static(t)).collect(),
+            },
+            hir::Ty::Array(inner) => hir::Ty::Array(Box::new(self.convert_hir_type_to_static(inner))),
+            hir::Ty::Map { key, value } => hir::Ty::Map {
+                key: Box::new(self.convert_hir_type_to_static(key)),
+                value: Box::new(self.convert_hir_type_to_static(value)),
+            },
+            hir::Ty::Function { param_types, ret_type } => hir::Ty::Function {
+                param_types: param_types.iter().map(|t| self.convert_hir_type_to_static(t)).collect(),
+                ret_type: Box::new(self.convert_hir_type_to_static(ret_type)),
+            },
+            hir::Ty::Error => hir::Ty::Error,
+        }
+    }
+
+    fn convert_ast_function_to_static(&self, func: &ast::Function<'src>) -> ast::Function<'static> {
+        ast::Function {
+            name: Self::to_static_str(func.name),
+            generics: func.generics.iter().map(|s| Self::to_static_str(s)).collect(),
+            params: func.params.iter().map(|(name, ty)| (
+                name.map(|s| Self::to_static_str(s)),
+                self.convert_type_to_static(ty)
+            )).collect(),
+            ret_type: func.ret_type.as_ref().map(|t| self.convert_type_to_static(t)),
+            effects: func.effects.iter().map(|s| Self::to_static_str(s)).collect(),
+            body: self.convert_expr_to_static(&func.body),
+            is_public: func.is_public,
+        }
+    }
+
+    fn convert_type_to_static(&self, ty: &ast::Type<'src>) -> ast::Type<'static> {
+        ast::Type {
+            path: ty.path.iter().map(|s| Self::to_static_str(s)).collect(),
+            generics: ty.generics.iter().map(|t| self.convert_type_to_static(t)).collect(),
+        }
+    }
+
+    fn convert_expr_to_static(&self, expr: &ast::Expr<'src>) -> ast::Expr<'static> {
+        // Placeholder implementation - would need proper conversion
+        // For now, create a simple unit expression
+        ast::Expr::Literal(ast::Literal::Unit)
+    }
+
+    fn convert_hir_expr_to_static(&self, expr: &hir::Expr<'src>) -> hir::Expr<'static> {
+        // Placeholder implementation - would need proper conversion
+        // For now, create a simple unit expression
+        hir::Expr {
+            kind: hir::ExprKind::Literal(ast::Literal::Unit),
+            ty: hir::Ty::Unit,
+        }
+    }
+
+    fn convert_hir_stmt_to_static(&self, stmt: &hir::Stmt<'src>) -> hir::Stmt<'static> {
+        match stmt {
+            hir::Stmt::Let { name, is_mut, value_ty, value } => hir::Stmt::Let {
+                name: name.to_string().leak(),
+                is_mut: *is_mut,
+                value_ty: self.convert_hir_type_to_static(value_ty),
+                value: self.convert_hir_expr_to_static(value),
+            },
+            hir::Stmt::Return(expr) => hir::Stmt::Return(
+                expr.as_ref().map(|e| self.convert_hir_expr_to_static(e))
+            ),
+            hir::Stmt::Assign(lhs, rhs) => hir::Stmt::Assign(
+                self.convert_hir_expr_to_static(lhs),
+                self.convert_hir_expr_to_static(rhs)
+            ),
+            hir::Stmt::Expr(expr) => hir::Stmt::Expr(self.convert_hir_expr_to_static(expr)),
+        }
     }
 }
 
