@@ -171,9 +171,6 @@ impl<'a> WasmBuilder<'a> {
         for ty in unique_types {
             self.define_type(&ty);
         }
-        
-        // Define string type: array of i8 (UTF-8 bytes)
-        self.define_string_type();
     }
     
     /// Recursively collect aggregate types from a HIR type
@@ -233,22 +230,82 @@ impl<'a> WasmBuilder<'a> {
     /// Collect types from Rvalue
     fn collect_types_from_rvalue(&self, rvalue: &mir::Rvalue<'a>, unique_types: &mut std::collections::HashSet<hir::Ty<'a>>) {
         match rvalue {
-            mir::Rvalue::StructInit { path, .. } => {
-                // For now, we'll use a simple string-based approach
-                // In a real implementation, you'd resolve the path to get the actual type
+            mir::Rvalue::StructInit { path, fields } => {
+                // Create the ADT type for this struct
                 let adt_type = hir::Ty::Adt {
-                    name: vec![path], // Path is Vec<&str>
+                    name: vec![path],
                     generics: vec![],
                 };
                 unique_types.insert(adt_type);
+                
+                // Collect types from all field operands
+                for operand in fields.values() {
+                    self.collect_types_from_operand(operand, unique_types);
+                }
             }
-            mir::Rvalue::Array(_) => {
-                // We'll need to determine the element type from the operands
-                // For now, we'll use a placeholder
-                let array_type = hir::Ty::Array(Box::new(hir::Ty::I32));
-                unique_types.insert(array_type);
+            mir::Rvalue::Array(elements) => {
+                // Collect types from all array elements to determine the element type
+                let mut element_types = std::collections::HashSet::new();
+                for element in elements {
+                    self.collect_types_from_operand(element, &mut element_types);
+                }
+                
+                // If all elements have the same type, use that as the element type
+                // Otherwise, we need to determine a common supertype
+                if let Some(element_type) = element_types.iter().next() {
+                    let array_type = hir::Ty::Array(Box::new(element_type.clone()));
+                    unique_types.insert(array_type);
+                }
             }
-            _ => {}
+            mir::Rvalue::Map(key_value_pairs) => {
+                // Collect types from all keys and values
+                for (key, value) in key_value_pairs {
+                    self.collect_types_from_operand(key, unique_types);
+                    self.collect_types_from_operand(value, unique_types);
+                }
+            }
+            mir::Rvalue::Use(operand) => {
+                self.collect_types_from_operand(operand, unique_types);
+            }
+            mir::Rvalue::BinaryOp(_, lhs, rhs) => {
+                self.collect_types_from_operand(lhs, unique_types);
+                self.collect_types_from_operand(rhs, unique_types);
+            }
+            mir::Rvalue::UnaryOp(_, operand) => {
+                self.collect_types_from_operand(operand, unique_types);
+            }
+            mir::Rvalue::Ref(place) => {
+                // For now, we don't collect types from places as they should already be collected
+                // from the local variable declarations
+            }
+            mir::Rvalue::Projection { base: _, field: _ } => {
+                // The base type should already be collected from local declarations
+                // The projection doesn't introduce new types
+            }
+        }
+    }
+    
+    /// Collect types from an operand
+    fn collect_types_from_operand(&self, operand: &mir::Operand<'a>, unique_types: &mut std::collections::HashSet<hir::Ty<'a>>) {
+        match operand {
+            mir::Operand::Constant(lit) => {
+                // Constants don't introduce new aggregate types, but we should collect
+                // any types that might be embedded in complex literals
+                match lit {
+                    ast::Literal::Str(_) => {
+                        // String literals introduce both the string type and the array type it depends on
+                        unique_types.insert(hir::Ty::Str);
+                        unique_types.insert(hir::Ty::Array(Box::new(hir::Ty::I32)));
+                    }
+                    _ => {
+                        // Other literals don't introduce aggregate types
+                    }
+                }
+            }
+            mir::Operand::Copy(place) => {
+                // The type of the place should already be collected from local declarations
+                // We don't need to do anything here as the type is already known
+            }
         }
     }
     
@@ -280,23 +337,11 @@ impl<'a> WasmBuilder<'a> {
                         self.struct_defs.insert(struct_name, field_names);
                         self.next_type_index += 1;
                     } else {
-                        // Fallback: create a simple struct with i32 fields
-                        let field_names = vec!["field0", "field1"];
-                        let fields = vec![
-                            FieldType {
-                                element_type: StorageType::Val(ValType::I32),
-                                mutable: false,
-                            },
-                            FieldType {
-                                element_type: StorageType::Val(ValType::I32),
-                                mutable: false,
-                            },
-                        ];
-                        self.type_section.ty().struct_(fields);
-                        
-                        self.type_map.insert(ty.clone(), self.next_type_index);
-                        self.struct_defs.insert(struct_name, field_names);
-                        self.next_type_index += 1;
+                        // If struct definition is not found, this is an error
+                        // We should not create a fallback struct as it would be incorrect
+                        eprintln!("ERROR: Struct definition not found for '{}'", struct_name);
+                        // We could panic here, but for now we'll just skip defining this type
+                        // The compilation will likely fail later when trying to use this type
                     }
                 }
             }
@@ -313,35 +358,38 @@ impl<'a> WasmBuilder<'a> {
                 self.type_map.insert(ty.clone(), self.next_type_index);
                 self.next_type_index += 1;
             }
-            _ => {}
+            hir::Ty::Str => {
+                // Define string type as a struct: (i32, array i32)
+                // First, ensure the array type is defined
+                let array_type = hir::Ty::Array(Box::new(hir::Ty::I32));
+                if !self.type_map.contains_key(&array_type) {
+                    self.define_type(&array_type);
+                }
+                
+                let array_type_index = self.type_map[&array_type];
+                
+                // Create the string struct type: (size: i32, data: array i32)
+                let struct_type_index = self.next_type_index;
+                self.type_section.ty().struct_([
+                    FieldType {
+                        element_type: StorageType::Val(ValType::I32), // size field
+                        mutable: false,
+                    },
+                    FieldType {
+                        element_type: StorageType::Val(ValType::Ref(wasm_encoder::RefType {
+                            nullable: false,
+                            heap_type: HeapType::Concrete(array_type_index),
+                        })), // data field (array of i32)
+                        mutable: false,
+                    },
+                ]);
+                self.type_map.insert(hir::Ty::Str, struct_type_index);
+                self.next_type_index += 1;
+            }
+            _ => {
+                // Other types don't need to be defined in the type section
+            }
         }
-    }
-    
-    /// Define the string type: array of i8 (UTF-8 bytes)
-    fn define_string_type(&mut self) {
-        // Define array type for UTF-8 bytes (use I32 for now)
-        let array_type_index = self.next_type_index;
-        self.type_section.ty().array(&StorageType::Val(ValType::I32), false);
-        self.type_map.insert(hir::Ty::Array(Box::new(hir::Ty::I32)), array_type_index);
-        self.next_type_index += 1;
-
-        // Define struct type: (i32, array i32)
-        let struct_type_index = self.next_type_index;
-        self.type_section.ty().struct_([
-            FieldType {
-                element_type: StorageType::Val(ValType::I32),
-                mutable: false,
-            },
-            FieldType {
-                element_type: StorageType::Val(ValType::Ref(wasm_encoder::RefType {
-                    nullable: false,
-                    heap_type: HeapType::Concrete(array_type_index),
-                })),
-                mutable: false,
-            },
-        ]);
-        self.type_map.insert(hir::Ty::Str, struct_type_index);
-        self.next_type_index += 1;
     }
     
     /// Convert HIR type to Wasm ValType
@@ -629,20 +677,29 @@ impl<'a> WasmBuilder<'a> {
                     if let Some(field_names) = self.struct_defs.get(path) {
                         // Iterate through the struct's fields in their defined order
                         for field_name in field_names {
+                            // All fields should be present by the time we reach codegen
+                            // The typechecker ensures this
                             if let Some(operand) = fields.get(field_name) {
+                                // Build the operand - this will push the correct type onto the stack
                                 self.build_operand(operand, f, func);
                             } else {
-                                // If field is missing, push a default value (0 for i32)
-                                f.instruction(&Instruction::I32Const(0));
+                                // This should never happen if the typechecker is working correctly
+                                // If it does happen, it's a bug in the typechecker or MIR lowering
+                                eprintln!("ERROR: Missing field '{}' in struct '{}' initialization", field_name, path);
+                                f.instruction(&Instruction::Unreachable);
+                                return;
                             }
                         }
                         
                         // Use proper WasmGC instruction to create the struct
                         f.instruction(&Instruction::StructNew(*type_index));
+                    } else {
+                        eprintln!("ERROR: Struct definition not found for '{}'", path);
+                        f.instruction(&Instruction::Unreachable);
                     }
                 } else {
-                    // Fallback: just push a placeholder value
-                    f.instruction(&Instruction::I32Const(0));
+                    eprintln!("ERROR: Type not found for struct '{}'", path);
+                    f.instruction(&Instruction::Unreachable);
                 }
             },
             mir::Rvalue::Array(elements) => {
@@ -768,9 +825,25 @@ impl<'a> WasmBuilder<'a> {
     
     /// Build a string literal using ArrayNewFixed
     fn build_string_literal(&self, s: &str, f: &mut Function) {
-        // Get type indices
-        let array_type_index = *self.type_map.get(&hir::Ty::Array(Box::new(hir::Ty::I32))).expect("array i32 type");
-        let struct_type_index = *self.type_map.get(&hir::Ty::Str).expect("string struct type");
+        // Get type indices - handle cases where types might not be defined
+        let array_type_index = match self.type_map.get(&hir::Ty::Array(Box::new(hir::Ty::I32))) {
+            Some(index) => *index,
+            None => {
+                eprintln!("ERROR: Array type not defined for string literal");
+                f.instruction(&Instruction::Unreachable);
+                return;
+            }
+        };
+        
+        let struct_type_index = match self.type_map.get(&hir::Ty::Str) {
+            Some(index) => *index,
+            None => {
+                eprintln!("ERROR: String type not defined for string literal");
+                f.instruction(&Instruction::Unreachable);
+                return;
+            }
+        };
+        
         let len = s.len() as i32;
 
         // Push string length
@@ -793,7 +866,7 @@ impl<'a> WasmBuilder<'a> {
     fn build_exports(&mut self) {
         if let Some(main_index) = self.function_indices.get("main") {
             self.export_section.export(
-                "_start", // WASI expects a `_start` function for the entry point
+                "main", // Export as main instead of _start to avoid WASI signature requirements
                 ExportKind::Func,
                 *main_index,
             );
