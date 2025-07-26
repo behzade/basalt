@@ -103,12 +103,7 @@ pub enum Expr<'src> {
     Error,
 }
 
-/// An attribute, like `#[extern("wasi")]`.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Attribute<'src> {
-    pub name: &'src str,
-    pub args: Vec<&'src str>,
-}
+
 
 /// A type annotation.
 #[derive(Debug, PartialEq, Clone)]
@@ -149,8 +144,7 @@ pub enum Pattern<'src> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function<'src> {
-    pub attributes: Vec<Attribute<'src>>,
-     pub name: &'src str,
+    pub name: &'src str,
     pub generics: Vec<&'src str>, // Generic type parameters (e.g., ["T", "U"])
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
@@ -161,7 +155,6 @@ pub struct Function<'src> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructDef<'src> {
-    pub attributes: Vec<Attribute<'src>>,
     pub name: &'src str,
     pub generics: Vec<&'src str>,
     pub fields: Vec<(&'src str, Type<'src>)>,

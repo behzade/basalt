@@ -265,14 +265,6 @@ impl ProjectLoader {
     /// Convert a function to an owned version
     fn convert_function_to_owned(&self, func: &crate::ast::Function) -> crate::ast::Function<'static> {
         crate::ast::Function {
-            attributes: func.attributes.iter().map(|attr| crate::ast::Attribute {
-                name: {
-                    let owned = attr.name.to_string();
-                    let leaked = Box::leak(owned.into_boxed_str());
-                    &*leaked
-                },
-                args: attr.args.iter().map(|s| Self::to_static_str(s)).collect(),
-            }).collect(),
             name: Self::to_static_str(func.name),
             generics: func.generics.iter().map(|s| Self::to_static_str(s)).collect(),
             params: func.params.iter().map(|(name, ty)| (
@@ -289,10 +281,6 @@ impl ProjectLoader {
     /// Convert a struct definition to an owned version
     fn convert_struct_to_owned(&self, struct_def: &crate::ast::StructDef) -> crate::ast::StructDef<'static> {
         crate::ast::StructDef {
-            attributes: struct_def.attributes.iter().map(|attr| crate::ast::Attribute {
-                name: Self::to_static_str(attr.name),
-                args: attr.args.iter().map(|s| Self::to_static_str(s)).collect(),
-            }).collect(),
             name: Self::to_static_str(struct_def.name),
             generics: struct_def.generics.iter().map(|s| Self::to_static_str(s)).collect(),
             fields: struct_def.fields.iter().map(|(name, ty)| (
@@ -599,10 +587,6 @@ impl ProjectLoader {
 
     fn convert_static_function_to_borrowed(&self, func: &crate::ast::Function<'static>) -> crate::ast::Function {
         crate::ast::Function {
-            attributes: func.attributes.iter().map(|attr| crate::ast::Attribute {
-                name: attr.name,
-                args: attr.args.clone(),
-            }).collect(),
             name: func.name,
             generics: func.generics.clone(),
             params: func.params.iter().map(|(name, ty)| (
@@ -618,10 +602,6 @@ impl ProjectLoader {
 
     fn convert_static_struct_to_borrowed(&self, struct_def: &crate::ast::StructDef<'static>) -> crate::ast::StructDef {
         crate::ast::StructDef {
-            attributes: struct_def.attributes.iter().map(|attr| crate::ast::Attribute {
-                name: attr.name,
-                args: attr.args.clone(),
-            }).collect(),
             name: struct_def.name,
             generics: struct_def.generics.clone(),
             fields: struct_def.fields.iter().map(|(name, ty)| (

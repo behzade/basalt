@@ -93,7 +93,6 @@ impl<'src> TypeContext<'src> {
     fn add_builtin_functions(&mut self) {
         // Add get function for array/map access (flexible parameter types)
         let get_func = ast::Function {
-            attributes: vec![],
             name: "get",
             generics: vec![],
             params: vec![
@@ -111,7 +110,6 @@ impl<'src> TypeContext<'src> {
         // Note: This function will be handled specially in the type checker
         // The actual return type will be determined by the field being accessed
         let get_field_func = ast::Function {
-            attributes: vec![],
             name: "get_field",
             generics: vec![],
             params: vec![

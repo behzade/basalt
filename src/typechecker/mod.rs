@@ -961,10 +961,6 @@ impl<'src> TypeChecker<'src> {
 
     fn convert_static_function_to_borrowed(&self, func: &ast::Function<'static>) -> ast::Function<'src> {
         ast::Function {
-            attributes: func.attributes.iter().map(|attr| ast::Attribute {
-                name: attr.name,
-                args: attr.args.clone(),
-            }).collect(),
             name: func.name,
             generics: func.generics.clone(),
             params: func.params.iter().map(|(name, ty)| (
@@ -980,10 +976,6 @@ impl<'src> TypeChecker<'src> {
 
     fn convert_static_struct_to_borrowed(&self, struct_def: &ast::StructDef<'static>) -> ast::StructDef<'src> {
         ast::StructDef {
-            attributes: struct_def.attributes.iter().map(|attr| ast::Attribute {
-                name: attr.name,
-                args: attr.args.clone(),
-            }).collect(),
             name: struct_def.name,
             generics: struct_def.generics.clone(),
                           fields: struct_def.fields.iter().map(|(name, ty)| (
@@ -1204,10 +1196,6 @@ impl<'src> TypeChecker<'src> {
 
     fn convert_ast_function_to_static(&self, func: &ast::Function<'src>) -> ast::Function<'static> {
         ast::Function {
-            attributes: func.attributes.iter().map(|attr| ast::Attribute {
-                name: Self::to_static_str(attr.name),
-                args: attr.args.iter().map(|s| Self::to_static_str(s)).collect(),
-            }).collect(),
             name: Self::to_static_str(func.name),
             generics: func.generics.iter().map(|s| Self::to_static_str(s)).collect(),
             params: func.params.iter().map(|(name, ty)| (
