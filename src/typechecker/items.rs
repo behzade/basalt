@@ -29,11 +29,11 @@ impl<'src> TypeChecker<'src> {
             ast::Item::ExternBlock { module_name, functions } => {
                 // Process each function in the extern block
                 for function in functions {
-                    let hir_params: Vec<(Option<&'src str>, Ty<'src>)> = function.params
+                    let _hir_params: Vec<(Option<&'src str>, Ty<'src>)> = function.params
                         .iter()
                         .map(|(n, t)| (*n, self.lower_type(t)))
                         .collect();
-                    let ret_type = function.ret_type.as_ref().map_or(Ty::Unit, |t| self.lower_type(t));
+                    let _ret_type = function.ret_type.as_ref().map_or(Ty::Unit, |t| self.lower_type(t));
                     
                     // Add the function to the context for later lookup
                     self.context.add_extern_function(function.name, ast::Item::ExternBlock {

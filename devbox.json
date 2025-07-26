@@ -24,6 +24,12 @@
       ],
       "watch": [
         "cargo watch -x 'test'"
+      ],
+      "run": [
+        "cargo run -- build $1 && wasmtime --wasm gc dist/output.wasm"
+      ],
+      "explore": [
+        "wasmtime explore --wasm gc dist/output.wasm"
       ]
     }
   }

@@ -1,7 +1,7 @@
 //! src/mir/mod.rs
 //!
 //! This module handles the lowering of the Hierarchical Intermediate Representation (HIR)
-//! into the Mid-level Intermediate Representation (MIR).
+//! into the Mid-level Intermediate Representation (MIR) using structured control flow.
 
 mod builder;
 pub mod data;
@@ -12,8 +12,8 @@ use data::*;
 
 // Re-export commonly used types for easier access
 pub use data::{
-    BasicBlock, HandlerContext, LocalId, MirFunction, MirLocal, MirProgram, Operand, PatternKind,
-    Place, Rvalue, Statement, Terminator,
+    LocalId, MirFunction, MirProgram, Operand, PatternKind,
+    Place, Rvalue, Statement, MirInstruction,
 };
 use std::collections::HashMap;
 
@@ -63,7 +63,7 @@ impl<'src> MirLowerer<'src> {
         }
 
         // Lower the function body.
-        self.lower_expr(
+        let body_instructions = self.lower_expr(
             &func.body,
             &mut builder,
             &mut hir_to_mir_locals,
@@ -71,25 +71,49 @@ impl<'src> MirLowerer<'src> {
             Place { local: LocalId(0) },
         );
 
-        // Terminate the last block with a Return.
-        builder.set_terminator(Terminator::Return);
+        // Add the body instructions to the builder
+        for instruction in body_instructions {
+            builder.push_instruction(instruction);
+        }
+
+        // Add a return instruction at the end
+        builder.push_instruction(MirInstruction::Return);
 
         builder.build(func.name, param_locals, func.ret_type.clone())
     }
 
-    /// Lowers an HIR expression into a series of MIR statements and terminators.
+    /// Coerces a literal to the expected type, handling type conversions as needed.
+    fn coerce_literal_to_type(&self, lit: &ast::Literal<'src>, expected_ty: &hir::Ty<'src>) -> ast::Literal<'src> {
+        match (lit, expected_ty) {
+            (ast::Literal::I64(value), hir::Ty::I32) => {
+                // Convert to I32 literal when expected type is I32
+                // The typechecker should have already verified the value fits
+                ast::Literal::I32(*value as i32)
+            }
+            _ => {
+                // For other cases, just return the literal as-is
+                lit.clone()
+            }
+        }
+    }
+
+    /// Lowers an HIR expression into a series of MIR instructions.
     /// The result of the expression is placed in `destination`.
+    /// Returns a Vec<MirInstruction> representing the structured control flow.
     fn lower_expr(
         &self,
         expr: &'src hir::Expr<'src>,
         builder: &mut MirBuilder<'src>,
         locals: &mut HashMap<&'src str, LocalId>,
         destination: Place,
-    ) {
+    ) -> Vec<MirInstruction<'src>> {
         match &expr.kind {
             hir::ExprKind::Literal(lit) => {
-                let rvalue = Rvalue::Use(Operand::Constant(lit.clone()));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                // Get the expected type from the destination
+                let expected_ty = &builder.locals[&destination.local].ty;
+                let coerced_lit = self.coerce_literal_to_type(lit, expected_ty);
+                let rvalue = Rvalue::Use(Operand::Constant(coerced_lit));
+                vec![MirInstruction::Assign(destination, rvalue)]
             }
             hir::ExprKind::Path(path) => {
                 // This is a local variable or function reference
@@ -98,39 +122,42 @@ impl<'src> MirLowerer<'src> {
                     .get(name)
                     .expect("Local variable not found in MIR context");
                 let rvalue = Rvalue::Use(Operand::Copy(Place { local: *local_id }));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                vec![MirInstruction::Assign(destination, rvalue)]
             }
-            hir::ExprKind::EnumVariant { enum_name, variant_name } => {
-                // This is an enum variant, treat it as a constant for now
-                // In a real implementation, this would create proper enum variant construction
+            hir::ExprKind::EnumVariant { enum_name: _, variant_name: _ } => {
+                // TODO: Implement proper enum variant construction
+                // This should create an enum variant with the specified fields
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                vec![MirInstruction::Assign(destination, rvalue)]
             }
-            hir::ExprKind::ModulePath { module, symbol } => {
-                // This is a module-qualified path, treat it as a constant for now
-                // In a real implementation, this would resolve the module symbol
+            hir::ExprKind::ModulePath { module: _, symbol: _ } => {
+                // TODO: Implement proper module symbol resolution
+                // This should resolve the symbol from the specified module
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                vec![MirInstruction::Assign(destination, rvalue)]
             }
             hir::ExprKind::FieldAccess { receiver, field } => {
                 // Lower the receiver into a temporary local
                 let receiver_temp = builder.new_local(receiver.ty.clone(), false);
-                self.lower_expr(receiver, builder, locals, Place { local: receiver_temp });
+                let mut instructions = self.lower_expr(receiver, builder, locals, Place { local: receiver_temp });
                 
-                // For now, just return the receiver value as a placeholder
-                // In a real implementation, this would create proper field access instructions
-                // that extract the specific field from the struct
-                let rvalue = Rvalue::Use(Operand::Copy(Place { local: receiver_temp }));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                // Create a projection to access the specific field
+                let rvalue = Rvalue::Projection {
+                    base: Place { local: receiver_temp },
+                    field,
+                };
+                instructions.push(MirInstruction::Assign(destination, rvalue));
+                instructions
             }
             hir::ExprKind::Binary { op, lhs, rhs } => {
                 // Lower LHS into a temporary local.
                 let lhs_temp = builder.new_local(lhs.ty.clone(), false);
-                self.lower_expr(lhs, builder, locals, Place { local: lhs_temp });
+                let mut instructions = self.lower_expr(lhs, builder, locals, Place { local: lhs_temp });
 
                 // Lower RHS into another temporary local.
                 let rhs_temp = builder.new_local(rhs.ty.clone(), false);
-                self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
+                let rhs_instructions = self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
+                instructions.extend(rhs_instructions);
 
                 // Create the binary operation Rvalue.
                 let rvalue = Rvalue::BinaryOp(
@@ -138,16 +165,18 @@ impl<'src> MirLowerer<'src> {
                     Operand::Copy(Place { local: lhs_temp }),
                     Operand::Copy(Place { local: rhs_temp }),
                 );
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                instructions.push(MirInstruction::Assign(destination, rvalue));
+                instructions
             }
             hir::ExprKind::Unary { op, rhs } => {
                 // Lower RHS into a temporary local.
                 let rhs_temp = builder.new_local(rhs.ty.clone(), false);
-                self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
+                let mut instructions = self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
 
                 // Create the unary operation Rvalue.
                 let rvalue = Rvalue::UnaryOp(*op, Operand::Copy(Place { local: rhs_temp }));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                instructions.push(MirInstruction::Assign(destination, rvalue));
+                instructions
             }
             hir::ExprKind::If {
                 cond,
@@ -156,51 +185,36 @@ impl<'src> MirLowerer<'src> {
             } => {
                 // Lower the condition into a temporary local.
                 let cond_temp = builder.new_local(cond.ty.clone(), false);
-                self.lower_expr(cond, builder, locals, Place { local: cond_temp });
-
-                // Create blocks for the if structure.
-                let then_block_id = builder.new_basic_block();
-                let else_block_id = builder.new_basic_block();
-                let merge_block_id = builder.new_basic_block();
-
-                // Terminate current block with conditional jump.
-                builder.set_terminator(Terminator::SwitchInt {
-                    discr: Operand::Copy(Place { local: cond_temp }),
-                    targets: vec![(1, then_block_id)], // true -> then block
-                    otherwise: else_block_id,          // false -> else block
-                });
+                let mut instructions = self.lower_expr(cond, builder, locals, Place { local: cond_temp });
 
                 // Lower the then block.
-                builder.switch_to_block(then_block_id);
-                self.lower_expr(then_block, builder, locals, destination.clone());
-                builder.set_terminator(Terminator::Goto {
-                    target: merge_block_id,
-                });
+                let then_instructions = self.lower_expr(then_block, builder, locals, destination.clone());
 
                 // Lower the else block if it exists.
-                if let Some(else_expr) = else_block {
-                    builder.switch_to_block(else_block_id);
-                    self.lower_expr(else_expr, builder, locals, destination);
-                    builder.set_terminator(Terminator::Goto {
-                        target: merge_block_id,
-                    });
+                let else_instructions = if let Some(else_expr) = else_block {
+                    self.lower_expr(else_expr, builder, locals, destination)
                 } else {
-                    // No else block - assign unit to destination and goto merge
-                    builder.switch_to_block(else_block_id);
+                    // No else block - assign unit to destination
                     let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                    builder.push_statement(Statement::Assign(destination.clone(), rvalue));
-                    builder.set_terminator(Terminator::Goto {
-                        target: merge_block_id,
-                    });
-                }
+                    vec![MirInstruction::Assign(destination, rvalue)]
+                };
 
-                // Continue from merge block.
-                builder.switch_to_block(merge_block_id);
+                // Create the if instruction
+                instructions.push(MirInstruction::If {
+                    condition: Operand::Copy(Place { local: cond_temp }),
+                    then_block: then_instructions,
+                    else_block: else_instructions,
+                });
+
+                instructions
             }
             hir::ExprKind::Block { stmts, last_expr } => {
+                let mut instructions = Vec::new();
+
                 // Lower all statements in the block.
                 for stmt in stmts {
-                    self.lower_stmt(stmt, builder, locals);
+                    let stmt_instructions = self.lower_stmt(stmt, builder, locals);
+                    instructions.extend(stmt_instructions);
                 }
 
                 // Check if any statement was a return
@@ -211,59 +225,62 @@ impl<'src> MirLowerer<'src> {
                 // Lower the last expression if it exists and no return statement was encountered.
                 if let Some(expr) = last_expr {
                     if !has_return {
-                        self.lower_expr(expr, builder, locals, destination);
+                        let expr_instructions = self.lower_expr(expr, builder, locals, destination);
+                        instructions.extend(expr_instructions);
                     }
                 } else if !has_return {
                     // No last expression and no return statement - assign unit.
                     let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                    builder.push_statement(Statement::Assign(destination, rvalue));
+                    instructions.push(MirInstruction::Assign(destination, rvalue));
                 }
                 // If there's a return statement, don't assign anything to destination
                 // The return statement has already handled the return value
+
+                instructions
             }
             hir::ExprKind::Call { fun, args } => {
                 // Lower all arguments into temporary locals.
+                let mut instructions = Vec::new();
                 let mut arg_operands = Vec::new();
                 for arg in args {
                     let arg_temp = builder.new_local(arg.ty.clone(), false);
-                    self.lower_expr(arg, builder, locals, Place { local: arg_temp });
+                    let arg_instructions = self.lower_expr(arg, builder, locals, Place { local: arg_temp });
+                    instructions.extend(arg_instructions);
                     arg_operands.push(Operand::Copy(Place { local: arg_temp }));
                 }
 
-                // Create a new block for after the call.
-                let after_call_bb = builder.new_basic_block();
-
-                // Terminate current block with the call.
-                builder.set_terminator(Terminator::Call {
+                // Create the call instruction
+                let call_instruction = MirInstruction::Call {
                     func: match &**fun {
                         hir::Expr {
                             kind: hir::ExprKind::Path(path),
                             ..
                         } => path.first().expect("Function path cannot be empty"),
                         hir::Expr {
-                            kind: hir::ExprKind::EnumVariant { enum_name, variant_name },
+                            kind: hir::ExprKind::EnumVariant { enum_name: _, variant_name },
                             ..
                         } => variant_name, // Use the variant name as the function name
                         hir::Expr {
-                            kind: hir::ExprKind::ModulePath { module, symbol },
+                            kind: hir::ExprKind::ModulePath { module: _, symbol },
                             ..
                         } => symbol, // Use the symbol name as the function name
                         _ => panic!("Expected function call to have a path, enum variant, or module path expression"),
                     },
                     args: arg_operands,
-                    destination: destination.clone(),
-                    target: after_call_bb,
-                });
+                    destination: destination,
+                };
 
-                // Switch to the after-call block.
-                builder.switch_to_block(after_call_bb);
+                instructions.push(call_instruction);
+                instructions
             }
             hir::ExprKind::Perform { path, args } => {
                 // Lower all arguments into temporary locals.
+                let mut instructions = Vec::new();
                 let mut arg_operands = Vec::new();
                 for arg in args {
                     let arg_temp = builder.new_local(arg.ty.clone(), false);
-                    self.lower_expr(arg, builder, locals, Place { local: arg_temp });
+                    let arg_instructions = self.lower_expr(arg, builder, locals, Place { local: arg_temp });
+                    instructions.extend(arg_instructions);
                     arg_operands.push(Operand::Copy(Place { local: arg_temp }));
                 }
 
@@ -273,32 +290,16 @@ impl<'src> MirLowerer<'src> {
                     .get(1)
                     .expect("Effect operation path must have operation name");
 
-                // Create continuation block for after the effect is handled
-                let continuation_bb = builder.new_basic_block();
-
-                // Create block for when no handler is found
-                let no_handler_bb = builder.new_basic_block();
-
-                // Generate dynamic perform operation
-                builder.set_terminator(Terminator::Perform {
+                // Create the perform instruction
+                let perform_instruction = MirInstruction::Perform {
                     effect: effect_name,
                     operation: operation_name,
                     args: arg_operands,
-                    destination: destination.clone(),
-                    continuation: continuation_bb,
-                    no_handler: no_handler_bb,
-                });
+                    destination: destination,
+                };
 
-                // Set up no-handler block (for now, assign unit and continue)
-                builder.switch_to_block(no_handler_bb);
-                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination.clone(), rvalue));
-                builder.set_terminator(Terminator::Goto {
-                    target: continuation_bb,
-                });
-
-                // Switch to continuation block
-                builder.switch_to_block(continuation_bb);
+                instructions.push(perform_instruction);
+                instructions
             }
             hir::ExprKind::Handle { body, handler } => {
                 match handler {
@@ -307,32 +308,18 @@ impl<'src> MirLowerer<'src> {
                         let handler_name =
                             handler_path.first().expect("Handler path cannot be empty");
 
-                        // For now, we'll assume the handler handles all effects
-                        // In a real implementation, we'd check the handler's effect signature
-                        let effect_name = "IO"; // Placeholder - should come from handler definition
+                        // TODO: Check the handler's effect signature to determine which effects it handles
+                        let effect_name = "IO"; // Should come from handler definition
 
-                        // Create blocks for the handle structure
-                        let body_block = builder.new_basic_block();
-                        let after_handle_block = builder.new_basic_block();
+                        // Lower the body
+                        let body_instructions = self.lower_expr(body, builder, locals, destination);
 
-                        // Push handler and jump to body
-                        builder.set_terminator(Terminator::PushHandler {
+                        // Create the push handler instruction
+                        vec![MirInstruction::PushHandler {
                             effect: effect_name,
                             handler: handler_name,
-                            target: body_block,
-                        });
-
-                        // Lower the body in the body block
-                        builder.switch_to_block(body_block);
-                        self.lower_expr(body, builder, locals, destination);
-
-                        // Pop handler and continue
-                        builder.set_terminator(Terminator::PopHandler {
-                            target: after_handle_block,
-                        });
-
-                        // Switch to after-handle block
-                        builder.switch_to_block(after_handle_block);
+                            body: body_instructions,
+                        }]
                     }
                     hir::HandlerBody::Inline(_handler_functions) => {
                         // For inline handlers, we'd need to create local handler functions
@@ -340,16 +327,17 @@ impl<'src> MirLowerer<'src> {
                         // This is more complex and would require additional MIR constructs
 
                         // For now, just lower the body without any handler
-                        self.lower_expr(body, builder, locals, destination);
+                        self.lower_expr(body, builder, locals, destination)
                     }
                 }
             }
             hir::ExprKind::Array(elements) => {
                 // Lower all array elements into operands
+                let mut instructions = Vec::new();
                 let mut element_operands = Vec::new();
                 for element in elements {
                     let element_temp = builder.new_local(element.ty.clone(), false);
-                    self.lower_expr(
+                    let element_instructions = self.lower_expr(
                         element,
                         builder,
                         locals,
@@ -357,6 +345,7 @@ impl<'src> MirLowerer<'src> {
                             local: element_temp,
                         },
                     );
+                    instructions.extend(element_instructions);
                     element_operands.push(Operand::Copy(Place {
                         local: element_temp,
                     }));
@@ -364,17 +353,22 @@ impl<'src> MirLowerer<'src> {
 
                 // Create array Rvalue
                 let rvalue = Rvalue::Array(element_operands);
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                instructions.push(MirInstruction::Assign(destination, rvalue));
+                instructions
             }
             hir::ExprKind::Map(entries) => {
                 // Lower all map entries into operands
+                let mut instructions = Vec::new();
                 let mut entry_operands = Vec::new();
                 for (key, value) in entries {
                     let key_temp = builder.new_local(key.ty.clone(), false);
                     let value_temp = builder.new_local(value.ty.clone(), false);
 
-                    self.lower_expr(key, builder, locals, Place { local: key_temp });
-                    self.lower_expr(value, builder, locals, Place { local: value_temp });
+                    let key_instructions = self.lower_expr(key, builder, locals, Place { local: key_temp });
+                    let value_instructions = self.lower_expr(value, builder, locals, Place { local: value_temp });
+
+                    instructions.extend(key_instructions);
+                    instructions.extend(value_instructions);
 
                     entry_operands.push((
                         Operand::Copy(Place { local: key_temp }),
@@ -384,14 +378,17 @@ impl<'src> MirLowerer<'src> {
 
                 // Create map Rvalue
                 let rvalue = Rvalue::Map(entry_operands);
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                instructions.push(MirInstruction::Assign(destination, rvalue));
+                instructions
             }
             hir::ExprKind::StructInit { path, fields } => {
                 // Lower all field values into operands
+                let mut instructions = Vec::new();
                 let mut field_operands = HashMap::new();
                 for (field_name, field_expr) in fields {
                     let field_temp = builder.new_local(field_expr.ty.clone(), false);
-                    self.lower_expr(field_expr, builder, locals, Place { local: field_temp });
+                    let field_instructions = self.lower_expr(field_expr, builder, locals, Place { local: field_temp });
+                    instructions.extend(field_instructions);
                     field_operands.insert(*field_name, Operand::Copy(Place { local: field_temp }));
                 }
 
@@ -401,12 +398,13 @@ impl<'src> MirLowerer<'src> {
                     path: struct_name,
                     fields: field_operands,
                 };
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                instructions.push(MirInstruction::Assign(destination, rvalue));
+                instructions
             }
             hir::ExprKind::Match { scrutinee, arms } => {
                 // Lower the scrutinee into a temporary local.
                 let scrutinee_temp = builder.new_local(scrutinee.ty.clone(), false);
-                self.lower_expr(
+                let mut instructions = self.lower_expr(
                     scrutinee,
                     builder,
                     locals,
@@ -415,10 +413,9 @@ impl<'src> MirLowerer<'src> {
                     },
                 );
 
-                // Create blocks for each arm and a merge block.
-                let mut arm_blocks = Vec::new();
-                for (pattern, _) in arms {
-                    let arm_block = builder.new_basic_block();
+                // Lower each arm
+                let mut arm_instructions = Vec::new();
+                for (pattern, expr) in arms {
                     // Convert hir::Pattern to data::Pattern
                     let mir_pattern = Pattern {
                         kind: match &pattern.kind {
@@ -476,86 +473,109 @@ impl<'src> MirLowerer<'src> {
                         },
                         ty: pattern.ty.clone(),
                     };
-                    arm_blocks.push((mir_pattern, arm_block));
-                }
-                let default_block = builder.new_basic_block();
-                let merge_block = builder.new_basic_block();
 
-                // Lower each arm.
-                for ((_pattern, expr), arm_block) in arms.iter().zip(arm_blocks.iter()) {
-                    builder.switch_to_block(arm_block.1);
-                    self.lower_expr(expr, builder, locals, destination.clone());
-                    builder.set_terminator(Terminator::Goto {
-                        target: merge_block,
-                    });
+                    let arm_body = self.lower_expr(expr, builder, locals, destination.clone());
+                    arm_instructions.push((mir_pattern, arm_body));
                 }
 
-                // Set up the default block to assign unit and goto merge
-                builder.switch_to_block(default_block);
-                let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination, rvalue));
-                builder.set_terminator(Terminator::Goto {
-                    target: merge_block,
-                });
+                // Create default case (assign unit)
+                let default_instructions = {
+                    let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
+                    vec![MirInstruction::Assign(destination, rvalue)]
+                };
 
-                // Set the pattern match terminator in the current block (which should be the original block)
-                // We need to manually set it in the correct block since we've been switching around
-                let original_block = builder.basic_blocks.len() - 2 - arms.len();
-                builder.basic_blocks[original_block].terminator = Terminator::PatternMatch {
+                // Create the pattern match instruction
+                instructions.push(MirInstruction::PatternMatch {
                     scrutinee: Operand::Copy(Place {
                         local: scrutinee_temp,
                     }),
-                    arms: arm_blocks,
-                    otherwise: default_block,
-                };
-
-                // Continue from merge block
-                builder.switch_to_block(merge_block);
-            }
-            hir::ExprKind::While { cond, body } => {
-                // Create blocks for the loop: condition, body, and exit.
-                let cond_bb = builder.new_basic_block();
-                let body_bb = builder.new_basic_block();
-                let exit_bb = builder.new_basic_block();
-
-                // Jump to the condition block.
-                builder.set_terminator(Terminator::Goto { target: cond_bb });
-
-                // Lower the condition.
-                builder.switch_to_block(cond_bb);
-                let cond_temp = builder.new_local(cond.ty.clone(), false);
-                self.lower_expr(cond, builder, locals, Place { local: cond_temp });
-
-                // Branch based on condition.
-                builder.set_terminator(Terminator::SwitchInt {
-                    discr: Operand::Copy(Place { local: cond_temp }),
-                    targets: vec![(1, body_bb)], // if true, go to body
-                    otherwise: exit_bb,          // if false, exit loop
+                    arms: arm_instructions,
+                    otherwise: default_instructions,
                 });
 
-                // Lower the body.
-                builder.switch_to_block(body_bb);
+                instructions
+            }
+            hir::ExprKind::While { cond, body } => {
+                // Lower the condition into a temporary local.
+                let cond_temp = builder.new_local(cond.ty.clone(), false);
+                let cond_instructions = self.lower_expr(cond, builder, locals, Place { local: cond_temp });
+
+                // Lower the body
                 let body_temp = builder.new_local(body.ty.clone(), false);
-                self.lower_expr(body, builder, locals, Place { local: body_temp });
-                builder.set_terminator(Terminator::Goto { target: cond_bb }); // Loop back to condition
+                let body_instructions = self.lower_expr(body, builder, locals, Place { local: body_temp });
 
-                // Continue from exit block.
-                builder.switch_to_block(exit_bb);
+                // Create the loop structure
+                // The pattern for while (cond) { body } is:
+                // loop
+                //   ;; ... code for cond ...
+                //   ;; check if cond is false and break if so
+                //   ;; ... code for body ...
+                //   br 0 ;; branch to the start of the loop
+                // end
 
-                // Assign unit value to destination (while loops return unit).
+                let mut loop_body = Vec::new();
+                
+                // Add condition evaluation
+                loop_body.extend(cond_instructions);
+                
+                // Add conditional break - break out of loop if condition is false
+                // For boolean conditions, we want to break when condition is false
+                // For integer conditions, we want to break when condition is zero
+                // The ConditionalBreak instruction breaks when the condition is true
+                // So for while loops, we want to break when the condition is false
+                if matches!(cond.ty, hir::Ty::Bool) {
+                    // For boolean, we want to break when condition is false
+                    // So we need to check if condition == false
+                    let false_temp = builder.new_local(hir::Ty::Bool, false);
+                    loop_body.push(MirInstruction::Assign(
+                        Place { local: false_temp },
+                        Rvalue::Use(Operand::Constant(ast::Literal::Bool(false)))
+                    ));
+                    let eq_temp = builder.new_local(hir::Ty::Bool, false);
+                    loop_body.push(MirInstruction::Assign(
+                        Place { local: eq_temp },
+                        Rvalue::BinaryOp(
+                            ast::BinaryOp::Eq,
+                            Operand::Copy(Place { local: cond_temp }),
+                            Operand::Copy(Place { local: false_temp })
+                        )
+                    ));
+                    loop_body.push(MirInstruction::ConditionalBreak(
+                        Operand::Copy(Place { local: eq_temp }),
+                        0, // break out of the immediate enclosing loop
+                    ));
+                } else {
+                    // For integers, we want to break when condition is zero
+                    // So we break when condition == 0
+                    loop_body.push(MirInstruction::ConditionalBreak(
+                        Operand::Copy(Place { local: cond_temp }),
+                        0, // break out of the immediate enclosing loop
+                    ));
+                }
+                
+                // Add body instructions
+                loop_body.extend(body_instructions);
+                
+                // Add unconditional break (br 0) - jump back to start of loop
+                loop_body.push(MirInstruction::Break(0));
+
+                // Create the loop instruction
+                let loop_instruction = MirInstruction::Loop { body: loop_body };
+
+                // Assign unit value to destination (while loops return unit)
                 let rvalue = Rvalue::Use(Operand::Constant(ast::Literal::Unit));
-                builder.push_statement(Statement::Assign(destination, rvalue));
+                vec![loop_instruction, MirInstruction::Assign(destination, rvalue)]
             }
         }
     }
 
-    /// Lowers an HIR statement into MIR statements.
+    /// Lowers an HIR statement into MIR instructions.
     fn lower_stmt(
         &self,
         stmt: &'src hir::Stmt<'src>,
         builder: &mut MirBuilder<'src>,
         locals: &mut HashMap<&'src str, LocalId>,
-    ) {
+    ) -> Vec<MirInstruction<'src>> {
         match stmt {
             hir::Stmt::Let { name, value, .. } => {
                 // Create a new local for the variable.
@@ -563,20 +583,22 @@ impl<'src> MirLowerer<'src> {
                 locals.insert(name, local_id);
 
                 // Lower the value expression.
-                self.lower_expr(value, builder, locals, Place { local: local_id });
+                self.lower_expr(value, builder, locals, Place { local: local_id })
             }
             hir::Stmt::Return(expr_opt) => {
                 if let Some(expr) = expr_opt {
                     // Lower the return expression into the return place.
-                    self.lower_expr(expr, builder, locals, Place { local: LocalId(0) });
+                    let mut instructions = self.lower_expr(expr, builder, locals, Place { local: LocalId(0) });
+                    instructions.push(MirInstruction::Return);
+                    instructions
+                } else {
+                    vec![MirInstruction::Return]
                 }
-                builder.set_terminator(Terminator::Return);
             }
             hir::Stmt::Assign(lhs, rhs) => {
-                // For now, we'll handle simple assignments to local variables.
-                // This is a simplified version - real MIR would handle more complex cases.
+                // TODO: Support complex assignment targets like struct fields
                 let rhs_temp = builder.new_local(rhs.ty.clone(), false);
-                self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
+                let mut instructions = self.lower_expr(rhs, builder, locals, Place { local: rhs_temp });
 
                 // Find the local variable being assigned to.
                 let lhs_local = match &lhs.kind {
@@ -592,12 +614,13 @@ impl<'src> MirLowerer<'src> {
                 };
 
                 let rvalue = Rvalue::Use(Operand::Copy(Place { local: rhs_temp }));
-                builder.push_statement(Statement::Assign(Place { local: *lhs_local }, rvalue));
+                instructions.push(MirInstruction::Assign(Place { local: *lhs_local }, rvalue));
+                instructions
             }
             hir::Stmt::Expr(expr) => {
                 // Create a temporary local for the expression result.
                 let temp_local = builder.new_local(expr.ty.clone(), false);
-                self.lower_expr(expr, builder, locals, Place { local: temp_local });
+                self.lower_expr(expr, builder, locals, Place { local: temp_local })
             }
         }
     }

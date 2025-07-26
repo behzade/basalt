@@ -641,53 +641,7 @@ fn expression_parsers<'src>() -> (
     (expr, stmt)
 }
 
-fn attribute_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Attribute<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let string_literal = select! { Token::Str(s) => s };
 
-    // Attribute name can be an identifier or a keyword
-    let attr_name = choice((
-        select! { Token::Ident(ident) => ident },
-        select! { Token::Extern => "extern" },
-        select! { Token::Fn => "fn" },
-        select! { Token::Struct => "struct" },
-        select! { Token::Enum => "enum" },
-        select! { Token::Trait => "trait" },
-        select! { Token::Impl => "impl" },
-        select! { Token::Effect => "effect" },
-        select! { Token::Handler => "handler" },
-        select! { Token::Let => "let" },
-        select! { Token::Mut => "mut" },
-        select! { Token::Return => "return" },
-        select! { Token::While => "while" },
-        select! { Token::If => "if" },
-        select! { Token::Else => "else" },
-        select! { Token::Match => "match" },
-        select! { Token::Perform => "perform" },
-        select! { Token::Handle => "handle" },
-        select! { Token::With => "with" },
-        select! { Token::As => "as" },
-        select! { Token::For => "for" },
-        select! { Token::Pub => "pub" },
-        select! { Token::Import => "import" },
-    ));
-
-    just(Token::Hash)
-        .ignore_then(just(Token::LBracket))
-        .ignore_then(attr_name)
-        .then(
-            just(Token::LParen)
-                .ignore_then(string_literal)
-                .then_ignore(just(Token::RParen))
-                .or_not()
-        )
-        .then_ignore(just(Token::RBracket))
-        .map(|(name, arg)| Attribute {
-            name,
-            args: arg.map(|s| vec![s]).unwrap_or_default(),
-        })
-        .labelled("attribute")
-}
 
 fn fn_decl_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
@@ -712,9 +666,8 @@ fn fn_decl_parser<'src>()
         .then(ident)
         .then(params)
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then_ignore(just(Token::Semi))
-        .map(|(((is_public, name), params), ret_type)| Function {
-            attributes: Vec::new(), // Function declarations don't have attributes yet
+        .then(just(Token::Semi).or_not())
+        .map(|((((is_public, name), params), ret_type), _semi)| Function {
             name,
             generics: Vec::new(), // Function declarations don't have generics
             params,
@@ -830,7 +783,6 @@ fn fn_parser<'src>()
         .then(block)
         .map(
             |((((((is_public, name), generics), params), ret_type), effects), body)| Function {
-                attributes: Vec::new(), // Regular functions don't have attributes yet
                 name,
                 generics,
                 params,
@@ -880,7 +832,6 @@ fn struct_parser<'src>()
         .then(generics)
         .then(fields)
         .map(|(((is_public, name), generics), fields)| StructDef {
-            attributes: Vec::new(), // Structs don't have attributes yet
             name,
             generics,
             fields,
@@ -1138,7 +1089,6 @@ fn handler_parser<'src>()
                 }),
         )
         .map(|(((name, params), ret_type), body)| Function {
-            attributes: Vec::new(), // Handler methods don't have attributes yet
             name,
             generics: Vec::new(), // Handler methods don't have generics
             params,
@@ -1196,7 +1146,7 @@ fn extern_parser<'src>()
         }),
     ));
 
-    let params = param
+    let _params = param
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
@@ -1235,7 +1185,7 @@ fn impl_parser<'src>()
         .or_not()
         .then(ident)
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|((mut_kw, name), ty)| (Some(name), ty.unwrap_or_else(|| Type { path: vec!["unit"], generics: vec![] })));
+        .map(|((_mut_kw, name), ty)| (Some(name), ty.unwrap_or_else(|| Type { path: vec!["unit"], generics: vec![] })));
 
     let impl_method = just(Token::Fn)
         .ignore_then(ident)
@@ -1279,7 +1229,6 @@ fn impl_parser<'src>()
                 }),
         )
         .map(|(((name, params), ret_type), body)| Function {
-            attributes: Vec::new(), // Impl methods don't have attributes yet
             name,
             generics: Vec::new(), // Impl methods don't have generics
             params,
@@ -1361,24 +1310,7 @@ fn item_parser<'src>()
     // Impl parser
     let impl_parser = impl_parser().map(Item::Impl);
 
-    // Items with attributes
-    let attributed_fn = attribute_parser()
-        .then(fn_decl_parser())
-        .map(|(attr, func)| {
-            // For now, just return the function without processing the attribute
-            Item::Fn(func)
-        });
-
-    let attributed_struct = attribute_parser()
-        .then(struct_parser())
-        .map(|(attr, struct_def)| {
-            // For now, just return the struct without processing the attribute
-            Item::Struct(struct_def)
-        });
-
     choice((
-        attributed_fn,
-        attributed_struct,
         fn_decl,
         struct_item_parser,
         trait_parser,
