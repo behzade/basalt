@@ -59,15 +59,16 @@ impl<'a> WasmBuilder<'a> {
     /// The main entry point for building the module.
     pub fn build(
         &mut self,
-        program: &'a mir::MirProgram<'a>,
+        mir_program: &'a mir::MirProgram<'a>,
+        _hir_program: &'a [hir::Item<'a>],
     ) -> Result<Vec<u8>, String> {
-        self.mir_program = Some(program);
+        self.mir_program = Some(mir_program);
 
         // 1. Process Imports (WASI)
         self.build_imports();
 
-        // 2. Collect struct definitions from HIR program
-        self.collect_struct_definitions();
+        // 2. Collect struct definitions from MIR program
+        self.collect_struct_definitions(mir_program);
 
         // 3. Collect string literals and populate data section
         self.collect_string_literals();
@@ -112,36 +113,15 @@ impl<'a> WasmBuilder<'a> {
         self.function_indices.insert("fd_write", 0); // It's the first function, index 0.
     }
 
-    /// Collect struct definitions from the HIR program
-    fn collect_struct_definitions(&mut self) {
-        // For now, we'll use hardcoded struct definitions
-        // In a real implementation, this would come from the HIR program
-        // We need to access the HIR program to get actual struct definitions
+    /// Collect struct definitions from the MIR program
+    fn collect_struct_definitions(&mut self, program: &'a mir::MirProgram<'a>) {
+        // Clear any existing struct definitions
+        self.hir_struct_defs.clear();
         
-        // Example: Point struct with x, y fields
-        let point_struct = hir::StructDef {
-            name: "Point",
-            generics: vec![],
-            fields: vec![
-                ("x", hir::Ty::I32),
-                ("y", hir::Ty::I32),
-            ],
-            is_public: true,
-        };
-        self.hir_struct_defs.insert("Point", point_struct);
-        
-        // Example: Person struct with name, age, active fields
-        let person_struct = hir::StructDef {
-            name: "Person",
-            generics: vec![],
-            fields: vec![
-                ("name", hir::Ty::Str),
-                ("age", hir::Ty::I32),
-                ("active", hir::Ty::Bool),
-            ],
-            is_public: true,
-        };
-        self.hir_struct_defs.insert("Person", person_struct);
+        // Iterate over all struct definitions from the MIR program
+        for (struct_name, struct_def) in &program.structs {
+            self.hir_struct_defs.insert(struct_name, struct_def.clone());
+        }
     }
 
     /// Collect string literals from the MIR program and populate the data section.

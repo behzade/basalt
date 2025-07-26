@@ -241,7 +241,7 @@ fn run_wasm_compilation(entry_path: &str, output: Option<String>) -> io::Result<
             let mir_program = mir_lowerer.lower_to_mir();
 
             // Compile MIR directly to Wasm using our backend
-            match compile_program_to_wasm(&mir_program) {
+            match compile_program_to_wasm(&mir_program, &hir_items) {
                 Ok(wasm_bytes) => {
                     println!(
                         "✓ Generated WebAssembly module ({} bytes)",

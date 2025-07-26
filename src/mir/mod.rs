@@ -32,15 +32,24 @@ impl<'src> MirLowerer<'src> {
     /// The main entry point for lowering the entire HIR program to MIR.
     pub fn lower_to_mir(self) -> MirProgram<'src> {
         let mut functions = HashMap::new();
+        let mut structs = HashMap::new();
 
         for item in self.hir_program {
-            if let hir::Item::Fn(func) = item {
-                let mir_func = self.lower_function(func);
-                functions.insert(func.name, mir_func);
+            match item {
+                hir::Item::Fn(func) => {
+                    let mir_func = self.lower_function(func);
+                    functions.insert(func.name, mir_func);
+                }
+                hir::Item::Struct(struct_def) => {
+                    structs.insert(struct_def.name, struct_def.clone());
+                }
+                _ => {
+                    // Skip other item types for now
+                }
             }
         }
 
-        MirProgram { functions }
+        MirProgram { functions, structs }
     }
 
     /// Lowers a single HIR function to a `MirFunction`.

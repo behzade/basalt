@@ -16,6 +16,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct MirProgram<'src> {
     pub functions: HashMap<&'src str, MirFunction<'src>>,
+    pub structs: HashMap<&'src str, hir::StructDef<'src>>,
 }
 
 /// Represents a single function in MIR form.

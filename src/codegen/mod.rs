@@ -6,9 +6,10 @@
 mod builder;
 
 use crate::mir;
+use crate::hir;
 pub use builder::WasmBuilder;
 
-pub fn compile_program_to_wasm(program: &mir::MirProgram) -> Result<Vec<u8>, String> {
+pub fn compile_program_to_wasm(mir_program: &mir::MirProgram, hir_program: &[hir::Item]) -> Result<Vec<u8>, String> {
     let mut builder = WasmBuilder::new();
-    builder.build(program)
+    builder.build(mir_program, hir_program)
 } 
