@@ -15,6 +15,7 @@ use crate::token::Token;
 fn expression_parsers<'src>() -> (
     impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
     impl Parser<'src, &'src [Token<'src>], Stmt<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
+    impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
 ) {
     let mut expr = Recursive::declare();
     let mut stmt = Recursive::declare();
@@ -51,6 +52,7 @@ fn expression_parsers<'src>() -> (
 
     let block = stmt
         .clone()
+        .padded_by(comment_parser())
         .repeated()
         .collect::<Vec<_>>()
         .then(expr.clone().or_not())
@@ -323,11 +325,7 @@ fn expression_parsers<'src>() -> (
     // Support both :: and . separators for effect operations
     let effect_path = ident
         .then(
-            choice((
-                just(Token::Op(".".to_string())),
-                just(Token::DoubleColon),
-            ))
-            .ignore_then(ident)
+            choice((just(Token::Op(".".to_string())), just(Token::DoubleColon))).ignore_then(ident),
         )
         .map(|(effect_name, operation_name)| vec![effect_name, operation_name])
         .labelled("effect path");
@@ -349,12 +347,10 @@ fn expression_parsers<'src>() -> (
             // Skip everything until the closing brace
             none_of([Token::RBrace])
                 .repeated()
-                .ignore_then(just(Token::RBrace))
+                .ignore_then(just(Token::RBrace)),
         )
         .then_ignore(just(Token::RBrace))
         .map(|_| HandlerBody::Inline(vec![]));
-
-
 
     // Add perform and handle expressions to atom choices
     let atom_with_perform_and_handle = choice((
@@ -559,8 +555,6 @@ fn expression_parsers<'src>() -> (
         ))
         .labelled("expression");
 
-    expr.define(expr_parser);
-
     let let_decl = just(Token::Let)
         .ignore_then(just(Token::Mut).or_not())
         .then(ident)
@@ -594,20 +588,20 @@ fn expression_parsers<'src>() -> (
             // Handle with block: handle { ... } with ...
             block.clone(),
             // Handle with expression: handle expr with ...
-            path.clone().then(
-                call_args
-                    .clone()
-                    .delimited_by(just(Token::LParen), just(Token::RParen))
-                    .or_not()
-            ).map(|(path, args)| {
-                match args {
+            path.clone()
+                .then(
+                    call_args
+                        .clone()
+                        .delimited_by(just(Token::LParen), just(Token::RParen))
+                        .or_not(),
+                )
+                .map(|(path, args)| match args {
                     Some(args) => Expr::Call {
                         fun: Box::new(Expr::Path(path)),
                         args,
                     },
                     None => Expr::Path(path),
-                }
-            }),
+                }),
         )))
         .then_ignore(just(Token::With))
         .then(choice((
@@ -615,10 +609,12 @@ fn expression_parsers<'src>() -> (
             path.clone().map(|p| HandlerBody::Path(p)),
         )))
         .then_ignore(just(Token::Semi))
-        .map(|(body, handler)| Stmt::Expr(Expr::Handle {
-            body: Box::new(body),
-            handler,
-        }));
+        .map(|(body, handler)| {
+            Stmt::Expr(Expr::Handle {
+                body: Box::new(body),
+                handler,
+            })
+        });
 
     // Regular expressions that need semicolons
     let expr_stmt = expr.clone().then_ignore(just(Token::Semi)).map(Stmt::Expr);
@@ -636,12 +632,11 @@ fn expression_parsers<'src>() -> (
     ))
     .labelled("statement");
 
+    expr.define(expr_parser);
     stmt.define(stmt_parser);
 
-    (expr, stmt)
+    (expr, stmt, block)
 }
-
-
 
 fn fn_decl_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
@@ -667,24 +662,26 @@ fn fn_decl_parser<'src>()
         .then(params)
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
         .then(just(Token::Semi).or_not())
-        .map(|((((is_public, name), params), ret_type), _semi)| Function {
-            name,
-            generics: Vec::new(), // Function declarations don't have generics
-            params,
-            ret_type,
-            effects: Vec::new(), // Function declarations don't have effects
-            body: Expr::Block {
-                stmts: vec![],
-                last_expr: None,
-            }, // Empty body for declarations
-            is_public,
-        })
+        .map(
+            |((((is_public, name), params), ret_type), _semi)| Function {
+                name,
+                generics: Vec::new(), // Function declarations don't have generics
+                params,
+                ret_type,
+                effects: Vec::new(), // Function declarations don't have effects
+                body: Expr::Block {
+                    stmts: vec![],
+                    last_expr: None,
+                }, // Empty body for declarations
+                is_public,
+            },
+        )
         .labelled("function declaration")
 }
 
 fn fn_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt) = expression_parsers();
+    let (expr, stmt, block) = expression_parsers();
 
     let ident = select! { Token::Ident(ident) => ident };
 
@@ -715,8 +712,8 @@ fn fn_parser<'src>()
     })
     .boxed();
 
-    // Generic type parameters for function (e.g., <T, U>)
     let function_generics = ident
+        .padded_by(comment_parser())
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
@@ -736,26 +733,6 @@ fn fn_parser<'src>()
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
-
-    // Use the same block parser from expression_parsers, but handle comments
-    let block = stmt
-        .clone()
-        .or(select! { Token::Comment(_) => Stmt::Error })
-        .repeated()
-        .collect::<Vec<_>>()
-        .then(expr.clone().or_not())
-        .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map(|(stmts, last_expr)| {
-            // Filter out comment statements (Error statements)
-            let filtered_stmts: Vec<_> = stmts
-                .into_iter()
-                .filter(|s| !matches!(s, Stmt::Error))
-                .collect();
-            Expr::Block {
-                stmts: filtered_stmts,
-                last_expr: last_expr.map(Box::new),
-            }
-        });
 
     // Parse effects list: / {effect1, effect2}
     let effects = just(Token::Op("/".to_string()))
@@ -879,7 +856,8 @@ fn type_parser<'src>()
             });
 
         // Path-based type with optional generics
-        let path_type = path.clone()
+        let path_type = path
+            .clone()
             .then(
                 // Custom generic parameter parser that handles nested generics
                 select! { Token::Op(op) if op == "<" => () }
@@ -911,7 +889,15 @@ fn trait_parser<'src>()
     // Parameters can be just 'self' or 'mut self' without type annotation
     let param = ident
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|(name, ty)| (Some(name), ty.unwrap_or_else(|| Type { path: vec!["unit"], generics: vec![] })));
+        .map(|(name, ty)| {
+            (
+                Some(name),
+                ty.unwrap_or_else(|| Type {
+                    path: vec!["unit"],
+                    generics: vec![],
+                }),
+            )
+        });
 
     let method = just(Token::Fn)
         .ignore_then(ident)
@@ -1040,7 +1026,7 @@ fn effect_parser<'src>()
 
 fn handler_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt) = expression_parsers();
+    let (expr, stmt, block) = expression_parsers();
     let ident = select! { Token::Ident(ident) => ident };
 
     // Handler method parser (similar to impl methods)
@@ -1058,36 +1044,7 @@ fn handler_parser<'src>()
         )
         .then_ignore(just(Token::RParen))
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(
-            // Function body (block) - can be empty
-            just(Token::LBrace)
-                .ignore_then(
-                    stmt.or(select! { Token::Comment(_) => Stmt::Error })
-                        .repeated()
-                        .collect::<Vec<_>>()
-                        .then(expr.or_not()),
-                )
-                .then_ignore(just(Token::RBrace))
-                .map(|(stmts, last_expr)| {
-                    // Filter out comment statements (Error statements)
-                    let filtered_stmts: Vec<_> = stmts
-                        .into_iter()
-                        .filter(|s| !matches!(s, Stmt::Error))
-                        .collect();
-                    // If no statements and no expression, create an empty block
-                    if filtered_stmts.is_empty() && last_expr.is_none() {
-                        Expr::Block {
-                            stmts: vec![],
-                            last_expr: None,
-                        }
-                    } else {
-                        Expr::Block {
-                            stmts: filtered_stmts,
-                            last_expr: last_expr.map(Box::new),
-                        }
-                    }
-                }),
-        )
+        .then(block.clone())
         .map(|(((name, params), ret_type), body)| Function {
             name,
             generics: Vec::new(), // Handler methods don't have generics
@@ -1154,14 +1111,12 @@ fn extern_parser<'src>()
 
     // Parse extern block: extern "module_name" { ... }
     just(Token::Extern)
-        .ignore_then(
-            select! { Token::Str(module_name) => module_name }
-        )
+        .ignore_then(select! { Token::Str(module_name) => module_name })
         .then(
             fn_decl_parser()
                 .repeated()
                 .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
         .map(|(module_name, functions)| Item::ExternBlock {
             module_name,
@@ -1172,7 +1127,7 @@ fn extern_parser<'src>()
 
 fn impl_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt) = expression_parsers();
+    let (expr, stmt, block) = expression_parsers();
     let ident = select! { Token::Ident(ident) => ident };
 
     // Parse trait name and target type
@@ -1185,7 +1140,15 @@ fn impl_parser<'src>()
         .or_not()
         .then(ident)
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|((_mut_kw, name), ty)| (Some(name), ty.unwrap_or_else(|| Type { path: vec!["unit"], generics: vec![] })));
+        .map(|((_mut_kw, name), ty)| {
+            (
+                Some(name),
+                ty.unwrap_or_else(|| Type {
+                    path: vec!["unit"],
+                    generics: vec![],
+                }),
+            )
+        });
 
     let impl_method = just(Token::Fn)
         .ignore_then(ident)
@@ -1198,36 +1161,7 @@ fn impl_parser<'src>()
         )
         .then_ignore(just(Token::RParen))
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(
-            // Function body (block) - can be empty
-            just(Token::LBrace)
-                .ignore_then(
-                    stmt.or(select! { Token::Comment(_) => Stmt::Error })
-                        .repeated()
-                        .collect::<Vec<_>>()
-                        .then(expr.or_not()),
-                )
-                .then_ignore(just(Token::RBrace))
-                .map(|(stmts, last_expr)| {
-                    // Filter out comment statements (Error statements)
-                    let filtered_stmts: Vec<_> = stmts
-                        .into_iter()
-                        .filter(|s| !matches!(s, Stmt::Error))
-                        .collect();
-                    // If no statements and no expression, create an empty block
-                    if filtered_stmts.is_empty() && last_expr.is_none() {
-                        Expr::Block {
-                            stmts: vec![],
-                            last_expr: None,
-                        }
-                    } else {
-                        Expr::Block {
-                            stmts: filtered_stmts,
-                            last_expr: last_expr.map(Box::new),
-                        }
-                    }
-                }),
-        )
+        .then(block.clone())
         .map(|(((name, params), ret_type), body)| Function {
             name,
             generics: Vec::new(), // Impl methods don't have generics
@@ -1245,11 +1179,7 @@ fn impl_parser<'src>()
 
     just(Token::Impl)
         .ignore_then(trait_name)
-        .then(
-            just(Token::For)
-                .ignore_then(target_type)
-                .or_not()
-        )
+        .then(just(Token::For).ignore_then(target_type).or_not())
         .then(methods)
         .map(|((trait_name, target_type), methods)| {
             // If no "for" type is specified, assume this is a struct implementation
@@ -1270,11 +1200,9 @@ fn impl_parser<'src>()
 /// The main parser function for the entire language.
 pub fn file_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
-    let comment = select! { Token::Comment(_) => () }.repeated();
+    let item = item_parser().padded_by(comment_parser());
 
-    let item = item_parser().padded_by(comment);
-
-    comment
+    comment_parser()
         .ignore_then(item.repeated().collect::<Vec<_>>())
         .then_ignore(end())
 }
@@ -1282,7 +1210,7 @@ pub fn file_parser<'src>()
 /// Parses a single top-level item.
 fn item_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (_expr, stmt) = expression_parsers();
+    let (_expr, stmt, body) = expression_parsers();
     let fn_decl = fn_parser().map(Item::Fn);
     let stmt_item = stmt.map(Item::Stmt);
 
@@ -1338,4 +1266,9 @@ fn item_parser<'src>()
         ])
         .ignored(),
     ))
+}
+
+fn comment_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], (), extra::Err<Rich<'src, Token<'src>>>> {
+    select! { Token::Comment(_) => () }.repeated().ignored()
 }

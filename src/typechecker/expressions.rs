@@ -21,8 +21,15 @@ impl<'src> TypeChecker<'src> {
     fn hir_to_ast_type(&self, hir_ty: &Ty<'src>) -> ast::Type<'src> {
         match hir_ty {
             Ty::Bool => ast::Type { path: vec!["bool"], generics: vec![] },
+            Ty::I8 => ast::Type { path: vec!["i8"], generics: vec![] },
+            Ty::I16 => ast::Type { path: vec!["i16"], generics: vec![] },
             Ty::I32 => ast::Type { path: vec!["i32"], generics: vec![] },
             Ty::I64 => ast::Type { path: vec!["i64"], generics: vec![] },
+            Ty::U8 => ast::Type { path: vec!["u8"], generics: vec![] },
+            Ty::U16 => ast::Type { path: vec!["u16"], generics: vec![] },
+            Ty::U32 => ast::Type { path: vec!["u32"], generics: vec![] },
+            Ty::U64 => ast::Type { path: vec!["u64"], generics: vec![] },
+            Ty::F32 => ast::Type { path: vec!["f32"], generics: vec![] },
             Ty::F64 => ast::Type { path: vec!["f64"], generics: vec![] },
             Ty::Str => ast::Type { path: vec!["str"], generics: vec![] },
             Ty::Unit => ast::Type { path: vec!["unit"], generics: vec![] },

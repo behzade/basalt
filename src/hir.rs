@@ -17,51 +17,36 @@ use std::collections::HashMap;
 /// This enum is used throughout the HIR and later compilation stages.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Ty<'src> {
-    /// Boolean type: `bool`.
     Bool,
-    /// 32-bit signed integer: `i32`.
+    I8,
+    I16,
     I32,
-    /// 64-bit signed integer: `i64`.
     I64,
-    /// 64-bit float: `f64`.
-    F64, // FIX: Added the missing F64 variant.
-    /// String type: `string`.
+    U8,
+    U16,
+    U32,
+    U64,
+    F32,
+    F64,
     Str,
-    /// The unit type: `()`, representing the absence of a value.
     Unit,
-    /// A user-defined Abstract Data Type (ADT), such as a struct or enum.
     Adt {
         name: Path<'src>,
         generics: Vec<Ty<'src>>,
     },
-    /// An array type: `[T]`.
     Array(Box<Ty<'src>>),
-    /// A map type: `Map<K, V>`.
     Map {
         key: Box<Ty<'src>>,
         value: Box<Ty<'src>>,
     },
-    /// A function type.
     Function {
         param_types: Vec<Ty<'src>>,
         ret_type: Box<Ty<'src>>,
     },
-    /// A type variable used during the type inference process. Each variable
-    /// has a unique ID. For example, an empty array `[]` might initially have
-    /// the type `Array(Box::new(Ty::Infer(0)))`.
     Infer(u32),
-    /// Represents a type error. This is used to prevent cascading errors during
-    /// type checking. If an expression's type cannot be resolved, it is marked
-    /// as `Error`, and checks that depend on it can be skipped.
     Error,
 }
 
-//================================================================================//
-//                                Top-Level Items
-//================================================================================//
-
-/// A top-level item in the HIR. This mirrors `ast::Item` but contains
-/// fully typed structures.
 #[derive(Debug, Clone)]
 pub enum Item<'src> {
     Stmt(Stmt<'src>),
@@ -291,4 +276,3 @@ pub enum PatternKind<'src> {
     /// The wildcard pattern `_`.
     Wildcard,
 }
-

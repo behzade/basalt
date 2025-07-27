@@ -206,8 +206,15 @@ impl<'src> TypeChecker<'src> {
     ) -> hir::Ty<'src> {
         match ty {
             hir::Ty::Bool => hir::Ty::Bool,
+            hir::Ty::I8 => hir::Ty::I8,
+            hir::Ty::I16 => hir::Ty::I16,
             hir::Ty::I32 => hir::Ty::I32,
             hir::Ty::I64 => hir::Ty::I64,
+            hir::Ty::U8 => hir::Ty::U8,
+            hir::Ty::U16 => hir::Ty::U16,
+            hir::Ty::U32 => hir::Ty::U32,
+            hir::Ty::U64 => hir::Ty::U64,
+            hir::Ty::F32 => hir::Ty::F32,
             hir::Ty::F64 => hir::Ty::F64,
             hir::Ty::Str => hir::Ty::Str,
             hir::Ty::Unit => hir::Ty::Unit,
