@@ -271,16 +271,6 @@ impl<'src> TypeChecker<'src> {
             return Ok((hir::ExprKind::Path(resolved_path), struct_ty));
         }
 
-        // Check if this looks like it should be an import (but only if it's not a variable)
-        if self.context.get_variable(name).is_none() {
-            if let Some(suggested_import) = self.suggest_import(name) {
-                return Err(TypeError::MissingImport {
-                    symbol: name,
-                    suggested_import: Some(suggested_import),
-                });
-            }
-        }
-
         // Otherwise, assume it's a variable.
         let ty = self
             .context
