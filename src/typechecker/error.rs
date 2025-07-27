@@ -71,8 +71,15 @@ impl<'src> fmt::Display for hir::Ty<'src> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             hir::Ty::Bool => write!(f, "bool"),
+            hir::Ty::I8 => write!(f, "i8"),
+            hir::Ty::I16 => write!(f, "i16"),
             hir::Ty::I32 => write!(f, "i32"),
             hir::Ty::I64 => write!(f, "i64"),
+            hir::Ty::U8 => write!(f, "u8"),
+            hir::Ty::U16 => write!(f, "u16"),
+            hir::Ty::U32 => write!(f, "u32"),
+            hir::Ty::U64 => write!(f, "u64"),
+            hir::Ty::F32 => write!(f, "f32"),
             hir::Ty::F64 => write!(f, "f64"),
             hir::Ty::Str => write!(f, "string"),
             hir::Ty::Unit => write!(f, "()"),
@@ -116,8 +123,15 @@ impl<'src> TypeError<'src> {
     fn type_to_string(ty: &hir::Ty<'src>) -> String {
         match ty {
             hir::Ty::Bool => "bool".to_string(),
+            hir::Ty::I8 => "i8".to_string(),
+            hir::Ty::I16 => "i16".to_string(),
             hir::Ty::I32 => "i32".to_string(),
             hir::Ty::I64 => "i64".to_string(),
+            hir::Ty::U8 => "u8".to_string(),
+            hir::Ty::U16 => "u16".to_string(),
+            hir::Ty::U32 => "u32".to_string(),
+            hir::Ty::U64 => "u64".to_string(),
+            hir::Ty::F32 => "f32".to_string(),
             hir::Ty::F64 => "f64".to_string(),
             hir::Ty::Str => "string".to_string(),
             hir::Ty::Unit => "()".to_string(),

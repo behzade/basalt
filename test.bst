@@ -1,13 +1,6 @@
-struct Test {
-    a: string,
-    b: i32
-}
+ // zxc
+ let mut a = 2.0 ; // asd
 
-fn main() -> i32 {
-    let my_test: Test = Test {
-        a: "Hello",
-        b: 123
-    };
+ fn main() { // zxc
+ }
 
-    123
-}

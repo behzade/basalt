@@ -1,36 +1,22 @@
 {
-  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.2/.schema/devbox.schema.json",
-  "packages": [
-    "rustup@1.28.2",
-    "wasmtime@latest"
-  ],
-  "shell": {
-    "init_hook": [
-      "rustup default nightly",
-      "rustup component add rust-analyzer"
-    ],
-    "scripts": {
-      "test": [
-        "cargo test"
-      ],
-      "fmt": [
-        "cargo fmt"
-      ],
-      "clippy": [
-        "cargo clippy"
-      ],
-      "build": [
-        "cargo build"
-      ],
-      "watch": [
-        "cargo watch -x 'test'"
-      ],
-      "run": [
-        "cargo run -- build $1 && wasmtime --wasm gc dist/output.wasm"
-      ],
-      "explore": [
-        "wasmtime explore --wasm gc dist/output.wasm"
-      ]
-    }
-  }
+	"$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.14.2/.schema/devbox.schema.json",
+	"packages": ["rustup@1.28.2", "wasmtime@latest"],
+	"env": {
+		"RUSTFLAGS": "-Awarnings"
+	},
+	"shell": {
+		"init_hook": [
+			"rustup default nightly > /dev/null 2>&1",
+			"rustup component add rust-analyzer > /dev/null 2>&1"
+		],
+		"scripts": {
+			"test": ["cargo test"],
+			"fmt": ["cargo fmt"],
+			"clippy": ["cargo clippy"],
+			"build": ["cargo build"],
+			"watch": ["cargo watch -x 'test'"],
+			"run": ["cargo run -- build $1 && wasmtime --wasm gc dist/output.wasm"],
+			"explore": ["wasmtime explore --wasm gc dist/output.wasm"]
+		}
+	}
 }
