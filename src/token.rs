@@ -1,5 +1,9 @@
 use std::fmt;
 
+
+
+pub type SimpleSpan = chumsky::span::SimpleSpan;
+
 /// Represents the different kinds of tokens recognized by the lexer and used by the parser.
 /// The `'src` lifetime parameter is used for tokens that borrow directly from the source code,
 /// such as identifiers, strings, and comments, allowing for zero-copy parsing.
@@ -117,3 +121,59 @@ impl<'src> fmt::Display for Token<'src> {
         }
     }
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum OwnedToken {
+    Let,
+    Mut,
+    Struct,
+    Enum,
+    Trait,
+    Impl,
+    For,
+    Fn,
+    Extern,
+    Import,
+    As,
+    While,
+    Return,
+    Effect,
+    Handler,
+    Perform,
+    Handle,
+    With,
+    Match,
+    If,
+    Else,
+    Pub,
+
+    // Literals
+    Bool(bool),
+    I64(i64),
+    F64(f64),
+    Str(String),
+
+    // Identifier
+    Ident(String),
+
+    // Operators and Punctuation
+    Op(String),  // For operators like +, -, *, /, <, >, ==, =
+    DoubleColon, // ::
+    Colon,       // :
+    Semi,        // ;
+    Comma,       // ,
+    Arrow,       // ->
+    FatArrow,    // =>
+    LParen,      // (
+    RParen,      // )
+    LBrace,      // {
+    RBrace,      // }
+    LBracket,    // [
+    RBracket,    // ]
+    Hash,        // #
+
+    // Ignored token
+    Comment(String),
+}
+
+pub type OwnedTokenWithSpan = (OwnedToken, SimpleSpan);

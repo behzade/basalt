@@ -8,6 +8,8 @@
 /// A path represents a potentially namespaced identifier, like `Std::Collections::Map`.
 pub type Path<'src> = Vec<&'src str>;
 
+pub type OwnedPath = Vec<String>;
+
 /// A top-level item in a source file.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item<'src> {
@@ -99,11 +101,13 @@ pub enum Expr<'src> {
         body: Box<Expr<'src>>,
         handler: HandlerBody<'src>,
     },
+    Cast {
+        expr: Box<Expr<'src>>,
+        ty: Type<'src>,
+    },
     // Used for recovery; represents an expression that couldn't be parsed.
     Error,
 }
-
-
 
 /// A type annotation.
 #[derive(Debug, PartialEq, Clone)]
@@ -230,14 +234,14 @@ pub enum UnaryOp {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BinaryOp {
-    Add, // +
-    Sub, // -
-    Mul, // *
-    Div, // /
-    Eq,  // ==
-    Ne,  // !=
-    Lt,  // <
-    Gt,  // >
+    Add,    // +
+    Sub,    // -
+    Mul,    // *
+    Div,    // /
+    Eq,     // ==
+    Ne,     // !=
+    Lt,     // <
+    Gt,     // >
     Assign, // =
 }
 
@@ -303,6 +307,13 @@ pub struct OwnedTraitDef {
     pub name: String,
     pub methods: Vec<OwnedTraitMethod>,
     pub is_public: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct OwnedImplBlock {
+    pub trait_name: String,
+    pub target_type: OwnedType,
+    pub methods: Vec<OwnedFunction>,
 }
 
 /// Owned version of TraitMethod for symbol signatures
@@ -394,6 +405,10 @@ pub enum OwnedExpr {
         body: Box<OwnedExpr>,
         handler: OwnedHandlerBody,
     },
+    Cast {
+        expr: Box<OwnedExpr>,
+        ty: OwnedType,
+    },
     Error,
 }
 
@@ -440,6 +455,26 @@ pub enum OwnedLiteral {
 pub enum OwnedHandlerBody {
     Path(Vec<String>),
     Inline(Vec<OwnedFunction>),
+}
+
+#[derive(Debug, Clone)]
+pub enum OwnedItem {
+    Stmt(OwnedStmt),
+    Import {
+        path: Vec<String>,
+        alias: Option<String>,
+    },
+    ExternBlock {
+        module_name: String,
+        functions: Vec<OwnedFunction>,
+    },
+    Fn(OwnedFunction),
+    Struct(OwnedStructDef),
+    Enum(OwnedEnumDef),
+    Trait(OwnedTraitDef),
+    Impl(OwnedImplBlock),
+    Effect(OwnedEffectDef),
+    Handler(OwnedHandlerDef),
 }
 
 // Conversion traits for owned types
@@ -633,6 +668,10 @@ impl<'src> From<&Expr<'src>> for OwnedExpr {
             Expr::Handle { body, handler } => OwnedExpr::Handle {
                 body: Box::new((&**body).into()),
                 handler: handler.into(),
+            },
+            Expr::Cast { expr, ty } => OwnedExpr::Cast {
+                expr: Box::new((&**expr).into()),
+                ty: ty.into(),
             },
             Expr::Error => OwnedExpr::Error,
         }
