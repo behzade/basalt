@@ -25,7 +25,7 @@ TEMP_DIR="tests/temp"
 
 # Test type configuration (compatible with bash 3.2)
 # Format: test_type:command:display_name
-TEST_TYPES="ast:parse:AST hir:hir:HIR mir:mir:MIR cir:cir:Cranelift IR build:build:Compilation build:build:Build"
+TEST_TYPES="ast:parse:AST resolve:resolve:Resolve hir:hir:HIR mir:mir:MIR build:build:Compilation build:build:Build"
 
 # Default test type
 DEFAULT_TEST_TYPE="ast"
@@ -81,7 +81,7 @@ run_test_command() {
     local command=$(get_command "$test_type")
     
     case "$test_type" in
-        "ast"|"hir"|"mir"|"cir")
+        "ast"|"resolve"|"hir"|"mir")
             # For these types, we pass the file as an argument
             ./target/debug/basalt "$command" "$test_file" 2>&1
             ;;
@@ -314,7 +314,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        ast|hir|mir|cir|build|compile)
+        ast|resolve|hir|mir|build|compile)
             TEST_TYPE="$1"
             shift
             ;;
