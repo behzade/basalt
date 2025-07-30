@@ -97,6 +97,12 @@ fn main() -> io::Result<()> {
         // Use a non-zero exit code to indicate failure to shell scripts
         std::process::exit(1);
     } else {
+        // print the final ast if it's parse or resolve, or the hir if it's hir
+        match target_stage {
+            CompilerStage::Parse | CompilerStage::Resolve => println!("{:#?}", compiler.workspace.ast),
+            CompilerStage::Hir => println!("{:#?}", compiler.workspace.hir),
+            _ => {}
+        }
         println!("\n✅ Pipeline finished successfully.");
     }
 

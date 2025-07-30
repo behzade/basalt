@@ -1,6 +1,6 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::{Parser, error::Rich, input::Input};
-use std::{fs, io, path::PathBuf};
+use std::{collections::HashSet, fs, io, path::PathBuf};
 
 use crate::{
     ast::Item,
@@ -24,15 +24,16 @@ pub struct Compiler {
     path: String,
     output_path: Option<String>,
 
-    workspace: Workspace,
+    pub workspace: Workspace,
 }
 
 #[derive(Default)]
 pub struct Workspace {
     tokens: Vec<OwnedTokenWithSpan>,
     imports: Vec<OwnedItem>,
-    ast: Vec<OwnedItem>,
-    hir: Vec<hir::Item>,
+    pub ast: Vec<OwnedItem>,
+    pub hir: Vec<hir::Item>,
+    resolved_modules: HashSet<PathBuf>, // Add this field
 }
 
 impl Compiler {
@@ -77,15 +78,12 @@ impl Compiler {
 
     // if path is Some, it is the path to the file to be parsed
     fn run_parse(&mut self, path: Option<String>) -> io::Result<()> {
-        let source_code: String;
-        if let Some(path) = path {
-            source_code = fs::read_to_string(path)?;
-        } else {
-            source_code = fs::read_to_string(&self.path)?;
-        }
+        let file_to_parse = path.unwrap_or_else(|| self.path.clone());
+        let source_code = fs::read_to_string(file_to_parse)?;
 
         let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
 
+        // Assuming your error reporter needs the source code
         if self.report_lex_errors(&lex_errs, &source_code) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -93,26 +91,20 @@ impl Compiler {
             ));
         }
 
-        // Safely get the tokens from the Option, or return if none exist.
-        let tokens_with_spans = if let Some(t) = tokens {
-            t
-        } else {
-            // No tokens were produced, so we can't parse.
-            return Ok(());
+        let tokens_with_spans = match tokens {
+            Some(t) => t,
+            None => return Ok(()), // No tokens, nothing to parse
         };
 
-        // Create a new Vec for the parser by cloning tokens.
-        // This requires `Token` to implement `Clone`.
         let tokens_for_parser: Vec<Token> = tokens_with_spans
             .iter()
             .map(|(tok, _)| tok.clone())
             .collect();
 
-        let (ast, parse_errs) = file_parser()
-            .parse(&tokens_for_parser) // Use the new Vec
-            .into_output_errors();
+        // --- Key Change Here ---
+        // Assume file_parser() now returns Option<(Vec<Item>, Vec<Item>)>
+        let (items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
 
-        // Report parser errors using the original vector that still has the spans.
         if self.report_parser_errors(&parse_errs, &tokens_with_spans, &source_code) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
@@ -120,12 +112,17 @@ impl Compiler {
             ));
         }
 
-        if let Some(new_ast_items) = ast {
-            let owned_items = new_ast_items.iter().map(OwnedItem::from);
-            self.workspace.ast.extend(owned_items);
+        // Destructure the tuple and populate the separate workspace fields
+        if let Some((import_items, other_ast_items)) = items {
+            self.workspace
+                .imports
+                .extend(import_items.iter().map(OwnedItem::from));
+            self.workspace
+                .ast
+                .extend(other_ast_items.iter().map(OwnedItem::from));
         }
 
-        // Append the new tokens to the workspace.
+        // Append tokens (this logic remains the same)
         let owned_tokens = tokens_with_spans
             .into_iter()
             .map(|(tok, span)| (tok.into(), span.into()));
@@ -160,41 +157,49 @@ impl Compiler {
     }
 
     fn run_resolve(&mut self) -> io::Result<()> {
-        // 1. Collect import items into a new owned Vec, dropping the borrow on `self.workspace`
-        let import_blocks: Vec<OwnedItem> = self
-            .workspace
-            .ast
-            .iter()
-            .filter(|item| matches!(item, OwnedItem::ImportBlock { .. }))
-            .cloned() // Use cloned() to get owned OwnedItem values
-            .collect();
+        // Add the main entry point to resolved modules to prevent self-import cycles
+        if let Ok(initial_path) = fs::canonicalize(&self.path) {
+            self.workspace.resolved_modules.insert(initial_path);
+        }
 
-        // 2. Iterate over the new Vec. Now you can safely call `&mut self` methods.
-        for item in &import_blocks {
+        let mut worklist = std::mem::take(&mut self.workspace.imports);
+
+        while let Some(item) = worklist.pop() {
             if let OwnedItem::ImportBlock { imports } = item {
                 for import in imports {
                     if let Some(dir_path) = Compiler::resolve_module_dir_path(&import.path) {
+                        if !dir_path.exists() {
+                            continue;
+                        }
+
                         for entry in fs::read_dir(dir_path)? {
-                            let entry = entry?;
-                            let path = entry.path();
+                            let path = entry?.path();
                             if path.is_file()
                                 && path.extension().and_then(|s| s.to_str()) == Some("bst")
                             {
+                                // Use the canonical (absolute) path for reliable duplicate detection
+                                let canonical_path = match fs::canonicalize(&path) {
+                                    Ok(p) => p,
+                                    Err(_) => continue, // Skip if path is invalid
+                                };
+
+                                if !self.workspace.resolved_modules.insert(canonical_path) {
+                                    continue; // Already in the set, so skip.
+                                }
+
+                                // Parse the new file
                                 if let Some(path_str) = path.to_str() {
                                     self.run_parse(Some(path_str.to_string()))?;
                                 }
+
+                                // Add any newly discovered imports to our worklist for processing
+                                worklist.extend(std::mem::take(&mut self.workspace.imports));
                             }
                         }
                     }
                 }
             }
         }
-
-        // 3. Remove the processed import blocks from the workspace AST
-        self.workspace
-            .ast
-            .retain(|item| !matches!(item, OwnedItem::ImportBlock { .. }));
-
         Ok(())
     }
 
