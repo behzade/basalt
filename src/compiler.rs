@@ -1,9 +1,14 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
-use chumsky::{Parser, error::Rich};
+use chumsky::{Parser, error::Rich, input::Input};
 use std::{fs, io};
 
 use crate::{
-    ast::{Item, OwnedItem}, codegen::compile_program_to_wasm, hir::HirItem, lexer::lexer, mir::{data::MirItem, MirLowerer}, parser::file_parser, token::{OwnedTokenWithSpan, SimpleSpan, Token}, typechecker::{TypeChecker, TypeError}
+    ast::{Item, OwnedItem},
+    hir::{self, Item as HirItem},
+    lexer::lexer,
+    parser::file_parser,
+    token::{OwnedTokenWithSpan, SimpleSpan, Token},
+    typechecker::{TypeChecker, TypeError},
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -26,8 +31,7 @@ pub struct Compiler {
 pub struct Workspace {
     tokens: Option<Vec<OwnedTokenWithSpan>>,
     ast: Option<Vec<OwnedItem>>,
-    hir: Option<Vec<HirItem>>,
-    mir: Option<Vec<MirItem>>,
+    hir: Option<Vec<hir::Item>>,
 }
 
 impl Compiler {
@@ -112,78 +116,37 @@ impl Compiler {
         }
 
         // Store the results.
-        self.ast = ast;
-        self.tokens = Some(tokens_with_spans); // Move the original vector into self.
+        self.workspace.ast =
+            ast.map(|vec_of_items| vec_of_items.iter().map(OwnedItem::from).collect());
+        self.workspace.tokens = Some(tokens_with_spans).map(|vec_of_tokens| {
+            vec_of_tokens
+                .into_iter()
+                .map(|(tok, span)| (tok.into(), span.into()))
+                .collect()
+        });
 
         Ok(())
     }
 
     fn run_hir_gen(&mut self) -> io::Result<()> {
-        if self.ast.is_none() {
-            self.run_parse()?;
-        }
-
-        let ast = self.ast.as_ref().unwrap();
-        let tokens = self.tokens.as_ref().unwrap();
-
-        match TypeChecker::with_token_spans(tokens.clone()).check_file(ast) {
-            Ok(hir_items) => {
-                println!("HIR: {:#?}", hir_items);
-                self.hir = Some(hir_items);
-                Ok(())
-            }
-            Err(type_errors) => {
-                self.report_type_errors(&type_errors);
-                Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "Type checking failed.",
-                ))
-            }
-        }
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "hir_gen not implemented",
+        ))
     }
 
     fn run_mir_gen(&mut self) -> io::Result<()> {
-        if self.hir.is_none() {
-            self.run_hir_gen()?;
-        }
-
-        let hir_items = self.hir.as_ref().unwrap();
-        // Assuming MirLowerer::new takes a slice of HirItems.
-        let mir_lowerer = MirLowerer::new(hir_items);
-        let mir_program = mir_lowerer.lower_to_mir();
-
-        println!("MIR: {:#?}", mir_program);
-        self.mir = Some(mir_program);
-        Ok(())
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "mir_gen not implemented",
+        ))
     }
 
     fn run_build(&mut self) -> io::Result<()> {
-        if self.mir.is_none() {
-            self.run_mir_gen()?;
-        }
-
-        let mir_program = self.mir.as_ref().unwrap();
-        let hir_items = self.hir.as_ref().unwrap(); // Needed for context in codegen
-
-        let wasm_bytes = compile_program_to_wasm(mir_program, hir_items)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-
-        println!(
-            "✓ Generated WebAssembly module ({} bytes)",
-            wasm_bytes.len()
-        );
-
-        let output_path = self
-            .output_path
-            .clone()
-            .unwrap_or_else(|| "dist/output.wasm".to_string());
-        if let Some(parent) = std::path::Path::new(&output_path).parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(&output_path, wasm_bytes)?;
-        println!("✓ Wrote WebAssembly file to: {}", output_path);
-
-        Ok(())
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "build not implemented",
+        ))
     }
 
     // --- Error Reporting ---

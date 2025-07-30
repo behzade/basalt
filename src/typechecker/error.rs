@@ -8,8 +8,8 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub enum TypeError<'src> {
     MismatchedTypes {
-        expected: hir::Ty<'src>,
-        found: hir::Ty<'src>,
+        expected: hir::Ty,
+        found: hir::Ty,
     },
     UnknownVariable(&'src str),
     UnknownFunction(&'src str),
@@ -28,8 +28,8 @@ pub enum TypeError<'src> {
         found: usize,
     },
     WrongArgumentType {
-        expected: hir::Ty<'src>,
-        found: hir::Ty<'src>,
+        expected: hir::Ty,
+        found: hir::Ty,
     },
     UnknownStructField {
         struct_name: &'src str,
@@ -41,12 +41,12 @@ pub enum TypeError<'src> {
     },
     InvalidOperator {
         op: String,
-        ty: hir::Ty<'src>,
+        ty: hir::Ty,
     },
     InvalidPattern {
         pattern: String,
     },
-    UnificationError(hir::Ty<'src>, hir::Ty<'src>),
+    UnificationError(hir::Ty, hir::Ty),
     // New import-related errors
     UnknownModule {
         namespace: &'src str,
@@ -67,7 +67,7 @@ pub enum TypeError<'src> {
     },
 }
 
-impl<'src> fmt::Display for hir::Ty<'src> {
+impl<'src> fmt::Display for hir::Ty {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             hir::Ty::Bool => write!(f, "bool"),
@@ -113,14 +113,15 @@ impl<'src> fmt::Display for hir::Ty<'src> {
                 }
                 write!(f, ") -> {}", ret_type)
             }
-            hir::Ty::Infer(id) => write!(f, "?T{}", id),
+            hir::Ty::Never => write!(f, "never"),
+            hir::Ty::SelfType => write!(f, "self"),
             hir::Ty::Error => write!(f, "<type error>"),
         }
     }
 }
 
 impl<'src> TypeError<'src> {
-    fn type_to_string(ty: &hir::Ty<'src>) -> String {
+    fn type_to_string(ty: &hir::Ty) -> String {
         match ty {
             hir::Ty::Bool => "bool".to_string(),
             hir::Ty::I8 => "i8".to_string(),
@@ -157,7 +158,8 @@ impl<'src> TypeError<'src> {
                     .join(", ");
                 format!("fn({}) -> {}", param_str, Self::type_to_string(ret_type))
             }
-            hir::Ty::Infer(id) => format!("?{}", id),
+            hir::Ty::Never => "never".to_string(),
+            hir::Ty::SelfType => "self".to_string(),
             hir::Ty::Error => "error".to_string(),
         }
     }

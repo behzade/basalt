@@ -6,25 +6,19 @@ use std::io::{self, Read};
 
 // --- Module Declarations ---
 mod ast;
-mod codegen;
 mod compiler;
 mod hir;
 mod lexer;
-mod mir;
 mod parser;
-mod project;
 mod token;
 mod typechecker;
+mod ast_owned;
 
-use crate::compiler::CompilerStage;
+use crate::compiler::{Compiler, CompilerStage};
 use crate::{
-    ast::File,
-    codegen::compile_program_to_wasm,
-    hir::HirItem,
+    hir::Item,
     lexer::lexer,
-    mir::{MirLowerer, MirProgram},
     parser::file_parser,
-    project::ProjectLoader,
     token::{SimpleSpan, Token},
     typechecker::{TypeChecker, TypeError},
 };

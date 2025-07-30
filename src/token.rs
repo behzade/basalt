@@ -1,7 +1,5 @@
 use std::fmt;
 
-
-
 pub type SimpleSpan = chumsky::span::SimpleSpan;
 
 /// Represents the different kinds of tokens recognized by the lexer and used by the parser.
@@ -177,3 +175,53 @@ pub enum OwnedToken {
 }
 
 pub type OwnedTokenWithSpan = (OwnedToken, SimpleSpan);
+
+// convert from token to owned token
+impl From<Token<'_>> for OwnedToken {
+    fn from(token: Token<'_>) -> Self {
+        match token {
+            Token::Let => OwnedToken::Let,
+            Token::Mut => OwnedToken::Mut,
+            Token::Struct => OwnedToken::Struct,
+            Token::Enum => OwnedToken::Enum,
+            Token::Trait => OwnedToken::Trait,
+            Token::Impl => OwnedToken::Impl,
+            Token::For => OwnedToken::For,
+            Token::Fn => OwnedToken::Fn,
+            Token::Extern => OwnedToken::Extern,
+            Token::Import => OwnedToken::Import,
+            Token::As => OwnedToken::As,
+            Token::While => OwnedToken::While,
+            Token::Return => OwnedToken::Return,
+            Token::Effect => OwnedToken::Effect,
+            Token::Handler => OwnedToken::Handler,
+            Token::Perform => OwnedToken::Perform,
+            Token::Handle => OwnedToken::Handle,
+            Token::With => OwnedToken::With,
+            Token::Match => OwnedToken::Match,
+            Token::If => OwnedToken::If,
+            Token::Else => OwnedToken::Else,
+            Token::Pub => OwnedToken::Pub,
+            Token::Bool(b) => OwnedToken::Bool(b),
+            Token::I64(i) => OwnedToken::I64(i),
+            Token::F64(fl) => OwnedToken::F64(fl),
+            Token::Str(s) => OwnedToken::Str(s.to_string()),
+            Token::Ident(ident) => OwnedToken::Ident(ident.to_string()),
+            Token::Op(op) => OwnedToken::Op(op.to_string()),
+            Token::DoubleColon => OwnedToken::DoubleColon,
+            Token::Colon => OwnedToken::Colon,
+            Token::Semi => OwnedToken::Semi,
+            Token::Comma => OwnedToken::Comma,
+            Token::Arrow => OwnedToken::Arrow,
+            Token::FatArrow => OwnedToken::FatArrow,
+            Token::LParen => OwnedToken::LParen,
+            Token::RParen => OwnedToken::RParen,
+            Token::LBrace => OwnedToken::LBrace,
+            Token::RBrace => OwnedToken::RBrace,
+            Token::LBracket => OwnedToken::LBracket,
+            Token::RBracket => OwnedToken::RBracket,
+            Token::Hash => OwnedToken::Hash,
+            Token::Comment(c) => OwnedToken::Comment(c.to_string()),
+        }
+    }
+}

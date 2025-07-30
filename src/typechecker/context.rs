@@ -12,7 +12,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, Default)]
 pub struct Scope<'src> {
     /// A map of variable names to their resolved types (`hir::Ty`) in the current scope.
-    variables: HashMap<&'src str, hir::Ty<'src>>,
+    variables: HashMap<&'src str, hir::Ty>,
     // In the future, this could also hold local type definitions or other
     // scope-specific information.
 }
@@ -144,7 +144,7 @@ impl<'src> TypeContext<'src> {
     // --- Symbol Management ---
 
     /// Adds a variable to the *current* (innermost) scope.
-    pub fn add_variable(&mut self, name: &'src str, ty: hir::Ty<'src>) {
+    pub fn add_variable(&mut self, name: &'src str, ty: hir::Ty) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.variables.insert(name, ty);
         }
@@ -152,7 +152,7 @@ impl<'src> TypeContext<'src> {
 
     /// Searches for a variable's type, starting from the innermost scope and
     /// moving outwards.
-    pub fn get_variable(&self, name: &'src str) -> Option<&hir::Ty<'src>> {
+    pub fn get_variable(&self, name: &'src str) -> Option<&hir::Ty> {
         for scope in self.scopes.iter().rev() {
             if let Some(ty) = scope.variables.get(name) {
                 return Some(ty);

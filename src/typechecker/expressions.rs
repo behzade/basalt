@@ -12,61 +12,16 @@ impl<'src> TypeChecker<'src> {
     pub fn check_expr(
         &mut self,
         expr: &ast::Expr<'src>,
-    ) -> Result<hir::Expr<'src>, TypeError<'src>> {
+    ) -> Result<hir::Expr, TypeError<'src>> {
         let infer_ty = self.new_infer_ty();
         self.check_expr_with_hint(expr, &infer_ty)
-    }
-
-    /// Converts a HIR type back to an AST type for creating concrete instantiations.
-    fn hir_to_ast_type(&self, hir_ty: &Ty<'src>) -> ast::Type<'src> {
-        match hir_ty {
-            Ty::Bool => ast::Type { path: vec!["bool"], generics: vec![] },
-            Ty::I8 => ast::Type { path: vec!["i8"], generics: vec![] },
-            Ty::I16 => ast::Type { path: vec!["i16"], generics: vec![] },
-            Ty::I32 => ast::Type { path: vec!["i32"], generics: vec![] },
-            Ty::I64 => ast::Type { path: vec!["i64"], generics: vec![] },
-            Ty::U8 => ast::Type { path: vec!["u8"], generics: vec![] },
-            Ty::U16 => ast::Type { path: vec!["u16"], generics: vec![] },
-            Ty::U32 => ast::Type { path: vec!["u32"], generics: vec![] },
-            Ty::U64 => ast::Type { path: vec!["u64"], generics: vec![] },
-            Ty::F32 => ast::Type { path: vec!["f32"], generics: vec![] },
-            Ty::F64 => ast::Type { path: vec!["f64"], generics: vec![] },
-            Ty::Str => ast::Type { path: vec!["str"], generics: vec![] },
-            Ty::Unit => ast::Type { path: vec!["unit"], generics: vec![] },
-            Ty::Array(element_ty) => {
-                let element_ast_ty = self.hir_to_ast_type(element_ty);
-                ast::Type { path: vec!["Array"], generics: vec![element_ast_ty] }
-            }
-            Ty::Map { key, value } => {
-                let key_ast_ty = self.hir_to_ast_type(key);
-                let value_ast_ty = self.hir_to_ast_type(value);
-                ast::Type { path: vec!["Map"], generics: vec![key_ast_ty, value_ast_ty] }
-            }
-            Ty::Adt { name, generics } => {
-                let ast_generics: Vec<ast::Type<'src>> = generics.iter()
-                    .map(|g| self.hir_to_ast_type(g))
-                    .collect();
-                ast::Type { path: name.clone(), generics: ast_generics }
-            }
-            Ty::Function { param_types: _, ret_type: _ } => {
-                // For function types, we'll use a simple representation
-                ast::Type { path: vec!["function"], generics: vec![] }
-            }
-            Ty::Infer(_) => {
-                // For inference variables, we'll use a placeholder
-                ast::Type { path: vec!["infer"], generics: vec![] }
-            }
-            Ty::Error => {
-                ast::Type { path: vec!["error"], generics: vec![] }
-            }
-        }
     }
 
     /// Checks an expression, using a `type_hint` to guide inference.
     pub fn check_expr_with_hint(
         &mut self,
         expr: &ast::Expr<'src>,
-        type_hint: &Ty<'src>,
+        type_hint: &Ty,
     ) -> Result<hir::Expr<'src>, TypeError<'src>> {
         let (kind, ty) = match expr {
             ast::Expr::Literal(lit) => self.check_literal(lit, type_hint)?,
@@ -101,9 +56,6 @@ impl<'src> TypeChecker<'src> {
                 });
             }
         };
-
-        // Unify the inferred type with the type hint
-        self.unify(&ty, type_hint)?;
 
         Ok(hir::Expr { kind, ty })
     }
