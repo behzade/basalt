@@ -3,12 +3,12 @@ use chumsky::{Parser, error::Rich, input::Input};
 use std::{fs, io};
 
 use crate::{
-    ast::{Item, OwnedItem},
+    ast::Item,
+    ast_owned::OwnedItem,
     hir::{self, Item as HirItem},
     lexer::lexer,
     parser::file_parser,
     token::{OwnedTokenWithSpan, SimpleSpan, Token},
-    typechecker::{TypeChecker, TypeError},
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -212,47 +212,5 @@ impl Compiler {
                 .unwrap();
         }
         !errors.is_empty()
-    }
-
-    fn report_type_errors(&self, errors: &[TypeError]) {
-        for e in errors {
-            let msg = e.to_string(); // Assuming TypeError implements Display
-            let span = self.find_error_location(e); // Heuristic to find error location
-
-            Report::build(ReportKind::Error, &self.path, span.start)
-                .with_message("Type Error")
-                .with_label(
-                    Label::new((&self.path, span))
-                        .with_message(msg.fg(Color::Red))
-                        .with_color(Color::Red),
-                )
-                .finish()
-                .print((&self.path, Source::from(&self.source_code)))
-                .unwrap();
-        }
-    }
-
-    /// Heuristic to find a better location for type errors.
-    fn find_error_location(&self, error: &TypeError) -> std::ops::Range<usize> {
-        // This is a simplified heuristic. A better approach would involve
-        // attaching spans to all AST/HIR nodes during parsing/type-checking.
-        let name_to_find = match error {
-            TypeError::UnknownVariable(name) => Some(name),
-            TypeError::UnknownFunction(name) => Some(name),
-            TypeError::UnknownStruct(name) => Some(name),
-            TypeError::UnknownEnum(name) => Some(name),
-            TypeError::MissingImport { symbol, .. } => Some(symbol),
-            _ => None,
-        };
-
-        if let Some(name) = name_to_find {
-            if let Some(pos) = self.source_code.find(name.to_owned()) {
-                return pos..pos + name.len();
-            }
-        }
-
-        // Fallback to the end of the file.
-        let end = self.source_code.chars().count();
-        end..end
     }
 }

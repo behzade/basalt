@@ -11,7 +11,6 @@ mod hir;
 mod lexer;
 mod parser;
 mod token;
-mod typechecker;
 mod ast_owned;
 
 use crate::compiler::{Compiler, CompilerStage};
@@ -20,7 +19,6 @@ use crate::{
     lexer::lexer,
     parser::file_parser,
     token::{SimpleSpan, Token},
-    typechecker::{TypeChecker, TypeError},
 };
 
 // --- Command-Line Interface ---

@@ -6,7 +6,7 @@
 //! expressions, carries resolved type information. This makes the HIR a more
 //! suitable input for code generation and other analysis passes.
 
-use crate::ast::{self, OwnedPath, Path};
+use crate::{ast::{self, OwnedPath, Path}, ast_owned};
 use std::collections::HashMap;
 
 //================================================================================//
@@ -82,7 +82,7 @@ pub enum Stmt {
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Literal(ast::OwnedLiteral),
+    Literal(ast_owned::OwnedLiteral),
     Path(OwnedPath),
 }
 
