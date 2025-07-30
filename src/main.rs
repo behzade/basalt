@@ -6,12 +6,12 @@ use std::io::{self, Read};
 
 // --- Module Declarations ---
 mod ast;
+mod ast_owned;
 mod compiler;
 mod hir;
 mod lexer;
 mod parser;
 mod token;
-mod ast_owned;
 
 use crate::compiler::{Compiler, CompilerStage};
 use crate::{
@@ -33,11 +33,21 @@ struct Cli {
 #[derive(clap::Subcommand)]
 enum Action {
     /// Parse a file and print the AST
-    Parse { path: String },
+    Parse {
+        path: String,
+    },
+    // Parse a file and collect all the imported modules
+    Resolve {
+        path: String,
+    },
     /// Type-check and generate HIR
-    Hir { path: String },
+    Hir {
+        path: String,
+    },
     /// Generate MIR from HIR
-    Mir { path: String },
+    Mir {
+        path: String,
+    },
     /// Compile to WebAssembly (.wasm file)
     Build {
         path: String,
@@ -51,6 +61,7 @@ impl Action {
     fn target_stage(&self) -> CompilerStage {
         match self {
             Action::Parse { .. } => CompilerStage::Parse,
+            Action::Resolve { .. } => CompilerStage::Resolve,
             Action::Hir { .. } => CompilerStage::Hir,
             Action::Mir { .. } => CompilerStage::Mir,
             Action::Build { .. } => CompilerStage::Build,
@@ -61,6 +72,7 @@ impl Action {
     fn path(&self) -> &str {
         match self {
             Action::Parse { path }
+            | Action::Resolve { path }
             | Action::Hir { path }
             | Action::Mir { path }
             | Action::Build { path, .. } => path,
@@ -78,12 +90,7 @@ fn main() -> io::Result<()> {
         None
     };
 
-    // For simplicity, we read the source once.
-    // For a multi-file project (`Build`), this would be handled
-    // by a more complex loader inside `run_build`.
-    let source_code = fs::read_to_string(path)?;
-
-    let mut compiler = Compiler::new(path.to_string(), source_code, output_path);
+    let mut compiler = Compiler::new(path.to_string(), output_path);
 
     if let Err(e) = compiler.run_until(target_stage) {
         eprintln!("\n❌ Compilation failed: {}", e);
