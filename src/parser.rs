@@ -821,19 +821,32 @@ fn import_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ident = select! { Token::Ident(ident) => ident };
 
+    // A parser for a single path like `Std::Fmt`
     let path = ident
         .separated_by(just(Token::DoubleColon))
         .at_least(1)
         .collect::<Vec<_>>();
 
+    // A parser for an optional alias like `as fmt`
     let alias = just(Token::As).ignore_then(ident).or_not();
 
-    just(Token::Import)
-        .ignore_then(path)
+    // A parser for a single import declaration inside the block,
+    // like `Std::Fmt as fmt;`
+    let import_path = path
         .then(alias)
         .then_ignore(just(Token::Semi))
-        .map(|(path, alias)| Item::Import { path, alias })
-        .labelled("import declaration")
+        .map(|(path, alias)| ImportPath { path, alias });
+
+    // The main parser for the `import { ... }` block
+    just(Token::Import)
+        .ignore_then(
+            import_path
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
+        .map(|imports| Item::ImportBlock { imports })
+        .labelled("import block")
 }
 
 fn type_parser<'src>()
