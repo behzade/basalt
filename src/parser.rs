@@ -821,19 +821,32 @@ fn import_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ident = select! { Token::Ident(ident) => ident };
 
+    // A parser for a single path like `Std::Fmt`
     let path = ident
         .separated_by(just(Token::DoubleColon))
         .at_least(1)
         .collect::<Vec<_>>();
 
+    // A parser for an optional alias like `as fmt`
     let alias = just(Token::As).ignore_then(ident).or_not();
 
-    just(Token::Import)
-        .ignore_then(path)
+    // A parser for a single import declaration inside the block,
+    // like `Std::Fmt as fmt;`
+    let import_path = path
         .then(alias)
         .then_ignore(just(Token::Semi))
-        .map(|(path, alias)| Item::Import { path, alias })
-        .labelled("import declaration")
+        .map(|(path, alias)| ImportPath { path, alias });
+
+    // The main parser for the `import { ... }` block
+    just(Token::Import)
+        .ignore_then(
+            import_path
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
+        .map(|imports| Item::ImportBlock { imports })
+        .labelled("import block")
 }
 
 fn type_parser<'src>()
@@ -1197,14 +1210,28 @@ fn impl_parser<'src>()
         .labelled("impl block")
 }
 
-/// The main parser function for the entire language.
-pub fn file_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
+/// The main parser for an entire file.
+///
+/// It returns a tuple containing two vectors:
+/// 1. A vector of `Item::ImportBlock`.
+/// 2. A vector of all other `Item`s.
+pub fn file_parser<'src>() -> impl Parser<
+    'src,
+    &'src [Token<'src>],
+    (Vec<Item<'src>>, Vec<Item<'src>>), // Updated return type
+    extra::Err<Rich<'src, Token<'src>>>,
+> {
     let item = item_parser().padded_by(comment_parser());
 
     comment_parser()
         .ignore_then(item.repeated().collect::<Vec<_>>())
         .then_ignore(end())
+        // Partition the collected items into imports and others.
+        .map(|items: Vec<Item<'src>>| {
+            items
+                .into_iter()
+                .partition(|item| matches!(item, Item::ImportBlock { .. }))
+        })
 }
 
 /// Parses a single top-level item.
