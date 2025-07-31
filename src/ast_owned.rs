@@ -25,8 +25,8 @@ pub struct OwnedFunction {
 /// Owned version of Method for symbol signatures
 #[derive(Debug, Clone)]
 pub struct OwnedMethod {
-    pub type_name: String, // The type this method belongs to (e.g., "Counter")
-    pub name: String,      // The method name (e.g., "new")
+    pub type_name: String,     // The type this method belongs to (e.g., "Counter")
+    pub name: String,          // The method name (e.g., "new")
     pub generics: Vec<String>, // Generic type parameters
     pub params: Vec<(Option<String>, OwnedType)>,
     pub ret_type: Option<OwnedType>,
@@ -195,8 +195,15 @@ pub enum OwnedPattern {
 #[derive(Debug, Clone)]
 pub enum OwnedLiteral {
     Bool(bool),
+    I8(i8),
+    I16(i16),
     I32(i32),
     I64(i64),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    F32(f32),
     F64(f64),
     Str(String),
     Unit,
@@ -212,13 +219,7 @@ pub enum OwnedHandlerBody {
 #[derive(Debug, Clone)]
 pub enum OwnedItem {
     Stmt(OwnedStmt),
-    ImportBlock {
-        imports: Vec<OwnedImportPath>,
-    },
-    ExternBlock {
-        module_name: String,
-        functions: Vec<OwnedFunction>,
-    },
+    ImportBlock { imports: Vec<OwnedImportPath> },
     Fn(OwnedFunction),
     Method(OwnedMethod),
     Struct(OwnedStructDef),
@@ -502,8 +503,15 @@ impl<'src> From<&Literal<'src>> for OwnedLiteral {
     fn from(lit: &Literal<'src>) -> Self {
         match lit {
             Literal::Bool(b) => OwnedLiteral::Bool(*b),
+            Literal::I8(i) => OwnedLiteral::I8(*i),
+            Literal::I16(i) => OwnedLiteral::I16(*i),
             Literal::I32(i) => OwnedLiteral::I32(*i),
             Literal::I64(i) => OwnedLiteral::I64(*i),
+            Literal::U8(i) => OwnedLiteral::U8(*i),
+            Literal::U16(i) => OwnedLiteral::U16(*i),
+            Literal::U32(i) => OwnedLiteral::U32(*i),
+            Literal::U64(i) => OwnedLiteral::U64(*i),
+            Literal::F32(f) => OwnedLiteral::F32(*f),
             Literal::F64(f) => OwnedLiteral::F64(*f),
             Literal::Str(s) => OwnedLiteral::Str(s.to_string()),
             Literal::Unit => OwnedLiteral::Unit,

@@ -143,7 +143,15 @@ fn expression_parsers<'src>() -> (
             // Map content - must be a literal or path as key, not just any expression
             choice((
                 select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
+                select! { Token::I8(n) => Expr::Literal(Literal::I8(n)) },
+                select! { Token::I16(n) => Expr::Literal(Literal::I16(n)) },
+                select! { Token::I32(n) => Expr::Literal(Literal::I32(n)) },
                 select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
+                select! { Token::U8(n) => Expr::Literal(Literal::U8(n)) },
+                select! { Token::U16(n) => Expr::Literal(Literal::U16(n)) },
+                select! { Token::U32(n) => Expr::Literal(Literal::U32(n)) },
+                select! { Token::U64(n) => Expr::Literal(Literal::U64(n)) },
+                select! { Token::F32(n) => Expr::Literal(Literal::F32(n)) },
                 select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
                 select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
                 path.clone().map(Expr::Path),
