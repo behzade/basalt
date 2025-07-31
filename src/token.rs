@@ -13,7 +13,7 @@ pub enum Token<'src> {
     Struct,
     Enum,
     Trait,
-    Impl,
+    Satisfies,
     For,
     Fn,
     Extern,
@@ -44,7 +44,6 @@ pub enum Token<'src> {
     Op(String),  // For operators like +, -, *, /, <, >, ==, =
     DoubleColon, // ::
     Colon,       // :
-    Semi,        // ;
     Comma,       // ,
     Arrow,       // ->
     FatArrow,    // =>
@@ -71,7 +70,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Struct => write!(f, "struct"),
             Token::Enum => write!(f, "enum"),
             Token::Trait => write!(f, "trait"),
-            Token::Impl => write!(f, "impl"),
+            Token::Satisfies => write!(f, "satisfies"),
             Token::For => write!(f, "for"),
             Token::Fn => write!(f, "fn"),
             Token::Extern => write!(f, "extern"),
@@ -102,7 +101,6 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Op(op) => write!(f, "{}", op),
             Token::DoubleColon => write!(f, "::"),
             Token::Colon => write!(f, ":"),
-            Token::Semi => write!(f, ";"),
             Token::Comma => write!(f, ","),
             Token::Arrow => write!(f, "->"),
             Token::FatArrow => write!(f, "=>"),
@@ -127,7 +125,7 @@ pub enum OwnedToken {
     Struct,
     Enum,
     Trait,
-    Impl,
+    Satisfies,
     For,
     Fn,
     Extern,
@@ -158,7 +156,6 @@ pub enum OwnedToken {
     Op(String),  // For operators like +, -, *, /, <, >, ==, =
     DoubleColon, // ::
     Colon,       // :
-    Semi,        // ;
     Comma,       // ,
     Arrow,       // ->
     FatArrow,    // =>
@@ -185,7 +182,7 @@ impl From<Token<'_>> for OwnedToken {
             Token::Struct => OwnedToken::Struct,
             Token::Enum => OwnedToken::Enum,
             Token::Trait => OwnedToken::Trait,
-            Token::Impl => OwnedToken::Impl,
+            Token::Satisfies => OwnedToken::Satisfies,
             Token::For => OwnedToken::For,
             Token::Fn => OwnedToken::Fn,
             Token::Extern => OwnedToken::Extern,
@@ -210,7 +207,6 @@ impl From<Token<'_>> for OwnedToken {
             Token::Op(op) => OwnedToken::Op(op.to_string()),
             Token::DoubleColon => OwnedToken::DoubleColon,
             Token::Colon => OwnedToken::Colon,
-            Token::Semi => OwnedToken::Semi,
             Token::Comma => OwnedToken::Comma,
             Token::Arrow => OwnedToken::Arrow,
             Token::FatArrow => OwnedToken::FatArrow,

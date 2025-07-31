@@ -25,7 +25,7 @@ pub enum Item<'src> {
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
     Trait(TraitDef<'src>),
-    Impl(ImplBlock<'src>),
+    Satisfies(SatisfiesBlock<'src>),
     Effect(EffectDef<'src>),
     Handler(HandlerDef<'src>),
 }
@@ -194,10 +194,10 @@ pub struct TraitMethod<'src> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ImplBlock<'src> {
-    pub trait_name: &'src str,
+pub struct SatisfiesBlock<'src> {
     pub target_type: Type<'src>,
-    pub methods: Vec<Function<'src>>,
+    pub trait_names: Vec<&'src str>,
+    pub methods: Option<Vec<Function<'src>>>, // Optional inline method implementations
 }
 
 #[derive(Debug, PartialEq, Clone)]
