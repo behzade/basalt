@@ -14,9 +14,7 @@ pub type OwnedPath = Vec<String>;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Item<'src> {
     Stmt(Stmt<'src>),
-    ImportBlock {
-        imports: Vec<ImportPath<'src>>,
-    },
+    ImportBlock { imports: Vec<ImportPath<'src>> },
     Fn(Function<'src>),
     Method(Method<'src>),
     Struct(StructDef<'src>),
@@ -130,23 +128,16 @@ pub enum Literal<'src> {
 }
 
 /// A pattern used in `match` expressions.
-/// A pattern used in `match` expressions.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Pattern<'src> {
-    /// A literal pattern, e.g., `1`, `"hello"`, `true`.
     Literal(Literal<'src>),
-    /// An identifier that binds the matched value, e.g., `x`.
     Identifier(&'src str),
-    /// A path to an enum variant, e.g., `Option::Some(x)`.
     Path {
         path: Path<'src>,
         args: Vec<Pattern<'src>>, // Note: args are now nested patterns
     },
-    /// The wildcard pattern `_`.
     Wildcard,
 }
-
-// --- Item Definitions ---
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function<'src> {
@@ -242,21 +233,29 @@ pub enum HandlerBody<'src> {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UnaryOp {
-    Neg, // -
-    Not, // !
+    Neg,
+    Not,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum BinaryOp {
-    Add,    // +
-    Sub,    // -
-    Mul,    // *
-    Div,     // /
-    Eq,     // ==
-    Ne,     // !=
-    Lt,     // <
-    Gt,     // >
-    Assign, // =
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Ne,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    Assign,
+    And,
+    Or,
+    Xor,
+    BitShiftLeft,
+    BitShiftRight,
 }
 
 impl std::fmt::Display for BinaryOp {
@@ -266,11 +265,19 @@ impl std::fmt::Display for BinaryOp {
             BinaryOp::Sub => write!(f, "-"),
             BinaryOp::Mul => write!(f, "*"),
             BinaryOp::Div => write!(f, "/"),
+            BinaryOp::Mod => write!(f, "%"),
             BinaryOp::Eq => write!(f, "=="),
             BinaryOp::Ne => write!(f, "!="),
             BinaryOp::Lt => write!(f, "<"),
+            BinaryOp::Lte => write!(f, "<="),
             BinaryOp::Gt => write!(f, ">"),
+            BinaryOp::Gte => write!(f, ">="),
             BinaryOp::Assign => write!(f, "="),
+            BinaryOp::And => write!(f, "&"),
+            BinaryOp::Or => write!(f, "|"),
+            BinaryOp::Xor => write!(f, "^"),
+            BinaryOp::BitShiftLeft => write!(f, "<<"),
+            BinaryOp::BitShiftRight => write!(f, ">>"),
         }
     }
 }
