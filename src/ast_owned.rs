@@ -3,6 +3,18 @@
 //
 use crate::{ast::*, token::SimpleSpan};
 
+/// A generic wrapper that adds a source code span to any AST node.
+#[derive(Debug, Clone)]
+pub struct Spanned<T> {
+    pub item: T,
+    pub span: SimpleSpan,
+}
+
+// --- Type Aliases for Readability ---
+pub type SpannedExpr = Spanned<OwnedExpr>;
+pub type SpannedStmt = Spanned<OwnedStmt>;
+pub type SpannedPattern = Spanned<OwnedPattern>;
+
 /// Owned version of Type for symbol signatures
 #[derive(Debug, Clone)]
 pub struct OwnedType {
@@ -14,24 +26,24 @@ pub struct OwnedType {
 #[derive(Debug, Clone)]
 pub struct OwnedFunction {
     pub name: String,
-    pub generics: Vec<String>, // Generic type parameters
+    pub generics: Vec<String>,
     pub params: Vec<(Option<String>, OwnedType)>,
     pub ret_type: Option<OwnedType>,
     pub effects: Vec<String>,
-    pub body: OwnedExpr, // Block expression
+    pub body: SpannedExpr, // UPDATED
     pub is_public: bool,
 }
 
 /// Owned version of Method for symbol signatures
 #[derive(Debug, Clone)]
 pub struct OwnedMethod {
-    pub type_name: String,     // The type this method belongs to (e.g., "Counter")
-    pub name: String,          // The method name (e.g., "new")
-    pub generics: Vec<String>, // Generic type parameters
+    pub type_name: String,
+    pub name: String,
+    pub generics: Vec<String>,
     pub params: Vec<(Option<String>, OwnedType)>,
     pub ret_type: Option<OwnedType>,
     pub effects: Vec<String>,
-    pub body: OwnedExpr, // Block expression
+    pub body: SpannedExpr, // UPDATED
     pub is_public: bool,
 }
 
@@ -48,7 +60,7 @@ pub struct OwnedStructDef {
 #[derive(Debug, Clone)]
 pub struct OwnedEnumDef {
     pub name: Option<String>,
-    pub generics: Vec<String>, // Generic type parameters
+    pub generics: Vec<String>,
     pub variants: Vec<(String, Option<Vec<OwnedType>>)>,
     pub is_public: bool,
 }
@@ -107,58 +119,58 @@ pub struct OwnedHandlerDef {
 #[derive(Debug, Clone)]
 pub enum OwnedExpr {
     Literal(OwnedLiteral),
-    Array(Vec<OwnedExpr>),
-    Map(Vec<(OwnedExpr, OwnedExpr)>),
+    Array(Vec<SpannedExpr>),              // UPDATED
+    Map(Vec<(SpannedExpr, SpannedExpr)>), // UPDATED
     Path(Vec<String>),
     FieldAccess {
-        receiver: Box<OwnedExpr>,
+        receiver: Box<SpannedExpr>, // UPDATED
         field: String,
     },
     Unary {
         op: UnaryOp,
-        rhs: Box<OwnedExpr>,
+        rhs: Box<SpannedExpr>, // UPDATED
     },
     Binary {
         op: BinaryOp,
-        lhs: Box<OwnedExpr>,
-        rhs: Box<OwnedExpr>,
+        lhs: Box<SpannedExpr>, // UPDATED
+        rhs: Box<SpannedExpr>, // UPDATED
     },
     Call {
-        fun: Box<OwnedExpr>,
-        args: Vec<OwnedExpr>,
+        fun: Box<SpannedExpr>,  // UPDATED
+        args: Vec<SpannedExpr>, // UPDATED
     },
     StructInit {
         path: Vec<String>,
         generics: Vec<OwnedType>,
-        fields: Vec<(String, OwnedExpr)>,
+        fields: Vec<(String, SpannedExpr)>, // UPDATED
     },
     Block {
-        stmts: Vec<OwnedStmt>,
-        last_expr: Option<Box<OwnedExpr>>,
+        stmts: Vec<SpannedStmt>,             // UPDATED
+        last_expr: Option<Box<SpannedExpr>>, // UPDATED
     },
     If {
-        cond: Box<OwnedExpr>,
-        then_block: Box<OwnedExpr>,
-        else_block: Option<Box<OwnedExpr>>,
+        cond: Box<SpannedExpr>,               // UPDATED
+        then_block: Box<SpannedExpr>,         // UPDATED
+        else_block: Option<Box<SpannedExpr>>, // UPDATED
     },
     Match {
-        scrutinee: Box<OwnedExpr>,
-        arms: Vec<(OwnedPattern, OwnedExpr)>,
+        scrutinee: Box<SpannedExpr>,              // UPDATED
+        arms: Vec<(SpannedPattern, SpannedExpr)>, // UPDATED
     },
     While {
-        cond: Box<OwnedExpr>,
-        body: Box<OwnedExpr>,
+        cond: Box<SpannedExpr>, // UPDATED
+        body: Box<SpannedExpr>, // UPDATED
     },
     Perform {
         path: Vec<String>,
-        args: Vec<OwnedExpr>,
+        args: Vec<SpannedExpr>, // UPDATED
     },
     Handle {
-        body: Box<OwnedExpr>,
+        body: Box<SpannedExpr>, // UPDATED
         handler: OwnedHandlerBody,
     },
     Cast {
-        expr: Box<OwnedExpr>,
+        expr: Box<SpannedExpr>, // UPDATED
         ty: OwnedType,
     },
     Error,
@@ -171,11 +183,11 @@ pub enum OwnedStmt {
         is_mut: bool,
         name: String,
         ty: Option<OwnedType>,
-        value: OwnedExpr,
+        value: SpannedExpr, // UPDATED
     },
-    Return(Option<OwnedExpr>),
-    Assign(OwnedExpr, OwnedExpr),
-    Expr(OwnedExpr),
+    Return(Option<SpannedExpr>),      // UPDATED
+    Assign(SpannedExpr, SpannedExpr), // UPDATED
+    Expr(SpannedExpr),                // UPDATED
     Error,
 }
 
@@ -186,13 +198,13 @@ pub enum OwnedPattern {
     Identifier(String),
     Path {
         path: Vec<String>,
-        args: Vec<OwnedPattern>,
+        args: Vec<SpannedPattern>, // UPDATED
     },
     Wildcard,
 }
 
 /// Owned version of Literal for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OwnedLiteral {
     Bool(bool),
     I8(i8),
@@ -217,14 +229,8 @@ pub enum OwnedHandlerBody {
 }
 
 #[derive(Debug, Clone)]
-pub struct OwnedItemWithSpan {
-    pub item: OwnedItem,
-    pub span: SimpleSpan,
-}
-
-#[derive(Debug, Clone)]
 pub enum OwnedItem {
-    Stmt(OwnedStmt),
+    Stmt(SpannedStmt), // UPDATED
     ImportBlock { imports: Vec<OwnedImportPath> },
     Fn(OwnedFunction),
     Method(OwnedMethod),
@@ -247,16 +253,6 @@ pub struct OwnedSatisfiesBlock {
     pub target_type: OwnedType,
     pub trait_names: Vec<String>,
     pub methods: Option<Vec<OwnedFunction>>,
-}
-
-// Conversion traits for owned types
-impl<'src> From<&Type<'src>> for OwnedType {
-    fn from(ty: &Type<'src>) -> Self {
-        Self {
-            path: ty.path.iter().map(|s| s.to_string()).collect(),
-            generics: ty.generics.iter().map(|g| g.into()).collect(),
-        }
-    }
 }
 
 impl<'src> From<&Function<'src>> for OwnedFunction {
@@ -390,121 +386,6 @@ impl<'src> From<&HandlerDef<'src>> for OwnedHandlerDef {
     }
 }
 
-impl<'src> From<&Expr<'src>> for OwnedExpr {
-    fn from(expr: &Expr<'src>) -> Self {
-        match expr {
-            Expr::Literal(lit) => OwnedExpr::Literal(lit.into()),
-            Expr::Array(elements) => OwnedExpr::Array(elements.iter().map(|e| e.into()).collect()),
-            Expr::Map(entries) => {
-                OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect())
-            }
-            Expr::Path(path) => OwnedExpr::Path(path.iter().map(|s| s.to_string()).collect()),
-            Expr::FieldAccess { receiver, field } => OwnedExpr::FieldAccess {
-                receiver: Box::new((&**receiver).into()),
-                field: field.to_string(),
-            },
-            Expr::Unary { op, rhs } => OwnedExpr::Unary {
-                op: *op,
-                rhs: Box::new((&**rhs).into()),
-            },
-            Expr::Binary { op, lhs, rhs } => OwnedExpr::Binary {
-                op: *op,
-                lhs: Box::new((&**lhs).into()),
-                rhs: Box::new((&**rhs).into()),
-            },
-            Expr::Call { fun, args } => OwnedExpr::Call {
-                fun: Box::new((&**fun).into()),
-                args: args.iter().map(|a| a.into()).collect(),
-            },
-            Expr::StructInit {
-                path,
-                generics,
-                fields,
-            } => OwnedExpr::StructInit {
-                path: path.iter().map(|s| s.to_string()).collect(),
-                generics: generics.iter().map(|g| g.into()).collect(),
-                fields: fields
-                    .iter()
-                    .map(|(name, expr)| (name.to_string(), expr.into()))
-                    .collect(),
-            },
-            Expr::Block { stmts, last_expr } => OwnedExpr::Block {
-                stmts: stmts.iter().map(|s| s.into()).collect(),
-                last_expr: last_expr.as_ref().map(|e| Box::new((&**e).into())),
-            },
-            Expr::If {
-                cond,
-                then_block,
-                else_block,
-            } => OwnedExpr::If {
-                cond: Box::new((&**cond).into()),
-                then_block: Box::new((&**then_block).into()),
-                else_block: else_block.as_ref().map(|e| Box::new((&**e).into())),
-            },
-            Expr::Match { scrutinee, arms } => OwnedExpr::Match {
-                scrutinee: Box::new((&**scrutinee).into()),
-                arms: arms
-                    .iter()
-                    .map(|(pat, expr)| (pat.into(), expr.into()))
-                    .collect(),
-            },
-            Expr::While { cond, body } => OwnedExpr::While {
-                cond: Box::new((&**cond).into()),
-                body: Box::new((&**body).into()),
-            },
-            Expr::Perform { path, args } => OwnedExpr::Perform {
-                path: path.iter().map(|s| s.to_string()).collect(),
-                args: args.iter().map(|a| a.into()).collect(),
-            },
-            Expr::Handle { body, handler } => OwnedExpr::Handle {
-                body: Box::new((&**body).into()),
-                handler: handler.into(),
-            },
-            Expr::Cast { expr, ty } => OwnedExpr::Cast {
-                expr: Box::new((&**expr).into()),
-                ty: ty.into(),
-            },
-            Expr::Error => OwnedExpr::Error,
-        }
-    }
-}
-
-impl<'src> From<&Stmt<'src>> for OwnedStmt {
-    fn from(stmt: &Stmt<'src>) -> Self {
-        match stmt {
-            Stmt::Let {
-                is_mut,
-                name,
-                ty,
-                value,
-            } => OwnedStmt::Let {
-                is_mut: *is_mut,
-                name: name.to_string(),
-                ty: ty.as_ref().map(|t| t.into()),
-                value: value.into(),
-            },
-            Stmt::Return(expr) => OwnedStmt::Return(expr.as_ref().map(|_e| OwnedExpr::Error)), // Simplified for now
-            Stmt::Assign(lhs, rhs) => OwnedStmt::Assign(lhs.into(), rhs.into()),
-            Stmt::Expr(expr) => OwnedStmt::Expr(expr.into()),
-            Stmt::Error => OwnedStmt::Error,
-        }
-    }
-}
-
-impl<'src> From<&Pattern<'src>> for OwnedPattern {
-    fn from(pat: &Pattern<'src>) -> Self {
-        match pat {
-            Pattern::Literal(lit) => OwnedPattern::Literal(lit.into()),
-            Pattern::Identifier(name) => OwnedPattern::Identifier(name.to_string()),
-            Pattern::Path { path, args } => OwnedPattern::Path {
-                path: path.iter().map(|s| s.to_string()).collect(),
-                args: args.iter().map(|a| a.into()).collect(),
-            },
-            Pattern::Wildcard => OwnedPattern::Wildcard,
-        }
-    }
-}
-
 impl<'src> From<&Literal<'src>> for OwnedLiteral {
     fn from(lit: &Literal<'src>) -> Self {
         match lit {
@@ -564,22 +445,145 @@ impl<'src> From<&ImportPath<'src>> for OwnedImportPath {
     }
 }
 
-// For item -> owned item conversion
-impl<'src> From<&Item<'src>> for OwnedItem {
-    fn from(item: &Item<'src>) -> Self {
-        match item {
-            Item::Stmt(stmt) => OwnedItem::Stmt(stmt.into()),
-            Item::ImportBlock { imports } => OwnedItem::ImportBlock {
-                imports: imports.iter().map(|i| i.into()).collect(),
+impl<'src> From<&Type<'src>> for OwnedType {
+    fn from(ty: &Type<'src>) -> Self {
+        // This conversion is recursive but doesn't need to change much,
+        // as the .into() call will correctly resolve to the new From impl for Type.
+        Self {
+            path: ty.node.path.iter().map(|s| s.to_string()).collect(),
+            generics: ty.node.generics.iter().map(|g| g.into()).collect(),
+        }
+    }
+}
+
+impl<'src> From<&Expr<'src>> for SpannedExpr {
+    fn from(spanned_expr: &Expr<'src>) -> Self {
+        let owned_node = match &spanned_expr.node {
+            ExprNode::Literal(lit) => OwnedExpr::Literal(lit.into()),
+            ExprNode::Array(elements) => {
+                OwnedExpr::Array(elements.iter().map(|e| e.into()).collect())
+            }
+            ExprNode::Map(entries) => {
+                OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect())
+            }
+            ExprNode::Path(path) => OwnedExpr::Path(path.iter().map(|s| s.to_string()).collect()),
+            ExprNode::FieldAccess { receiver, field } => OwnedExpr::FieldAccess {
+                receiver: Box::new(receiver.as_ref().into()),
+                field: field.to_string(),
             },
-            Item::Fn(func) => OwnedItem::Fn(func.into()),
-            Item::Struct(struct_def) => OwnedItem::Struct(struct_def.into()),
-            Item::Enum(enum_def) => OwnedItem::Enum(enum_def.into()),
-            Item::Trait(trait_def) => OwnedItem::Trait(trait_def.into()),
-            Item::Effect(effect_def) => OwnedItem::Effect(effect_def.into()),
-            Item::Handler(handler_def) => OwnedItem::Handler(handler_def.into()),
-            Item::Method(method) => OwnedItem::Method(method.into()),
-            Item::Satisfies(satisfies) => OwnedItem::Satisfies(satisfies.into()),
+            ExprNode::Unary { op, rhs } => OwnedExpr::Unary {
+                op: *op,
+                rhs: Box::new(rhs.as_ref().into()),
+            },
+            ExprNode::Binary { op, lhs, rhs } => OwnedExpr::Binary {
+                op: *op,
+                lhs: Box::new(lhs.as_ref().into()),
+                rhs: Box::new(rhs.as_ref().into()),
+            },
+            ExprNode::Call { fun, args } => OwnedExpr::Call {
+                fun: Box::new(fun.as_ref().into()),
+                args: args.iter().map(|a| a.into()).collect(),
+            },
+            ExprNode::StructInit {
+                path,
+                generics,
+                fields,
+            } => OwnedExpr::StructInit {
+                path: path.iter().map(|s| s.to_string()).collect(),
+                generics: generics.iter().map(|g| g.into()).collect(),
+                fields: fields
+                    .iter()
+                    .map(|(name, expr)| (name.to_string(), expr.into()))
+                    .collect(),
+            },
+            ExprNode::Block { stmts, last_expr } => OwnedExpr::Block {
+                stmts: stmts.iter().map(|s| s.into()).collect(),
+                last_expr: last_expr.as_ref().map(|e| Box::new(e.as_ref().into())),
+            },
+            ExprNode::If {
+                cond,
+                then_block,
+                else_block,
+            } => OwnedExpr::If {
+                cond: Box::new(cond.as_ref().into()),
+                then_block: Box::new(then_block.as_ref().into()),
+                else_block: else_block.as_ref().map(|e| Box::new(e.as_ref().into())),
+            },
+            ExprNode::Match { scrutinee, arms } => OwnedExpr::Match {
+                scrutinee: Box::new(scrutinee.as_ref().into()),
+                arms: arms
+                    .iter()
+                    .map(|(pat, expr)| (pat.into(), expr.into()))
+                    .collect(),
+            },
+            ExprNode::While { cond, body } => OwnedExpr::While {
+                cond: Box::new(cond.as_ref().into()),
+                body: Box::new(body.as_ref().into()),
+            },
+            ExprNode::Perform { path, args } => OwnedExpr::Perform {
+                path: path.iter().map(|s| s.to_string()).collect(),
+                args: args.iter().map(|a| a.into()).collect(),
+            },
+            ExprNode::Handle { body, handler } => OwnedExpr::Handle {
+                body: Box::new(body.as_ref().into()),
+                handler: handler.into(), // Assumes HandlerBody has a From impl
+            },
+            ExprNode::Cast { expr, ty } => OwnedExpr::Cast {
+                expr: Box::new(expr.as_ref().into()),
+                ty: ty.into(),
+            },
+            ExprNode::Error => OwnedExpr::Error,
+        };
+
+        Spanned {
+            item: owned_node,
+            span: spanned_expr.span,
+        }
+    }
+}
+
+impl<'src> From<&Stmt<'src>> for SpannedStmt {
+    fn from(spanned_stmt: &Stmt<'src>) -> Self {
+        let owned_node = match &spanned_stmt.node {
+            StmtNode::Let {
+                is_mut,
+                name,
+                ty,
+                value,
+            } => OwnedStmt::Let {
+                is_mut: *is_mut,
+                name: name.to_string(),
+                ty: ty.as_ref().map(|t| t.into()),
+                value: value.into(),
+            },
+            StmtNode::Return(expr) => OwnedStmt::Return(expr.as_ref().map(|e| e.into())),
+            StmtNode::Assign(lhs, rhs) => OwnedStmt::Assign(lhs.into(), rhs.into()),
+            StmtNode::Expr(expr) => OwnedStmt::Expr(expr.into()),
+            StmtNode::Error => OwnedStmt::Error,
+        };
+
+        Spanned {
+            item: owned_node,
+            span: spanned_stmt.span,
+        }
+    }
+}
+
+impl<'src> From<&Pattern<'src>> for SpannedPattern {
+    fn from(spanned_pat: &Pattern<'src>) -> Self {
+        let owned_node = match &spanned_pat.node {
+            PatternNode::Literal(lit) => OwnedPattern::Literal(lit.into()),
+            PatternNode::Identifier(name) => OwnedPattern::Identifier(name.to_string()),
+            PatternNode::Path { path, args } => OwnedPattern::Path {
+                path: path.iter().map(|s| s.to_string()).collect(),
+                args: args.iter().map(|a| a.into()).collect(),
+            },
+            PatternNode::Wildcard => OwnedPattern::Wildcard,
+        };
+
+        Spanned {
+            item: owned_node,
+            span: spanned_pat.span,
         }
     }
 }

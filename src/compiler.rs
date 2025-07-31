@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     ast::Item,
-    ast_owned::{OwnedItem, OwnedItemWithSpan},
+    ast_owned::{OwnedItem, Spanned},
     hir::{self, Item as HirItem},
     lexer::lexer,
     parser::file_parser,
@@ -37,7 +37,7 @@ pub struct Workspace {
     tokens: Vec<OwnedTokenWithSpan>,
     imports: Vec<OwnedItem>,
     sources: HashMap<PathBuf, String>,
-    pub ast: HashMap<PathBuf, Vec<OwnedItemWithSpan>>,
+    pub ast: HashMap<PathBuf, Vec<Spanned<OwnedItem>>>,
     pub hir: Vec<hir::Item>,
     resolved_modules: HashSet<PathBuf>, // Add this field
 }
@@ -143,7 +143,7 @@ impl Compiler {
             file_ast.extend(
                 other_ast_items
                     .iter()
-                    .map(|(item, span)| OwnedItemWithSpan {
+                    .map(|(item, span)| Spanned<OwnedItem> {
                         item: item.into(),
                         span: *span,
                     }),

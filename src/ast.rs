@@ -2,17 +2,33 @@
 //! The AST represents the hierarchical structure of the source code, making it
 //! easier to analyze, transform, and compile. The `'src` lifetime parameter
 //! indicates that many AST nodes borrow directly from the source string for efficiency.
+use crate::token::SimpleSpan;
 
-// --- Core Types ---
+// --- Spanned Wrapper and Type Aliases ---
+
+/// A generic wrapper that adds a source code span to an AST node.
+#[derive(Debug, PartialEq, Clone)]
+pub struct Spanned<T> {
+    pub node: T,
+    pub span: SimpleSpan,
+}
 
 /// A path represents a potentially namespaced identifier, like `Std::Collections::Map`.
 pub type Path<'src> = Vec<&'src str>;
-
 pub type OwnedPath = Vec<String>;
+
+// Core recursive AST types are now aliases for the Spanned wrapper.
+pub type Item<'src> = Spanned<ItemNode<'src>>;
+pub type Stmt<'src> = Spanned<StmtNode<'src>>;
+pub type Expr<'src> = Spanned<ExprNode<'src>>;
+pub type Pattern<'src> = Spanned<PatternNode<'src>>;
+pub type Type<'src> = Spanned<TypeNode<'src>>;
+
+// --- Core AST Node Definitions ---
 
 /// A top-level item in a source file.
 #[derive(Debug, PartialEq, Clone)]
-pub enum Item<'src> {
+pub enum ItemNode<'src> {
     Stmt(Stmt<'src>),
     ImportBlock { imports: Vec<ImportPath<'src>> },
     Fn(Function<'src>),
@@ -33,7 +49,7 @@ pub struct ImportPath<'src> {
 
 /// A statement within a block.
 #[derive(Debug, PartialEq, Clone)]
-pub enum Stmt<'src> {
+pub enum StmtNode<'src> {
     Let {
         is_mut: bool,
         name: &'src str,
@@ -43,13 +59,12 @@ pub enum Stmt<'src> {
     Return(Option<Expr<'src>>),
     Assign(Expr<'src>, Expr<'src>),
     Expr(Expr<'src>),
-    // Used for recovery; represents a statement that couldn't be parsed.
     Error,
 }
 
 /// An expression.
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr<'src> {
+pub enum ExprNode<'src> {
     Literal(Literal<'src>),
     Array(Vec<Expr<'src>>),
     Map(Vec<(Expr<'src>, Expr<'src>)>),
@@ -82,7 +97,7 @@ pub enum Expr<'src> {
     },
     If {
         cond: Box<Expr<'src>>,
-        then_block: Box<Expr<'src>>, // Blocks are expressions
+        then_block: Box<Expr<'src>>,
         else_block: Option<Box<Expr<'src>>>,
     },
     Match {
@@ -91,7 +106,7 @@ pub enum Expr<'src> {
     },
     While {
         cond: Box<Expr<'src>>,
-        body: Box<Expr<'src>>, // Block expression
+        body: Box<Expr<'src>>,
     },
     Perform {
         path: Path<'src>,
@@ -105,13 +120,12 @@ pub enum Expr<'src> {
         expr: Box<Expr<'src>>,
         ty: Type<'src>,
     },
-    // Used for recovery; represents an expression that couldn't be parsed.
     Error,
 }
 
 /// A type annotation.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Type<'src> {
+pub struct TypeNode<'src> {
     pub path: Path<'src>,
     pub generics: Vec<Type<'src>>,
 }
@@ -136,12 +150,12 @@ pub enum Literal<'src> {
 
 /// A pattern used in `match` expressions.
 #[derive(Debug, PartialEq, Clone)]
-pub enum Pattern<'src> {
+pub enum PatternNode<'src> {
     Literal(Literal<'src>),
     Identifier(&'src str),
     Path {
         path: Path<'src>,
-        args: Vec<Pattern<'src>>, // Note: args are now nested patterns
+        args: Vec<Pattern<'src>>,
     },
     Wildcard,
 }
@@ -149,24 +163,24 @@ pub enum Pattern<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function<'src> {
     pub name: &'src str,
-    pub generics: Vec<&'src str>, // Generic type parameters (e.g., ["T", "U"])
+    pub generics: Vec<&'src str>,
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
     pub effects: Vec<&'src str>,
-    pub body: Expr<'src>, // Block expression
-    pub is_public: bool,  // Whether this function is public/exported
+    pub body: Expr<'src>,
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Method<'src> {
-    pub type_name: &'src str, // The type this method belongs to (e.g., "Counter")
-    pub name: &'src str,      // The method name (e.g., "new")
-    pub generics: Vec<&'src str>, // Generic type parameters
+    pub type_name: &'src str,
+    pub name: &'src str,
+    pub generics: Vec<&'src str>,
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
     pub effects: Vec<&'src str>,
-    pub body: Expr<'src>, // Block expression
-    pub is_public: bool,  // Whether this method is public/exported
+    pub body: Expr<'src>,
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -174,22 +188,22 @@ pub struct StructDef<'src> {
     pub name: &'src str,
     pub generics: Vec<&'src str>,
     pub fields: Vec<(&'src str, Type<'src>)>,
-    pub is_public: bool, // Whether this struct is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumDef<'src> {
-    pub name: Option<&'src str>,  // Enums can be anonymous
-    pub generics: Vec<&'src str>, // Generic type parameters (e.g., ["T", "E"])
+    pub name: Option<&'src str>,
+    pub generics: Vec<&'src str>,
     pub variants: Vec<(&'src str, Option<Vec<Type<'src>>>)>,
-    pub is_public: bool, // Whether this enum is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TraitDef<'src> {
     pub name: &'src str,
     pub methods: Vec<TraitMethod<'src>>,
-    pub is_public: bool, // Whether this trait is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -197,21 +211,21 @@ pub struct TraitMethod<'src> {
     pub name: &'src str,
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
-    pub is_public: bool, // Whether this method is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SatisfiesBlock<'src> {
     pub target_type: Type<'src>,
     pub trait_names: Vec<&'src str>,
-    pub methods: Option<Vec<Function<'src>>>, // Optional inline method implementations
+    pub methods: Option<Vec<Function<'src>>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EffectDef<'src> {
     pub name: &'src str,
     pub operations: Vec<EffectOp<'src>>,
-    pub is_public: bool, // Whether this effect is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -219,7 +233,7 @@ pub struct EffectOp<'src> {
     pub name: &'src str,
     pub params: Vec<Type<'src>>,
     pub ret_type: Type<'src>,
-    pub is_public: bool, // Whether this operation is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -227,7 +241,7 @@ pub struct HandlerDef<'src> {
     pub name: &'src str,
     pub effects: Vec<&'src str>,
     pub functions: Vec<Function<'src>>,
-    pub is_public: bool, // Whether this handler is public/exported
+    pub is_public: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -269,26 +283,30 @@ pub enum BinaryOp {
 
 impl std::fmt::Display for BinaryOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BinaryOp::Add => write!(f, "+"),
-            BinaryOp::Sub => write!(f, "-"),
-            BinaryOp::Mul => write!(f, "*"),
-            BinaryOp::Div => write!(f, "/"),
-            BinaryOp::Mod => write!(f, "%"),
-            BinaryOp::Eq => write!(f, "=="),
-            BinaryOp::Ne => write!(f, "!="),
-            BinaryOp::Lt => write!(f, "<"),
-            BinaryOp::Lte => write!(f, "<="),
-            BinaryOp::Gt => write!(f, ">"),
-            BinaryOp::Gte => write!(f, ">="),
-            BinaryOp::Assign => write!(f, "="),
-            BinaryOp::And => write!(f, "&&"),
-            BinaryOp::Or => write!(f, "||"),
-            BinaryOp::BinaryXor => write!(f, "^"),
-            BinaryOp::BinaryAnd => write!(f, "&"),
-            BinaryOp::BinaryOr => write!(f, "|"),
-            BinaryOp::BitShiftLeft => write!(f, "<<"),
-            BinaryOp::BitShiftRight => write!(f, ">>"),
-        }
+        write!(
+            f,
+            "{}",
+            match self {
+                BinaryOp::Add => "+",
+                BinaryOp::Sub => "-",
+                BinaryOp::Mul => "*",
+                BinaryOp::Div => "/",
+                BinaryOp::Mod => "%",
+                BinaryOp::Eq => "==",
+                BinaryOp::Ne => "!=",
+                BinaryOp::Lt => "<",
+                BinaryOp::Lte => "<=",
+                BinaryOp::Gt => ">",
+                BinaryOp::Gte => ">=",
+                BinaryOp::Assign => "=",
+                BinaryOp::And => "&&",
+                BinaryOp::Or => "||",
+                BinaryOp::BinaryXor => "^",
+                BinaryOp::BinaryAnd => "&",
+                BinaryOp::BinaryOr => "|",
+                BinaryOp::BitShiftLeft => "<<",
+                BinaryOp::BitShiftRight => ">>",
+            }
+        )
     }
 }
