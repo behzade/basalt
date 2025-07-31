@@ -22,6 +22,19 @@ pub struct OwnedFunction {
     pub is_public: bool,
 }
 
+/// Owned version of Method for symbol signatures
+#[derive(Debug, Clone)]
+pub struct OwnedMethod {
+    pub type_name: String, // The type this method belongs to (e.g., "Counter")
+    pub name: String,      // The method name (e.g., "new")
+    pub generics: Vec<String>, // Generic type parameters
+    pub params: Vec<(Option<String>, OwnedType)>,
+    pub ret_type: Option<OwnedType>,
+    pub effects: Vec<String>,
+    pub body: OwnedExpr, // Block expression
+    pub is_public: bool,
+}
+
 /// Owned version of StructDef for symbol signatures
 #[derive(Debug, Clone)]
 pub struct OwnedStructDef {
@@ -207,6 +220,7 @@ pub enum OwnedItem {
         functions: Vec<OwnedFunction>,
     },
     Fn(OwnedFunction),
+    Method(OwnedMethod),
     Struct(OwnedStructDef),
     Enum(OwnedEnumDef),
     Trait(OwnedTraitDef),
@@ -252,6 +266,25 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
             effects: func.effects.iter().map(|s| s.to_string()).collect(),
             body: (&func.body).into(),
             is_public: func.is_public,
+        }
+    }
+}
+
+impl<'src> From<&Method<'src>> for OwnedMethod {
+    fn from(method: &Method<'src>) -> Self {
+        Self {
+            type_name: method.type_name.to_string(),
+            name: method.name.to_string(),
+            generics: method.generics.iter().map(|s| s.to_string()).collect(),
+            params: method
+                .params
+                .iter()
+                .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
+                .collect(),
+            ret_type: method.ret_type.as_ref().map(|ty| ty.into()),
+            effects: method.effects.iter().map(|s| s.to_string()).collect(),
+            body: (&method.body).into(),
+            is_public: method.is_public,
         }
     }
 }
@@ -538,6 +571,7 @@ impl<'src> From<&Item<'src>> for OwnedItem {
             Item::Trait(trait_def) => OwnedItem::Trait(trait_def.into()),
             Item::Effect(effect_def) => OwnedItem::Effect(effect_def.into()),
             Item::Handler(handler_def) => OwnedItem::Handler(handler_def.into()),
+            Item::Method(method) => OwnedItem::Method(method.into()),
             Item::Satisfies(satisfies) => OwnedItem::Satisfies(satisfies.into()),
         }
     }

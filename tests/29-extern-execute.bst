@@ -5,5 +5,5 @@ extern "wasi_snapshot_preview1" {
 
 
 fn println(s: string) -> unit {
-    fd_write(1, s, 1, 0);
+    fd_write(1, s, 1, 0)
 }
