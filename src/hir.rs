@@ -44,6 +44,7 @@ pub enum SpecialTy {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PrimitiveTy {
     Bool,
+    Byte,
     I32,
     I64,
     F64,
@@ -229,15 +230,22 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BinaryOp {
     Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Equals,
-    NotEquals,
-    LessThan,
-    GreaterThan,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    Ne,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
+    Assign,
     And,
     Or,
+    Xor,
+    BitShiftLeft,
+    BitShiftRight,
 }
 
 //================================================================================//
