@@ -1,7 +1,7 @@
 // --- Owned AST Types for Symbol Signatures ---
 // These are used in SymbolSignature to avoid lifetime issues
 //
-use crate::ast::*;
+use crate::{ast::*, token::SimpleSpan};
 
 /// Owned version of Type for symbol signatures
 #[derive(Debug, Clone)]
@@ -214,6 +214,12 @@ pub enum OwnedLiteral {
 pub enum OwnedHandlerBody {
     Path(Vec<String>),
     Inline(Vec<OwnedFunction>),
+}
+
+#[derive(Debug, Clone)]
+pub struct OwnedItemWithSpan {
+    pub item: OwnedItem,
+    pub span: SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
