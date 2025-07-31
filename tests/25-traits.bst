@@ -2,7 +2,7 @@
 // Testing trait definitions
 
 trait Printable {
-    fn print(self) -> unit
+    print(self) -> unit
 }
 
 struct Point {
@@ -10,13 +10,13 @@ struct Point {
     y: i32
 }
 
-impl Printable for Point {
-    fn print(self) -> unit {
+Point satisfies Printable {
+    print(self) -> unit {
         // In a real implementation, this would print the point
-        return ();
+        return ()
     }
 }
 
 fn main() -> i32 {
-    return 0;
+    return 0
 } 

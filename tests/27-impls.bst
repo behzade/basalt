@@ -5,19 +5,23 @@ struct Counter {
     count: i32
 }
 
-impl Counter {
-    fn new() -> Counter {
-        return Counter { count: 0 };
-    }
-    
-    fn increment(mut self) {
-        self.count = self.count + 1;
-    }
-    
-    fn get_count(self) -> i32 {
-        return self.count;
-    }
+fn Counter::new() -> Counter {
+    return Counter { count: 0 }
 }
+
+fn Counter::increment(mut self) {
+    self.count = self.count + 1
+}
+
+fn Counter::get_count(self) -> i32 {
+    return self.count
+}
+
+trait Incrementable {
+    increment(self)
+}
+
+Counter satisfies Incrementable
 
 fn main() -> i32 {
     let mut counter = Counter::new();

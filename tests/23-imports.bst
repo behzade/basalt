@@ -2,11 +2,11 @@
 // Testing import statements
 
 import {
-    Std::Fmt;
-    Std::Io;
+    Std::Fmt
+    Std::Io
 }
 
 fn main() -> i32 {
-    Std::Io::println("Hello, World!");
-    return 42;
+    Std::Io::println("Hello, World!")
+    return 42
 } 

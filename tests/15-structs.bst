@@ -7,8 +7,8 @@ struct Point {
 }
 
 fn main() -> i32 {
-    let p = Point { x: 10, y: 20 };
-    let x = p.x;
-    let y = p.y;
-    return 0;
+    let p = Point { x: 10, y: 20 }
+    let x = p.x
+    let y = p.y
+    return 0
 } 
