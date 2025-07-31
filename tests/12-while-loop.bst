@@ -2,9 +2,9 @@
 // Testing while loop
 
 fn main() -> i32 {
-    let mut count = 0;
+    let mut count = 0
     while count < 5 {
-        count = count + 1;
+        count = count + 1
     }
-    return 0;
+    return 0
 } 

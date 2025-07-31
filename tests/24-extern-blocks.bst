@@ -14,5 +14,5 @@ struct IoVec {
 fn main() -> i32 {
     // In a real implementation, we would call the extern functions
     // For now, just return success
-    return 0;
+    return 0
 } 

@@ -7,23 +7,23 @@ effect Print {
 
 handler MockPrint{Print} {
     fn print(msg: string) -> unit {
-        return ();
+        return ()
     }
 }
 
 fn testprint() -> unit / {Print} {
-    perform Print::print("Hello, World!");
+    perform Print::print("Hello, World!")
 }
 
 fn main() -> i32 {
     handle {
-        testprint();
+        testprint()
     } with {
         print(msg: string) {
-            return ();
+            return ()
         }
-    };
+    }
 
-    handle testprint() with MockPrint;
-    return 0;
+    handle testprint() with MockPrint
+    return 0
 }

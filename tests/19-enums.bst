@@ -8,11 +8,11 @@ enum Color {
 }
 
 fn main() -> i32 {
-    let color = Color::Red;
+    let color = Color::Red
     let result = match color {
         Color::Red => "red",
         Color::Green => "green",
         Color::Blue => "blue"
-    };
-    return 0;
+    }
+    return 0
 } 

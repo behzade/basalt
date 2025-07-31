@@ -2,11 +2,11 @@
 // Testing if-else statement
 
 fn main() -> i32 {
-    let condition = false;
+    let condition = false
     if condition {
-        let x = 42;
+        let x = 42
     } else {
-        let y = 100;
+        let y = 100
     }
-    return 0;
+    return 0
 } 

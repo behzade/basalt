@@ -2,5 +2,5 @@
 // Testing returning a literal value from main
 
 fn main() -> i32 {
-    return 42;
+    return 42
 } 

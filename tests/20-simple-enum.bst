@@ -7,13 +7,13 @@ enum Option<T> {
 }
 
 fn main() -> i32 {
-    let some_value = Option::Some(42);
-    let none_value = Option::None;
+    let some_value = Option::Some(42)
+    let none_value = Option::None
     
     let result = match some_value {
         Option::Some(x) => x,
         Option::None => 0
-    };
+    }
     
-    return 0;
+    return 0
 } 

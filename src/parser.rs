@@ -114,9 +114,7 @@ fn expression_parsers<'src>() -> (
             .collect::<Vec<_>>()
             .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
-        .map(|((_path, _generics), pairs)| {
-            Expr::Map(pairs)
-        })
+        .map(|((_path, _generics), pairs)| Expr::Map(pairs))
         .labelled("typed map literal")
         .boxed();
 
@@ -129,9 +127,7 @@ fn expression_parsers<'src>() -> (
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map(|pairs| {
-            Expr::Map(pairs)
-        })
+        .map(|pairs| Expr::Map(pairs))
         .labelled("map literal")
         .boxed();
 
@@ -574,8 +570,8 @@ fn expression_parsers<'src>() -> (
         .map(|(lhs, rhs)| Stmt::Assign(Expr::Path(lhs), rhs));
 
     // Control flow expressions
-    let control_flow_stmt = choice((if_expr.clone(), while_expr.clone()))
-        .map(|expr| Stmt::Expr(expr));
+    let control_flow_stmt =
+        choice((if_expr.clone(), while_expr.clone())).map(|expr| Stmt::Expr(expr));
 
     // Handle statement parser (to avoid circular dependency)
     let handle_stmt = just(Token::Handle)
@@ -654,20 +650,18 @@ fn fn_decl_parser<'src>()
         .then(ident)
         .then(params)
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .map(
-            |(((is_public, name), params), ret_type)| Function {
-                name,
-                generics: Vec::new(), // Function declarations don't have generics
-                params,
-                ret_type,
-                effects: Vec::new(), // Function declarations don't have effects
-                body: Expr::Block {
-                    stmts: vec![],
-                    last_expr: None,
-                }, // Empty body for declarations
-                is_public,
-            },
-        )
+        .map(|(((is_public, name), params), ret_type)| Function {
+            name,
+            generics: Vec::new(), // Function declarations don't have generics
+            params,
+            ret_type,
+            effects: Vec::new(), // Function declarations don't have effects
+            body: Expr::Block {
+                stmts: vec![],
+                last_expr: None,
+            }, // Empty body for declarations
+            is_public,
+        })
         .labelled("function declaration")
 }
 
@@ -901,8 +895,7 @@ fn trait_parser<'src>()
             )
         });
 
-    let method = just(Token::Fn)
-        .ignore_then(ident)
+    let method = ident
         .then_ignore(just(Token::LParen))
         .then(
             param
@@ -1127,7 +1120,8 @@ fn extern_parser<'src>()
 }
 
 fn satisfies_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], SatisfiesBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+-> impl Parser<'src, &'src [Token<'src>], SatisfiesBlock<'src>, extra::Err<Rich<'src, Token<'src>>>>
+{
     let (expr, stmt, block) = expression_parsers();
     let ident = select! { Token::Ident(ident) => ident };
 
@@ -1143,9 +1137,7 @@ fn satisfies_parser<'src>()
     // Parse optional inline method implementations
     let inline_methods = just(Token::LBrace)
         .ignore_then(
-            // Parse method implementations
-            just(Token::Fn)
-                .ignore_then(ident)
+            ident
                 .then_ignore(just(Token::LParen))
                 .then(
                     // Parameters can be just 'self' or 'mut self' without type annotation

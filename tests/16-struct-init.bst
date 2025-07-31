@@ -12,6 +12,6 @@ fn main() -> i32 {
         name: "Alice",
         age: 30,
         active: true
-    };
-    return 0;
+    }
+    return 0
 } 
