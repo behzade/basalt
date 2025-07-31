@@ -1196,50 +1196,6 @@ fn handler_parser<'src>()
         .labelled("handler definition")
 }
 
-fn extern_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let param = choice((
-        // Regular parameter: name: type
-        ident
-            .then_ignore(just(Token::Colon))
-            .then(type_parser())
-            .map(|(name, ty)| (Some(name), ty)),
-        // Variadic parameter: ...
-        just(Token::Op("...".to_string())).map(|_| {
-            (
-                None,
-                Type {
-                    path: vec!["..."],
-                    generics: vec![],
-                },
-            )
-        }),
-    ));
-
-    let _params = param
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LParen), just(Token::RParen));
-
-    // Parse extern block: extern "module_name" { ... }
-    just(Token::Extern)
-        .ignore_then(select! { Token::Str(module_name) => module_name })
-        .then(
-            fn_decl_parser()
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .map(|(module_name, functions)| Item::ExternBlock {
-            module_name,
-            functions,
-        })
-        .labelled("extern block declaration")
-}
-
 fn satisfies_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], SatisfiesBlock<'src>, extra::Err<Rich<'src, Token<'src>>>>
 {
@@ -1359,9 +1315,6 @@ fn item_parser<'src>()
     // Handler parser
     let handler_parser = handler_parser().map(Item::Handler);
 
-    // Extern parser (old C-style)
-    let extern_parser = extern_parser();
-
     // Satisfies parser
     let satisfies_parser = satisfies_parser().map(Item::Satisfies);
 
@@ -1374,7 +1327,6 @@ fn item_parser<'src>()
         satisfies_parser,
         effect_parser,
         handler_parser,
-        extern_parser,
         import_parser,
         stmt_item,
     ))
@@ -1388,7 +1340,6 @@ fn item_parser<'src>()
             Token::Satisfies,
             Token::Effect,
             Token::Handler,
-            Token::Extern,
             Token::Import,
             Token::Let,
         ])

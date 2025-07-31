@@ -17,10 +17,6 @@ pub enum Item<'src> {
     ImportBlock {
         imports: Vec<ImportPath<'src>>,
     },
-    ExternBlock {
-        module_name: &'src str,
-        functions: Vec<Function<'src>>,
-    },
     Fn(Function<'src>),
     Method(Method<'src>),
     Struct(StructDef<'src>),

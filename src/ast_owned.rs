@@ -558,13 +558,6 @@ impl<'src> From<&Item<'src>> for OwnedItem {
             Item::ImportBlock { imports } => OwnedItem::ImportBlock {
                 imports: imports.iter().map(|i| i.into()).collect(),
             },
-            Item::ExternBlock {
-                module_name,
-                functions,
-            } => OwnedItem::ExternBlock {
-                module_name: module_name.to_string(),
-                functions: functions.iter().map(|f| f.into()).collect(),
-            },
             Item::Fn(func) => OwnedItem::Fn(func.into()),
             Item::Struct(struct_def) => OwnedItem::Struct(struct_def.into()),
             Item::Enum(enum_def) => OwnedItem::Enum(enum_def.into()),
