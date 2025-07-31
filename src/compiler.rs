@@ -1,6 +1,10 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::{Parser, error::Rich, input::Input};
-use std::{collections::{HashMap, HashSet}, fs, io, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    fs, io,
+    path::PathBuf,
+};
 
 use crate::{
     ast::Item,
@@ -83,12 +87,14 @@ impl Compiler {
         let file_to_parse = path.unwrap_or_else(|| self.path.clone());
         let source_code = fs::read_to_string(&file_to_parse)?;
 
-        self.workspace.sources.insert(file_to_parse.clone().into(), source_code.clone());
+        self.workspace
+            .sources
+            .insert(file_to_parse.clone().into(), source_code.clone());
 
         let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
 
         // Assuming your error reporter needs the source code
-        if self.report_lex_errors(&lex_errs, &source_code) {
+        if self.report_lex_errors(&lex_errs, &source_code, file_to_parse.clone()) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Compilation failed due to lexing errors.",
@@ -109,7 +115,12 @@ impl Compiler {
         // Assume file_parser() now returns Option<(Vec<Item>, Vec<Item>)>
         let (items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
 
-        if self.report_parser_errors(&parse_errs, &tokens_with_spans, &source_code) {
+        if self.report_parser_errors(
+            &parse_errs,
+            &tokens_with_spans,
+            &source_code,
+            file_to_parse.clone(),
+        ) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Compilation failed due to parsing errors.",
@@ -124,16 +135,19 @@ impl Compiler {
                     .map(|(item, span)| item)
                     .map(OwnedItem::from),
             );
-            let file_ast = self.workspace.ast.entry(file_to_parse.clone().into()).or_default();
-            file_ast
-                .extend(
-                    other_ast_items
-                        .iter()
-                        .map(|(item, span)| OwnedItemWithSpan {
-                            item: item.into(),
-                            span: *span,
-                        }),
-                );
+            let file_ast = self
+                .workspace
+                .ast
+                .entry(file_to_parse.clone().into())
+                .or_default();
+            file_ast.extend(
+                other_ast_items
+                    .iter()
+                    .map(|(item, span)| OwnedItemWithSpan {
+                        item: item.into(),
+                        span: *span,
+                    }),
+            );
         }
 
         // Append tokens (this logic remains the same)
@@ -247,9 +261,14 @@ impl Compiler {
 
     // --- Error Reporting ---
 
-    fn report_lex_errors(&self, errors: &[Rich<char>], source_code: &str) -> bool {
+    fn report_lex_errors(
+        &self,
+        errors: &[Rich<char>],
+        source_code: &str,
+        filepath: String,
+    ) -> bool {
         for e in errors {
-            Report::build(ReportKind::Error, &self.path, e.span().start)
+            Report::build(ReportKind::Error, &filepath, e.span().start)
                 .with_message("Lexing error")
                 .with_label(
                     Label::new((&self.path, e.span().into_range()))
@@ -268,6 +287,7 @@ impl Compiler {
         errors: &[Rich<Token>],
         tokens: &[(Token, SimpleSpan)],
         source_code: &str,
+        filepath: String,
     ) -> bool {
         for e in errors {
             let report_span = if let Some((_, span)) = tokens.get(e.span().start) {
@@ -277,7 +297,7 @@ impl Compiler {
                 end..end + 1 // Point to end of file if span is out of bounds
             };
 
-            let report = Report::build(ReportKind::Error, &self.path, report_span.start);
+            let report = Report::build(ReportKind::Error, &filepath, report_span.start);
             let report = match e.reason() {
                 chumsky::error::RichReason::ExpectedFound { expected, found } => {
                     let expected_str = expected
@@ -316,32 +336,35 @@ impl Compiler {
     }
 
     fn report_type_errors(&self, errors: &[TypeError]) -> bool {
-    for error in errors {
-        // Get the path for this specific error
-        let error_path_str = error.context.path.to_str().unwrap_or("?");
+        for error in errors {
+            // Get the path for this specific error
+            let error_path_str = error.context.path.to_str().unwrap_or("?");
 
-        // Find the source code for this error's file in our workspace map
-        let source_code = match self.workspace.sources.get(&error.context.path) {
-            Some(s) => s,
-            None => { 
-                // Fallback for the unlikely case we can't find the source
-                eprintln!("Internal error: Could not find source for path {:?}", error.context.path);
-                continue; 
-            }
-        };
+            // Find the source code for this error's file in our workspace map
+            let source_code = match self.workspace.sources.get(&error.context.path) {
+                Some(s) => s,
+                None => {
+                    // Fallback for the unlikely case we can't find the source
+                    eprintln!(
+                        "Internal error: Could not find source for path {:?}",
+                        error.context.path
+                    );
+                    continue;
+                }
+            };
 
-        Report::build(ReportKind::Error, error_path_str, error.context.span.start)
-            .with_message("Type error")
-            .with_label(
-                Label::new((error_path_str, error.context.span.clone().into_range())) // Use clone here
-                    .with_message(&error.message)
-                    .with_color(Color::Red),
-            )
-            .finish()
-            // The magic moment! ✨ We provide the correct source code for this specific error.
-            .print((error_path_str, Source::from(source_code)))
-            .unwrap();
+            Report::build(ReportKind::Error, error_path_str, error.context.span.start)
+                .with_message("Type error")
+                .with_label(
+                    Label::new((error_path_str, error.context.span.clone().into_range())) // Use clone here
+                        .with_message(&error.message)
+                        .with_color(Color::Red),
+                )
+                .finish()
+                // The magic moment! ✨ We provide the correct source code for this specific error.
+                .print((error_path_str, Source::from(source_code)))
+                .unwrap();
+        }
+        !errors.is_empty()
     }
-    !errors.is_empty()
-}
 }
