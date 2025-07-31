@@ -9,11 +9,11 @@ fn Counter::new() -> Counter {
     return Counter { count: 0 }
 }
 
-fn Counter::increment(mut self) {
+fn Counter::increment(mut self: Self) {
     self.count = self.count + 1
 }
 
-fn Counter::get_count(self) -> i32 {
+fn Counter::get_count(self: Self) -> i32 {
     return self.count
 }
 
@@ -24,9 +24,9 @@ trait Incrementable {
 Counter satisfies Incrementable
 
 fn main() -> i32 {
-    let mut counter = Counter::new();
-    counter.increment();
-    counter.increment();
-    let count = counter.get_count();
-    return 0;
+    let mut counter = Counter::new()
+    counter.increment()
+    counter.increment()
+    let count = counter.get_count()
+    return 0
 } 

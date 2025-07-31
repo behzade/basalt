@@ -22,6 +22,7 @@ pub enum Item<'src> {
         functions: Vec<Function<'src>>,
     },
     Fn(Function<'src>),
+    Method(Method<'src>),
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
     Trait(TraitDef<'src>),
@@ -163,6 +164,18 @@ pub struct Function<'src> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Method<'src> {
+    pub type_name: &'src str, // The type this method belongs to (e.g., "Counter")
+    pub name: &'src str,      // The method name (e.g., "new")
+    pub generics: Vec<&'src str>, // Generic type parameters
+    pub params: Vec<(Option<&'src str>, Type<'src>)>,
+    pub ret_type: Option<Type<'src>>,
+    pub effects: Vec<&'src str>,
+    pub body: Expr<'src>, // Block expression
+    pub is_public: bool,  // Whether this method is public/exported
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct StructDef<'src> {
     pub name: &'src str,
     pub generics: Vec<&'src str>,
@@ -242,7 +255,7 @@ pub enum BinaryOp {
     Add,    // +
     Sub,    // -
     Mul,    // *
-    Div,    // /
+    Div,     // /
     Eq,     // ==
     Ne,     // !=
     Lt,     // <

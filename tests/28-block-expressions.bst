@@ -4,13 +4,13 @@
 fn main() -> i32 {
     let a = {
         2
-    };
+    }
     
     let b = {
-        let x = 10;
-        let y = 20;
+        let x = 10
+        let y = 20
         x + y
-    };
+    }
     
     let c = {
         if true {
@@ -18,7 +18,7 @@ fn main() -> i32 {
         } else {
             100
         }
-    };
+    }
     
-    return 0;
+    return 0
 } 
