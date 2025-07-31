@@ -210,15 +210,22 @@ pub enum OwnedItem {
     Struct(OwnedStructDef),
     Enum(OwnedEnumDef),
     Trait(OwnedTraitDef),
-    Impl(OwnedImplBlock),
     Effect(OwnedEffectDef),
     Handler(OwnedHandlerDef),
+    Satisfies(OwnedSatisfiesBlock),
 }
 
 #[derive(Debug, Clone)]
 pub struct OwnedImportPath {
     pub path: Vec<String>,
     pub alias: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct OwnedSatisfiesBlock {
+    pub target_type: OwnedType,
+    pub trait_names: Vec<String>,
+    pub methods: Option<Vec<OwnedFunction>>,
 }
 
 // Conversion traits for owned types
@@ -484,13 +491,19 @@ impl<'src> From<&HandlerBody<'src>> for OwnedHandlerBody {
     }
 }
 
-// impl block
-impl<'src> From<&ImplBlock<'src>> for OwnedImplBlock {
-    fn from(impl_block: &ImplBlock<'src>) -> Self {
+impl<'src> From<&SatisfiesBlock<'src>> for OwnedSatisfiesBlock {
+    fn from(satisfies: &SatisfiesBlock<'src>) -> Self {
         Self {
-            trait_name: impl_block.trait_name.to_string(),
-            target_type: (&impl_block.target_type).into(),
-            methods: impl_block.methods.iter().map(|m| m.into()).collect(),
+            target_type: (&satisfies.target_type).into(),
+            trait_names: satisfies
+                .trait_names
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            methods: satisfies
+                .methods
+                .as_ref()
+                .map(|ms| ms.iter().map(|m| m.into()).collect::<Vec<OwnedFunction>>()),
         }
     }
 }
@@ -523,9 +536,9 @@ impl<'src> From<&Item<'src>> for OwnedItem {
             Item::Struct(struct_def) => OwnedItem::Struct(struct_def.into()),
             Item::Enum(enum_def) => OwnedItem::Enum(enum_def.into()),
             Item::Trait(trait_def) => OwnedItem::Trait(trait_def.into()),
-            Item::Impl(impl_block) => OwnedItem::Impl(impl_block.into()),
             Item::Effect(effect_def) => OwnedItem::Effect(effect_def.into()),
             Item::Handler(handler_def) => OwnedItem::Handler(handler_def.into()),
+            Item::Satisfies(satisfies) => OwnedItem::Satisfies(satisfies.into()),
         }
     }
 }

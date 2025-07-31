@@ -115,8 +115,7 @@ fn expression_parsers<'src>() -> (
             .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
         .map(|((_path, _generics), pairs)| {
-            let map_pairs = pairs.into_iter().collect();
-            Expr::Map(map_pairs)
+            Expr::Map(pairs)
         })
         .labelled("typed map literal")
         .boxed();
@@ -131,8 +130,7 @@ fn expression_parsers<'src>() -> (
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
         .map(|pairs| {
-            let map_pairs = pairs.into_iter().collect();
-            Expr::Map(map_pairs)
+            Expr::Map(pairs)
         })
         .labelled("map literal")
         .boxed();
@@ -561,7 +559,6 @@ fn expression_parsers<'src>() -> (
         .then(just(Token::Colon).ignore_then(ty.clone()).or_not())
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
-        .then_ignore(just(Token::Semi))
         .map(|(((is_mut, name), opt_type), value)| Stmt::Let {
             is_mut: is_mut.is_some(),
             name,
@@ -574,13 +571,11 @@ fn expression_parsers<'src>() -> (
         .clone()
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
-        .then_ignore(just(Token::Semi))
         .map(|(lhs, rhs)| Stmt::Assign(Expr::Path(lhs), rhs));
 
-    // Control flow expressions that don't need semicolons (but can have them)
+    // Control flow expressions
     let control_flow_stmt = choice((if_expr.clone(), while_expr.clone()))
-        .then(just(Token::Semi).or_not())
-        .map(|(expr, _semi)| Stmt::Expr(expr));
+        .map(|expr| Stmt::Expr(expr));
 
     // Handle statement parser (to avoid circular dependency)
     let handle_stmt = just(Token::Handle)
@@ -608,7 +603,6 @@ fn expression_parsers<'src>() -> (
             inline_handler.clone(),
             path.clone().map(|p| HandlerBody::Path(p)),
         )))
-        .then_ignore(just(Token::Semi))
         .map(|(body, handler)| {
             Stmt::Expr(Expr::Handle {
                 body: Box::new(body),
@@ -616,15 +610,14 @@ fn expression_parsers<'src>() -> (
             })
         });
 
-    // Regular expressions that need semicolons
-    let expr_stmt = expr.clone().then_ignore(just(Token::Semi)).map(Stmt::Expr);
+    // Regular expressions
+    let expr_stmt = expr.clone().map(Stmt::Expr);
 
     let stmt_parser = choice((
         let_decl,
         assign_stmt,
         just(Token::Return)
             .ignore_then(expr.clone().or_not())
-            .then_ignore(just(Token::Semi))
             .map(Stmt::Return),
         control_flow_stmt,
         handle_stmt,
@@ -661,9 +654,8 @@ fn fn_decl_parser<'src>()
         .then(ident)
         .then(params)
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(just(Token::Semi).or_not())
         .map(
-            |((((is_public, name), params), ret_type), _semi)| Function {
+            |(((is_public, name), params), ret_type)| Function {
                 name,
                 generics: Vec::new(), // Function declarations don't have generics
                 params,
@@ -834,7 +826,6 @@ fn import_parser<'src>()
     // like `Std::Fmt as fmt;`
     let import_path = path
         .then(alias)
-        .then_ignore(just(Token::Semi))
         .map(|(path, alias)| ImportPath { path, alias });
 
     // The main parser for the `import { ... }` block
@@ -898,8 +889,6 @@ fn trait_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ident = select! { Token::Ident(ident) => ident };
 
-    // Trait method parser - methods end with semicolon, not comma
-    // Parameters can be just 'self' or 'mut self' without type annotation
     let param = ident
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
         .map(|(name, ty)| {
@@ -998,7 +987,6 @@ fn effect_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ident = select! { Token::Ident(ident) => ident };
 
-    // Effect operation parser - uses same parameter format as regular functions
     let effect_op = just(Token::Fn)
         .ignore_then(ident)
         .then_ignore(just(Token::LParen))
@@ -1138,76 +1126,74 @@ fn extern_parser<'src>()
         .labelled("extern block declaration")
 }
 
-fn impl_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn satisfies_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], SatisfiesBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, stmt, block) = expression_parsers();
     let ident = select! { Token::Ident(ident) => ident };
 
-    // Parse trait name and target type
-    let trait_name = ident;
+    // Parse target type
     let target_type = type_parser();
 
-    // Parse impl methods (with fn keyword)
-    // Parameters can be just 'self' or 'mut self' without type annotation
-    let param = just(Token::Mut)
-        .or_not()
-        .then(ident)
-        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|((_mut_kw, name), ty)| {
-            (
-                Some(name),
-                ty.unwrap_or_else(|| Type {
-                    path: vec!["unit"],
-                    generics: vec![],
-                }),
-            )
-        });
+    // Parse trait names (comma-separated)
+    let trait_names = ident
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>();
 
-    let impl_method = just(Token::Fn)
-        .ignore_then(ident)
-        .then_ignore(just(Token::LParen))
-        .then(
-            param
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
+    // Parse optional inline method implementations
+    let inline_methods = just(Token::LBrace)
+        .ignore_then(
+            // Parse method implementations
+            just(Token::Fn)
+                .ignore_then(ident)
+                .then_ignore(just(Token::LParen))
+                .then(
+                    // Parameters can be just 'self' or 'mut self' without type annotation
+                    just(Token::Mut)
+                        .or_not()
+                        .then(ident)
+                        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
+                        .map(|((_mut_kw, name), ty)| {
+                            (
+                                Some(name),
+                                ty.unwrap_or_else(|| Type {
+                                    path: vec!["unit"],
+                                    generics: vec![],
+                                }),
+                            )
+                        })
+                        .separated_by(just(Token::Comma))
+                        .allow_trailing()
+                        .collect::<Vec<_>>(),
+                )
+                .then_ignore(just(Token::RParen))
+                .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+                .then(block.clone())
+                .map(|(((name, params), ret_type), body)| Function {
+                    name,
+                    generics: Vec::new(),
+                    params,
+                    ret_type,
+                    effects: Vec::new(),
+                    body,
+                    is_public: true,
+                })
+                .repeated()
                 .collect::<Vec<_>>(),
         )
-        .then_ignore(just(Token::RParen))
-        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(block.clone())
-        .map(|(((name, params), ret_type), body)| Function {
-            name,
-            generics: Vec::new(), // Impl methods don't have generics
-            params,
-            ret_type,
-            effects: Vec::new(),
-            body,
-            is_public: true, // Impl methods are always public
-        });
+        .then_ignore(just(Token::RBrace))
+        .or_not();
 
-    let methods = impl_method
-        .repeated()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    just(Token::Impl)
-        .ignore_then(trait_name)
-        .then(just(Token::For).ignore_then(target_type).or_not())
-        .then(methods)
-        .map(|((trait_name, target_type), methods)| {
-            // If no "for" type is specified, assume this is a struct implementation
-            // and use the trait_name as the target type
-            let actual_target_type = target_type.unwrap_or_else(|| Type {
-                path: vec![trait_name], // Use the trait_name as the target type
-                generics: vec![],
-            });
-            ImplBlock {
-                trait_name,
-                target_type: actual_target_type,
-                methods,
-            }
+    target_type
+        .then_ignore(just(Token::Satisfies))
+        .then(trait_names)
+        .then(inline_methods)
+        .map(|((target_type, trait_names), methods)| SatisfiesBlock {
+            target_type,
+            trait_names,
+            methods,
         })
-        .labelled("impl block")
+        .labelled("satisfies block")
 }
 
 /// The main parser for an entire file.
@@ -1262,15 +1248,15 @@ fn item_parser<'src>()
     // Extern parser (old C-style)
     let extern_parser = extern_parser();
 
-    // Impl parser
-    let impl_parser = impl_parser().map(Item::Impl);
+    // Satisfies parser
+    let satisfies_parser = satisfies_parser().map(Item::Satisfies);
 
     choice((
         fn_decl,
         struct_item_parser,
         trait_parser,
         enum_parser,
-        impl_parser,
+        satisfies_parser,
         effect_parser,
         handler_parser,
         extern_parser,
@@ -1284,7 +1270,7 @@ fn item_parser<'src>()
             Token::Struct,
             Token::Trait,
             Token::Enum,
-            Token::Impl,
+            Token::Satisfies,
             Token::Effect,
             Token::Handler,
             Token::Extern,

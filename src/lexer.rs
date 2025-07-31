@@ -32,7 +32,6 @@ pub fn lexer<'src>()
     let punc = choice((
         just("::").to(Token::DoubleColon),
         just(":").to(Token::Colon),
-        just(";").to(Token::Semi),
         just(",").to(Token::Comma),
         just("(").to(Token::LParen),
         just(")").to(Token::RParen),
@@ -80,7 +79,7 @@ pub fn lexer<'src>()
         "struct" => Token::Struct,
         "enum" => Token::Enum,
         "trait" => Token::Trait,
-        "impl" => Token::Impl,
+        "satisfies" => Token::Satisfies,
         "for" => Token::For,
         "fn" => Token::Fn,
         "extern" => Token::Extern,
