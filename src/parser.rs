@@ -1281,19 +1281,23 @@ fn satisfies_parser<'src>()
 pub fn file_parser<'src>() -> impl Parser<
     'src,
     &'src [Token<'src>],
-    (Vec<Item<'src>>, Vec<Item<'src>>), // Updated return type
+    // Updated return type to handle tuples of (Item, SimpleSpan)
+    (Vec<(Item<'src>, SimpleSpan)>, Vec<(Item<'src>, SimpleSpan)>),
     extra::Err<Rich<'src, Token<'src>>>,
 > {
-    let item = item_parser().padded_by(comment_parser());
+    // The item parser now produces a tuple of (Item, SimpleSpan).
+    let item = item_parser()
+        .map_with(|item, e| (item, e.span()))
+        .padded_by(comment_parser());
 
     comment_parser()
         .ignore_then(item.repeated().collect::<Vec<_>>())
         .then_ignore(end())
-        // Partition the collected items into imports and others.
-        .map(|items: Vec<Item<'src>>| {
+        // Partition the collected (Item, SimpleSpan) tuples.
+        .map(|items: Vec<(Item<'src>, SimpleSpan)>| {
             items
                 .into_iter()
-                .partition(|item| matches!(item, Item::ImportBlock { .. }))
+                .partition(|(item, _span)| matches!(item, Item::ImportBlock { .. }))
         })
 }
 

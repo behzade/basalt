@@ -1,15 +1,15 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
 use chumsky::{Parser, error::Rich, input::Input};
-use std::{collections::HashSet, fs, io, path::PathBuf};
+use std::{collections::{HashMap, HashSet}, fs, io, path::PathBuf};
 
 use crate::{
     ast::Item,
-    ast_owned::OwnedItem,
+    ast_owned::{OwnedItem, OwnedItemWithSpan},
     hir::{self, Item as HirItem},
     lexer::lexer,
     parser::file_parser,
     token::{OwnedTokenWithSpan, SimpleSpan, Token},
-    typechecker::Typechecker,
+    typechecker::{TypeError, Typechecker},
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -32,7 +32,8 @@ pub struct Compiler {
 pub struct Workspace {
     tokens: Vec<OwnedTokenWithSpan>,
     imports: Vec<OwnedItem>,
-    pub ast: Vec<OwnedItem>,
+    sources: HashMap<PathBuf, String>,
+    pub ast: HashMap<PathBuf, Vec<OwnedItemWithSpan>>,
     pub hir: Vec<hir::Item>,
     resolved_modules: HashSet<PathBuf>, // Add this field
 }
@@ -80,7 +81,9 @@ impl Compiler {
     // if path is Some, it is the path to the file to be parsed
     fn run_parse(&mut self, path: Option<String>) -> io::Result<()> {
         let file_to_parse = path.unwrap_or_else(|| self.path.clone());
-        let source_code = fs::read_to_string(file_to_parse)?;
+        let source_code = fs::read_to_string(&file_to_parse)?;
+
+        self.workspace.sources.insert(file_to_parse.clone().into(), source_code.clone());
 
         let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
 
@@ -115,12 +118,22 @@ impl Compiler {
 
         // Destructure the tuple and populate the separate workspace fields
         if let Some((import_items, other_ast_items)) = items {
-            self.workspace
-                .imports
-                .extend(import_items.iter().map(OwnedItem::from));
-            self.workspace
-                .ast
-                .extend(other_ast_items.iter().map(OwnedItem::from));
+            self.workspace.imports.extend(
+                import_items
+                    .iter()
+                    .map(|(item, span)| item)
+                    .map(OwnedItem::from),
+            );
+            let file_ast = self.workspace.ast.entry(file_to_parse.clone().into()).or_default();
+            file_ast
+                .extend(
+                    other_ast_items
+                        .iter()
+                        .map(|(item, span)| OwnedItemWithSpan {
+                            item: item.into(),
+                            span: *span,
+                        }),
+                );
         }
 
         // Append tokens (this logic remains the same)
@@ -212,9 +225,7 @@ impl Compiler {
                 Ok(())
             }
             Err(errors) => {
-                for error in errors {
-                    println!("{}", error);
-                }
+                self.report_type_errors(&errors);
                 Err(io::Error::new(io::ErrorKind::Other, "error in typechecker"))
             }
         }
@@ -303,4 +314,34 @@ impl Compiler {
         }
         !errors.is_empty()
     }
+
+    fn report_type_errors(&self, errors: &[TypeError]) -> bool {
+    for error in errors {
+        // Get the path for this specific error
+        let error_path_str = error.context.path.to_str().unwrap_or("?");
+
+        // Find the source code for this error's file in our workspace map
+        let source_code = match self.workspace.sources.get(&error.context.path) {
+            Some(s) => s,
+            None => { 
+                // Fallback for the unlikely case we can't find the source
+                eprintln!("Internal error: Could not find source for path {:?}", error.context.path);
+                continue; 
+            }
+        };
+
+        Report::build(ReportKind::Error, error_path_str, error.context.span.start)
+            .with_message("Type error")
+            .with_label(
+                Label::new((error_path_str, error.context.span.clone().into_range())) // Use clone here
+                    .with_message(&error.message)
+                    .with_color(Color::Red),
+            )
+            .finish()
+            // The magic moment! ✨ We provide the correct source code for this specific error.
+            .print((error_path_str, Source::from(source_code)))
+            .unwrap();
+    }
+    !errors.is_empty()
+}
 }
