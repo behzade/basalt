@@ -12,6 +12,7 @@ mod hir;
 mod lexer;
 mod parser;
 mod token;
+mod typechecker;
 
 use crate::compiler::{Compiler, CompilerStage};
 use crate::{
