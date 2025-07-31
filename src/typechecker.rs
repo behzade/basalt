@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     ast::OwnedPath,
     ast_owned::OwnedItem,
-    hir::{self, Function, HirStructDef},
+    hir::{self, HirFunction, HirStructDef},
 };
 
 pub struct TypeChecker<'a> {
@@ -15,7 +15,7 @@ pub struct TypeChecker<'a> {
 }
 
 pub struct Context {
-    functions: HashMap<OwnedPath, FunctionSignature>,
+    functions: HashMap<OwnedPath, HirFunction>,   
     structs: HashMap<OwnedPath, HirStructDef>,
 
     variables: Vec<HashMap<String, hir::Ty>>,

@@ -31,7 +31,15 @@ pub enum Token<'src> {
 
     // Literals
     Bool(bool),
+    I8(i8),
+    I16(i16),
+    I32(i32),
     I64(i64),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    F32(f32),
     F64(f64),
     Str(&'src str),
 
@@ -86,7 +94,15 @@ impl<'src> fmt::Display for Token<'src> {
 
             // Literals
             Token::Bool(b) => write!(f, "{}", b),
+            Token::I8(i) => write!(f, "{}", i),
+            Token::I16(i) => write!(f, "{}", i),
+            Token::I32(i) => write!(f, "{}", i),
             Token::I64(i) => write!(f, "{}", i),
+            Token::U8(i) => write!(f, "{}", i),
+            Token::U16(i) => write!(f, "{}", i),
+            Token::U32(i) => write!(f, "{}", i),
+            Token::U64(i) => write!(f, "{}", i),
+            Token::F32(fl) => write!(f, "{}", fl),
             Token::F64(fl) => write!(f, "{}", fl),
             Token::Str(s) => write!(f, "\"{}\"", s),
 
@@ -122,9 +138,7 @@ pub enum OwnedToken {
     Enum,
     Trait,
     Satisfies,
-    For,
     Fn,
-    Extern,
     Import,
     As,
     While,
@@ -141,7 +155,15 @@ pub enum OwnedToken {
 
     // Literals
     Bool(bool),
+    I8(i8),
+    I16(i16),
+    I32(i32),
     I64(i64),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    F32(f32),
     F64(f64),
     Str(String),
 
@@ -194,7 +216,15 @@ impl From<Token<'_>> for OwnedToken {
             Token::Else => OwnedToken::Else,
             Token::Pub => OwnedToken::Pub,
             Token::Bool(b) => OwnedToken::Bool(b),
+            Token::I8(i) => OwnedToken::I8(i),
+            Token::I16(i) => OwnedToken::I16(i),
+            Token::I32(i) => OwnedToken::I32(i),
             Token::I64(i) => OwnedToken::I64(i),
+            Token::U8(i) => OwnedToken::U8(i),
+            Token::U16(i) => OwnedToken::U16(i),
+            Token::U32(i) => OwnedToken::U32(i),
+            Token::U64(i) => OwnedToken::U64(i),
+            Token::F32(fl) => OwnedToken::F32(fl),
             Token::F64(fl) => OwnedToken::F64(fl),
             Token::Str(s) => OwnedToken::Str(s.to_string()),
             Token::Ident(ident) => OwnedToken::Ident(ident.to_string()),
