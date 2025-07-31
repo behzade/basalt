@@ -9,6 +9,7 @@ use crate::{
     lexer::lexer,
     parser::file_parser,
     token::{OwnedTokenWithSpan, SimpleSpan, Token},
+    typechecker::Typechecker,
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -204,10 +205,19 @@ impl Compiler {
     }
 
     fn run_hir_gen(&mut self) -> io::Result<()> {
-        Err(io::Error::new(
-            io::ErrorKind::Other,
-            "hir_gen not implemented",
-        ))
+        let mut typechecker = Typechecker::default();
+        match typechecker.check_program(self.workspace.ast.clone()) {
+            Ok(hir_items) => {
+                self.workspace.hir = hir_items;
+                Ok(())
+            }
+            Err(errors) => {
+                for error in errors {
+                    println!("{}", error);
+                }
+                Err(io::Error::new(io::ErrorKind::Other, "error in typechecker"))
+            }
+        }
     }
 
     fn run_mir_gen(&mut self) -> io::Result<()> {
