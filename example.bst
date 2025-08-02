@@ -1,93 +1,83 @@
 import {
     Std::Os
-    Std::Fmt
+    Std::Fmt // Modules are file based. Std::Fmt is all the code in ./modules/std/*.bst
     Std::Collections::Vector
+    Self::Util // This refers to ./src/util/*.bst
 }
 
-Person: struct {
-    name: String,
-    age: u32,
+pub Person: struct {
+    name: str
+    age: i32
 }
 
+// We have basically structual typing but with nominal constraints
+// It can be other structs to match shape or traits to match behaviour
 Person: WithAge, Printable
 
-Person::get_age: (self: Self) -> i32 = {
+// self is implicitly available as the receiver
+Person::get_age: () -> i32 = {
     self.age
 }
 
-Person::up_age: (self: mut Self) -> i32 = {
+Person::up_age: () -> i32 = {
     self.age += 1
     self.age
 }
 
 Printable: struct {
-    name: String,
+    name: str
 }
 
 WithAge: trait {
-    get_age: (self) -> i32
+    get_age: () -> i32
 }
 
-// in another module I want person to satisfy my new trait.
-
-WithMyAge: trait {
-    get_age: (self) -> i32
-}
-
-Person: WithMyAge
-
-// I want to satisfy a trait with functions that have different names
-
-NewWithAge: trait {
-    get_age_3 : (self) -> i32
-}
-
-Person: NewWithAge {
-    get_age_3: (self) -> i32 = {
-        self.age
-    }
-}
 
 Panic: effect {
-    panic: (msg: String) -> !
+    panic: (msg: str) -> !
 }
 
 OsExitPanic: Panic = {
-    panic: (msg: String) -> ! = {
+    panic: (msg: str) -> ! = {
         Os::exit(1)
     }
 }
 
-division: (a: i32, b: i32) -> i32 / {Panic} = {
+division: (a: i32, b: i32) -> i32 with {Panic} = {
     if b == 0 {
         perform Panic::panic("division by zero")
     }
     a / b
 }
 
+Company: struct {
+    company_id: i32
+    name: str
+}
+
 UserType: enum {
-    B2B(company_id: u32, user_id: u32),
-    B2C(user_id: u32),
+    B2B(Company)
+    B2C(Person)
 }
 
 main: () -> i32 = {
-    mut person := Person { name: "behzad", age: 10 }
-    age := get_age(person)
+    mut person: Person = Person { name: "behzad", age: 10 }
+    age: i32 = person.get_age()
 
-    user_type := UserType::B2B{company_id: 1, user_id: 2}
+    user_type: UserType = UserType::B2B(Company { company_id: 1, name: "behzad" })
 
-    match_result := match user_type {
+    match_result : str = match user_type {
         UserType::B2B(b2b) => {
             Fmt::println("B2B")
-            b2b.company_id
+            b2b.name
         }
         UserType::B2C(b2c) => {
             Fmt::println("B2C")
-            b2c.user_id
+            b2c.name
         }
     }
 
-    if_result := if age > 10 {
+    if_result : i32 = if age > 10 {
         3
     } else {
         4
@@ -97,30 +87,25 @@ main: () -> i32 = {
         age -= 1
     }
 
-    agev2 := person.get_age()
+    agev2: i32 = person.get_age()
 
-    block_result := {
-        a := 1
-        b := 2
+    block_result: i32 = {
+        a: i32= 1
+        b: i32= 2
         a + b
     }
 
-    person
-       |> up_age // pipes the output of previous function as the first argument of the next function
-       |> Fmt::println
-
     adder : (a: i32, b: i32) -> i32 = { a + b }
 
-    person.age
-        |> adder(2) // can pass partial arguments
-        |> Fmt::println
+    out: i32 = division(10, 0) with {OsExitPanic} // panic with exit code 1
+    // if multiple effects are necessary
+    // out: i32= division(10, 0) with {OsExitPanic + ConsoleLogger}
 
-    out := division(10, 0) with {OsExitPanic}
-
-    division(10, 2) with {
-        panic: (msg: String) -> ! = {
+    out2: i32= division(10, 2) with {
+        panic: (msg: str) -> ! = {
             Fmt::println("panic with exit code 0")
             Os::exit(0)
         }
-    } |> Fmt::println // prints 5
+    }
+    Fmt::println(out2) // prints 5
 }
