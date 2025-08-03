@@ -61,7 +61,7 @@ UserType: enum {
 }
 
 main: () -> i32 = {
-    mut person: Person = Person { name: "behzad", age: 10 }
+    mut person: Person = { name: "behzad", age: 10 }
     age: i32 = person.get_age()
 
     user_type: UserType = UserType::B2B(Company { company_id: 1, name: "behzad" })
