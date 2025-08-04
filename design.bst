@@ -55,8 +55,8 @@ division: (a: i32, b: i32) -> i32 with Panic {
 }
 
 Company: struct {
-    company_id: i32
-    name: str
+    company_id: i32,
+    name: str,
 }
 
 UserType: enum {
