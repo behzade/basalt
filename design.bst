@@ -15,17 +15,20 @@ pub Person: struct {
     age: i32
 }
 
+WithAge: interface {
+    get_age: () -> i32
+    up_age_by: (age: i32) -> i32
+}
 
 Person: impl WithAge {
-    get_age: () -> i32 = {
-        return self.age
+    get_age: () -> i32 {
+        self.age
     }
-    up_age_by: (age: i32) -> i32 = {
+    up_age_by: (age: i32) -> i32 {
         self.age += age
         return self.age
     }
 }
-
 
 // you can do partial application like this
 p2: Person = Person { name: "behzad", age: 10 }
@@ -33,22 +36,18 @@ p2: Person = Person { name: "behzad", age: 10 }
 up_age_by_behzad := up_age_by(p2)
 // this results in a function that only has an age argument
 
-WithAge: interface {
-    get_age: () -> i32
-    up_age_by: (age: i32) -> i32
-}
 
 Panic: effect {
     panic: (msg: str) -> !
 }
 
-OsExitPanic: handler Panic = {
-    panic: (msg: str) -> ! = {
+OsExitPanic: handler Panic {
+    panic: (msg: str) -> ! {
         os.exit(1)
     }
 }
 
-division: (a: i32, b: i32) -> i32 with Panic = {
+division: (a: i32, b: i32) -> i32 with Panic {
     if b == 0 {
         perform Panic.panic("division by zero")
     }
@@ -74,11 +73,11 @@ main: () -> i32 = {
     user_type: UserType = UserType::B2B(Company { company_id: 1, name: "behzad" })
 
     match_result: str = match user_type {
-        UserType::B2B(b2b) -> {
+        UserType::B2B(b2b) => {
             fmt.println("B2B")
             b2b.name
         }
-        UserType::B2C(b2c) -> {
+        UserType::B2C(b2c) => {
             fmt.println("B2C")
             b2c.name
         }
@@ -102,7 +101,7 @@ main: () -> i32 = {
         a + b
     }
 
-    adder : (a: i32, b: i32) -> i32 = { a + b }
+    adder : (a: i32, b: i32) -> i32 { a + b }
 
     out: i32 = division(10, 0) with {OsExitPanic} // panic with exit code 1
     // if multiple effects are necessary
@@ -111,7 +110,7 @@ main: () -> i32 = {
 
     // type annotation between : and = can be omitted for type inference
     out2 := division(10, 2) with {
-        panic: (msg: str) -> ! = {
+        panic: (msg: str) -> ! {
             fmt.println("panic with exit code 0")
             os.exit(0)
         }
@@ -150,12 +149,12 @@ Async: effect<T> {
 // HttpHandler implements the 'Http' effect.
 // It is declared 'with {Async}', meaning its implementation can, in turn,
 // perform 'Async' effects.
-HttpHandler: handler Http with Async<str> = {
+HttpHandler: handler Http with Async<str> {
     // This provides the implementation for the 'get' operation.
-    get: (url: str) -> str with {Async<str>} = {
+    get: (url: str) -> str with Async<str> {
         // We define the actual work as a lambda function.
         // This function captures the 'url' from its environment.
-        http_task := () => {
+        http_task : () -> str {
             // In a real-world scenario, this would be a blocking network call.
             // For this example, we'll simulate it by returning a string.
             // We can imagine this is where a library like 'requests.get()' would be called.
@@ -172,11 +171,11 @@ HttpHandler: handler Http with Async<str> = {
 
 // The Scheduler handler provides the implementation for the 'Async' effect.
 // It controls how asynchronous tasks are executed.
-Scheduler: handler Async<T> = {
+Scheduler: handler Async<T> {
     // This provides the implementation for the 'await' operation.
     // The rule "return resumes the calling function" means the value returned
     // by this handler function will be sent back to the site of the 'perform' call.
-    await: (task: () -> T) -> T = {
+    await: (task: () -> T) -> T {
         // A real scheduler would manage an event loop or a thread pool to run
         // tasks concurrently. It would suspend the current computation, run the
         // task in the background, and resume the computation only when the
@@ -200,7 +199,7 @@ AsyncHttpHandler := HttpHandler with {Scheduler}
 
 // -- Main Program Logic --
 // This function uses the 'Http' effect but is unaware of the async implementation.
-fetch_content_size: (url: str) -> i32 with {Http} = {
+fetch_content_size: (url: str) -> i32 with {Http} {
     // 'perform' invokes an effect operation. Control is transferred to the
     // currently active handler for the 'Http' effect.
     content := perform Http.get(url)
