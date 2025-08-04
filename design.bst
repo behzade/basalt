@@ -206,14 +206,3 @@ fetch_content_size: (url: str) -> i32 with {Http} = {
     content := perform Http.get(url)
     return content.len()
 }
-
-
-// -- Execution --
-// We run the main logic, providing the 'AsyncHttpHandler' to handle the effects.
-main: () -> i32 {
-    // The 'with {AsyncHttpHandler}' clause provides the full implementation
-    // for all effects that 'fetch_content_size' might perform.
-    size := fetch_content_size("https://www.google.com") with {AsyncHttpHandler}
-
-    0
-}
