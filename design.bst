@@ -1,9 +1,8 @@
+// file based modules, each directory is a module, self refers to src directory, other modules are in ./modules
 import {
     std/os
-    // Modules are file based. all the code in ./modules/std/*.bst
     std/fmt
     std/collections/vector
-    // This refers to ./src/util/*.bst
     self/util
 }
 
@@ -14,48 +13,42 @@ import {
 pub Person: struct {
     name: str
     age: i32
-}: WithAge
-
-// methods are just functions, no explicit implementation for interfaces, if required functions are not available, the struct definition errors
-get_age: (p: Person) -> i32 = {p.age}
-
-// you can group function by partial application
-// | binds the variables to the scope (kinda similar to unix pipes)
-(p: Person)|{
-    get_age: () -> i32 = {p.age}
-    up_age: () -> i32 = {p.age += 1; p.age}
-    up_age_by: (n: i32) -> i32 = {p.age += n; p.age}
 }
 
-(p: Person, n: i32)|{
-    up_age_by: () -> i32 = {p.age += n; p.age}
-    down_age_by: () -> i32 = {p.age -= n; p.age}
+
+Person: impl WithAge {
+    get_age: () -> i32 = {
+        return self.age
+    }
+    up_age_by: (age: i32) -> i32 = {
+        self.age += age
+        return self.age
+    }
 }
+
 
 // you can do partial application like this
 p2: Person = Person { name: "behzad", age: 10 }
 
-up_age_by_behzad := p2|up_age_by
-
-up_age_by_behzad_10 := (p2, 10)|up_age_by
-// or named arguments
-up_age_by_behzad_10 := (n: 10, p: p2)|up_age_by
+up_age_by_behzad := up_age_by(p2)
+// this results in a function that only has an age argument
 
 WithAge: interface {
     get_age: () -> i32
+    up_age_by: (age: i32) -> i32
 }
 
 Panic: effect {
     panic: (msg: str) -> !
 }
 
-OsExitPanic: Panic = {
+OsExitPanic: handler Panic = {
     panic: (msg: str) -> ! = {
         os.exit(1)
     }
 }
 
-division: (a: i32, b: i32) -> i32 with {Panic} = {
+division: (a: i32, b: i32) -> i32 with Panic = {
     if b == 0 {
         perform Panic.panic("division by zero")
     }
@@ -78,14 +71,14 @@ main: () -> i32 = {
 
     age2: i32 = get_age(person) // also works: Univeral Function Calls
 
-    user_type: UserType = UserType.B2B(Company { company_id: 1, name: "behzad" })
+    user_type: UserType = UserType::B2B(Company { company_id: 1, name: "behzad" })
 
     match_result: str = match user_type {
-        UserType.B2B(b2b) -> {
+        UserType::B2B(b2b) -> {
             fmt.println("B2B")
             b2b.name
         }
-        UserType.B2C(b2c) -> {
+        UserType::B2C(b2c) -> {
             fmt.println("B2C")
             b2c.name
         }
@@ -136,30 +129,17 @@ a := meta {
     }
 }
 
-Random: effect {
-    rand: () -> i32
-}
-
-a : () with {Random} -> i64 = { rnd := perform Random.rand(); rnd / 10 }
-
-let b := a() with {
-    rand: () -> i32 = {
-        return 10 // return is just resume. language only allows single continuation for effects
-    }
-}
-
-
 // -- Effect Definitions --
 // Effects are like interfaces that declare a set of operations.
 
 // The Http effect declares an operation for getting web content.
-effect Http {
+Http: effect {
     get: (url: str) -> str
 }
 
 // The Async effect declares an operation to run a task and await its result.
 // This allows a computation to be suspended and resumed later.
-effect Async<T> {
+Async: effect<T> {
     await: (task: () -> T) -> T
 }
 
@@ -170,7 +150,7 @@ effect Async<T> {
 // HttpHandler implements the 'Http' effect.
 // It is declared 'with {Async}', meaning its implementation can, in turn,
 // perform 'Async' effects.
-handler HttpHandler: Http with {Async<str>} = {
+HttpHandler: handler Http with Async<str> = {
     // This provides the implementation for the 'get' operation.
     get: (url: str) -> str with {Async<str>} = {
         // We define the actual work as a lambda function.
@@ -192,7 +172,7 @@ handler HttpHandler: Http with {Async<str>} = {
 
 // The Scheduler handler provides the implementation for the 'Async' effect.
 // It controls how asynchronous tasks are executed.
-handler Scheduler<T>: Async<T> = {
+Scheduler: handler Async<T> = {
     // This provides the implementation for the 'await' operation.
     // The rule "return resumes the calling function" means the value returned
     // by this handler function will be sent back to the site of the 'perform' call.
@@ -215,7 +195,7 @@ handler Scheduler<T>: Async<T> = {
 // We compose handlers to create a full execution environment.
 // 'AsyncHttpHandler' handles 'Http' effects using 'HttpHandler', and any 'Async'
 // effects performed by 'HttpHandler' are then handled by the 'Scheduler'.
-let AsyncHttpHandler = HttpHandler with {Scheduler}
+AsyncHttpHandler := HttpHandler with {Scheduler}
 
 
 // -- Main Program Logic --
@@ -230,7 +210,7 @@ fetch_content_size: (url: str) -> i32 with {Http} = {
 
 // -- Execution --
 // We run the main logic, providing the 'AsyncHttpHandler' to handle the effects.
-fn main() -> i32 {
+main: () -> i32 {
     // The 'with {AsyncHttpHandler}' clause provides the full implementation
     // for all effects that 'fetch_content_size' might perform.
     size := fetch_content_size("https://www.google.com") with {AsyncHttpHandler}
