@@ -11,8 +11,8 @@ import {
 // We have basically structual typing but with nominal constraints
 // It can be other structs to match shape or interfaces to match behaviour
 pub Person: struct {
-    name: str
-    age: i32
+    name: str,
+    age: i32,
 }
 
 WithAge: interface {
@@ -64,7 +64,7 @@ UserType: enum {
     B2C(Person)
 }
 
-main: () -> i32 = {
+main: () -> i32 {
     mut person: Person = { name: "behzad", age: 10 }
     age: i32 = person.get_age()
 
@@ -149,9 +149,9 @@ Async: effect<T> {
 // HttpHandler implements the 'Http' effect.
 // It is declared 'with {Async}', meaning its implementation can, in turn,
 // perform 'Async' effects.
-HttpHandler: handler Http with Async<str> {
+HttpHandler: handler Http with {Async<str>} {
     // This provides the implementation for the 'get' operation.
-    get: (url: str) -> str with Async<str> {
+    get: (url: str) -> str with {Async<str>} {
         // We define the actual work as a lambda function.
         // This function captures the 'url' from its environment.
         http_task : () -> str {
