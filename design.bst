@@ -6,10 +6,8 @@ import {
     self/util
 }
 
-// Language targets wasm, local variables will immutable by default, and stored in linear memory, escaping variables will be stored in heap using wasm gc proposal
+// Language targets llvm ir, variables will immutable by default, local variable will be stored in linear memory, escaping variables will be handled by a ARC GC
 
-// We have basically structual typing but with nominal constraints
-// It can be other structs to match shape or interfaces to match behaviour
 pub Person: struct {
     name: str,
     age: i32,
@@ -41,7 +39,6 @@ p2: Person = Person { name: "behzad", age: 10 }
 
 up_age_by_behzad := up_age_by(p2)
 // this results in a function that only has an age argument
-
 
 Panic: effect {
     panic: (msg: str) -> !
