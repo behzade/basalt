@@ -16,17 +16,23 @@ pub Person: struct {
 }
 
 WithAge: interface {
-    get_age: () -> i32
+    get_age: (self) -> i32
     up_age_by: (age: i32) -> i32
 }
 
 Person: impl WithAge {
-    get_age: () -> i32 {
+    get_age: (self) -> i32 {
         self.age
     }
-    up_age_by: (age: i32) -> i32 {
+    up_age_by: (self, age: i32) -> i32 {
         self.age += age
         return self.age
+    }
+}
+
+Person: impl {
+    new: (name: str, age: i32) -> Person {
+        Person { name: name, age: age }
     }
 }
 
