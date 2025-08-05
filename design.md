@@ -1,202 +1,248 @@
-# **Basalt Language Specification (MVP)**
+# **Basalt Language Specification**
 
-## **1\. Philosophy**
+## **1. Philosophy**
 
-**Basalt** is a statically-typed, expression-oriented language designed for safety, developer productivity, and portability by targeting WebAssembly (WASM). It achieves safety through a shared ownership memory model and a typed effects system, and productivity through clear syntax and built-in documentation tooling.
+**Basalt** is a statically-typed, expression-oriented language designed for safety, developer productivity, and portability by targeting WebAssembly (WASM). It achieves safety through a robust type system and a typed algebraic effects system for handling side effects. It aims for developer productivity through clear, concise syntax and powerful abstractions.
 
-## **2\. Syntax and Variables**
+---
+## **2. Syntax and Variables**
 
-Basalt is expression-oriented. A semicolon ; turns an expression into a statement, discarding its value. The last expression in a block is its return value.
+Basalt is expression-oriented. Most constructs, including `if`, `match`, and blocks, are expressions that evaluate to a value.
 
 ### **Declarations**
 
-There are three ways to declare a name:
+Variables are immutable by default. The `mut` keyword is used to declare a mutable binding. Type annotations are required, but can be omitted when the type can be inferred by the compiler using the `:=` operator.
 
-* let: Binds a variable to an immutable runtime value.  
-* let mut: Binds a variable to a mutable runtime value.  
-* const: Defines a compile-time constant. Its value must be known at compile time.
+```
+// Immutable binding with explicit type
+p: Person = Person { name: "behzad", age: 10 }
 
-const PI: f32 \= 3.14159;
+// Mutable binding with explicit type
+mut person: Person = { name: "behzad", age: 10 }
 
-fn main() \-\> i32 {  
-    let x: i32 \= 10;  
-    let mut y: i32 \= 20;  
-    y \= y \+ x; // OK: y is mutable  
-      
-    // x \= 5; // COMPILE ERROR: x is immutable  
-      
-    let z: i32 \= {  
-        let inner \= y \+ 5;  
-        inner \- x // This is the return value of the block  
-    }; // z is 15  
-      
-    return 0;  
-}
+// Type inference
+inferred := "some value"
+```
 
 ### **Definite Assignment**
 
-Basalt enforces **definite assignment analysis**. It is a **compile-time error** to read from a variable before the compiler can prove it has been assigned a value on every possible code path. There are no default null or zeroed values.
+Basalt enforces **definite assignment analysis**. It is a **compile-time error** to read from a variable before the compiler can prove it has been assigned a value on every possible code path. There are no default `null` or zeroed values.
 
-fn example() {  
-    let x: i32;  
-    if some\_condition() {  
-        x \= 10;  
-    }  
-    // COMPILE ERROR: 'x' may not have been initialized  
-    // if some\_condition() was false.  
-    let y \= x;   
-}
+---
+## **3. Types and Data Structures**
 
-## **3\. Types and Data Structures**
-
-All types must be explicitly annotated. The compiler performs no type inference.
+Basalt uses a structural typing system, where type compatibility is determined by shape, but allows for nominal constraints through interfaces.
 
 ### **Primitives**
 
-* i8,i16,i32,i64: Signed integers.
-* u8,u16,u32,u64: Unsigned integers.
-* f32,f64: Floating-point numbers.
-* bool: true or false.  
-* (): The "unit" type, representing no value.  
-* \!: The "never" type. It indicates that a function will never return a value, typically by aborting or entering an infinite loop.
+* `i8, i16, i32, i64`: Signed integers.
+* `u8, u16, u32, u64`: Unsigned integers.
+* `f32, f64`: Floating-point numbers.
+* `bool`: `true` or `false`.
+* `str`: A UTF-8 encoded string type.
+* `()`: The "unit" type, representing no value.
+* `!`: The "never" type. It indicates that a function will never return control, for example by panicking or exiting the process.
 
 ### **Composite Types**
 
-**Structs** define a product type. Fields are private by default.
+**Structs** define a product type. Fields are private by default and can be exposed with the `pub` keyword.
 
 ```
-pub struct Point {  
-    pub x: f32,  
-    y: f32, // Private field  
+pub Person: struct {
+    name: str,
+    age: i32,
 }
 ```
 
-**Enums** define a sum type (tagged union). Option\<T\> and Result\<T, E\> are available in the global namespace.
+**Enums** define a sum type (tagged union), where each variant can hold associated data.
 
 ```
-enum Option\<T\> {  
-    Some(T),  
-    None,  
+UserType: enum {
+    B2B(Company),
+    B2C(Person),
 }
 ```
 
 ### **Type Aliases**
 
-The type keyword creates a new name for an existing type to improve readability.
+The `type` keyword can create a new name for an existing type to improve readability.
 
 ```
-type UserID \= i32;  
-type Name \= string;
+type UserID = i32
 ```
 
-### **Collections and Views**
+---
+## **4. Memory Model: WASM Target**
 
-Basalt distinguishes between owning data and viewing it.
+Basalt is designed to compile efficiently to WebAssembly.
+* **Local Variables**: Non-escaping variables, including structs and other local data, are stored in **WASM linear memory** for maximum performance.
+* **Heap Allocation**: Variables that escape their local scope are allocated on the heap, managed by the **WASM Garbage Collection (GC)** proposal. This avoids the complexities of manual memory management or a runtime borrow checker.
 
-* Vec\<T\>: An owned, heap-allocated, resizable buffer. Managed via shared ownership.  
-* Slice\<T\>: A non-owning, immutable view into a contiguous block of memory. A Slice is a lightweight struct containing a pointer and length, and is passed by value.  
-* string: Defined in the standard library via a type alias: pub type string \= Slice\<u8\>;. String literals are Slice\<u8\> pointing to static memory.
+---
+## **5. Behavior and Abstraction**
 
-## **4\. Memory Model: Shared Ownership & CoW**
+Behavior is defined and implemented using `interface` and `impl` blocks.
 
-Basalt uses a **shared ownership** model with atomic reference counting for all complex data types (Vec, Map, structs).
+### **`interface`: Defining Shared Behavior**
 
-When a value bound to a mut variable is mutated, a **Copy-on-Write (CoW)** policy is enforced.
+An **`interface`** defines a contract—a set of function signatures that a type must implement to conform to the interface.
 
-* If the reference count of the data is 1, the data is mutated in place.  
-* If the reference count is greater than 1, the data is copied before mutation.
-
-## **5\. Behavior and Abstraction: Traits & Impls**
-
-trait and impl are the mechanisms for defining behavior on types.
-
-### **trait: Defining Shared Behavior**
-
-A **trait** defines an interface—a set of function signatures that a type can implement.
-
-pub trait Serializable {  
-    fn serialize(self) \-\> string;  
+```
+WithAge: interface {
+    get_age: () -> i32
+    up_age_by: (age: i32) -> i32
 }
+```
 
-### **impl: Providing Implementations**
+### **`impl`: Providing Implementations**
 
-An **impl** block is used to implement traits for a type or to define methods directly on a type.
+An **`impl`** block is used to implement an interface for a type or to define methods directly on a type.
 
-// Implement the Serializable trait for the Point struct  
-impl Serializable for Point {  
-    fn serialize(self) \-\> string {  
-        // ... implementation for serializing a Point  
-    }  
-}
-
-// Implement methods directly on Point  
-impl Point {  
-    // An "associated function" (like a static method)  
-    pub fn new(x: f32, y: f32) \-\> Point {  
-        Point { x: x, y: y }  
+```
+// Implement the WithAge interface for the Person struct
+Person: impl WithAge {
+    get_age: (self) -> i32 {
+        self.age
     }
-
-    // A "method" that takes self  
-    pub fn distance\_from\_origin(self) \-\> f32 {  
-        // ... implementation  
-    }  
+    up_age_by: (self, age: i32) -> i32 {
+        self.age += age
+        return self.age
+    }
 }
 
-*Trait objects (let a: Serializable;) for dynamic dispatch are a planned post-MVP feature.*
+// Define associated functions (static methods)
+Person: impl {
+    new: (name: str, age: i32) -> Person {
+        Person { name, age }
+    }
+}
+```
 
-## **6\. Functions & Control Flow**
+---
+## **6. Functions & Control Flow**
 
-Functions are declared with fn. Higher-order functions are supported by assigning anonymous, non-capturing function declarations to variables.
+Functions are first-class citizens. They can be passed as arguments, returned from other functions, and support partial application.
 
-fn add(a: i32, b: i32) \-\> i32 {  
-    return a \+ b;  
+```
+// Standard function definition
+adder: (a: i32, b: i32) -> i32 { a + b }
+
+// Partial application
+up_age_by_behzad := up_age_by(p2) // p2 is a Person
+// up_age_by_behzad is now a function: (age: i32) -> i32
+```
+
+### **Universal Function Call (UFC)**
+
+Functions can be called with method-like syntax if the first argument's type matches, improving readability.
+
+```
+age := person.get_age() // Method call
+age2 := get_age(person) // Also works via UFC
+```
+
+### **Control Flow Expressions**
+
+`if`/`else` and `match` are expressions that must be exhaustive and evaluate to a value of a consistent type across all branches.
+
+```
+// if expression
+result := if age > 10 { 3 } else { 4 }
+
+// match expression
+name := match user_type {
+    UserType::B2B(b) => b.name,
+    UserType::B2C(c) => c.name,
+}
+```
+
+---
+## **7. Modularity and Visibility**
+
+* **Modules**: Each directory is a module. The `import` keyword brings other modules into scope. `std` refers to the standard library, `self` refers to the current module's root directory, and `./` refers to a relative path.
+* **Visibility**: All items (`fn`, `struct`, `enum`, etc.) and struct fields are **private by default**. The `pub` keyword makes an item visible outside its module.
+
+```
+import {
+    std/os
+    std/fmt
+    self/util
+}
+```
+
+---
+## **8. Error Handling & Effects**
+
+Basalt uses a typed algebraic effects system for managing side effects like I/O, errors, and asynchrony. This separates what a function does from how it is done.
+
+### **`effect` and `perform`**
+
+An **`effect`** defines a set of operations. A function that uses an effect must declare it in its signature. The `perform` keyword invokes an effect operation.
+
+```
+// 1. Define the effect
+Panic: effect {
+    panic: (msg: str) -> !
 }
 
-Control flow is handled with if/else, while, and match. The \! type is useful for ensuring exhaustive match arms are type-correct.
+// 2. Use the effect in a function
+division: (a: i32, b: i32) -> i32 with {Panic} {
+    if b == 0 {
+        perform Panic.panic("division by zero")
+    }
+    a / b
+}
+```
 
-fn panic(message: string) \-\> \! {  
-    // A built-in function that prints a message and aborts the program.  
+### **`handler` and `with`**
+
+A **`handler`** provides the concrete implementation for an effect's operations. The `with` keyword applies a handler to a function call. Handlers can be defined globally or in-place for a specific call.
+
+```
+// 1. Define a handler
+OsExitPanic: handler Panic {
+    panic: (msg: str) -> ! {
+        fmt.println(msg)
+        os.exit(1)
+    }
 }
 
-let val: Option\<i32\> \= Option::Some(10);  
-let result: i32 \= match val {  
-    Option::Some(x) \=\> x,  
-    // This branch never completes, so it doesn't need to produce an i32.  
-    Option::None \=\> panic("Value was None\!"),  
-};
+// 2. Apply the handler at the call site
+// This call will exit with code 1 if division by zero occurs.
+out := division(10, 0) with {OsExitPanic}
 
-## **7\. Modularity and Visibility**
-
-* **Modules**: A directory of .bst files constitutes a single module and namespace. import statements are path-based.  
-* **Visibility**: All items (fn, struct, enum, trait, const) and struct fields are **private by default**. The pub keyword makes an item visible outside its module.
-
-## **8\. Error Handling & Effects**
-
-* **Recoverable Errors**: Handled using the Result\<T, E\> enum.  
-* **Systemic Effects**: Handled with a typed algebraic effects system. A function that can perform an effect must declare it in its signature.
-
-effect Fs {  
-    fn read(path: string) \-\> string;  
+// An in-place handler can also be provided.
+out2 := division(10, 2) with {
+    panic: (msg: str) -> ! {
+        fmt.println("panic handled gracefully")
+        os.exit(0)
+    }
 }
+```
+This system is composable, allowing complex behaviors like asynchronous operations to be modeled cleanly.
 
-fn read\_config() \-\> string / {Fs} {  
-    let content: string \= perform Fs::read("./config.json");  
-    return content;  
+---
+## **9. Runtime & Metaprogramming**
+
+* **Entry Point**: A program must contain a `fn main() -> i32`.
+* **Compile-Time Execution**: A `meta` block allows code to be executed at compile time. This is useful for conditional compilation or generating code based on the target environment.
+
+```
+// 'a' will be 4 when compiling for WASM, and 8 otherwise.
+a := meta {
+    if runtime.is_wasm() {
+        4
+    } else {
+        8
+    }
 }
+```
 
-## **9\. Runtime & FFI**
+---
+## **10. Documentation**
 
-* **Entry Point**: A program must contain a fn main() \-\> i32 or fn main(args: Vec\<string\>) \-\> i32.  
-* **Panics**: Unrecoverable runtime errors cause the program to **abort** immediately. Functions that perform this action return \!.  
-* **FFI**: Foreign functions are declared in an extern block and must be called from within an unsafe block.
+Documentation comments use `///` and apply to the following item. Tooling can parse these comments to generate documentation.
 
-## **10\. Documentation**
-
-Documentation comments use /// and apply to the following item. Tooling can parse these comments to generate documentation.
-
-/// Represents a point in a 2D coordinate space.  
-pub struct Point {  
-    pub x: f32,  
-    y: f32,  
-}  
-
+```
+/// Represents a user of the system.
+UserType: enum { ... }
