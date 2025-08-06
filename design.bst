@@ -6,7 +6,7 @@ import {
     self/util
 }
 
-// Language targets llvm ir, variables will immutable by default, local variable will be stored in linear memory, escaping variables will be handled by a ARC GC
+// Language targets cranelift ir, variables will immutable by default, local variable will be stored in stack, escaping variables will be handled by a ARC GC
 
 pub Person: struct {
     name: str,
@@ -124,12 +124,15 @@ main: () -> i32 {
 
 // compile time function execution
 a := meta {
-    if runtime.is_wasm() {
+    if runtime.is_32bit() {
         4
     } else {
         8
     }
 }
+
+// embed file in binary in compile time
+configFile := meta std.io.read_file("config.json") // example syntax
 
 // -- Effect Definitions --
 // Effects are like interfaces that declare a set of operations.
@@ -208,3 +211,47 @@ fetch_content_size: (url: str) -> i32 with {Http} {
     content := perform Http.get(url)
     return content.len()
 }
+
+
+// --- Effect Handling Extensions ---
+// To improve productivity and reduce boilerplate, the language supports
+// default and scoped effect handlers. This allows for clean call sites
+// without sacrificing explicitness or safety.
+
+// -- Default Effect Handlers --
+// The standard library provides a global effect registry. At application
+// startup, a program can register default handlers for any effect.
+
+// Example: Registering a default panic handler in main.
+std.effect.register(Panic, OsExitPanic)
+
+// Once a default is registered, any function call that performs the
+// effect will automatically use this handler, unless overridden by a
+// more specific handler (see below). If an effect is performed with
+// no registered default and no explicit handler, it is a compile-time error.
+
+
+// -- Scoped Effect Handlers --
+// For more granular control, a `with` block can be used to define a
+// lexical scope where a specific set of handlers are active. These
+// scoped handlers take precedence over any globally registered handlers.
+
+// Syntax:
+with { Handler1, Handler2, ... } {
+     // Code inside this block will use Handler1 and Handler2 as the
+     // default handlers for their respective effects.
+}
+
+// This is ideal for managing contextual configurations, such as providing
+// a specific database handler to a repository within a service layer.
+
+
+// -- Handler Resolution Order --
+// The compiler uses a strict hierarchical rule to find a handler for an
+// effect performed at a call site. It searches in the following order:
+//
+// 1.  **Explicit Handler**: An inline `with { ... }` block on the function call.
+// 2.  **Innermost Scoped Handler**: The handler from the nearest surrounding `with { ... }` block.
+// 3.  **Outer Scoped Handlers**: Continues searching outwards through any nested `with` blocks.
+// 4.  **Global Registered Handler**: The application-wide default from the effect registry.
+// 5.  **Compile-Time Error**: If no handler is found at any level.
