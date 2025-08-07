@@ -6,7 +6,7 @@ import {
     self/util
 }
 
-// Language targets cranelift ir, variables will immutable by default, local variable will be stored in stack, escaping variables will be handled by a ARC GC
+// Language targets cranelift ir, variables will immutable by default.
 
 pub Person: struct {
     name: str,
@@ -15,14 +15,15 @@ pub Person: struct {
 
 WithAge: interface {
     get_age: (self) -> i32
-    up_age_by: (age: i32) -> i32
+    up_age_by: (mut self, age: i32) -> i32
 }
 
 Person: impl WithAge {
     get_age: (self) -> i32 {
         self.age
     }
-    up_age_by: (self, age: i32) -> i32 {
+    // age is mutable if self is mutable
+    up_age_by: (mut self, age: i32) -> i32 {
         self.age += age
         return self.age
     }
@@ -68,21 +69,23 @@ UserType: enum {
 }
 
 main: () -> i32 {
+    // does not allow shorthand omitted field names because adding fields to structs is a breaking change
     mut person: Person = { name: "behzad", age: 10 }
     age: i32 = person.get_age()
-
-    age2: i32 = get_age(person) // also works: Univeral Function Calls
 
     user_type: UserType = UserType::B2B(Company { company_id: 1, name: "behzad" })
 
     match_result: str = match user_type {
-        UserType::B2B(b2b) => {
+        UserType::B2B(b2b):{
             fmt.println("B2B")
             b2b.name
         }
-        UserType::B2C(b2c) => {
+        UserType::B2C(b2c):{
             fmt.println("B2C")
             b2c.name
+        }
+        _:{
+            fmt.println("unknown")
         }
     }
 
@@ -112,12 +115,7 @@ main: () -> i32 {
     // i don't know if overlapping functions should be allowed by handlers of effects
 
     // type annotation between : and = can be omitted for type inference
-    out2 := division(10, 2) with {
-        panic: (msg: str) -> ! {
-            fmt.println("panic with exit code 0")
-            os.exit(0)
-        }
-    }
+    out2 := division(10, 2) with {OsExitPanic}
     fmt.println(out2) // prints 5
 }
 
@@ -213,45 +211,16 @@ fetch_content_size: (url: str) -> i32 with {Http} {
 }
 
 
-// --- Effect Handling Extensions ---
-// To improve productivity and reduce boilerplate, the language supports
-// default and scoped effect handlers. This allows for clean call sites
-// without sacrificing explicitness or safety.
-
-// -- Default Effect Handlers --
-// The standard library provides a global effect registry. At application
-// startup, a program can register default handlers for any effect.
-
-// Example: Registering a default panic handler in main.
-std.effect.register(Panic, OsExitPanic)
-
-// Once a default is registered, any function call that performs the
-// effect will automatically use this handler, unless overridden by a
-// more specific handler (see below). If an effect is performed with
-// no registered default and no explicit handler, it is a compile-time error.
-
-
-// -- Scoped Effect Handlers --
-// For more granular control, a `with` block can be used to define a
-// lexical scope where a specific set of handlers are active. These
-// scoped handlers take precedence over any globally registered handlers.
-
-// Syntax:
 with { Handler1, Handler2, ... } {
      // Code inside this block will use Handler1 and Handler2 as the
      // default handlers for their respective effects.
+     // the with {handler, handler2} can be omitted
 }
 
-// This is ideal for managing contextual configurations, such as providing
-// a specific database handler to a repository within a service layer.
+// Memory management
 
-
-// -- Handler Resolution Order --
-// The compiler uses a strict hierarchical rule to find a handler for an
-// effect performed at a call site. It searches in the following order:
-//
-// 1.  **Explicit Handler**: An inline `with { ... }` block on the function call.
-// 2.  **Innermost Scoped Handler**: The handler from the nearest surrounding `with { ... }` block.
-// 3.  **Outer Scoped Handlers**: Continues searching outwards through any nested `with` blocks.
-// 4.  **Global Registered Handler**: The application-wide default from the effect registry.
-// 5.  **Compile-Time Error**: If no handler is found at any level.
+// The language has a concept of tiered contexts. The root context is passed to the main function.
+// Each context has a table of handlers available for scope and an arena memory allocator.
+// Each function call or a scope "with" block creates a child context.
+// In compile type, the compiler will convert the implicit context into a struct that has the handler table and arena and implicitly pass it to the functions.
+// On function calls, the paramters and return value are allocated in the parent context's arena. This allows sending data outside the function. Function can not send pointers to its local data to the outside.
