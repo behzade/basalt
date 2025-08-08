@@ -1,22 +1,7 @@
-// Std::Fmt::print module
+// std/fmt module (placeholder, updated to new syntax)
 
+fn println(message: str) = { }
 
+fn print(message: str) = { }
 
-
-pub fn println(message: string) -> unit {
-    // Implementation would go here
-    // For now, just return unit
-    return unit;
-}
-
-pub fn print(message: string) -> unit {
-    // Implementation would go here
-    // For now, just return unit
-    return unit;
-}
-
-pub fn format(template: string, args: Array<string>) -> string {
-    // Implementation would go here
-    // For now, just return the template
-    return template;
-} 
+fn format(template: str, args: str) -> str = { template }

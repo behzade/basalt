@@ -1,26 +1,9 @@
-// Std::Collections::Vec module
+// std/collections/vec module (placeholder). Generics not supported in this pass.
 
-// Define the Vec struct
-pub struct Vec<T> {
-    data: [T],
-    length: i64,
-}
+type Vec = { length: i32 }
 
-pub fn new<T>() -> Vec<T> {
-    // Create a new empty Vec
-    Vec {
-        data: [],
-        length: 0,
-    }
-}
+fn new() -> Vec = { { length: 0 } }
 
-pub fn push<T>(vec: Vec<T>, item: T) -> Vec<T> {
-    // For now, just return the vec unchanged
-    // In a real implementation, this would append the item
-    vec
-}
+fn push(vec: Vec, _item: i32) -> Vec = { vec }
 
-pub fn len<T>(vec: Vec<T>) -> i64 {
-    // Return the length of the vec
-    vec.length
-} 
+fn len(vec: Vec) -> i32 = { vec.length }

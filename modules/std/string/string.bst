@@ -1,19 +1,7 @@
-// Std::String module
+// std/string module (placeholder)
 
-pub fn from(s: string) -> String {
-    // Implementation would go here
-    // For now, just return the string
-    s
-}
+fn from(s: str) -> str = { s }
 
-pub fn len(s: String) -> i64 {
-    // Implementation would go here
-    // For now, just return 0
-    0
-}
+fn len(s: str) -> i32 = { 0 }
 
-pub fn concat(s1: String, s2: String) -> String {
-    // Implementation would go here
-    // For now, just return first string
-    s1
-} 
+fn concat(s1: str, s2: str) -> str = { s1 }
