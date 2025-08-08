@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{
-    ast::Item,
-    ast_owned::{OwnedItem, Spanned},
+    ast::{Item, ItemNode},
+    ast_owned::{OwnedItem, OwnedItemWithSpan, Spanned},
     hir::{self, Item as HirItem},
     lexer::lexer,
     parser::file_parser,
@@ -111,8 +111,7 @@ impl Compiler {
             .map(|(tok, _)| tok.clone())
             .collect();
 
-        // --- Key Change Here ---
-        // Assume file_parser() now returns Option<(Vec<Item>, Vec<Item>)>
+        // Parser now returns Vec<Item> with spans inside
         let (items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
 
         if self.report_parser_errors(
@@ -127,27 +126,27 @@ impl Compiler {
             ));
         }
 
-        // Destructure the tuple and populate the separate workspace fields
-        if let Some((import_items, other_ast_items)) = items {
-            self.workspace.imports.extend(
-                import_items
-                    .iter()
-                    .map(|(item, span)| item)
-                    .map(OwnedItem::from),
-            );
+        if let Some(items) = items {
+            let mut owned_items: Vec<OwnedItemWithSpan> = Vec::new();
+            for item in items {
+                match &item.node {
+                    ItemNode::ImportBlock { .. } => {
+                        self.workspace.imports.push((&item).into());
+                    }
+                    _ => {
+                        owned_items.push(Spanned {
+                            item: (&item).into(),
+                            span: item.span,
+                        });
+                    }
+                }
+            }
             let file_ast = self
                 .workspace
                 .ast
                 .entry(file_to_parse.clone().into())
                 .or_default();
-            file_ast.extend(
-                other_ast_items
-                    .iter()
-                    .map(|(item, span)| Spanned<OwnedItem> {
-                        item: item.into(),
-                        span: *span,
-                    }),
-            );
+            file_ast.extend(owned_items);
         }
 
         // Append tokens (this logic remains the same)

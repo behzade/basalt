@@ -10,11 +10,14 @@ pub enum Token<'src> {
     // Keywords
     Let,
     Mut,
+    Type,
     Struct,
     Enum,
     Trait,
+    Interface,
     Satisfies,
     Fn,
+    Impl,
     Import,
     As,
     While,
@@ -48,7 +51,6 @@ pub enum Token<'src> {
 
     // Operators and Punctuation
     Op(String),  // For operators like +, -, *, /, <, >, ==, =
-    DoubleColon, // ::
     Colon,       // :
     Comma,       // ,
     Arrow,       // ->
@@ -76,8 +78,11 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Struct => write!(f, "struct"),
             Token::Enum => write!(f, "enum"),
             Token::Trait => write!(f, "trait"),
+            Token::Type => write!(f, "type"),
+            Token::Interface => write!(f, "interface"),
             Token::Satisfies => write!(f, "satisfies"),
             Token::Fn => write!(f, "fn"),
+            Token::Impl => write!(f, "impl"),
             Token::Import => write!(f, "import"),
             Token::As => write!(f, "as"),
             Token::While => write!(f, "while"),
@@ -111,7 +116,6 @@ impl<'src> fmt::Display for Token<'src> {
 
             // Operators and Punctuation
             Token::Op(op) => write!(f, "{}", op),
-            Token::DoubleColon => write!(f, "::"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
             Token::Arrow => write!(f, "->"),
@@ -134,11 +138,14 @@ impl<'src> fmt::Display for Token<'src> {
 pub enum OwnedToken {
     Let,
     Mut,
+    Type,
     Struct,
     Enum,
     Trait,
+    Interface,
     Satisfies,
     Fn,
+    Impl,
     Import,
     As,
     While,
@@ -172,7 +179,6 @@ pub enum OwnedToken {
 
     // Operators and Punctuation
     Op(String),  // For operators like +, -, *, /, <, >, ==, =
-    DoubleColon, // ::
     Colon,       // :
     Comma,       // ,
     Arrow,       // ->
@@ -200,8 +206,11 @@ impl From<Token<'_>> for OwnedToken {
             Token::Struct => OwnedToken::Struct,
             Token::Enum => OwnedToken::Enum,
             Token::Trait => OwnedToken::Trait,
+            Token::Type => OwnedToken::Type,
+            Token::Interface => OwnedToken::Interface,
             Token::Satisfies => OwnedToken::Satisfies,
             Token::Fn => OwnedToken::Fn,
+            Token::Impl => OwnedToken::Impl,
             Token::Import => OwnedToken::Import,
             Token::As => OwnedToken::As,
             Token::While => OwnedToken::While,
@@ -229,7 +238,6 @@ impl From<Token<'_>> for OwnedToken {
             Token::Str(s) => OwnedToken::Str(s.to_string()),
             Token::Ident(ident) => OwnedToken::Ident(ident.to_string()),
             Token::Op(op) => OwnedToken::Op(op.to_string()),
-            Token::DoubleColon => OwnedToken::DoubleColon,
             Token::Colon => OwnedToken::Colon,
             Token::Comma => OwnedToken::Comma,
             Token::Arrow => OwnedToken::Arrow,

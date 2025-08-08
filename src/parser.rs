@@ -1,59 +1,129 @@
-//! This module contains the parser, which is responsible for turning a stream of tokens
-//! into a structured Abstract Syntax Tree (AST). It uses a combination of recursive
-//! descent and Pratt parsing to handle the language's syntax, including expressions,
-//! statements, and top-level items.
+//! Parser aligned with Tree-sitter grammar (with full spans on every node)
 
 use chumsky::pratt::{infix, left, postfix, prefix};
 use chumsky::prelude::*;
 use chumsky::select;
 
 use crate::ast::*;
-use crate::token::Token;
+use crate::token::{SimpleSpan, Token};
 
-// --- Forward-declared parsers for expressions and statements ---
+fn trivia<'src>() -> impl Parser<'src, &'src [Token<'src>], (), extra::Err<Rich<'src, Token<'src>>>> {
+    select! { Token::Comment(_) => () }.repeated().ignored()
+}
 
-/// Shared parameter parser that supports both regular parameters (name: type) and self parameters
-fn parameter_parser<'src>(
-    ident: impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err<Rich<'src, Token<'src>>>>
-    + Clone,
-    ty: impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
-) -> impl Parser<
-    'src,
-    &'src [Token<'src>],
-    Vec<(Option<&'src str>, Type<'src>)>,
-    extra::Err<Rich<'src, Token<'src>>>,
-> {
-    let param = choice((
-        // Regular parameter: name: type
-        ident
-            .clone()
-            .then_ignore(just(Token::Colon))
-            .then(ty.clone())
-            .map(|(name, ty)| (Some(name), ty)),
-        // Self parameter: self or mut self (with optional type annotation)
-        just(Token::Mut)
-            .or_not()
-            .then(ident.clone())
-            .then(just(Token::Colon).ignore_then(ty.clone()).or_not())
-            .map(|((is_mut, name), opt_type)| {
-                (
-                    Some(name),
-                    opt_type.unwrap_or_else(|| Type {
-                        path: vec![name],
-                        generics: vec![],
-                    }),
-                )
-            }),
-    ));
+fn spanned<'src, T>(
+    p: impl Parser<'src, &'src [Token<'src>], T, extra::Err<Rich<'src, Token<'src>>>>,
+) -> impl Parser<'src, &'src [Token<'src>], Spanned<T>, extra::Err<Rich<'src, Token<'src>>>> {
+    p.map_with(|node, e| Spanned { node, span: e.span() })
+}
 
-    param
+fn ident<'src>() -> impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err<Rich<'src, Token<'src>>>> {
+    select! { Token::Ident(s) => s }.labelled("identifier")
+}
+
+fn path<'src>() -> impl Parser<'src, &'src [Token<'src>], Path<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let slash = select! { Token::Op(op) if op == "/" => () };
+    ident().separated_by(slash).at_least(1).collect::<Vec<_>>()
+}
+
+fn with_types<'src, F, P>(
+    make_ty: F,
+) -> impl Parser<'src, &'src [Token<'src>], Vec<Type<'src>>, extra::Err<Rich<'src, Token<'src>>>>
+where
+    F: Clone + Fn() -> P,
+    P: Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>>,
+{
+    let list = make_ty()
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+    let single = make_ty().map(|t| vec![t]);
+    just(Token::With)
+        .ignore_then(choice((list, single)))
+        .or_not()
+        .map(|v| v.unwrap_or_default())
+}
+
+fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    recursive(|type_p| {
+        let lt = select! { Token::Op(op) if op == "<" => () };
+        let gt = select! { Token::Op(op) if op == ">" => () };
+
+        let path_type = path()
+            .then(lt.ignore_then(type_p.clone().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>()).then_ignore(gt).or_not())
+            .map(|(p, g)| TypeNode::Path { path: p, generics: g.unwrap_or_default() })
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        let record_field = ident().then_ignore(just(Token::Colon)).then(type_p.clone());
+        let record_type = record_field
+                            .separated_by(just(Token::Comma))
+                            .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+            .map(TypeNode::Record)
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        let never_type = select! { Token::Op(op) if op == "!" => () }
+            .to(TypeNode::Never)
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        let make_ty = {
+            let type_p = type_p.clone();
+            move || type_p.clone()
+        };
+
+        let fn_type = type_p
+            .clone()
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .then_ignore(just(Token::Arrow))
+            .then(type_p.clone())
+            .then(with_types(make_ty).boxed())
+            .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        choice((fn_type, record_type, never_type, path_type)).boxed()
+    })
+    .boxed()
+}
+
+fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&'src str>, Type<'src>)>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ty = type_parser().boxed();
+    let named = ident().then_ignore(just(Token::Colon)).then(ty.clone()).map(|(n, t)| (Some(n), t));
+    let self_param = just(Token::Mut)
+        .or_not()
+        .ignore_then(ident())
+        .then(just(Token::Colon).ignore_then(ty.clone()).or_not())
+        .map(|(name, ty)| {
+            (
+                Some(name),
+                ty.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![name], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } }),
+            )
+        });
+    choice((named, self_param))
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen))
 }
 
-fn expression_parsers<'src>() -> (
+fn record_literal_expr<'src>(
+    expr: impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
+) -> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    ident()
+        .then_ignore(just(Token::Colon))
+        .then(expr.clone())
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        .map_with(|fields, e| Spanned { node: ExprNode::RecordLiteral { fields }, span: e.span() })
+}
+
+fn expression_bundle<'src>() -> (
     impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
     impl Parser<'src, &'src [Token<'src>], Stmt<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
     impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
@@ -61,300 +131,45 @@ fn expression_parsers<'src>() -> (
     let mut expr = Recursive::declare();
     let mut stmt = Recursive::declare();
 
-    let ident = select! { Token::Ident(ident) => ident }.labelled("identifier");
-
-    let path = ident
-        .separated_by(just(Token::DoubleColon))
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .labelled("path");
-
-    let ty = recursive(|type_p| {
-        path.clone()
-            .then(
-                // Custom generic parameter parser that handles nested generics
-                select! { Token::Op(op) if op == "<" => () }
-                    .ignore_then(
-                        type_p
-                            .separated_by(just(Token::Comma))
-                            .allow_trailing()
-                            .collect::<Vec<_>>(),
-                    )
-                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
-                    .or_not(),
-            )
-            .map(|(path, generics)| Type {
-                path,
-                generics: generics.unwrap_or_default(),
-            })
-    })
-    .labelled("type")
-    .boxed();
-
     let block = stmt
         .clone()
-        .padded_by(comment_parser())
+        .padded_by(trivia())
         .repeated()
-        .collect::<Vec<_>>()
+                .collect::<Vec<_>>()
         .then(expr.clone().or_not())
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map(|(stmts, last_expr)| Expr::Block {
-            stmts,
-            last_expr: last_expr.map(Box::new),
-        })
-        .labelled("block")
+        .map_with(|(stmts, last_expr), e| Spanned { node: ExprNode::Block { stmts, last_expr: last_expr.map(Box::new) }, span: e.span() })
         .boxed();
 
-    // Array literal parser
-    let array_literal = expr
-        .clone()
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBracket), just(Token::RBracket))
-        .map(Expr::Array)
-        .labelled("array literal")
-        .boxed();
+    let unit = just(Token::LParen)
+        .then_ignore(just(Token::RParen))
+        .map_with(|_, e| Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() });
 
-    // Typed map literal parser (e.g., Map<string, i64> {"a": 1, "b": 2})
-    let typed_map_literal = select! { Token::Ident("Map") => vec!["Map"] }
-        .then(
-            // Generic parameters
-            ident
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(
-                    select! { Token::Op(op) if op == "<" => () },
-                    select! { Token::Op(op) if op == ">" => () },
-                )
-                .or_not()
-                .map(|g| {
-                    g.unwrap_or_default()
-                        .into_iter()
-                        .map(|id| Type {
-                            path: vec![id],
-                            generics: vec![],
-                        })
-                        .collect::<Vec<_>>()
-                }),
-        )
-        .then(
-            // Map content - must be a literal or path as key, not just any expression
-            choice((
-                select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
-                select! { Token::I8(n) => Expr::Literal(Literal::I8(n)) },
-                select! { Token::I16(n) => Expr::Literal(Literal::I16(n)) },
-                select! { Token::I32(n) => Expr::Literal(Literal::I32(n)) },
-                select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
-                select! { Token::U8(n) => Expr::Literal(Literal::U8(n)) },
-                select! { Token::U16(n) => Expr::Literal(Literal::U16(n)) },
-                select! { Token::U32(n) => Expr::Literal(Literal::U32(n)) },
-                select! { Token::U64(n) => Expr::Literal(Literal::U64(n)) },
-                select! { Token::F32(n) => Expr::Literal(Literal::F32(n)) },
-                select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
-                select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
-                path.clone().map(Expr::Path),
-            ))
-            .then_ignore(just(Token::Colon))
-            .then(expr.clone())
-            .separated_by(just(Token::Comma))
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .map(|((_path, _generics), pairs)| Expr::Map(pairs))
-        .labelled("typed map literal")
-        .boxed();
-
-    // Regular map literal parser
-    let map_literal = expr
-        .clone()
-        .then_ignore(just(Token::Colon))
-        .then(expr.clone())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map(|pairs| Expr::Map(pairs))
-        .labelled("map literal")
-        .boxed();
-
-    // Struct instantiation parser
-    let struct_init = path
-        .clone()
-        .then(
-            // Generic parameters - convert identifiers to types
-            ident
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(
-                    select! { Token::Op(op) if op == "<" => () },
-                    select! { Token::Op(op) if op == ">" => () },
-                )
-                .or_not()
-                .map(|g| {
-                    g.unwrap_or_default()
-                        .into_iter()
-                        .map(|id| Type {
-                            path: vec![id],
-                            generics: vec![],
-                        })
-                        .collect()
-                }),
-        )
-        .then(
-            // Field initializers: name: value
-            ident
-                .then_ignore(just(Token::Colon))
-                .then(expr.clone())
-                .map(|(name, value)| (name, value))
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .map(|((path, generics), fields)| Expr::StructInit {
-            path,
-            generics,
-            fields,
-        })
-        .labelled("struct instantiation")
-        .boxed();
-
-    // Pattern parser for match expressions
-    let mut pattern = Recursive::declare();
-
-    // Literal pattern parser
-    let literal_pattern = choice((
-        select! { Token::I64(n) => Pattern::Literal(Literal::I64(n)) },
-        select! { Token::F64(n) => Pattern::Literal(Literal::F64(n)) },
-        select! { Token::Bool(b) => Pattern::Literal(Literal::Bool(b)) },
-        select! { Token::Str(s) => Pattern::Literal(Literal::Str(s)) },
+    let lit = choice((
+        select! { Token::I64(n) => Literal::I64(n) },
+        select! { Token::F64(n) => Literal::F64(n) },
+        select! { Token::Bool(b) => Literal::Bool(b) },
+        select! { Token::Str(s) => Literal::Str(s) },
     ))
-    .labelled("literal pattern");
+    .map_with(|l, e| Spanned { node: ExprNode::Literal(l), span: e.span() });
 
-    // Wildcard pattern parser
-    let wildcard_pattern = just(Token::Ident("_"))
-        .map(|_| Pattern::Wildcard)
-        .labelled("wildcard pattern");
-
-    // Enum variant pattern parser (with nested patterns as arguments)
-    let enum_variant_pattern = path
-        .clone()
+    let perform = just(Token::Perform)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Op(".".to_string())))
+        .then(ident())
         .then(
-            // Optional arguments with nested patterns
-            pattern
+            expr
                 .clone()
                 .separated_by(just(Token::Comma))
                 .allow_trailing()
                 .collect::<Vec<_>>()
-                .delimited_by(just(Token::LParen), just(Token::RParen))
-                .or_not(),
+                .delimited_by(just(Token::LParen), just(Token::RParen)),
         )
-        .map(|(path, args)| Pattern::Path {
-            path,
-            args: args.unwrap_or_default(),
-        })
-        .labelled("enum variant pattern");
+        .map_with(|(((e1, e2), args)), e| Spanned { node: ExprNode::Perform { path: vec![e1, e2], args }, span: e.span() });
 
-    // Identifier pattern parser (for variable bindings)
-    let identifier_pattern = select! { Token::Ident(name) => name }
-        .filter(|name| name != &"_") // Exclude wildcard
-        .map(Pattern::Identifier)
-        .labelled("identifier pattern");
-
-    // Combine all pattern types with proper precedence
-    let pattern_definition = choice((
-        literal_pattern,
-        wildcard_pattern,
-        enum_variant_pattern,
-        identifier_pattern,
-    ))
-    .labelled("pattern");
-
-    pattern.define(pattern_definition);
-
-    // If expression parser
-    let if_expr = just(Token::If)
-        .ignore_then(expr.clone())
-        .then(block.clone())
-        .then(
-            just(Token::Else)
-                .ignore_then(choice((block.clone(), expr.clone())))
-                .or_not(),
-        )
-        .map(|((condition, then_block), else_expr)| Expr::If {
-            cond: Box::new(condition),
-            then_block: Box::new(then_block),
-            else_block: else_expr.map(Box::new),
-        })
-        .labelled("if expression")
-        .boxed();
-
-    // While loop parser
-    let while_expr = just(Token::While)
-        .ignore_then(expr.clone())
-        .then(block.clone())
-        .map(|(condition, body)| Expr::While {
-            cond: Box::new(condition),
-            body: Box::new(body),
-        })
-        .labelled("while loop")
-        .boxed();
-
-    // Match expression parser
-    let match_arm = pattern
-        .then_ignore(just(Token::FatArrow))
-        .then(expr.clone())
-        .map(|(pattern, body)| (pattern, body));
-
-    let match_expr = just(Token::Match)
-        .ignore_then(expr.clone())
-        .then(
-            match_arm
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .map(|(value, arms)| Expr::Match {
-            scrutinee: Box::new(value),
-            arms,
-        })
-        .labelled("match expression")
-        .boxed();
-
-    let _atom = choice((
-        // Literals
-        select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
-        select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
-        select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
-        select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
-        // Unit literal
-        just(Token::LParen)
-            .then(just(Token::RParen))
-            .map(|_| Expr::Literal(Literal::Unit)),
-        // Control flow expressions
-        if_expr.clone(),
-        while_expr.clone(),
-        match_expr.clone(),
-        // Typed map literal (must come before struct instantiation to avoid conflicts)
-        typed_map_literal.clone(),
-        // Map literal
-        map_literal.clone(),
-        // Struct instantiation
-        struct_init.clone(),
-        // Variable/path
-        path.clone().map(Expr::Path),
-        // Grouped expression
-        expr.clone()
-            .delimited_by(just(Token::LParen), just(Token::RParen)),
-        // Block
-        block.clone(),
-        // Array literal
-        array_literal.clone(),
+    let atom = choice((unit, lit, perform, record_literal_expr(expr.clone()), block.clone(),
+        path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
+        expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))
     .boxed();
 
@@ -362,1004 +177,274 @@ fn expression_parsers<'src>() -> (
         .clone()
         .separated_by(just(Token::Comma))
         .allow_trailing()
-        .collect::<Vec<_>>();
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LParen), just(Token::RParen));
 
-    // Perform expression (must be defined after call_args)
-    // Support both :: and . separators for effect operations
-    let effect_path = ident
-        .then(
-            choice((just(Token::Op(".".to_string())), just(Token::DoubleColon))).ignore_then(ident),
-        )
-        .map(|(effect_name, operation_name)| vec![effect_name, operation_name])
-        .labelled("effect path");
-
-    let perform_expr = just(Token::Perform)
-        .ignore_then(effect_path)
-        .then(
-            call_args
+    let expr_p = atom
                 .clone()
-                .delimited_by(just(Token::LParen), just(Token::RParen)),
-        )
-        .map(|(path, args)| Expr::Perform { path, args })
-        .labelled("perform expression");
-
-    // Handle expression parser
-    // Support both inline handlers and path-based handlers
-    let inline_handler = just(Token::LBrace)
-        .ignore_then(
-            // Skip everything until the closing brace
-            none_of([Token::RBrace])
-                .repeated()
-                .ignore_then(just(Token::RBrace)),
-        )
-        .then_ignore(just(Token::RBrace))
-        .map(|_| HandlerBody::Inline(vec![]));
-
-    // Add perform and handle expressions to atom choices
-    let atom_with_perform_and_handle = choice((
-        // Literals
-        select! { Token::I64(n) => Expr::Literal(Literal::I64(n)) },
-        select! { Token::F64(n) => Expr::Literal(Literal::F64(n)) },
-        select! { Token::Bool(b) => Expr::Literal(Literal::Bool(b)) },
-        select! { Token::Str(s) => Expr::Literal(Literal::Str(s)) },
-        // Unit literal
-        just(Token::LParen)
-            .then(just(Token::RParen))
-            .map(|_| Expr::Literal(Literal::Unit)),
-        // Control flow expressions
-        if_expr.clone(),
-        while_expr.clone(),
-        match_expr.clone(),
-        // Typed map literal (must come before struct instantiation to avoid conflicts)
-        typed_map_literal.clone(),
-        // Map literal
-        map_literal.clone(),
-        // Struct instantiation
-        struct_init.clone(),
-        // Variable/path
-        path.clone().map(Expr::Path),
-        // Grouped expression
-        expr.clone()
-            .delimited_by(just(Token::LParen), just(Token::RParen)),
-        // Block
-        block.clone(),
-        // Perform expression
-        perform_expr.clone(),
-        // Array literal
-        array_literal.clone(),
-    ))
-    .boxed();
-
-    let expr_parser = atom_with_perform_and_handle
         .pratt((
             postfix(
                 9,
                 just(Token::Op(".".to_string()))
-                    .ignore_then(ident)
-                    .then(
-                        call_args
-                            .clone()
-                            .delimited_by(just(Token::LParen), just(Token::RParen))
-                            .or_not(), // Added .or_not() to allow for field access
-                    )
-                    .map(|(name, args)| (name, args)),
-                |lhs, (name, args), _extra| {
-                    match args {
-                        Some(args) => {
-                            // Method call
-                            let method_path = vec![name];
-                            let method_expr = Expr::Path(method_path);
-                            let mut all_args = vec![lhs];
-                            all_args.extend(args);
-                            Expr::Call {
-                                fun: Box::new(method_expr),
-                                args: all_args,
-                            }
-                        }
-                        None => {
-                            // Field access - use the new FieldAccess expression
-                            Expr::FieldAccess {
-                                receiver: Box::new(lhs),
-                                field: name,
-                            }
-                        }
-                    }
+                    .ignore_then(ident())
+                    .then(call_args.clone().or_not()),
+                |lhs: Expr<'src>, (name, args), _| match args {
+                    Some(args) => Spanned { node: ExprNode::Call { fun: Box::new(Spanned { node: ExprNode::Path(vec![name]), span: lhs.span }), args: { let mut v = vec![lhs.clone()]; v.extend(args); v } }, span: lhs.span },
+                    None => Spanned { node: ExprNode::FieldAccess { receiver: Box::new(lhs.clone()), field: name }, span: lhs.span },
                 },
             ),
             postfix(
                 8,
-                call_args
-                    .clone()
-                    .delimited_by(just(Token::LParen), just(Token::RParen)),
-                |lhs, args, _extra| Expr::Call {
-                    fun: Box::new(lhs),
-                    args,
-                },
+                call_args.clone(),
+                |lhs: Expr<'src>, args, _| Spanned { node: ExprNode::Call { fun: Box::new(lhs.clone()), args }, span: lhs.span },
             ),
-            postfix(
-                8,
-                expr.clone()
-                    .delimited_by(just(Token::LBracket), just(Token::RBracket)),
-                |lhs, index, _extra| Expr::Call {
-                    fun: Box::new(Expr::Path(vec!["get"])),
-                    args: vec![lhs, index],
-                },
-            ),
-            // TODO: Fix as casting
-            // postfix(
-            //     8,
-            //     just(Token::As)
-            //         .ignore_then(type_parser()),
-            //     |lhs, target_type: Type<'src>, _extra| {
-            //         let type_name = target_type.path.join("::");
-            //         Expr::Call {
-            //             fun: Box::new(Expr::Path(vec!["cast"])),
-            //             args: vec![lhs, Expr::Literal(Literal::Str(type_name.leak()))],
-            //         }
-            //     },
-            // ),
             prefix(
                 7,
                 select! { Token::Op(op) if op == "-" => () },
-                |_op, rhs, _extra| Expr::Unary {
-                    op: UnaryOp::Neg,
-                    rhs: Box::new(rhs),
-                },
+                |_op, rhs: Expr<'src>, _| Spanned { node: ExprNode::Unary { op: UnaryOp::Neg, rhs: Box::new(rhs.clone()) }, span: rhs.span },
             ),
             prefix(
                 7,
                 select! { Token::Op(op) if op == "!" => () },
-                |_op, rhs, _extra| Expr::Unary {
-                    op: UnaryOp::Not,
-                    rhs: Box::new(rhs),
-                },
+                |_op, rhs: Expr<'src>, _| Spanned { node: ExprNode::Unary { op: UnaryOp::Not, rhs: Box::new(rhs.clone()) }, span: rhs.span },
             ),
             infix(
                 left(6),
                 select! { Token::Op(op) if op == "*" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Mul,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Mul, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(6),
                 select! { Token::Op(op) if op == "/" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Div,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Div, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(5),
                 select! { Token::Op(op) if op == "+" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Add,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Add, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(5),
                 select! { Token::Op(op) if op == "-" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Sub,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Sub, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(4),
                 select! { Token::Op(op) if op == "<" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Lt,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Lt, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(4),
                 select! { Token::Op(op) if op == ">" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Gt,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Gt, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(3),
                 select! { Token::Op(op) if op == "==" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Eq,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Eq, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             infix(
                 left(3),
                 select! { Token::Op(op) if op == "!=" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Ne,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
-                },
-            ),
-            infix(
-                left(1),
-                select! { Token::Op(op) if op == "=" => () },
-                |l, _op, r, _extra| Expr::Binary {
-                    op: BinaryOp::Assign,
-                    lhs: Box::new(l),
-                    rhs: Box::new(r),
+                |l: Expr<'src>, _op, r: Expr<'src>, _| {
+                    let start = l.span.start;
+                    let end = r.span.end;
+                    Spanned { node: ExprNode::Binary { op: BinaryOp::Ne, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
         ))
-        .labelled("expression");
+        .then(
+            just(Token::With)
+                .ignore_then(just(Token::LBrace))
+                .ignore_then(path())
+                .then_ignore(just(Token::RBrace))
+                .or_not(),
+        )
+        .map(|(body, maybe)| match maybe {
+            Some(handler_path) => Spanned { node: ExprNode::Handle { body: Box::new(body.clone()), handler: HandlerBody::Path(handler_path) }, span: body.span },
+            None => body,
+        })
+        .labelled("expression")
+        .boxed();
 
+    // let [mut] name [: Type]? = expr
     let let_decl = just(Token::Let)
         .ignore_then(just(Token::Mut).or_not())
-        .then(ident)
-        .then(just(Token::Colon).ignore_then(ty.clone()).or_not())
+        .then(ident())
+        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
-        .map(|(((is_mut, name), opt_type), value)| Stmt::Let {
-            is_mut: is_mut.is_some(),
-            name,
-            ty: opt_type,
-            value,
-        });
+        .map_with(|(((is_mut, name), ty), value), e| Spanned { node: StmtNode::Let { is_mut: is_mut.is_some(), name, ty, value }, span: e.span() });
 
-    // Assignment statement parser
-    let assign_stmt = path
-        .clone()
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+    // assignment: simple lhs (path with optional .field chain) <- expr
+    let lhs = path()
+        .map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() })
+        .then(just(Token::Op(".".to_string())).ignore_then(ident()).repeated().collect::<Vec<_>>())
+        .map(|(base, fields)| fields.into_iter().fold(base, |acc, f| Spanned { node: ExprNode::FieldAccess { receiver: Box::new(acc.clone()), field: f }, span: acc.span }));
+
+    let assign = lhs
+        .then_ignore(select! { Token::Op(op) if op == "<-" => () })
         .then(expr.clone())
-        .map(|(lhs, rhs)| Stmt::Assign(Expr::Path(lhs), rhs));
+        .map_with(|(l, r), e| Spanned { node: StmtNode::Assign(l, r), span: e.span() });
 
-    // Control flow expressions
-    let control_flow_stmt =
-        choice((if_expr.clone(), while_expr.clone())).map(|expr| Stmt::Expr(expr));
+    let ret_stmt = just(Token::Return)
+        .ignore_then(expr.clone().or_not())
+        .map_with(|eopt, e| Spanned { node: StmtNode::Return(eopt), span: e.span() });
 
-    // Handle statement parser (to avoid circular dependency)
-    let handle_stmt = just(Token::Handle)
-        .ignore_then(choice((
-            // Handle with block: handle { ... } with ...
-            block.clone(),
-            // Handle with expression: handle expr with ...
-            path.clone()
-                .then(
-                    call_args
-                        .clone()
-                        .delimited_by(just(Token::LParen), just(Token::RParen))
-                        .or_not(),
-                )
-                .map(|(path, args)| match args {
-                    Some(args) => Expr::Call {
-                        fun: Box::new(Expr::Path(path)),
-                        args,
-                    },
-                    None => Expr::Path(path),
-                }),
-        )))
-        .then_ignore(just(Token::With))
-        .then(choice((
-            inline_handler.clone(),
-            path.clone().map(|p| HandlerBody::Path(p)),
-        )))
-        .map(|(body, handler)| {
-            Stmt::Expr(Expr::Handle {
-                body: Box::new(body),
-                handler,
-            })
-        });
+    let expr_stmt = expr.clone().map_with(|e1, e| Spanned { node: StmtNode::Expr(e1), span: e.span() });
 
-    // Regular expressions
-    let expr_stmt = expr.clone().map(Stmt::Expr);
+    let stmt_p = choice((let_decl, assign, ret_stmt, expr_stmt)).labelled("statement").boxed();
 
-    let stmt_parser = choice((
-        let_decl,
-        assign_stmt,
-        just(Token::Return)
-            .ignore_then(expr.clone().or_not())
-            .map(Stmt::Return),
-        control_flow_stmt,
-        handle_stmt,
-        expr_stmt,
-    ))
-    .labelled("statement");
-
-    expr.define(expr_parser);
-    stmt.define(stmt_parser);
-
+    expr.define(expr_p.clone());
+    stmt.define(stmt_p);
     (expr, stmt, block)
 }
 
-fn fn_decl_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let ty = type_parser().boxed();
-    let params = parameter_parser(ident.clone(), ty);
-
-    // Optional pub keyword
-    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
-
-    pub_keyword
-        .then(just(Token::Fn))
-        .map(|(is_public, _)| is_public)
-        .then(ident)
-        .then(params)
-        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .map(|(((is_public, name), params), ret_type)| Function {
-            name,
-            generics: Vec::new(), // Function declarations don't have generics
-            params,
-            ret_type,
-            effects: Vec::new(), // Function declarations don't have effects
-            body: Expr::Block {
-                stmts: vec![],
-                last_expr: None,
-            }, // Empty body for declarations
-            is_public,
-        })
-        .labelled("function declaration")
+fn import_item<'src>() -> impl Parser<'src, &'src [Token<'src>], ImportPath<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let alias = just(Token::As).ignore_then(ident()).or_not();
+    path().then(alias).map(|(path, alias)| ImportPath { path, alias })
 }
 
-fn fn_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt, block) = expression_parsers();
-
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let path = ident
-        .clone()
-        .separated_by(just(Token::DoubleColon))
-        .at_least(1)
-        .collect::<Vec<_>>();
-
-    let ty = recursive(|type_p| {
-        path.clone()
-            .then(
-                // Custom generic parameter parser that handles nested generics
-                select! { Token::Op(op) if op == "<" => () }
-                    .ignore_then(
-                        type_p
-                            .separated_by(just(Token::Comma))
-                            .allow_trailing()
-                            .collect::<Vec<_>>(),
-                    )
-                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
-                    .or_not(),
-            )
-            .map(|(path, generics)| Type {
-                path,
-                generics: generics.unwrap_or_default(),
-            })
-    })
-    .boxed();
-
-    let function_generics = ident
-        .padded_by(comment_parser())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(
-            select! { Token::Op(op) if op == "<" => () },
-            select! { Token::Op(op) if op == ">" => () },
-        )
-        .or_not()
-        .map(|g| g.unwrap_or_default());
-
-    let params = parameter_parser(ident.clone(), ty.clone());
-
-    // Parse effects list: / {effect1, effect2}
-    let effects = just(Token::Op("/".to_string()))
-        .ignore_then(
-            ident
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .or_not()
-        .map(|e| e.unwrap_or_default());
-
-    // Optional pub keyword
-    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
-
-    pub_keyword
-        .then(just(Token::Fn))
-        .map(|(is_public, _)| is_public)
-        .then(ident)
-        .then(function_generics)
-        .then(params)
-        .then(just(Token::Arrow).ignore_then(ty).or_not())
-        .then(effects)
-        .then(block)
-        .map(
-            |((((((is_public, name), generics), params), ret_type), effects), body)| Function {
-                name,
-                generics,
-                params,
-                ret_type,
-                effects,
-                body,
-                is_public,
-            },
-        )
-        .labelled("function declaration")
-}
-
-fn method_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Method<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt, block) = expression_parsers();
-
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let path = ident
-        .clone()
-        .separated_by(just(Token::DoubleColon))
-        .at_least(1)
-        .collect::<Vec<_>>();
-
-    let ty = recursive(|type_p| {
-        path.clone()
-            .then(
-                // Custom generic parameter parser that handles nested generics
-                select! { Token::Op(op) if op == "<" => () }
-                    .ignore_then(
-                        type_p
-                            .separated_by(just(Token::Comma))
-                            .allow_trailing()
-                            .collect::<Vec<_>>(),
-                    )
-                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
-                    .or_not(),
-            )
-            .map(|(path, generics)| Type {
-                path,
-                generics: generics.unwrap_or_default(),
-            })
-    })
-    .boxed();
-
-    let function_generics = ident
-        .padded_by(comment_parser())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(
-            select! { Token::Op(op) if op == "<" => () },
-            select! { Token::Op(op) if op == ">" => () },
-        )
-        .or_not()
-        .map(|g| g.unwrap_or_default());
-
-    let params = parameter_parser(ident.clone(), ty.clone());
-
-    // Parse effects list: / {effect1, effect2}
-    let effects = just(Token::Op("/".to_string()))
-        .ignore_then(
-            ident
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .or_not()
-        .map(|e| e.unwrap_or_default());
-
-    // Optional pub keyword
-    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
-
-    // Parse method name: Type::method_name
-    let method_name = ident
-        .then_ignore(just(Token::DoubleColon))
-        .then(ident)
-        .map(|(type_name, method_name)| (type_name, method_name));
-
-    pub_keyword
-        .then(just(Token::Fn))
-        .map(|(is_public, _)| is_public)
-        .then(method_name)
-        .then(function_generics)
-        .then(params)
-        .then(just(Token::Arrow).ignore_then(ty).or_not())
-        .then(effects)
-        .then(block)
-        .map(
-            |((
-                (((((is_public, (type_name, name)), generics), params), ret_type), effects),
-                body,
-            ))| Method {
-                type_name,
-                name,
-                generics,
-                params,
-                ret_type,
-                effects,
-                body,
-                is_public,
-            },
-        )
-        .labelled("method declaration")
-}
-
-fn struct_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], StructDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    // Generic parameters
-    let generics = ident
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(
-            select! { Token::Op(op) if op == "<" => () },
-            select! { Token::Op(op) if op == ">" => () },
-        )
-        .or_not()
-        .map(|g| g.unwrap_or_default());
-
-    // Field definitions: name: type
-    let field = ident
-        .then_ignore(just(Token::Colon))
-        .then(type_parser())
-        .map(|(name, ty)| (name, ty));
-
-    let fields = field
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    // Optional pub keyword
-    let pub_keyword = just(Token::Pub).or_not().map(|opt| opt.is_some());
-
-    just(Token::Struct)
-        .ignore_then(pub_keyword)
-        .then(ident)
-        .then(generics)
-        .then(fields)
-        .map(|(((is_public, name), generics), fields)| StructDef {
-            name,
-            generics,
-            fields,
-            is_public,
-        })
-        .labelled("struct declaration")
-}
-
-fn import_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    // A parser for a single path like `Std::Fmt`
-    let path = ident
-        .separated_by(just(Token::DoubleColon))
-        .at_least(1)
-        .collect::<Vec<_>>();
-
-    // A parser for an optional alias like `as fmt`
-    let alias = just(Token::As).ignore_then(ident).or_not();
-
-    // A parser for a single import declaration inside the block,
-    // like `Std::Fmt as fmt;`
-    let import_path = path
-        .then(alias)
-        .map(|(path, alias)| ImportPath { path, alias });
-
-    // The main parser for the `import { ... }` block
+fn import_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     just(Token::Import)
-        .ignore_then(
-            import_path
-                .repeated()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
-        )
-        .map(|imports| Item::ImportBlock { imports })
-        .labelled("import block")
+        .ignore_then(import_item().repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .map_with(|imports, e| Spanned { node: ItemNode::ImportBlock { imports }, span: e.span() })
 }
 
-fn type_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let path = ident
-        .separated_by(just(Token::DoubleColon))
-        .at_least(1)
-        .collect::<Vec<_>>();
-
-    recursive(|type_p| {
-        // Array type: [element_type]
-        let array_type = just(Token::LBracket)
-            .ignore_then(type_p.clone())
-            .then_ignore(just(Token::RBracket))
-            .map(|element_type| Type {
-                path: vec!["array"],
-                generics: vec![element_type],
-            });
-
-        // Path-based type with optional generics
-        let path_type = path
-            .clone()
-            .then(
-                // Custom generic parameter parser that handles nested generics
-                select! { Token::Op(op) if op == "<" => () }
-                    .ignore_then(
-                        type_p
-                            .separated_by(just(Token::Comma))
-                            .allow_trailing()
-                            .collect::<Vec<_>>(),
-                    )
-                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
-                    .or_not(),
-            )
-            .map(|(path, generics)| Type {
-                path,
-                generics: generics.unwrap_or_default(),
-            });
-
-        choice((array_type, path_type))
-    })
-    .labelled("type")
-    .boxed()
-}
-
-fn trait_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let param = ident
-        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|(name, ty)| {
-            (
-                Some(name),
-                ty.unwrap_or_else(|| Type {
-                    path: vec!["unit"],
-                    generics: vec![],
-                }),
-            )
-        });
-
-    let method = ident
-        .then_ignore(just(Token::LParen))
-        .then(
-            param
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>(),
-        )
-        .then_ignore(just(Token::RParen))
+fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let (_expr, _stmt, block) = expression_bundle();
+    let ty = type_parser();
+    let params = params_parser();
+    just(Token::Fn)
+        .ignore_then(ident())
+        .then(params)
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .map(|((name, params), ret_type)| TraitMethod {
-            name,
-            params,
-            ret_type,
-            is_public: true, // Trait methods are always public
-        });
-
-    let methods = method
-        .repeated()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    just(Token::Trait)
-        .ignore_then(ident)
-        .then(methods)
-        .map(|(name, methods)| TraitDef {
-            name,
-            methods,
-            is_public: true, // Traits are always public
-        })
-        .labelled("trait declaration")
+         .then(with_types(|| type_parser()))
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(block)
+        .map(|((((name, params), ret_type), effects), body)| Function { name, generics: vec![], params, ret_type, effects, body, is_public: true })
 }
 
-fn enum_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], EnumDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
+fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ty = type_parser();
+    let op = just(Token::Fn)
+        .ignore_then(ident())
+        .then(params_parser())
+        .then(just(Token::Arrow).ignore_then(type_parser()))
+        .map(|((name, params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public: true });
+    just(Token::Effect)
+        .ignore_then(ident())
+        .then(op.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .map(|(name, operations)| EffectDef { name, operations, is_public: true })
+}
 
-    // Generic parameters for enum
-    let generics = ident
+fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ty = type_parser();
+    let fndef = fn_def_parser();
+    let effects = just(Token::Colon)
+        .ignore_then(type_parser())
+         .then(with_types(|| type_parser()))
+        .map(|(primary, mut rest)| { let mut v = vec![primary]; v.append(&mut rest); v });
+    just(Token::Handler)
+        .ignore_then(ident())
+        .then(effects)
+        .then(fndef.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .map(|((name, effects), functions)| HandlerDef { name, effects, functions, is_public: true })
+}
+
+fn interface_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ty = type_parser();
+    let param = ident().then(just(Token::Colon).ignore_then(type_parser()).or_not()).map(|(n, t)| (Some(n), t.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![n], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } })));
+    let sig = ident()
+        .then(param.separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LParen), just(Token::RParen)))
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+         .then(with_types(|| type_parser()))
+        .map(|(((name, params), ret_type), _effects)| TraitMethod { name, params, ret_type, is_public: true });
+    just(Token::Interface)
+        .ignore_then(ident())
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(sig.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .map(|(name, methods)| TraitDef { name, methods, is_public: true })
+}
+
+fn impl_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ty = type_parser();
+    let iface = just(Token::Colon).ignore_then(path()).or_not();
+    let fndef = fn_def_parser();
+    just(Token::Impl)
+        .ignore_then(ty)
+        .then(iface)
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(fndef.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .map(|((target_type, interface), methods)| ImplBlock { target_type, interface, methods })
+}
+
+fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAliasDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let ty = type_parser();
+    let generics = ident()
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
-        .delimited_by(
-            select! { Token::Op(op) if op == "<" => () },
-            select! { Token::Op(op) if op == ">" => () },
-        )
+        .delimited_by(select! { Token::Op(op) if op == "<" => () }, select! { Token::Op(op) if op == ">" => () })
         .or_not()
         .map(|g| g.unwrap_or_default());
 
-    // Enum variant parser
-    let variant = ident
-        .then(
-            // Optional payload types
-            type_parser()
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>()
-                .delimited_by(just(Token::LParen), just(Token::RParen))
-                .or_not(),
-        )
-        .map(|(name, payload)| (name, payload));
-
-    let variants = variant
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    just(Token::Enum)
-        .ignore_then(ident)
+    let variant = ident().then(type_parser().delimited_by(just(Token::LParen), just(Token::RParen)).or_not());
+    let union_body = ident().then(type_parser().delimited_by(just(Token::LParen), just(Token::RParen)).or_not()).separated_by(select! { Token::Op(op) if op == "|" => () }).at_least(1).collect::<Vec<_>>().map(TypeAliasBody::Union);
+    let record_body = ident().then_ignore(just(Token::Colon)).then(type_parser()).separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)).map(TypeAliasBody::Record);
+    let body = choice((record_body, union_body, type_parser().map(TypeAliasBody::Type)));
+    just(Token::Type)
+        .ignore_then(ident())
         .then(generics)
-        .then(variants)
-        .map(|((name, generics), variants)| EnumDef {
-            name: Some(name),
-            generics,
-            variants,
-            is_public: true, // Enums are always public
-        })
-        .labelled("enum declaration")
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(body)
+        .map(|((name, generics), aliased)| TypeAliasDef { name, generics, aliased, is_public: true })
 }
 
-fn effect_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ident = select! { Token::Ident(ident) => ident };
-
-    let effect_op = just(Token::Fn)
-        .ignore_then(ident)
-        .then_ignore(just(Token::LParen))
-        .then(
-            ident
-                .then_ignore(just(Token::Colon))
-                .then(type_parser())
-                .map(|(name, ty)| (Some(name), ty))
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>(),
-        )
-        .then_ignore(just(Token::RParen))
-        .then(just(Token::Arrow).ignore_then(type_parser()))
-        .map(|((name, params), ret_type)| EffectOp {
-            name,
-            params: params.into_iter().map(|(_, ty)| ty).collect(), // Extract just the types
-            ret_type,
-            is_public: true, // Effect operations are always public
-        });
-
-    let operations = effect_op
-        .separated_by(just(Token::Comma).or_not()) // Changed to .or_not()
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    just(Token::Effect)
-        .ignore_then(ident)
-        .then(operations)
-        .map(|(name, operations)| EffectDef {
-            name,
-            operations,
-            is_public: true, // Effects are always public
-        })
-        .labelled("effect definition")
-}
-
-fn handler_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt, block) = expression_parsers();
-    let ident = select! { Token::Ident(ident) => ident };
-
-    // Handler method parser (similar to impl methods)
-    let handler_method = just(Token::Fn)
-        .ignore_then(ident)
-        .then_ignore(just(Token::LParen))
-        .then(
-            ident
-                .then_ignore(just(Token::Colon))
-                .then(type_parser())
-                .map(|(name, ty)| (Some(name), ty))
-                .separated_by(just(Token::Comma))
-                .allow_trailing()
-                .collect::<Vec<_>>(),
-        )
-        .then_ignore(just(Token::RParen))
-        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(block.clone())
-        .map(|(((name, params), ret_type), body)| Function {
-            name,
-            generics: Vec::new(), // Handler methods don't have generics
-            params,
-            ret_type,
-            effects: Vec::new(),
-            body,
-            is_public: true, // Handler methods are always public
-        });
-
-    let methods = handler_method
-        .repeated()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    // Parse handler name and effects
-    let handler_name = ident;
-    let effects = ident
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace));
-
-    just(Token::Handler)
-        .ignore_then(handler_name)
-        .then(effects)
-        .then(methods)
-        .map(|((name, effects), functions)| HandlerDef {
-            name,
-            effects,
-            functions,
-            is_public: true, // Handlers are always public
-        })
-        .labelled("handler definition")
-}
-
-fn satisfies_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], SatisfiesBlock<'src>, extra::Err<Rich<'src, Token<'src>>>>
-{
-    let (expr, stmt, block) = expression_parsers();
-    let ident = select! { Token::Ident(ident) => ident };
-
-    // Parse target type
-    let target_type = type_parser();
-
-    // Parse trait names (comma-separated)
-    let trait_names = ident
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>();
-
-    // Parse optional inline method implementations
-    let inline_methods = just(Token::LBrace)
-        .ignore_then(
-            ident
-                .then_ignore(just(Token::LParen))
-                .then(
-                    // Parameters can be just 'self' or 'mut self' without type annotation
-                    just(Token::Mut)
-                        .or_not()
-                        .then(ident)
-                        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-                        .map(|((_mut_kw, name), ty)| {
-                            (
-                                Some(name),
-                                ty.unwrap_or_else(|| Type {
-                                    path: vec!["unit"],
-                                    generics: vec![],
-                                }),
-                            )
-                        })
-                        .separated_by(just(Token::Comma))
-                        .allow_trailing()
-                        .collect::<Vec<_>>(),
-                )
-                .then_ignore(just(Token::RParen))
-                .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-                .then(block.clone())
-                .map(|(((name, params), ret_type), body)| Function {
-                    name,
-                    generics: Vec::new(),
-                    params,
-                    ret_type,
-                    effects: Vec::new(),
-                    body,
-                    is_public: true,
-                })
-                .repeated()
-                .collect::<Vec<_>>(),
-        )
-        .then_ignore(just(Token::RBrace))
-        .or_not();
-
-    target_type
-        .then_ignore(just(Token::Satisfies))
-        .then(trait_names)
-        .then(inline_methods)
-        .map(|((target_type, trait_names), methods)| SatisfiesBlock {
-            target_type,
-            trait_names,
-            methods,
-        })
-        .labelled("satisfies block")
-}
-
-/// The main parser for an entire file.
-///
-/// It returns a tuple containing two vectors:
-/// 1. A vector of `Item::ImportBlock`.
-/// 2. A vector of all other `Item`s.
-pub fn file_parser<'src>() -> impl Parser<
-    'src,
-    &'src [Token<'src>],
-    // Updated return type to handle tuples of (Item, SimpleSpan)
-    (Vec<(Item<'src>, SimpleSpan)>, Vec<(Item<'src>, SimpleSpan)>),
-    extra::Err<Rich<'src, Token<'src>>>,
-> {
-    // The item parser now produces a tuple of (Item, SimpleSpan).
-    let item = item_parser()
-        .map_with(|item, e| (item, e.span()))
-        .padded_by(comment_parser());
-
-    comment_parser()
-        .ignore_then(item.repeated().collect::<Vec<_>>())
-        .then_ignore(end())
-        // Partition the collected (Item, SimpleSpan) tuples.
-        .map(|items: Vec<(Item<'src>, SimpleSpan)>| {
-            items
-                .into_iter()
-                .partition(|(item, _span)| matches!(item, Item::ImportBlock { .. }))
-        })
-}
-
-/// Parses a single top-level item.
-fn item_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (_expr, stmt, body) = expression_parsers();
-    let fn_decl = fn_parser().map(Item::Fn);
-    let method_decl = method_parser().map(Item::Method);
-    let stmt_item = stmt.map(Item::Stmt);
-
-    // Struct parser
-    let struct_item_parser = struct_parser().map(Item::Struct);
-
-    // Import parser
-    let import_parser = import_parser();
-
-    // Trait parser
-    let trait_parser = trait_parser().map(Item::Trait);
-
-    // Enum parser
-    let enum_parser = enum_parser().map(Item::Enum);
-
-    // Effect parser
-    let effect_parser = effect_parser().map(Item::Effect);
-
-    // Handler parser
-    let handler_parser = handler_parser().map(Item::Handler);
-
-    // Satisfies parser
-    let satisfies_parser = satisfies_parser().map(Item::Satisfies);
-
+fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let (expr, stmt, _block) = expression_bundle();
     choice((
-        fn_decl,
-        method_decl,
-        struct_item_parser,
-        trait_parser,
-        enum_parser,
-        satisfies_parser,
-        effect_parser,
-        handler_parser,
-        import_parser,
-        stmt_item,
+        import_parser(),
+        spanned(fn_def_parser().map(ItemNode::Fn)),
+        spanned(interface_parser().map(ItemNode::Trait)),
+        spanned(effect_parser().map(ItemNode::Effect)),
+        spanned(handler_parser().map(ItemNode::Handler)),
+        spanned(type_alias_parser().map(ItemNode::TypeAlias)),
+        spanned(impl_parser().map(ItemNode::Impl)),
+        stmt.map_with(|s, e| Spanned { node: ItemNode::Stmt(s), span: e.span() }),
     ))
-    .recover_with(skip_then_retry_until(
-        any().ignored(),
-        one_of([
-            Token::Fn,
-            Token::Struct,
-            Token::Trait,
-            Token::Enum,
-            Token::Satisfies,
-            Token::Effect,
-            Token::Handler,
-            Token::Import,
-            Token::Let,
-        ])
-        .ignored(),
-    ))
+    .padded_by(trivia())
 }
 
-fn comment_parser<'src>()
--> impl Parser<'src, &'src [Token<'src>], (), extra::Err<Rich<'src, Token<'src>>>> {
-    select! { Token::Comment(_) => () }.repeated().ignored()
+pub fn file_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
+    item_parser().repeated().collect::<Vec<_>>().then_ignore(end())
 }
+
