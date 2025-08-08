@@ -13,6 +13,7 @@ mod lexer;
 mod parser;
 mod token;
 mod typechecker;
+mod type_unifier;
 
 use crate::compiler::{Compiler, CompilerStage};
 use crate::{

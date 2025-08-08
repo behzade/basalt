@@ -2,6 +2,7 @@ use crate::ast::BinaryOp;
 use crate::ast_owned::*; // Your Owned AST definitions
 use crate::hir; // Your HIR definitions
 use crate::token::SimpleSpan;
+use crate::type_unifier::TypeUnifier;
 use ariadne::{Color, Fmt};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -309,7 +310,7 @@ impl Typechecker {
                     (OwnedExpr::Literal(l), other) if self.is_numeric_literal(l) => {
                         // Lower other first
                         let other_hir = self.lower_expr(*rhs, context.clone())?;
-                        if self.is_numeric_type(&other_hir.ty) && self.is_arithmetic_op(op) {
+                        if TypeUnifier::is_numeric(&other_hir.ty) && self.is_arithmetic_op(op) {
                             let coerced_lhs = self.lower_expr_with_expected(
                                 Spanned { item: OwnedExpr::Literal(l.clone()), span: lhs.span },
                                 other_hir.ty.clone(),
@@ -322,7 +323,7 @@ impl Typechecker {
                     }
                     (other, OwnedExpr::Literal(r)) if self.is_numeric_literal(r) => {
                         let other_hir = self.lower_expr(*lhs, context.clone())?;
-                        if self.is_numeric_type(&other_hir.ty) && self.is_arithmetic_op(op) {
+                        if TypeUnifier::is_numeric(&other_hir.ty) && self.is_arithmetic_op(op) {
                             let coerced_rhs = self.lower_expr_with_expected(
                                 Spanned { item: OwnedExpr::Literal(r.clone()), span: rhs.span },
                                 other_hir.ty.clone(),
@@ -343,7 +344,7 @@ impl Typechecker {
                 // E.g., arithmetic ops need numbers, logical ops need booleans.
                 if hir_lhs.ty != hir_rhs.ty {
                     let op_kind = self.lower_binary_op(op);
-                    let both_numeric = self.is_numeric_type(&hir_lhs.ty) && self.is_numeric_type(&hir_rhs.ty);
+                    let both_numeric = TypeUnifier::is_numeric(&hir_lhs.ty) && TypeUnifier::is_numeric(&hir_rhs.ty);
                     let is_comparison = matches!(
                         op_kind,
                         hir::BinaryOp::Eq
@@ -385,7 +386,7 @@ impl Typechecker {
                     | hir::BinaryOp::Mod
                     | hir::BinaryOp::BitShiftLeft
                     | hir::BinaryOp::BitShiftRight
-                    | hir::BinaryOp::Xor => self.unify_numeric_types(hir_lhs.ty.clone(), hir_rhs.ty.clone()).unwrap_or(hir_lhs.ty.clone()),
+                    | hir::BinaryOp::Xor => TypeUnifier::unify_numeric(&hir_lhs.ty, &hir_rhs.ty).unwrap_or(hir_lhs.ty.clone()),
                     hir::BinaryOp::Assign => hir_lhs.ty.clone(),
                     hir::BinaryOp::Eq
                     | hir::BinaryOp::Ne
@@ -903,7 +904,7 @@ impl Typechecker {
                             let mut lowered = self.lower_expr(value, context.clone())?;
                             // If numeric mismatch, allow coercion to annotated type
                             if lowered.ty != resolved_ty {
-                                if self.is_numeric_type(&lowered.ty) && self.is_numeric_type(&resolved_ty) {
+                                if TypeUnifier::is_numeric(&lowered.ty) && TypeUnifier::is_numeric(&resolved_ty) {
                                     lowered = hir::Expr {
                                         ty: resolved_ty.clone(),
                                         kind: hir::ExprKind::Cast { expr: Box::new(lowered) },
