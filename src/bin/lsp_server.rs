@@ -49,6 +49,9 @@ struct AnalysisResult {
     hir: Vec<HirItem>,
     diagnostics: HashMap<PathBuf, Vec<lsp::Diagnostic>>,
     index: TopLevelIndex,
+    // Per-file token spans from the lexer (character ranges), used to translate
+    // token-index spans produced by the parser/typechecker into character ranges
+    token_spans: HashMap<PathBuf, Vec<SimpleSpan>>, 
 }
 
 struct Backend {
@@ -78,6 +81,25 @@ impl Backend {
     fn simple_span_to_range(text: &str, span: SimpleSpan) -> lsp::Range {
         let start = Self::offset_to_position(text, span.start);
         let end = Self::offset_to_position(text, span.end);
+        lsp::Range { start, end }
+    }
+
+    fn token_index_span_to_range(
+        text: &str,
+        token_spans: &[SimpleSpan],
+        token_span: SimpleSpan,
+    ) -> lsp::Range {
+        // token_span.start/end are token indices; map to char offsets via token_spans
+        let start_char = token_spans
+            .get(token_span.start)
+            .map(|s| s.start)
+            .unwrap_or(0);
+        let end_char = token_spans
+            .get(token_span.end.saturating_sub(1))
+            .map(|s| s.end)
+            .unwrap_or_else(|| text.chars().count());
+        let start = Self::offset_to_position(text, start_char);
+        let end = Self::offset_to_position(text, end_char);
         lsp::Range { start, end }
     }
 
@@ -180,6 +202,7 @@ impl Backend {
         let mut ast: HashMap<PathBuf, Vec<OwnedSpanned<OwnedItem>>> = HashMap::new();
         let mut diagnostics: HashMap<PathBuf, Vec<lsp::Diagnostic>> = HashMap::new();
         let mut token_cache: HashMap<PathBuf, Vec<(Token<'static>, SimpleSpan)>> = HashMap::new();
+        let mut token_spans_map: HashMap<PathBuf, Vec<SimpleSpan>> = HashMap::new();
 
         fn parse_one_file(
             path: &Path,
@@ -188,6 +211,7 @@ impl Backend {
             ast: &mut HashMap<PathBuf, Vec<OwnedSpanned<OwnedItem>>>,
             diagnostics: &mut HashMap<PathBuf, Vec<lsp::Diagnostic>>,
             token_cache: &mut HashMap<PathBuf, Vec<(Token<'static>, SimpleSpan)>>,
+            token_spans_out: &mut HashMap<PathBuf, Vec<SimpleSpan>>,
         ) {
             sources.insert(path.to_path_buf(), text.to_string());
             let (tokens, lex_errs) = lexer().parse(text).into_output_errors();
@@ -218,19 +242,20 @@ impl Backend {
                 .map(|(tok, sp)| (unsafe { std::mem::transmute::<Token<'_>, Token<'static>>(tok) }, sp))
                 .collect();
             let tokens_for_parser: Vec<Token<'static>> = owned_tokens.iter().map(|(t, _)| t.clone()).collect();
-            token_cache.insert(path.to_path_buf(), owned_tokens.clone());
+            let key = path.to_path_buf();
+            let spans_only: Vec<SimpleSpan> = owned_tokens.iter().map(|(_, s)| *s).collect();
+            token_spans_out.insert(key.clone(), spans_only);
+            token_cache.insert(key, owned_tokens.clone());
 
             let (items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
             for e in parse_errs {
                 // Approximate range using starting token span
-                let tspan = owned_tokens
-                    .get(e.span().start)
-                    .map(|(_, s)| *s)
-                    .unwrap_or_else(|| {
-                        let end = text.chars().count();
-                        SimpleSpan::new((), end..end)
-                    });
-                let range = Backend::simple_span_to_range(text, tspan);
+                let tok_span = SimpleSpan::new((), e.span().start..e.span().end);
+                let range = Backend::token_index_span_to_range(
+                    text,
+                    token_cache.get(path).map(|v| v.iter().map(|(_, s)| *s).collect::<Vec<_>>()).as_deref().unwrap_or(&[]),
+                    tok_span,
+                );
                 Backend::diagnostics_push(
                     diagnostics,
                     path,
@@ -254,7 +279,7 @@ impl Backend {
         }
 
         // Parse entry
-        parse_one_file(entry_path, entry_text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache);
+        parse_one_file(entry_path, entry_text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache, &mut token_spans_map);
 
         // Collect imports in a worklist and parse those files from disk
         let mut worklist: Vec<Vec<String>> = Vec::new();
@@ -280,7 +305,7 @@ impl Backend {
                                 continue;
                             }
                             if let Ok(text) = fs::read_to_string(&canonical) {
-                                parse_one_file(&canonical, &text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache);
+                                parse_one_file(&canonical, &text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache, &mut token_spans_map);
                                 // Pull nested imports too
                                 if let Some(items) = ast.get(&canonical) {
                                     for it in items {
@@ -309,7 +334,12 @@ impl Backend {
                 // Publish diagnostics for each file
                 for TypeError { message, context } in errors {
                     if let Some(text) = sources.get(&context.path) {
-                        let range = Self::simple_span_to_range(text, context.span);
+                        let range = if let Some(tok_spans) = token_spans_map.get(&context.path) {
+                            Self::token_index_span_to_range(text, tok_spans, context.span)
+                        } else {
+                            // Fallback
+                            Self::simple_span_to_range(text, context.span)
+                        };
                         Self::diagnostics_push(
                             &mut diagnostics,
                             &context.path,
@@ -359,20 +389,35 @@ impl Backend {
             }
         }
 
-        AnalysisResult { sources, ast, hir, diagnostics, index }
+        AnalysisResult { sources, ast, hir, diagnostics, index, token_spans: token_spans_map }
     }
 
     async fn reanalyze_and_publish(&self, root_path: PathBuf, text: String) {
         let _guard = self.analyze_lock.lock().await;
+        // Capture previously published files for this root (so we can clear them if needed)
+        let previously_published: Vec<PathBuf> = {
+            let map = self.analysis.read();
+            if let Some(prev) = map.get(&root_path) {
+                prev.sources.keys().cloned().collect()
+            } else {
+                Vec::new()
+            }
+        };
+
         let result = self.analyze(&root_path, &text);
 
-        // Cache
+        // Cache new analysis
         self.analysis.write().insert(root_path.clone(), result.clone());
 
-        // Publish diagnostics per file
-        for (path, diags) in result.diagnostics.iter() {
-            let uri = lsp::Url::from_file_path(path).unwrap_or_else(|_| lsp::Url::parse("file:///").unwrap());
-            self.client.publish_diagnostics(uri, diags.clone(), None).await;
+        // Union set of paths (current + previous)
+        let mut all_paths: std::collections::HashSet<PathBuf> = result.sources.keys().cloned().collect();
+        for p in previously_published { all_paths.insert(p); }
+
+        // Publish diagnostics for all, clearing old ones by sending empty arrays
+        for path in all_paths {
+            let uri = lsp::Url::from_file_path(&path).unwrap_or_else(|_| lsp::Url::parse("file:///").unwrap());
+            let diags = result.diagnostics.get(&path).cloned().unwrap_or_default();
+            self.client.publish_diagnostics(uri, diags, None).await;
         }
     }
 }
