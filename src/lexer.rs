@@ -22,7 +22,6 @@ pub fn lexer<'src>()
         just("|").to(Token::Op("|".to_string())),
         just("...").to(Token::Op("...".to_string())),
         just("->").to(Token::Arrow),
-        just("=>").to(Token::FatArrow),
         one_of("+-*/<>=!")
             .repeated()
             .exactly(1)
@@ -34,6 +33,7 @@ pub fn lexer<'src>()
     let punc = choice((
         just(":").to(Token::Colon),
         just(",").to(Token::Comma),
+        just(";").to(Token::Semicolon),
         just("(").to(Token::LParen),
         just(")").to(Token::RParen),
         just("{").to(Token::LBrace),

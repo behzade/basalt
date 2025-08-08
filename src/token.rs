@@ -54,13 +54,13 @@ pub enum Token<'src> {
     Colon,       // :
     Comma,       // ,
     Arrow,       // ->
-    FatArrow,    // =>
     LParen,      // (
     RParen,      // )
     LBrace,      // {
     RBrace,      // }
     LBracket,    // [
     RBracket,    // ]
+    Semicolon,   // ;
     Hash,        // #
 
     // Ignored token
@@ -119,13 +119,13 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
             Token::Arrow => write!(f, "->"),
-            Token::FatArrow => write!(f, "=>"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBrace => write!(f, "{{"),
             Token::RBrace => write!(f, "}}"),
             Token::LBracket => write!(f, "["),
             Token::RBracket => write!(f, "]"),
+            Token::Semicolon => write!(f, ";"),
 
             // Comment
             Token::Comment(c) => write!(f, "//{}", c),
@@ -182,13 +182,13 @@ pub enum OwnedToken {
     Colon,       // :
     Comma,       // ,
     Arrow,       // ->
-    FatArrow,    // =>
     LParen,      // (
     RParen,      // )
     LBrace,      // {
     RBrace,      // }
     LBracket,    // [
     RBracket,    // ]
+    Semicolon,   // ;
     Hash,        // #
 
     // Ignored token
@@ -241,13 +241,13 @@ impl From<Token<'_>> for OwnedToken {
             Token::Colon => OwnedToken::Colon,
             Token::Comma => OwnedToken::Comma,
             Token::Arrow => OwnedToken::Arrow,
-            Token::FatArrow => OwnedToken::FatArrow,
             Token::LParen => OwnedToken::LParen,
             Token::RParen => OwnedToken::RParen,
             Token::LBrace => OwnedToken::LBrace,
             Token::RBrace => OwnedToken::RBrace,
             Token::LBracket => OwnedToken::LBracket,
             Token::RBracket => OwnedToken::RBracket,
+            Token::Semicolon => OwnedToken::Semicolon,
             Token::Hash => OwnedToken::Hash,
             Token::Comment(c) => OwnedToken::Comment(c.to_string()),
         }
