@@ -375,21 +375,54 @@ impl Backend {
                 fn_sigs.insert(f.signature.name.clone(), f.signature.clone());
             }
         }
+        // Helper to find a specific identifier token span in the token list within a given token range
+        let mut find_ident_span = |
+            tokens: &[(Token<'static>, SimpleSpan)],
+            item_span: SimpleSpan,
+            ident: &str,
+        | -> Option<SimpleSpan> {
+            let start = item_span.start;
+            let end = item_span.end.min(tokens.len());
+            for i in start..end {
+                if let Token::Ident(s) = tokens[i].0 {
+                    if s == ident {
+                        return Some(tokens[i].1);
+                    }
+                }
+            }
+            None
+        };
+
         for (file, items) in &ast {
             for it in items {
                 match &it.item {
                     OwnedItem::Fn(f) => {
                         let sig = fn_sigs.get(&f.name).cloned();
+                        // Prefer the span of the function name token
+                        let name_span = token_cache
+                            .get(file)
+                            .and_then(|toks| find_ident_span(toks, it.span, &f.name))
+                            .unwrap_or(it.span);
                         index.functions.insert(
                             f.name.clone(),
-                            DefInfo { path: file.clone(), span: it.span, signature: sig },
+                            DefInfo { path: file.clone(), span: name_span, signature: sig },
                         );
                     }
                     OwnedItem::TypeAlias(ta) => {
-                        index.type_aliases.insert(ta.name.clone(), (file.clone(), it.span));
+                        // Prefer the span of the alias name token
+                        let name_span = token_cache
+                            .get(file)
+                            .and_then(|toks| find_ident_span(toks, it.span, &ta.name))
+                            .unwrap_or(it.span);
+                        index.type_aliases.insert(ta.name.clone(), (file.clone(), name_span));
                         if let OwnedTypeAliasBody::Union(vars) = &ta.aliased {
                             for (vname, _payload) in vars {
-                                index.union_variants.insert(vname.clone(), (file.clone(), it.span));
+                                // Try to find each variant's ident span within the item span
+                                let v_span = token_cache
+                                    .get(file)
+                                    .and_then(|toks| find_ident_span(toks, it.span, vname))
+                                    .unwrap_or(it.span);
+                                index.union_variants.insert(vname.clone(), (file.clone(), v_span));
                             }
                         }
                     }
