@@ -90,14 +90,23 @@ impl Backend {
         token_span: SimpleSpan,
     ) -> lsp::Range {
         // token_span.start/end are token indices; map to char offsets via token_spans
-        let start_char = token_spans
-            .get(token_span.start)
-            .map(|s| s.start)
-            .unwrap_or(0);
-        let end_char = token_spans
-            .get(token_span.end.saturating_sub(1))
-            .map(|s| s.end)
-            .unwrap_or_else(|| text.chars().count());
+        if token_spans.is_empty() {
+            return lsp::Range {
+                start: lsp::Position { line: 0, character: 0 },
+                end: lsp::Position { line: 0, character: 0 },
+            };
+        }
+        let last_idx = token_spans.len().saturating_sub(1);
+        let start_idx = token_span.start.min(last_idx);
+        let mut end_idx = if token_span.end == 0 { 0 } else { token_span.end.saturating_sub(1) };
+        end_idx = end_idx.min(last_idx);
+
+        let start_char = token_spans.get(start_idx).map(|s| s.start).unwrap_or(0);
+        let mut end_char = token_spans.get(end_idx).map(|s| s.end).unwrap_or(start_char);
+
+        if end_char < start_char {
+            end_char = start_char;
+        }
         let start = Self::offset_to_position(text, start_char);
         let end = Self::offset_to_position(text, end_char);
         lsp::Range { start, end }
@@ -249,13 +258,13 @@ impl Backend {
 
             let (items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
             for e in parse_errs {
-                // Approximate range using starting token span
+                // Use the token-range that chumsky provides for the error
                 let tok_span = SimpleSpan::new((), e.span().start..e.span().end);
-                let range = Backend::token_index_span_to_range(
-                    text,
-                    token_cache.get(path).map(|v| v.iter().map(|(_, s)| *s).collect::<Vec<_>>()).as_deref().unwrap_or(&[]),
-                    tok_span,
-                );
+                let token_spans = token_cache
+                    .get(path)
+                    .map(|v| v.iter().map(|(_, s)| *s).collect::<Vec<_>>())
+                    .unwrap_or_default();
+                let range = Backend::token_index_span_to_range(text, &token_spans, tok_span);
                 Backend::diagnostics_push(
                     diagnostics,
                     path,
