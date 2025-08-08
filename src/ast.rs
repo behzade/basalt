@@ -39,6 +39,8 @@ pub enum ItemNode<'src> {
     Satisfies(SatisfiesBlock<'src>),
     Effect(EffectDef<'src>),
     Handler(HandlerDef<'src>),
+    TypeAlias(TypeAliasDef<'src>),
+    Impl(ImplBlock<'src>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -69,6 +71,7 @@ pub enum ExprNode<'src> {
     Array(Vec<Expr<'src>>),
     Map(Vec<(Expr<'src>, Expr<'src>)>),
     Path(Path<'src>),
+    RecordLiteral { fields: Vec<(&'src str, Expr<'src>)> },
     FieldAccess {
         receiver: Box<Expr<'src>>,
         field: &'src str,
@@ -125,9 +128,13 @@ pub enum ExprNode<'src> {
 
 /// A type annotation.
 #[derive(Debug, PartialEq, Clone)]
-pub struct TypeNode<'src> {
-    pub path: Path<'src>,
-    pub generics: Vec<Type<'src>>,
+pub enum TypeNode<'src> {
+    Path { path: Path<'src>, generics: Vec<Type<'src>> },
+    Record(Vec<(&'src str, Type<'src>)>),
+    Union(Vec<(&'src str, Option<Type<'src>>)>),
+    Function { params: Vec<Type<'src>>, ret: Box<Type<'src>>, effects: Vec<Type<'src>> },
+    Handler { effect: Box<Type<'src>>, with_effects: Vec<Type<'src>> },
+    Never,
 }
 
 /// A literal value.
@@ -166,7 +173,7 @@ pub struct Function<'src> {
     pub generics: Vec<&'src str>,
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
-    pub effects: Vec<&'src str>,
+    pub effects: Vec<Type<'src>>,
     pub body: Expr<'src>,
     pub is_public: bool,
 }
@@ -178,7 +185,7 @@ pub struct Method<'src> {
     pub generics: Vec<&'src str>,
     pub params: Vec<(Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
-    pub effects: Vec<&'src str>,
+    pub effects: Vec<Type<'src>>,
     pub body: Expr<'src>,
     pub is_public: bool,
 }
@@ -239,7 +246,7 @@ pub struct EffectOp<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct HandlerDef<'src> {
     pub name: &'src str,
-    pub effects: Vec<&'src str>,
+    pub effects: Vec<Type<'src>>, // primary effect first; with_effects folded in
     pub functions: Vec<Function<'src>>,
     pub is_public: bool,
 }
@@ -279,6 +286,30 @@ pub enum BinaryOp {
     BinaryOr,
     BitShiftLeft,
     BitShiftRight,
+}
+
+// --- New Item Types ---
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImplBlock<'src> {
+    pub target_type: Type<'src>,
+    pub interface: Option<Path<'src>>, // parsed from after ':'
+    pub methods: Vec<Function<'src>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TypeAliasDef<'src> {
+    pub name: &'src str,
+    pub generics: Vec<&'src str>,
+    pub aliased: TypeAliasBody<'src>,
+    pub is_public: bool,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum TypeAliasBody<'src> {
+    Type(Type<'src>),
+    Record(Vec<(&'src str, Type<'src>)>),
+    Union(Vec<(&'src str, Option<Type<'src>>)>),
 }
 
 impl std::fmt::Display for BinaryOp {

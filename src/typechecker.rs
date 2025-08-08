@@ -203,8 +203,8 @@ impl Typechecker {
     }
 
     /// Lowers an `OwnedExpr` to a `hir::Expr`, the core of type checking.
-    fn lower_expr(&mut self, expr: OwnedExpr, context: ItemContext) -> Result<hir::Expr, ()> {
-        match expr {
+    fn lower_expr(&mut self, expr: SpannedExpr, context: ItemContext) -> Result<hir::Expr, ()> {
+        match expr.item {
             OwnedExpr::Literal(lit) => {
                 // Literals have a straightforward mapping to primitive types.
                 let (ty, val_str) = self.lower_literal(lit);
@@ -324,8 +324,8 @@ impl Typechecker {
     }
 
     /// Lowers an `OwnedStmt` to a `hir::Stmt`.
-    fn lower_stmt(&mut self, stmt: OwnedStmt, context: ItemContext) -> Result<hir::Stmt, ()> {
-        match stmt {
+    fn lower_stmt(&mut self, stmt: SpannedStmt, context: ItemContext) -> Result<hir::Stmt, ()> {
+        match stmt.item {
             OwnedStmt::Let {
                 is_mut,
                 name,

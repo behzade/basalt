@@ -14,10 +14,12 @@ pub fn lexer<'src>()
 -> impl Parser<'src, &'src str, Vec<(Token<'src>, SimpleSpan)>, extra::Err<Rich<'src, char>>> {
     // A parser for operators
     let op = choice((
+        just("<-").to(Token::Op("<-".to_string())),
         just("==").to(Token::Op("==".to_string())),
         just("!=").to(Token::Op("!=".to_string())),
         just(">=").to(Token::Op(">=".to_string())),
         just("<=").to(Token::Op("<=".to_string())),
+        just("|").to(Token::Op("|".to_string())),
         just("...").to(Token::Op("...".to_string())),
         just("->").to(Token::Arrow),
         just("=>").to(Token::FatArrow),
@@ -30,7 +32,6 @@ pub fn lexer<'src>()
 
     // A parser for punctuation
     let punc = choice((
-        just("::").to(Token::DoubleColon),
         just(":").to(Token::Colon),
         just(",").to(Token::Comma),
         just("(").to(Token::LParen),
@@ -76,11 +77,14 @@ pub fn lexer<'src>()
     let ident = text::ident().map(|ident: &str| match ident {
         "let" => Token::Let,
         "mut" => Token::Mut,
+        "type" => Token::Type,
         "struct" => Token::Struct,
         "enum" => Token::Enum,
         "trait" => Token::Trait,
+        "interface" => Token::Interface,
         "satisfies" => Token::Satisfies,
         "fn" => Token::Fn,
+        "impl" => Token::Impl,
         "import" => Token::Import,
         "as" => Token::As,
         "while" => Token::While,

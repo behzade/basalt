@@ -75,8 +75,8 @@ pub struct OwnedTraitDef {
 
 #[derive(Debug, Clone)]
 pub struct OwnedImplBlock {
-    pub trait_name: String,
     pub target_type: OwnedType,
+    pub interface: Option<Vec<String>>, // optional interface path
     pub methods: Vec<OwnedFunction>,
 }
 
@@ -240,6 +240,8 @@ pub enum OwnedItem {
     Effect(OwnedEffectDef),
     Handler(OwnedHandlerDef),
     Satisfies(OwnedSatisfiesBlock),
+    TypeAlias(OwnedTypeAliasDef),
+    Impl(OwnedImplBlock),
 }
 
 #[derive(Debug, Clone)]
@@ -255,6 +257,23 @@ pub struct OwnedSatisfiesBlock {
     pub methods: Option<Vec<OwnedFunction>>,
 }
 
+pub type OwnedItemWithSpan = Spanned<OwnedItem>;
+
+#[derive(Debug, Clone)]
+pub struct OwnedTypeAliasDef {
+    pub name: String,
+    pub generics: Vec<String>,
+    pub aliased: OwnedTypeAliasBody,
+    pub is_public: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum OwnedTypeAliasBody {
+    Type(OwnedType),
+    Record(Vec<(String, OwnedType)>),
+    Union(Vec<(String, Option<OwnedType>)>),
+}
+
 impl<'src> From<&Function<'src>> for OwnedFunction {
     fn from(func: &Function<'src>) -> Self {
         Self {
@@ -266,7 +285,18 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
                 .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
                 .collect(),
             ret_type: func.ret_type.as_ref().map(|t| t.into()),
-            effects: func.effects.iter().map(|s| s.to_string()).collect(),
+            effects: func
+                .effects
+                .iter()
+                .map(|t| match &t.node {
+                    TypeNode::Path { path, .. } => path
+                        .last()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                    TypeNode::Never => "!".to_string(),
+                    _ => "<effect>".to_string(),
+                })
+                .collect(),
             body: (&func.body).into(),
             is_public: func.is_public,
         }
@@ -285,7 +315,18 @@ impl<'src> From<&Method<'src>> for OwnedMethod {
                 .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
                 .collect(),
             ret_type: method.ret_type.as_ref().map(|ty| ty.into()),
-            effects: method.effects.iter().map(|s| s.to_string()).collect(),
+            effects: method
+                .effects
+                .iter()
+                .map(|t| match &t.node {
+                    TypeNode::Path { path, .. } => path
+                        .last()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                    TypeNode::Never => "!".to_string(),
+                    _ => "<effect>".to_string(),
+                })
+                .collect(),
             body: (&method.body).into(),
             is_public: method.is_public,
         }
@@ -379,7 +420,18 @@ impl<'src> From<&HandlerDef<'src>> for OwnedHandlerDef {
     fn from(handler_def: &HandlerDef<'src>) -> Self {
         Self {
             name: handler_def.name.to_string(),
-            effects: handler_def.effects.iter().map(|s| s.to_string()).collect(),
+            effects: handler_def
+                .effects
+                .iter()
+                .map(|t| match &t.node {
+                    TypeNode::Path { path, .. } => path
+                        .last()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                    TypeNode::Never => "!".to_string(),
+                    _ => "<effect>".to_string(),
+                })
+                .collect(),
             functions: handler_def.functions.iter().map(|f| f.into()).collect(),
             is_public: handler_def.is_public,
         }
@@ -445,13 +497,89 @@ impl<'src> From<&ImportPath<'src>> for OwnedImportPath {
     }
 }
 
+impl<'src> From<&ImplBlock<'src>> for OwnedImplBlock {
+    fn from(imp: &ImplBlock<'src>) -> Self {
+        Self {
+            target_type: (&imp.target_type).into(),
+            interface: imp
+                .interface
+                .as_ref()
+                .map(|p| p.iter().map(|s| s.to_string()).collect()),
+            methods: imp.methods.iter().map(|m| m.into()).collect(),
+        }
+    }
+}
+
+impl<'src> From<&TypeAliasDef<'src>> for OwnedTypeAliasDef {
+    fn from(def: &TypeAliasDef<'src>) -> Self {
+        let aliased = match &def.aliased {
+            TypeAliasBody::Type(t) => OwnedTypeAliasBody::Type(t.into()),
+            TypeAliasBody::Record(fs) => {
+                OwnedTypeAliasBody::Record(fs.iter().map(|(n, t)| (n.to_string(), t.into())).collect())
+            }
+            TypeAliasBody::Union(vs) => OwnedTypeAliasBody::Union(
+                vs.iter()
+                    .map(|(n, ot)| (n.to_string(), ot.as_ref().map(|t| t.into())))
+                    .collect(),
+            ),
+        };
+        Self {
+            name: def.name.to_string(),
+            generics: def.generics.iter().map(|s| s.to_string()).collect(),
+            aliased,
+            is_public: def.is_public,
+        }
+    }
+}
+
+impl<'src> From<&Item<'src>> for OwnedItem {
+    fn from(item: &Item<'src>) -> Self {
+        match &item.node {
+            ItemNode::Stmt(stmt) => OwnedItem::Stmt(stmt.into()),
+            ItemNode::ImportBlock { imports } => OwnedItem::ImportBlock {
+                imports: imports.iter().map(|i| i.into()).collect(),
+            },
+            ItemNode::Fn(f) => OwnedItem::Fn(f.into()),
+            ItemNode::Method(m) => OwnedItem::Method(m.into()),
+            ItemNode::Struct(s) => OwnedItem::Struct(s.into()),
+            ItemNode::Enum(e) => OwnedItem::Enum(e.into()),
+            ItemNode::Trait(t) => OwnedItem::Trait(t.into()),
+            ItemNode::Satisfies(s) => OwnedItem::Satisfies(s.into()),
+            ItemNode::Effect(eff) => OwnedItem::Effect(eff.into()),
+            ItemNode::Handler(h) => OwnedItem::Handler(h.into()),
+            ItemNode::TypeAlias(ta) => OwnedItem::TypeAlias(ta.into()),
+            ItemNode::Impl(imp) => OwnedItem::Impl(imp.into()),
+        }
+    }
+}
+
 impl<'src> From<&Type<'src>> for OwnedType {
     fn from(ty: &Type<'src>) -> Self {
-        // This conversion is recursive but doesn't need to change much,
-        // as the .into() call will correctly resolve to the new From impl for Type.
-        Self {
-            path: ty.node.path.iter().map(|s| s.to_string()).collect(),
-            generics: ty.node.generics.iter().map(|g| g.into()).collect(),
+        match &ty.node {
+            TypeNode::Path { path, generics } => OwnedType {
+                path: path.iter().map(|s| s.to_string()).collect(),
+                generics: generics.iter().map(|g| g.into()).collect(),
+            },
+            TypeNode::Record(_) => OwnedType {
+                path: vec!["record".to_string()],
+                generics: vec![],
+            },
+            TypeNode::Union(_) => OwnedType {
+                path: vec!["union".to_string()],
+                generics: vec![],
+            },
+            TypeNode::Function { .. } => OwnedType {
+                path: vec!["fn".to_string()],
+                generics: vec![],
+            },
+            TypeNode::Handler { .. } => OwnedType {
+                path: vec!["handler".to_string()],
+                generics: vec![],
+            },
+            TypeNode::Never => OwnedType {
+                path: vec!["!".to_string()],
+                generics: vec![],
+            },
         }
     }
 }
@@ -467,6 +595,18 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
                 OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect())
             }
             ExprNode::Path(path) => OwnedExpr::Path(path.iter().map(|s| s.to_string()).collect()),
+            ExprNode::RecordLiteral { fields } => OwnedExpr::Map(
+                fields
+                    .iter()
+                    .map(|(name, expr)| {
+                        let key = Spanned {
+                            item: OwnedExpr::Literal(OwnedLiteral::Str(name.to_string())),
+                            span: expr.span,
+                        };
+                        (key, expr.into())
+                    })
+                    .collect(),
+            ),
             ExprNode::FieldAccess { receiver, field } => OwnedExpr::FieldAccess {
                 receiver: Box::new(receiver.as_ref().into()),
                 field: field.to_string(),
