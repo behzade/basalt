@@ -2,126 +2,97 @@
 import {
     std/os
     std/fmt
+    std/fmt as second_fmt // aliasing. if imports have conflicts, compiler forces you to use an alias
     std/collections/vector
     self/util
 }
 
 // Language targets cranelift ir, variables will immutable by default.
 
-pub Person: struct {
+type Person = {
     name: str,
     age: i32,
 }
+type Company = { 
+    company_id: i32,
+    name: str
+}
+type UserType = B2B(Company) | B2C(Person)
 
-WithAge: interface {
-    get_age: (self) -> i32
-    up_age_by: (mut self, age: i32) -> i32
+interface WithAge = {
+    get_age(self) -> i32
+    up_age_by(mut self, age: i32) -> i32 
 }
 
-Person: impl WithAge {
-    get_age: (self) -> i32 {
-        self.age
-    }
-    // age is mutable if self is mutable
-    up_age_by: (mut self, age: i32) -> i32 {
-        self.age += age
-        return self.age
-    }
+impl Person = {
+    new(name: str, age: i32) -> Person { Person{ name: name, age: age } }
+}
+impl Person: WithAge = {
+    get_age(self) -> i32 { self.age }
+    up_age_by(mut self, n: i32) { self.age <- self.age + n; self.age }
 }
 
-Person: impl {
-    new: (name: str, age: i32) -> Person {
-        Person { name: name, age: age }
-    }
+let mut p2 = Person { name: "behzad", age: 10 }
+
+// currying
+let up_age_by_behzad = up_age_by(p2) // if p2 was not mutable, this would be a compiler error
+
+effect Panic = {
+    panic(msg: str) -> !
 }
 
-// you can do partial application like this
-p2: Person = Person { name: "behzad", age: 10 }
-
-up_age_by_behzad := up_age_by(p2)
-// this results in a function that only has an age argument
-
-Panic: effect {
-    panic: (msg: str) -> !
-}
-
-OsExitPanic: handler Panic {
-    panic: (msg: str) -> ! {
+handler OsExitPanic: Panic = {
+    panic(msg: str) -> ! {
         os.exit(1)
     }
 }
 
-division: (a: i32, b: i32) -> i32 with Panic {
+division(a: i32, b: i32) -> i32 with Panic {
     if b == 0 {
         perform Panic.panic("division by zero")
     }
     a / b
 }
 
-Company: struct {
-    company_id: i32,
-    name: str,
-}
-
-UserType: enum {
-    B2B(Company)
-    B2C(Person)
-}
-
-main: () -> i32 {
+main() -> i32 {
     // does not allow shorthand omitted field names because adding fields to structs is a breaking change
-    mut person: Person = { name: "behzad", age: 10 }
-    age: i32 = person.get_age()
+    let mut person = Person { name: "behzad", age: 10 }
+    let age: i32 = person.get_age()
 
-    user_type: UserType = UserType::B2B(Company { company_id: 1, name: "behzad" })
+    let user_type = B2B(Company { company_id: 1, name: "behzad" })
 
-    match_result: str = match user_type {
-        UserType::B2B(b2b):{
-            fmt.println("B2B")
-            b2b.name
-        }
-        UserType::B2C(b2c):{
-            fmt.println("B2C")
-            b2c.name
-        }
-        _:{
-            fmt.println("unknown")
-        }
-    }
+    let match_result = match user_type
+        | B2B(b2b) -> b2b.name
+        | B2C(b2c) -> b2c.name
+        | _ -> "unknown"
 
-    if_result : i32 = if age > 10 {
+    let if_result = if age > 10 {
         3
     } else {
         4
     }
 
     while age > 10 {
-        age -= 1
+        age <- age - 1
     }
 
-    agev2: i32 = person.get_age()
-
-    block_result: i32 = {
+    let block_result: i32 = {
         a: i32= 1
         b: i32= 2
         a + b
     }
 
-    adder : (a: i32, b: i32) -> i32 { a + b }
+    adder(a: i32, b: i32) -> i32 { a + b }
 
-    out: i32 = division(10, 0) with {OsExitPanic} // panic with exit code 1
-    // if multiple effects are necessary
-    // out: i32= division(10, 0) with {OsExitPanic,ConsoleLogger}
-    // i don't know if overlapping functions should be allowed by handlers of effects
+    let out: i32 = division(10, 0) with {OsExitPanic} // panic with exit code 1
 
-    // type annotation between : and = can be omitted for type inference
-    out2 := division(10, 2) with {OsExitPanic}
+    let out2 = division(10, 2) with {OsExitPanic}
     fmt.println(out2) // prints 5
 }
 
 
 // compile time function execution
-a := meta {
+let a = meta {
     if runtime.is_32bit() {
         4
     } else {
@@ -130,20 +101,20 @@ a := meta {
 }
 
 // embed file in binary in compile time
-configFile := meta std.io.read_file("config.json") // example syntax
+let configFile = meta std.io.read_file("config.json") // example syntax
 
 // -- Effect Definitions --
 // Effects are like interfaces that declare a set of operations.
 
 // The Http effect declares an operation for getting web content.
-Http: effect {
-    get: (url: str) -> str
+effect Http = {
+    get(url: str) -> str
 }
 
 // The Async effect declares an operation to run a task and await its result.
 // This allows a computation to be suspended and resumed later.
-Async: effect<T> {
-    await: (task: () -> T) -> T
+effect Async<T> = {
+    await(task: () -> T) -> T
 }
 
 
@@ -153,12 +124,12 @@ Async: effect<T> {
 // HttpHandler implements the 'Http' effect.
 // It is declared 'with {Async}', meaning its implementation can, in turn,
 // perform 'Async' effects.
-HttpHandler: handler Http with {Async<str>} {
+handler HttpHandler: Http with Async<str> {
     // This provides the implementation for the 'get' operation.
-    get: (url: str) -> str with {Async<str>} {
+    get(url: str) -> str with {Async<str>} {
         // We define the actual work as a lambda function.
         // This function captures the 'url' from its environment.
-        http_task : () -> str {
+        http_task() -> str {
             // In a real-world scenario, this would be a blocking network call.
             // For this example, we'll simulate it by returning a string.
             // We can imagine this is where a library like 'requests.get()' would be called.
@@ -168,25 +139,25 @@ HttpHandler: handler Http with {Async<str>} {
         // Instead of executing the task directly, we 'perform' the 'await' effect.
         // We hand the task over to the Async handler (the Scheduler).
         // The handler will execute the task and resume this function with the result.
-        content := perform Async.await(http_task)
+        let content = perform Async.await(http_task)
         return content
     }
 }
 
 // The Scheduler handler provides the implementation for the 'Async' effect.
 // It controls how asynchronous tasks are executed.
-Scheduler: handler Async<T> {
+handler Scheduler: Async<T> {
     // This provides the implementation for the 'await' operation.
     // The rule "return resumes the calling function" means the value returned
     // by this handler function will be sent back to the site of the 'perform' call.
-    await: (task: () -> T) -> T {
+    await(task: () -> T) -> T {
         // A real scheduler would manage an event loop or a thread pool to run
         // tasks concurrently. It would suspend the current computation, run the
         // task in the background, and resume the computation only when the
         // task is complete.
 
         // For this simplified example, we execute the task immediately.
-        result := task()
+        let result = task()
 
         // Returning the result here resumes the suspended 'HttpHandler.get' function,
         // providing the value of 'content'.
@@ -198,15 +169,15 @@ Scheduler: handler Async<T> {
 // We compose handlers to create a full execution environment.
 // 'AsyncHttpHandler' handles 'Http' effects using 'HttpHandler', and any 'Async'
 // effects performed by 'HttpHandler' are then handled by the 'Scheduler'.
-AsyncHttpHandler := HttpHandler with {Scheduler}
+let AsyncHttpHandler = HttpHandler with {Scheduler}
 
 
 // -- Main Program Logic --
 // This function uses the 'Http' effect but is unaware of the async implementation.
-fetch_content_size: (url: str) -> i32 with {Http} {
+fetch_content_size(url: str) -> i32 with {Http} {
     // 'perform' invokes an effect operation. Control is transferred to the
     // currently active handler for the 'Http' effect.
-    content := perform Http.get(url)
+    let content = perform Http.get(url)
     return content.len()
 }
 
