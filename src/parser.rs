@@ -8,7 +8,7 @@ use crate::ast::*;
 use crate::token::{SimpleSpan, Token};
 
 fn trivia<'src>() -> impl Parser<'src, &'src [Token<'src>], (), extra::Err<Rich<'src, Token<'src>>>> {
-    select! { Token::Comment(_) => () }.repeated().ignored()
+    select! { Token::Comment(_) => (), Token::Semicolon => () }.repeated().ignored()
 }
 
 fn spanned<'src, T>(
@@ -173,6 +173,51 @@ fn expression_bundle<'src>() -> (
     ))
     .boxed();
 
+    // if / while / match expressions
+    let if_expr = just(Token::If)
+        .ignore_then(expr.clone())
+        .then(block.clone())
+        .then(just(Token::Else).ignore_then(block.clone()).or_not())
+        .map_with(|((cond, then_block), else_block), e| Spanned { node: ExprNode::If { cond: Box::new(cond), then_block: Box::new(then_block), else_block: else_block.map(Box::new) }, span: e.span() });
+
+    let while_expr = just(Token::While)
+        .ignore_then(expr.clone())
+        .then(block.clone())
+        .map_with(|(cond, body), e| Spanned { node: ExprNode::While { cond: Box::new(cond), body: Box::new(body) }, span: e.span() });
+
+    // pattern parser for match arms
+    let mut pat_rec = Recursive::declare();
+    let wildcard = select! { Token::Ident(s) if s == "_" => () }.to(PatternNode::Wildcard).map_with(|n, e| Spanned { node: n, span: e.span() });
+    let lit_pat = choice((
+        select! { Token::I64(n) => Literal::I64(n) },
+        select! { Token::F64(n) => Literal::F64(n) },
+        select! { Token::Bool(b) => Literal::Bool(b) },
+        select! { Token::Str(s) => Literal::Str(s) },
+    ))
+    .map(|l| PatternNode::Literal(l))
+    .map_with(|n, e| Spanned { node: n, span: e.span() });
+
+    let variant_pat = ident()
+        .then(pat_rec.clone().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LParen), just(Token::RParen)))
+        .map(|(name, args)| PatternNode::Path { path: vec![name], args })
+        .map_with(|n, e| Spanned { node: n, span: e.span() });
+
+    let ident_pat = ident()
+        .map(|n| PatternNode::Identifier(n))
+        .map_with(|n, e| Spanned { node: n, span: e.span() });
+
+    pat_rec.define(choice((wildcard, lit_pat, variant_pat, ident_pat)).boxed());
+
+    let arm = select! { Token::Op(op) if op == "|" => () }
+        .ignore_then(pat_rec.clone())
+        .then_ignore(just(Token::Arrow))
+        .then(expr.clone());
+
+    let match_expr = just(Token::Match)
+        .ignore_then(expr.clone())
+        .then(arm.repeated().at_least(1).collect::<Vec<_>>())
+        .map_with(|(scrutinee, arms), e| Spanned { node: ExprNode::Match { scrutinee: Box::new(scrutinee), arms }, span: e.span() });
+
     let call_args = expr
         .clone()
         .separated_by(just(Token::Comma))
@@ -180,7 +225,7 @@ fn expression_bundle<'src>() -> (
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
-    let expr_p = atom
+    let expr_p = choice((if_expr, while_expr, match_expr, atom.clone()))
                 .clone()
         .pratt((
             postfix(
@@ -304,6 +349,13 @@ fn expression_bundle<'src>() -> (
         .then(expr.clone())
         .map_with(|(((is_mut, name), ty), value), e| Spanned { node: StmtNode::Let { is_mut: is_mut.is_some(), name, ty, value }, span: e.span() });
 
+    // shorthand typed init: name: Type = expr
+    let typed_init = ident()
+        .then(just(Token::Colon).ignore_then(type_parser()))
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(expr.clone())
+        .map_with(|((name, ty), value), e| Spanned { node: StmtNode::Let { is_mut: false, name, ty: Some(ty), value }, span: e.span() });
+
     // assignment: simple lhs (path with optional .field chain) <- expr
     let lhs = path()
         .map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() })
@@ -321,7 +373,16 @@ fn expression_bundle<'src>() -> (
 
     let expr_stmt = expr.clone().map_with(|e1, e| Spanned { node: StmtNode::Expr(e1), span: e.span() });
 
-    let stmt_p = choice((let_decl, assign, ret_stmt, expr_stmt)).labelled("statement").boxed();
+    // Allow `fn` inside blocks as a local function declaration (treated as no-op for now)
+    let local_fn_stmt = just(Token::Fn)
+        .ignore_then(ident())
+        .then(params_parser())
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+        .then(with_types(|| type_parser()))
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
+        .then(block.clone())
+        .map_with(|_, e| Spanned { node: StmtNode::Expr(Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() }), span: e.span() });
+    let stmt_p = choice((local_fn_stmt, let_decl, typed_init, assign, ret_stmt, expr_stmt)).labelled("statement").boxed();
 
     expr.define(expr_p.clone());
     stmt.define(stmt_p);
@@ -355,13 +416,21 @@ fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src
 
 fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ty = type_parser();
-    let op = just(Token::Fn)
-        .ignore_then(ident())
+    let op = ident()
         .then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()))
         .map(|((name, params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public: true });
     just(Token::Effect)
-        .ignore_then(ident())
+        .ignore_then(
+            ident().then(
+                select! { Token::Op(op) if op == "<" => () }
+                    .ignore_then(ident().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>())
+                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
+                    .or_not()
+                    .ignored()
+            ).map(|(name, _)| name)
+        )
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(op.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
         .map(|(name, operations)| EffectDef { name, operations, is_public: true })
 }
@@ -371,18 +440,29 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
     let fndef = fn_def_parser();
     let effects = just(Token::Colon)
         .ignore_then(type_parser())
-         .then(with_types(|| type_parser()))
+        .then(with_types(|| type_parser()))
         .map(|(primary, mut rest)| { let mut v = vec![primary]; v.append(&mut rest); v });
+    // Handler supports either '= { ... }' or inline '{ ... }' as in tests
+    let make_block = || fn_def_parser().repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace));
     just(Token::Handler)
         .ignore_then(ident())
         .then(effects)
-        .then(fndef.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .then(
+            choice((
+                make_block(),
+                just(Token::Op("=".to_string())).ignore_then(make_block()),
+            )),
+        )
         .map(|((name, effects), functions)| HandlerDef { name, effects, functions, is_public: true })
 }
 
 fn interface_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ty = type_parser();
-    let param = ident().then(just(Token::Colon).ignore_then(type_parser()).or_not()).map(|(n, t)| (Some(n), t.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![n], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } })));
+    let param = just(Token::Mut)
+        .or_not()
+        .ignore_then(ident())
+        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
+        .map(|(n, t)| (Some(n), t.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![n], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } })));
     let sig = ident()
         .then(param.separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LParen), just(Token::RParen)))
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
