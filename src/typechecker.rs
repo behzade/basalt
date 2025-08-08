@@ -917,7 +917,7 @@ impl Typechecker {
                                 format!("{:?}", resolved_ty).fg(Color::Green),
                                             format!("{:?}", lowered.ty).fg(Color::Red)
                             ),
-                            context: context.clone(),
+                            context: ItemContext { span: stmt.span, path: context.path.clone() },
                         });
                     }
                             }
@@ -947,7 +947,7 @@ impl Typechecker {
                             "Assignment type mismatch: lhs={:?}, rhs={:?}",
                             lhs_hir.ty, rhs_hir.ty
                         ),
-                    context: context.clone(),
+                    context: ItemContext { span: stmt.span, path: context.path.clone() },
                 });
                 }
                 Ok(hir::Stmt::Assign(lhs_hir, rhs_hir))
@@ -969,7 +969,7 @@ impl Typechecker {
                                 "Return type mismatch: expected {:?}, found {:?}",
                                 expected, actual
                             ),
-                            context: context.clone(),
+                            context: ItemContext { span: stmt.span, path: context.path.clone() },
                         });
                     }
                 }
