@@ -59,6 +59,55 @@ pub struct ItemContext {
 }
 
 impl Typechecker {
+    fn format_ty(ty: &hir::Ty) -> String {
+        use hir::*;
+        match ty {
+            Ty::Special(SpecialTy::Unit) => "()".to_string(),
+            Ty::Special(SpecialTy::Never) => "!".to_string(),
+            Ty::Special(SpecialTy::SelfType) => "Self".to_string(),
+            Ty::Primitive(PrimitiveTy::Bool) => "bool".to_string(),
+            Ty::Primitive(PrimitiveTy::Byte) => "byte".to_string(),
+            Ty::Primitive(PrimitiveTy::I32) => "i32".to_string(),
+            Ty::Primitive(PrimitiveTy::I64) => "i64".to_string(),
+            Ty::Primitive(PrimitiveTy::F64) => "f64".to_string(),
+            Ty::Primitive(PrimitiveTy::Str) => "str".to_string(),
+            Ty::Array(elem) => format!("[{}]", Self::format_ty(elem)),
+            Ty::Map { key, value } => {
+                let key_str = match **key {
+                    PrimitiveTy::Bool => "bool",
+                    PrimitiveTy::Byte => "byte",
+                    PrimitiveTy::I32 => "i32",
+                    PrimitiveTy::I64 => "i64",
+                    PrimitiveTy::F64 => "f64",
+                    PrimitiveTy::Str => "str",
+                };
+                format!("Map<{}, {}>", key_str, Self::format_ty(value))
+            }
+            Ty::Function { param_types, ret_type, effects } => {
+                let params = param_types.iter().map(Self::format_ty).collect::<Vec<_>>().join(", ");
+                let eff = if effects.is_empty() {
+                    String::new()
+                } else {
+                    let e = effects.iter().map(Self::format_ty).collect::<Vec<_>>().join(", ");
+                    format!(" with {{ {} }}", e)
+                };
+                format!("fn({}) -> {}{}", params, Self::format_ty(ret_type), eff)
+            }
+            Ty::Generic(name) => name.clone(),
+            Ty::Adt(AdtTy::Struct { name, generics })
+            | Ty::Adt(AdtTy::Enum { name, generics })
+            | Ty::Adt(AdtTy::Trait { name, generics })
+            | Ty::Adt(AdtTy::Effect { name, generics }) => {
+                let path = name.join("::");
+                if generics.is_empty() {
+                    path
+                } else {
+                    let gs = generics.iter().map(Self::format_ty).collect::<Vec<_>>().join(", ");
+                    format!("{}<{}>", path, gs)
+                }
+            }
+        }
+    }
     pub fn check_program(
         &mut self,
         files: HashMap<PathBuf, Vec<OwnedItemWithSpan>>,
@@ -181,8 +230,8 @@ impl Typechecker {
                         message: format!(
                             "Mismatched return type for function '{}': expected {} but found {}",
                             func.name,
-                            format!("{:?}", signature.ret_type).fg(Color::Green),
-                            format!("{:?}", block.ty).fg(Color::Red)
+                            Typechecker::format_ty(&signature.ret_type),
+                            Typechecker::format_ty(&block.ty)
                         ),
                         context: context.clone(),
                     });
@@ -369,8 +418,8 @@ impl Typechecker {
                     self.errors.push(TypeError {
                         message: format!(
                             "Binary operation between mismatched types: expected {} but found {}",
-                            format!("{:?}", hir_lhs.ty).fg(Color::Green),
-                            format!("{:?}", hir_rhs.ty).fg(Color::Red)
+                            Typechecker::format_ty(&hir_lhs.ty),
+                            Typechecker::format_ty(&hir_rhs.ty)
                         ),
                         context: context.clone(),
                     });
@@ -450,12 +499,12 @@ impl Typechecker {
                                 let arg_expr = self.lower_expr(arg, context.clone())?;
                                 if let Some((_, expected)) = signature.params.get(idx) {
                                     if &arg_expr.ty != expected {
-                                        self.errors.push(TypeError {
+                        self.errors.push(TypeError {
                                             message: format!(
                                                 "Argument {} type mismatch: expected {:?}, found {:?}",
                                                 idx + 1,
-                                                expected,
-                                                arg_expr.ty
+                                Typechecker::format_ty(expected),
+                                Typechecker::format_ty(&arg_expr.ty)
                                             ),
                                             context: context.clone(),
                                         });
@@ -579,15 +628,15 @@ impl Typechecker {
                             let arg_expr = self.lower_expr(arg, context.clone())?;
                             if let Some(expected) = params.get(idx) {
                                 if &arg_expr.ty != expected {
-                                    self.errors.push(TypeError {
-                                        message: format!(
-                                            "Argument {} type mismatch: expected {:?}, found {:?}",
-                                            idx + 1,
-                                            expected,
-                                            arg_expr.ty
-                                        ),
-                                        context: context.clone(),
-                                    });
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Argument {} type mismatch: expected {}, found {}",
+                                        idx + 1,
+                                        Typechecker::format_ty(expected),
+                                        Typechecker::format_ty(&arg_expr.ty)
+                                    ),
+                                    context: context.clone(),
+                                });
                                 }
                             }
                             lowered_args.push(arg_expr);
@@ -914,8 +963,8 @@ impl Typechecker {
                             message: format!(
                                 "Mismatched types for variable '{}': expected {} but found {}",
                                 name,
-                                format!("{:?}", resolved_ty).fg(Color::Green),
-                                            format!("{:?}", lowered.ty).fg(Color::Red)
+                                Typechecker::format_ty(&resolved_ty),
+                                Typechecker::format_ty(&lowered.ty)
                             ),
                             context: ItemContext { span: stmt.span, path: context.path.clone() },
                         });
