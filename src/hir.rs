@@ -73,6 +73,7 @@ pub enum Item {
     Trait(HirTraitDef),
     Effect(HirEffectDef),
     Impl(HirImplBlock),
+    Handler(HirHandlerDef),
     // Note: Imports, externs, etc., are often resolved before HIR generation.
 }
 
@@ -130,6 +131,14 @@ pub struct HirImplBlock {
 pub struct HirEffectDef {
     pub name: String,
     pub operations: Vec<HirFunctionSignature>,
+    pub is_public: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirHandlerDef {
+    pub name: String,
+    pub effects: Vec<Ty>,
+    pub functions: Vec<HirFunction>,
     pub is_public: bool,
 }
 

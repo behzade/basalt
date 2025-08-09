@@ -237,6 +237,12 @@ impl Typechecker {
                     ItemContext { span: item.span, path },
                 )
                 .map(hir::Item::Impl),
+            OwnedItem::Handler(h) => self
+                .lower_handler(
+                    h,
+                    ItemContext { span: item.span, path },
+                )
+                .map(hir::Item::Handler),
             // Skip traits/impls/effects/handlers/methods for this milestone
             _ => Err(()),
         }
@@ -1351,6 +1357,28 @@ impl Typechecker {
             methods.push(self.lower_function(f, context.clone())?);
         }
         Ok(hir::HirImplBlock { trait_path, target_type, methods })
+    }
+
+    fn lower_handler(
+        &mut self,
+        h: OwnedHandlerDef,
+        context: ItemContext,
+    ) -> Result<hir::HirHandlerDef, ()> {
+        // Convert effect names to canonical types when possible; unknowns become Generic placeholders
+        let mut effects: Vec<hir::Ty> = Vec::new();
+        for eff_name in &h.effects {
+            let path = vec![eff_name.clone()];
+            if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
+                effects.push(hir::Ty::Adt(hir::AdtTy::Effect { name: path, generics: vec![] }));
+            } else {
+                effects.push(hir::Ty::Generic(eff_name.clone()));
+            }
+        }
+        let mut functions = Vec::new();
+        for f in h.functions {
+            functions.push(self.lower_function(f, context.clone())?);
+        }
+        Ok(hir::HirHandlerDef { name: h.name, effects, functions, is_public: h.is_public })
     }
 
     //================================================================================//
