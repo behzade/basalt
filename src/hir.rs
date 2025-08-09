@@ -134,7 +134,7 @@ pub struct HirEffectDef {
 pub enum Stmt {
     Let {
         name: String,
-        value: Expr,
+        value: Option<Expr>,
         ty: Ty, // Type is resolved and non-optional
         is_mut: bool,
     },

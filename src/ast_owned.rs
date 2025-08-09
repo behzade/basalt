@@ -183,7 +183,7 @@ pub enum OwnedStmt {
         is_mut: bool,
         name: String,
         ty: Option<OwnedType>,
-        value: SpannedExpr, // UPDATED
+        value: Option<SpannedExpr>, // UPDATED
     },
     Return(Option<SpannedExpr>),      // UPDATED
     Assign(SpannedExpr, SpannedExpr), // UPDATED
@@ -694,7 +694,7 @@ impl<'src> From<&Stmt<'src>> for SpannedStmt {
                 is_mut: *is_mut,
                 name: name.to_string(),
                 ty: ty.as_ref().map(|t| t.into()),
-                value: value.into(),
+                value: value.as_ref().map(|v| v.into()),
             },
             StmtNode::Return(expr) => OwnedStmt::Return(expr.as_ref().map(|e| e.into())),
             StmtNode::Assign(lhs, rhs) => OwnedStmt::Assign(lhs.into(), rhs.into()),
