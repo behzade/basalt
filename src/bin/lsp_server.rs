@@ -206,6 +206,38 @@ impl Backend {
         map.entry(path.to_path_buf()).or_default().push(diag);
     }
 
+    fn list_module_targets(dir: &Path) -> Vec<PathBuf> {
+        let mut targets: Vec<PathBuf> = Vec::new();
+        if !dir.exists() || !dir.is_dir() {
+            return targets;
+        }
+        let mut bst_files: Vec<PathBuf> = fs::read_dir(dir)
+            .ok()
+            .into_iter()
+            .flat_map(|rd| rd.filter_map(|e| e.ok()))
+            .map(|e| e.path())
+            .filter(|p| p.is_file() && p.extension().and_then(|s| s.to_str()) == Some("bst"))
+            .collect();
+        bst_files.sort();
+        let prefer = ["mod.bst", "index.bst", "main.bst"];
+        for name in &prefer {
+            let candidate = dir.join(name);
+            if bst_files.iter().any(|p| p == &candidate) {
+                // Return canonical path if possible
+                return vec![fs::canonicalize(&candidate).unwrap_or(candidate)];
+            }
+        }
+        if bst_files.len() == 1 {
+            let only = bst_files.remove(0);
+            return vec![fs::canonicalize(&only).unwrap_or(only)];
+        }
+        // Canonicalize all; if any fail, keep as-is
+        bst_files
+            .into_iter()
+            .map(|p| fs::canonicalize(&p).unwrap_or(p))
+            .collect()
+    }
+
     fn analyze(&self, entry_path: &Path, entry_text: &str) -> AnalysisResult {
         let mut sources: HashMap<PathBuf, String> = HashMap::new();
         let mut ast: HashMap<PathBuf, Vec<OwnedSpanned<OwnedItem>>> = HashMap::new();
@@ -629,7 +661,52 @@ impl LanguageServer for Backend {
         let analysis = match analysis_map.get(&path) { Some(a) => a.clone(), None => return Ok(None) };
         drop(analysis_map);
 
-        if let Some((name, _span)) = Self::ident_at(&text, pos_params.position) {
+        // Map cursor position to token index for containment checks
+        let char_offset = Self::position_to_offset(&text, pos_params.position);
+        let token_index_opt = analysis
+            .token_spans
+            .get(&path)
+            .and_then(|spans| spans.iter().position(|s| s.start <= char_offset && char_offset < s.end));
+
+        if let Some((name, id_span)) = Self::ident_at(&text, pos_params.position) {
+            // First, handle import-context navigation
+            if let Some(tok_idx) = token_index_opt {
+                if let Some(items) = analysis.ast.get(&path) {
+                    // Find import block containing this token index
+                    if let Some(import_item) = items.iter().find(|it| matches!(it.item, OwnedItem::ImportBlock { .. }) && it.span.start <= tok_idx && tok_idx < it.span.end) {
+                        if let OwnedItem::ImportBlock { imports } = &import_item.item {
+                            let mut locations: Vec<lsp::Location> = Vec::new();
+                            for imp in imports {
+                                if let Some(pos_in_path) = imp.path.iter().position(|seg| seg == &name) {
+                                    let prefix: Vec<String> = imp.path.iter().take(pos_in_path + 1).cloned().collect();
+                                    if let Some(dir) = Self::resolve_module_dir_path(&prefix) {
+                                        let targets = Self::list_module_targets(&dir);
+                                        for t in targets {
+                                            // Ensure absolute file URI; skip if cannot construct
+                                            let uri = match lsp::Url::from_file_path(&t) {
+                                                Ok(u) => u,
+                                                Err(_) => continue,
+                                            };
+                                            // Jump to start of file
+                                            let range = lsp::Range { start: lsp::Position { line: 0, character: 0 }, end: lsp::Position { line: 0, character: 0 } };
+                                            locations.push(lsp::Location { uri, range });
+                                        }
+                                    }
+                                }
+                            }
+                            if !locations.is_empty() {
+                                return Ok(Some(if locations.len() == 1 {
+                                    lsp::GotoDefinitionResponse::Scalar(locations.remove(0))
+                                } else {
+                                    lsp::GotoDefinitionResponse::Array(locations)
+                                }));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback to symbol-based navigation
             if let Some(def) = analysis.index.functions.get(&name) {
                 if let Some(src_text) = analysis.sources.get(&def.path) {
                     let range = Self::simple_span_to_range(src_text, def.span);
