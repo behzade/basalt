@@ -9,7 +9,7 @@ type Person = {
 }
 
 impl Person = {
-    fn new(name: str, age: i32) -> Person = { { name: name, age: age } }
+    fn new(name: str, age: i32) -> Person = {{ name: name, age: age } }
 }
 
 impl Person: WithAge = {

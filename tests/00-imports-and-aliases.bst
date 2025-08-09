@@ -1,9 +1,7 @@
 import {
-    std/os
     std/fmt
+    std/io
     std/fmt as second_fmt
-    std/collections/vector
-    self/util
 }
 
 fn main() -> i32 = {
