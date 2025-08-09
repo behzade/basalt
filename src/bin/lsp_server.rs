@@ -42,6 +42,12 @@ struct TopLevelIndex {
     union_variants: HashMap<String, (PathBuf, SimpleSpan)>,
     // module name (alias or last segment) -> (file path, name span in import block, full path segments)
     modules: HashMap<String, (PathBuf, SimpleSpan, Vec<String>)>,
+    // trait/interface names
+    traits: HashMap<String, (PathBuf, SimpleSpan)>,
+    // method name -> possibly multiple definitions (impls on different types)
+    methods: HashMap<String, Vec<DefInfo>>,
+    // per-file local variable definitions: name -> span
+    locals_by_file: HashMap<PathBuf, HashMap<String, SimpleSpan>>, 
 }
 
 #[derive(Default, Clone)]
@@ -477,9 +483,15 @@ impl Backend {
         let mut index = TopLevelIndex::default();
         // Map function name -> signature from HIR
         let mut fn_sigs: HashMap<String, HirFunctionSignature> = HashMap::new();
+        // Map method name -> signatures (there can be multiple)
+        let mut method_sigs: HashMap<String, Vec<HirFunctionSignature>> = HashMap::new();
         for item in &hir {
             if let HirItem::Fn(f) = item {
                 fn_sigs.insert(f.signature.name.clone(), f.signature.clone());
+            } else if let HirItem::Impl(imp) = item {
+                for m in &imp.methods {
+                    method_sigs.entry(m.signature.name.clone()).or_default().push(m.signature.clone());
+                }
             }
         }
         // Helper to find a specific identifier token span in the token list within a given token range
@@ -514,6 +526,11 @@ impl Backend {
                             f.name.clone(),
                             DefInfo { path: file.clone(), span: name_span, signature: sig },
                         );
+                        // Walk body to collect local variables
+                        let locals = index.locals_by_file.entry(file.clone()).or_default();
+                        if let Some(tokens) = token_cache.get(file) {
+                            Self::collect_locals_in_expr(&f.body, tokens, locals);
+                        }
                     }
                     OwnedItem::TypeAlias(ta) => {
                         // Prefer the span of the alias name token
@@ -530,6 +547,35 @@ impl Backend {
                                     .and_then(|toks| find_ident_span(toks, it.span, vname))
                                     .unwrap_or(it.span);
                                 index.union_variants.insert(vname.clone(), (file.clone(), v_span));
+                            }
+                        }
+                    }
+                    OwnedItem::Trait(tr) => {
+                        // Trait/interface indexing
+                        let name_span = token_cache
+                            .get(file)
+                            .and_then(|toks| find_ident_span(toks, it.span, &tr.name))
+                            .unwrap_or(it.span);
+                        index.traits.insert(tr.name.clone(), (file.clone(), name_span));
+                    }
+                    OwnedItem::Impl(imp) => {
+                        // Index methods inside impl blocks
+                        for m in &imp.methods {
+                            let sig_opt = method_sigs.get(&m.name).and_then(|v| v.first()).cloned();
+                            let name_span = token_cache
+                                .get(file)
+                                .and_then(|toks| find_ident_span(toks, it.span, &m.name))
+                                .unwrap_or(it.span);
+                            index
+                                .methods
+                                .entry(m.name.clone())
+                                .or_default()
+                                .push(DefInfo { path: file.clone(), span: name_span, signature: sig_opt });
+
+                            // Collect locals from each method body
+                            let locals = index.locals_by_file.entry(file.clone()).or_default();
+                            if let Some(tokens) = token_cache.get(file) {
+                                Self::collect_locals_in_expr(&m.body, tokens, locals);
                             }
                         }
                     }
@@ -554,6 +600,84 @@ impl Backend {
         }
 
         AnalysisResult { sources, ast, hir, diagnostics, index, token_spans: token_spans_map }
+    }
+
+    fn collect_locals_in_expr(
+        expr: &ast_owned::Spanned<ast_owned::OwnedExpr>,
+        tokens: &[(Token<'static>, SimpleSpan)],
+        locals_out: &mut HashMap<String, SimpleSpan>,
+    ) {
+        use ast_owned::OwnedExpr as OE;
+        use ast_owned::OwnedStmt as OS;
+        match &expr.item {
+            OE::Block { stmts, last_expr } => {
+                for s in stmts {
+                    match &s.item {
+                        OS::Let { name, .. } => {
+                            if let Some(sp) = Self::find_ident_in_span(tokens, s.span, name) {
+                                locals_out.insert(name.clone(), sp);
+                            }
+                        }
+                        OS::Assign(l, r) => {
+                            Self::collect_locals_in_expr(l, tokens, locals_out);
+                            Self::collect_locals_in_expr(r, tokens, locals_out);
+                        }
+                        OS::Return(eopt) => {
+                            if let Some(e) = eopt { Self::collect_locals_in_expr(e, tokens, locals_out); }
+                        }
+                        OS::Expr(e) => Self::collect_locals_in_expr(e, tokens, locals_out),
+                        OS::Error => {}
+                    }
+                }
+                if let Some(le) = last_expr { Self::collect_locals_in_expr(le, tokens, locals_out); }
+            }
+            OE::Unary { rhs, .. } => Self::collect_locals_in_expr(rhs, tokens, locals_out),
+            OE::Binary { lhs, rhs, .. } => {
+                Self::collect_locals_in_expr(lhs, tokens, locals_out);
+                Self::collect_locals_in_expr(rhs, tokens, locals_out);
+            }
+            OE::FieldAccess { receiver, .. } => Self::collect_locals_in_expr(receiver, tokens, locals_out),
+            OE::Call { fun, args } => {
+                Self::collect_locals_in_expr(fun, tokens, locals_out);
+                for a in args { Self::collect_locals_in_expr(a, tokens, locals_out); }
+            }
+            OE::If { cond, then_block, else_block } => {
+                Self::collect_locals_in_expr(cond, tokens, locals_out);
+                Self::collect_locals_in_expr(then_block, tokens, locals_out);
+                if let Some(e) = else_block { Self::collect_locals_in_expr(e, tokens, locals_out); }
+            }
+            OE::While { cond, body } => {
+                Self::collect_locals_in_expr(cond, tokens, locals_out);
+                Self::collect_locals_in_expr(body, tokens, locals_out);
+            }
+            OE::Match { scrutinee, arms } => {
+                Self::collect_locals_in_expr(scrutinee, tokens, locals_out);
+                for (_pat, arm) in arms { Self::collect_locals_in_expr(arm, tokens, locals_out); }
+            }
+            OE::Handle { body, .. } => Self::collect_locals_in_expr(body, tokens, locals_out),
+            OE::Cast { expr, .. } => Self::collect_locals_in_expr(expr, tokens, locals_out),
+            OE::StructInit { fields, .. } => {
+                for (_n, e) in fields { Self::collect_locals_in_expr(e, tokens, locals_out); }
+            }
+            OE::Array(elems) => { for e in elems { Self::collect_locals_in_expr(e, tokens, locals_out); } }
+            OE::Map(entries) => { for (_k, v) in entries { Self::collect_locals_in_expr(v, tokens, locals_out); } }
+            OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
+        }
+    }
+
+    fn find_ident_in_span(
+        tokens: &[(Token<'static>, SimpleSpan)],
+        item_span: SimpleSpan,
+        ident: &str,
+    ) -> Option<SimpleSpan> {
+        let start = item_span.start;
+        let end = item_span.end.min(tokens.len());
+        for i in start..end {
+            if let Token::Ident(s) = tokens[i].0 {
+                if s == ident { return Some(tokens[i].1); }
+            }
+        }
+        None
     }
 
     async fn reanalyze_and_publish(&self, root_path: PathBuf, text: String) {
@@ -643,6 +767,14 @@ impl LanguageServer for Backend {
                 });
                 return Ok(Some(lsp::Hover { contents, range: None }));
             }
+            // Trait hover
+            if let Some((_p, _s)) = analysis.index.traits.get(&name) {
+                let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
+                    kind: lsp::MarkupKind::PlainText,
+                    value: format!("interface {}", name),
+                });
+                return Ok(Some(lsp::Hover { contents, range: None }));
+            }
             if let Some(def) = analysis.index.functions.get(&name) {
                 if let Some(sig) = &def.signature {
                     let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
@@ -654,6 +786,22 @@ impl LanguageServer for Backend {
                     let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
                         kind: lsp::MarkupKind::PlainText,
                         value: format!("fn {}(..)", name),
+                    });
+                    return Ok(Some(lsp::Hover { contents, range: None }));
+                }
+            }
+            // Method hover
+            if let Some(defs) = analysis.index.methods.get(&name) {
+                if let Some(sig) = defs.iter().find_map(|d| d.signature.clone()) {
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
+                        kind: lsp::MarkupKind::PlainText,
+                        value: Self::build_signature_string(&sig),
+                    });
+                    return Ok(Some(lsp::Hover { contents, range: None }));
+                } else {
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
+                        kind: lsp::MarkupKind::PlainText,
+                        value: format!("method {}(..)", name),
                     });
                     return Ok(Some(lsp::Hover { contents, range: None }));
                 }
@@ -671,6 +819,16 @@ impl LanguageServer for Backend {
                     value: format!("variant {}", name),
                 });
                 return Ok(Some(lsp::Hover { contents, range: None }));
+            }
+            // Local variable hover
+            if let Some(locals) = analysis.index.locals_by_file.get(&path) {
+                if locals.contains_key(&name) {
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
+                        kind: lsp::MarkupKind::PlainText,
+                        value: format!("let {}", name),
+                    });
+                    return Ok(Some(lsp::Hover { contents, range: None }));
+                }
             }
         }
 
@@ -747,6 +905,13 @@ impl LanguageServer for Backend {
                     return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
                 }
             }
+            if let Some((p, s)) = analysis.index.traits.get(&name) {
+                if let Some(src_text) = analysis.sources.get(p) {
+                    let range = Self::simple_span_to_range(src_text, *s);
+                    let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
+                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                }
+            }
             if let Some((p, s)) = analysis.index.type_aliases.get(&name) {
                 if let Some(src_text) = analysis.sources.get(p) {
                     let range = Self::simple_span_to_range(src_text, *s);
@@ -759,6 +924,29 @@ impl LanguageServer for Backend {
                     let range = Self::simple_span_to_range(src_text, *s);
                     let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
                     return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                }
+            }
+            if let Some(defs) = analysis.index.methods.get(&name) {
+                // If multiple, return all
+                let mut locs: Vec<lsp::Location> = Vec::new();
+                for d in defs {
+                    if let Some(src_text) = analysis.sources.get(&d.path) {
+                        let range = Self::simple_span_to_range(src_text, d.span);
+                        let uri = match lsp::Url::from_file_path(&d.path) { Ok(u) => u, Err(_) => continue };
+                        locs.push(lsp::Location { uri, range });
+                    }
+                }
+                if !locs.is_empty() {
+                    return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
+                }
+            }
+            if let Some(locals) = analysis.index.locals_by_file.get(&path) {
+                if let Some(sp) = locals.get(&name) {
+                    if let Some(src_text) = analysis.sources.get(&path) {
+                        let range = Self::simple_span_to_range(src_text, *sp);
+                        let loc = lsp::Location { uri: lsp::Url::from_file_path(&path).unwrap(), range };
+                        return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                    }
                 }
             }
         }
