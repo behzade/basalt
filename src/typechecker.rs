@@ -63,6 +63,10 @@ pub struct Typechecker {
 
     /// Top-level value functions by simple name. Ambiguities are not handled here yet.
     top_level_functions: HashMap<String, (hir::HirFunctionSignature, bool, PathBuf)>,
+
+    /// Inherent and trait methods registered via impl blocks, keyed by nominal type path.
+    /// For now we only support inherent methods on nominal types without generics.
+    impl_methods: HashMap<hir::OwnedPath, HashMap<String, (hir::HirFunctionSignature, bool, PathBuf)>>,
 }
 
 #[derive(Debug, Clone)]
@@ -167,12 +171,24 @@ impl Typechecker {
         }
 
         let mut hir_items: Vec<hir::Item> = Vec::new();
-        for file in &files {
-            hir_items.extend(
-                file.1
-                    .iter()
-                    .filter_map(|item| self.lower_item(item.clone(), file.0.to_path_buf()).ok()),
-            );
+        for (path, items) in &files {
+            for item in items {
+                if let Ok(it) = self.lower_item(item.clone(), path.clone()) {
+                    // Capture impl methods for method lookup later
+                    if let hir::Item::Impl(impl_block) = &it {
+                        if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &impl_block.target_type {
+                            let entry = self.impl_methods.entry(name.clone()).or_default();
+                            for f in &impl_block.methods {
+                                entry.insert(
+                                    f.signature.name.clone(),
+                                    (f.signature.clone(), f.is_public, path.clone()),
+                                );
+                            }
+                        }
+                    }
+                    hir_items.push(it);
+                }
+            }
         }
 
         if self.errors.is_empty() {
@@ -591,8 +607,35 @@ impl Typechecker {
                     }
                 }
 
-                // Default behavior: lower receiver and attempt struct field access
+                // Default behavior: lower receiver and try method lookup on impls or struct field
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
+                // 1) Method lookup: if receiver is nominal ADT, check impl_methods
+                if let hir::Ty::Adt(adt) = &recv_hir.ty {
+                    let type_name: Option<&hir::OwnedPath> = match adt {
+                        hir::AdtTy::Struct { name, .. } | hir::AdtTy::Enum { name, .. } => Some(name),
+                        _ => None,
+                    };
+                    if let Some(name) = type_name {
+                        if let Some(methods) = self.impl_methods.get(name) {
+                            if let Some((sig, is_public, defined_in)) = methods.get(&field).cloned() {
+                                if !is_public && defined_in != context.path {
+                                    self.errors.push(TypeError { message: format!("Method `{}` is private", field), context: context.clone() });
+                                    return Err(());
+                                }
+                                // Method value is a function; receiver will need to be passed explicitly by callers later
+                                return Ok(hir::Expr {
+                                    kind: hir::ExprKind::Path(vec![field.clone()]),
+                                    ty: hir::Ty::Function {
+                                        param_types: sig.params.iter().map(|(_, t)| t.clone()).collect(),
+                                        ret_type: Box::new(sig.ret_type.clone()),
+                                        effects: sig.effects.clone(),
+                                    },
+                                });
+                            }
+                        }
+                    }
+                }
+                // 2) Struct field access
                 if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = recv_hir.ty.clone() {
                     if let Some(ty) = self.lookup_struct_field_type(&name, &field).cloned() {
                         return Ok(hir::Expr {
