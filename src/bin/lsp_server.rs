@@ -40,6 +40,8 @@ struct TopLevelIndex {
     functions: HashMap<String, DefInfo>,
     type_aliases: HashMap<String, (PathBuf, SimpleSpan)>,
     union_variants: HashMap<String, (PathBuf, SimpleSpan)>,
+    // module name (alias or last segment) -> (file path, name span in import block, full path segments)
+    modules: HashMap<String, (PathBuf, SimpleSpan, Vec<String>)>,
 }
 
 #[derive(Default, Clone)]
@@ -471,7 +473,7 @@ impl Backend {
             }
         };
 
-        // Build top-level index: functions, type aliases, union variants
+        // Build top-level index: functions, type aliases, union variants, modules
         let mut index = TopLevelIndex::default();
         // Map function name -> signature from HIR
         let mut fn_sigs: HashMap<String, HirFunctionSignature> = HashMap::new();
@@ -529,6 +531,21 @@ impl Backend {
                                     .unwrap_or(it.span);
                                 index.union_variants.insert(vname.clone(), (file.clone(), v_span));
                             }
+                        }
+                    }
+                    OwnedItem::ImportBlock { imports } => {
+                        // Collect module names and their spans
+                        for imp in imports {
+                            let mod_name = imp
+                                .alias
+                                .clone()
+                                .unwrap_or_else(|| imp.path.last().cloned().unwrap_or_default());
+                            if mod_name.is_empty() { continue; }
+                            let name_span = token_cache
+                                .get(file)
+                                .and_then(|toks| find_ident_span(toks, it.span, &mod_name))
+                                .unwrap_or(it.span);
+                            index.modules.insert(mod_name, (file.clone(), name_span, imp.path.clone()));
                         }
                     }
                     _ => {}
@@ -618,6 +635,14 @@ impl LanguageServer for Backend {
         drop(analysis_map);
 
         if let Some((name, _span)) = Self::ident_at(&text, position) {
+            // Module hover
+            if let Some((_p, _s, _full)) = analysis.index.modules.get(&name) {
+                let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
+                    kind: lsp::MarkupKind::PlainText,
+                    value: format!("module {}", name),
+                });
+                return Ok(Some(lsp::Hover { contents, range: None }));
+            }
             if let Some(def) = analysis.index.functions.get(&name) {
                 if let Some(sig) = &def.signature {
                     let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
@@ -668,7 +693,15 @@ impl LanguageServer for Backend {
             .get(&path)
             .and_then(|spans| spans.iter().position(|s| s.start <= char_offset && char_offset < s.end));
 
-        if let Some((name, id_span)) = Self::ident_at(&text, pos_params.position) {
+        if let Some((name, _id_span)) = Self::ident_at(&text, pos_params.position) {
+            // If identifier is a module name, jump to its import declaration span
+            if let Some((p, s, _full)) = analysis.index.modules.get(&name) {
+                if let Some(src_text) = analysis.sources.get(p) {
+                    let range = Self::simple_span_to_range(src_text, *s);
+                    let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
+                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                }
+            }
             // First, handle import-context navigation
             if let Some(tok_idx) = token_index_opt {
                 if let Some(items) = analysis.ast.get(&path) {
