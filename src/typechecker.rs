@@ -666,57 +666,77 @@ impl Typechecker {
                 match fun.item.clone() {
                     OwnedExpr::Path(path) => {
                         let name = path.last().expect("Path cannot be empty").clone();
+
+                        // Detect module-qualified calls produced by parser desugaring:
+                        // `mod.fn(x)` -> Call(fun=Path("fn"), args=[Path("mod"), x])
+                        let mut is_module_qualified = false;
+                        let mut adjusted_args: Vec<SpannedExpr> = args.clone();
+                        if let Some(first) = args.get(0) {
+                            if let OwnedExpr::Path(p) = &first.item {
+                                if p.len() == 1 {
+                                    let base = p.last().unwrap();
+                                    // If `base` is an imported name in this file and not a value symbol,
+                                    // treat it as a module qualifier and drop the synthetic first arg.
+                                    let is_import_alias = self
+                                        .imports_by_file
+                                        .get(&context.path)
+                                        .map(|s| s.contains(base))
+                                        .unwrap_or(false);
+                                    let is_value_symbol = self.lookup_symbol(base).is_some();
+                                    if is_import_alias && !is_value_symbol {
+                                        is_module_qualified = true;
+                                        adjusted_args = args.iter().cloned().skip(1).collect();
+                                    }
+                                }
+                            }
+                        }
+
                         // 1) Method call via first-arg receiver type (internal desugaring)
                         let mut signature_opt: Option<hir::HirFunctionSignature> = None;
-                        if let Some(first) = args.get(0) {
-                            if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
-                                if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. })
-                                    | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty
-                                {
-                                    if let Some(methods) = self.impl_methods.get(&ty_name) {
-                                        if let Some((sig, is_public, defined_in)) = methods.get(&name) {
-                                            if !*is_public && defined_in != &context.path {
-                                                self.errors.push(TypeError { message: format!("Method `{}` is private", name), context: context.clone() });
-                                                return Err(());
+                        if !is_module_qualified {
+                            if let Some(first) = args.get(0) {
+                                if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
+                                    if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. })
+                                        | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty
+                                    {
+                                        if let Some(methods) = self.impl_methods.get(&ty_name) {
+                                            if let Some((sig, is_public, defined_in)) = methods.get(&name) {
+                                                if !*is_public && defined_in != &context.path {
+                                                    self.errors.push(TypeError { message: format!("Method `{}` is private", name), context: context.clone() });
+                                                    return Err(());
+                                                }
+                                                signature_opt = Some(sig.clone());
                                             }
-                                            signature_opt = Some(sig.clone());
                                         }
                                     }
                                 }
                             }
                         }
+
                         // Fallback to global function lookup (no UFCS pollution)
                         if signature_opt.is_none() {
                             signature_opt = match self.lookup_symbol(&name) {
-                             Some(Symbol::Function { signature, is_public, defined_in }) => {
-                                 if !is_public && defined_in != &context.path {
-                                     self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
-                                     None
-                                 } else {
-                                     Some(signature.clone())
-                                 }
-                             }
-                            _ => None,
-                            };
-                        }
-                        if let Some(signature) = signature_opt {
-                            // Lower args as-is; method signatures include the receiver parameter
-                            let mut lowered_args = Vec::new();
-                            for (idx, arg) in args.clone().into_iter().enumerate() {
-                                let arg_expr = self.lower_expr(arg, context.clone())?;
-                                if let Some((_, expected)) = signature.params.get(idx) {
-                                    if &arg_expr.ty != expected {
-                        self.errors.push(TypeError {
-                                            message: format!(
-                                                "Argument {} type mismatch: expected {:?}, found {:?}",
-                                                idx + 1,
-                                Typechecker::format_ty(expected),
-                                Typechecker::format_ty(&arg_expr.ty)
-                                            ),
-                                            context: context.clone(),
-                                        });
+                                Some(Symbol::Function { signature, is_public, defined_in }) => {
+                                    if !is_public && defined_in != &context.path {
+                                        self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
+                                        None
+                                    } else {
+                                        Some(signature.clone())
                                     }
                                 }
+                                _ => None,
+                            };
+                        }
+
+                        if let Some(signature) = signature_opt {
+                            // Lower args; for module-qualified calls we skip the synthetic first arg
+                            let mut lowered_args = Vec::new();
+                            for (idx, arg) in adjusted_args.into_iter().enumerate() {
+                                let arg_expr = if let Some((_, expected)) = signature.params.get(idx) {
+                                    self.lower_expr_with_expected(arg, expected.clone(), context.clone())?
+                                } else {
+                                    self.lower_expr(arg, context.clone())?
+                                };
                                 lowered_args.push(arg_expr);
                             }
                             if lowered_args.len() != signature.params.len() {
@@ -752,9 +772,7 @@ impl Typechecker {
                         }
 
                         // 2) Union variant constructor: Variant(payload) -> Union
-                        if let Some((union_path, payload_types)) =
-                            self.find_union_variant(&name)
-                        {
+                        if let Some((union_path, payload_types)) = self.find_union_variant(&name) {
                             let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
                                 name: union_path.clone(),
                                 generics: vec![],
@@ -768,7 +786,7 @@ impl Typechecker {
 
                             let mut lowered_args = Vec::new();
                             if let Some(exp_ty) = expected_payload_ty.clone() {
-                                if let Some(first) = args.get(0) {
+                                if let Some(first) = adjusted_args.get(0) {
                                     // Special-case record literals in argument position
                                     let lowered = self.lower_expr_with_expected(
                                         first.clone(),
@@ -778,10 +796,7 @@ impl Typechecker {
                                     lowered_args.push(lowered);
                                 } else {
                                     self.errors.push(TypeError {
-                                        message: format!(
-                                            "Variant `{}` expects 1 argument",
-                                            name
-                                        ),
+                                        message: format!("Variant `{}` expects 1 argument", name),
                                         context: context.clone(),
                                     });
                                 }
@@ -832,20 +847,11 @@ impl Typechecker {
                         };
                         let mut lowered_args = Vec::new();
                         for (idx, arg) in args.into_iter().enumerate() {
-                            let arg_expr = self.lower_expr(arg, context.clone())?;
-                            if let Some(expected) = params.get(idx) {
-                                if &arg_expr.ty != expected {
-                                self.errors.push(TypeError {
-                                    message: format!(
-                                        "Argument {} type mismatch: expected {}, found {}",
-                                        idx + 1,
-                                        Typechecker::format_ty(expected),
-                                        Typechecker::format_ty(&arg_expr.ty)
-                                    ),
-                                    context: context.clone(),
-                                });
-                                }
-                            }
+                            let arg_expr = if let Some(expected) = params.get(idx) {
+                                self.lower_expr_with_expected(arg, expected.clone(), context.clone())?
+                            } else {
+                                self.lower_expr(arg, context.clone())?
+                            };
                             lowered_args.push(arg_expr);
                         }
                         let ret_ty = match &fun_hir.ty {
