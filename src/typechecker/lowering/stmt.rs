@@ -46,6 +46,15 @@ impl Typechecker {
                     }
                 };
 
+                // Prevent redeclaration in the same scope
+                if let Some(existing) = self.lookup_symbol(&name).cloned() {
+                    // Only block if existing is from the same innermost scope: detect by peeking last scope
+                    if let Some(last) = self.scopes.last() {
+                        if last.contains_key(&name) {
+                            self.errors.push(TypeError { message: format!("Variable '{}' already defined in this scope", name), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                        }
+                    }
+                }
                 let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some() };
                 self.add_symbol_to_current_scope(name.clone(), symbol);
 
@@ -61,7 +70,7 @@ impl Typechecker {
                 };
                 let rhs_hir = self.lower_expr(rhs, context.clone())?;
                 if lhs_hir.ty != rhs_hir.ty {
-                    self.errors.push(TypeError { message: format!("Assignment type mismatch: lhs={:?}, rhs={:?}", lhs_hir.ty, rhs_hir.ty), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                    self.errors.push(TypeError { message: format!("Assignment type mismatch: lhs={}, rhs={}", Typechecker::format_ty(&lhs_hir.ty), Typechecker::format_ty(&rhs_hir.ty)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
                 }
                 if let hir::ExprKind::Path(p) = &lhs_hir.kind { if let Some(var_name) = p.last() { self.mark_variable_initialized(var_name); } }
                 Ok(hir::Stmt::Assign(lhs_hir, rhs_hir))
@@ -71,7 +80,7 @@ impl Typechecker {
                 if let Some(expected) = &self.current_fn_return_type {
                     let actual = expr_hir_opt.as_ref().map(|e| e.ty.clone()).unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
                     if &actual != expected {
-                        self.errors.push(TypeError { message: format!("Return type mismatch: expected {:?}, found {:?}", expected, actual), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                        self.errors.push(TypeError { message: format!("Return type mismatch: expected {}, found {}", Typechecker::format_ty(expected), Typechecker::format_ty(&actual)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
                     }
                 }
                 Ok(hir::Stmt::Return(expr_hir_opt))

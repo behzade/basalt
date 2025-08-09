@@ -61,14 +61,14 @@ impl Typechecker {
                         | hir::Ty::Primitive(hir::PrimitiveTy::I64)
                         | hir::Ty::Primitive(hir::PrimitiveTy::F64) => (hir_rhs.ty.clone(), hir::UnaryOp::Negate),
                         other => {
-                            self.errors.push(TypeError { message: format!("Unary '-' not supported for type {:?}", other), context: context.clone() });
+                            self.errors.push(TypeError { message: format!("Unary '-' not supported for type {}", Typechecker::format_ty(&other)), context: context.clone() });
                             (hir::Ty::Special(hir::SpecialTy::Unit), hir::UnaryOp::Negate)
                         }
                     },
                     crate::ast::UnaryOp::Not => match hir_rhs.ty.clone() {
                         hir::Ty::Primitive(hir::PrimitiveTy::Bool) => (hir::Ty::Primitive(hir::PrimitiveTy::Bool), hir::UnaryOp::Not),
                         other => {
-                            self.errors.push(TypeError { message: format!("Unary '!' not supported for type {:?}", other), context: context.clone() });
+                            self.errors.push(TypeError { message: format!("Unary '!' not supported for type {}", Typechecker::format_ty(&other)), context: context.clone() });
                             (hir::Ty::Special(hir::SpecialTy::Unit), hir::UnaryOp::Not)
                         }
                     },
@@ -249,7 +249,7 @@ impl Typechecker {
                         let params = match &fun_hir.ty {
                             hir::Ty::Function { param_types, .. } => param_types.clone(),
                             other => {
-                                self.errors.push(TypeError { message: format!("Attempted to call a non-function value of type {:?}", other), context: context.clone() });
+                                self.errors.push(TypeError { message: format!("Attempted to call a non-function value of type {}", Typechecker::format_ty(&other)), context: context.clone() });
                                 vec![]
                             }
                         };
@@ -291,7 +291,7 @@ impl Typechecker {
                 let then_block = match then_hir.kind.clone() { hir::ExprKind::Block(b) => b, _ => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(then_hir.clone())), ty: then_hir.ty.clone() } };
                 let result_ty = if let Some(ref else_hir) = else_hir_opt {
                     if then_hir.ty != else_hir.ty {
-                        self.errors.push(TypeError { message: format!("If branches must have same type: then={:?}, else={:?}", then_hir.ty, else_hir.ty), context: context.clone() });
+                        self.errors.push(TypeError { message: format!("If branches must have same type: then={}, else={}", Typechecker::format_ty(&then_hir.ty), Typechecker::format_ty(&else_hir.ty)), context: context.clone() });
                     }
                     else_hir.ty.clone()
                 } else { hir::Ty::Special(hir::SpecialTy::Unit) };
@@ -313,7 +313,7 @@ impl Typechecker {
                 for (pat, arm_expr) in arms {
                     self.enter_scope();
                     let (hir_pat, hir_arm_expr) = self.lower_match_arm(pat, arm_expr, &scrutinee_hir.ty, context.clone())?;
-                    if let Some(ref ty) = result_ty { if *ty != hir_arm_expr.ty { self.errors.push(TypeError { message: format!("Match arms must have the same type: expected {:?}, found {:?}", ty, hir_arm_expr.ty), context: context.clone() }); } } else { result_ty = Some(hir_arm_expr.ty.clone()); }
+                    if let Some(ref ty) = result_ty { if *ty != hir_arm_expr.ty { self.errors.push(TypeError { message: format!("Match arms must have the same type: expected {}, found {}", Typechecker::format_ty(ty), Typechecker::format_ty(&hir_arm_expr.ty)), context: context.clone() }); } } else { result_ty = Some(hir_arm_expr.ty.clone()); }
                     lowered_arms.push((hir_pat, hir_arm_expr));
                     self.leave_scope();
                 }
