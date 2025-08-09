@@ -219,6 +219,24 @@ impl Typechecker {
                     ItemContext { span: item.span, path },
                 )
                 .map(hir::Item::Enum),
+            OwnedItem::Effect(eff) => self
+                .lower_effect(
+                    eff,
+                    ItemContext { span: item.span, path },
+                )
+                .map(hir::Item::Effect),
+            OwnedItem::Trait(tr) => self
+                .lower_trait(
+                    tr,
+                    ItemContext { span: item.span, path },
+                )
+                .map(hir::Item::Trait),
+            OwnedItem::Impl(imp) => self
+                .lower_impl(
+                    imp,
+                    ItemContext { span: item.span, path },
+                )
+                .map(hir::Item::Impl),
             // Skip traits/impls/effects/handlers/methods for this milestone
             _ => Err(()),
         }
@@ -1280,6 +1298,59 @@ impl Typechecker {
                 Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true })
             }
         }
+    }
+
+    fn lower_effect(
+        &mut self,
+        eff: OwnedEffectDef,
+        context: ItemContext,
+    ) -> Result<hir::HirEffectDef, ()> {
+        let mut operations: Vec<hir::HirFunctionSignature> = Vec::new();
+        for op in &eff.operations {
+            let mut params = Vec::new();
+            for p in &op.params {
+                params.push(("_".to_string(), self.resolve_type(p, context.clone())?));
+            }
+            let ret_type = self.resolve_type(&op.ret_type, context.clone())?;
+            operations.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type, effects: vec![] });
+        }
+        Ok(hir::HirEffectDef { name: eff.name, operations, is_public: eff.is_public })
+    }
+
+    fn lower_trait(
+        &mut self,
+        tr: OwnedTraitDef,
+        context: ItemContext,
+    ) -> Result<hir::HirTraitDef, ()> {
+        let mut methods: Vec<hir::HirFunctionSignature> = Vec::new();
+        for m in &tr.methods {
+            let mut params: Vec<(String, hir::Ty)> = Vec::new();
+            for (name_opt, ty) in &m.params {
+                let pname = name_opt.clone().unwrap_or("_".to_string());
+                let pty = self.resolve_type(ty, context.clone())?;
+                params.push((pname, pty));
+            }
+            let ret_type = match &m.ret_type {
+                Some(rt) => self.resolve_type(rt, context.clone())?,
+                None => hir::Ty::Special(hir::SpecialTy::Unit),
+            };
+            methods.push(hir::HirFunctionSignature { name: m.name.clone(), params, ret_type, effects: vec![] });
+        }
+        Ok(hir::HirTraitDef { name: tr.name, methods, is_public: tr.is_public })
+    }
+
+    fn lower_impl(
+        &mut self,
+        imp: OwnedImplBlock,
+        context: ItemContext,
+    ) -> Result<hir::HirImplBlock, ()> {
+        let trait_path = imp.interface.clone();
+        let target_type = self.resolve_type(&imp.target_type, context.clone())?;
+        let mut methods = Vec::new();
+        for f in imp.methods {
+            methods.push(self.lower_function(f, context.clone())?);
+        }
+        Ok(hir::HirImplBlock { trait_path, target_type, methods })
     }
 
     //================================================================================//
