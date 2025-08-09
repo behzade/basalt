@@ -131,13 +131,19 @@ fn expression_bundle<'src>() -> (
     let mut expr = Recursive::declare();
     let mut stmt = Recursive::declare();
 
-    let block = stmt
-        .clone()
-        .padded_by(trivia())
-        .repeated()
+    let block = just(Token::LBrace)
+        .ignore_then(trivia())
+        .ignore_then(
+            stmt
+                .clone()
+                .padded_by(trivia())
+                .repeated()
                 .collect::<Vec<_>>()
-        .then(expr.clone().or_not())
-        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .then_ignore(trivia())
+        .then(expr.clone().padded_by(trivia()).or_not())
+        .then_ignore(trivia())
+        .then_ignore(just(Token::RBrace))
         .map_with(|(stmts, last_expr), e| Spanned { node: ExprNode::Block { stmts, last_expr: last_expr.map(Box::new) }, span: e.span() })
         .boxed();
 
@@ -167,7 +173,27 @@ fn expression_bundle<'src>() -> (
         )
         .map_with(|(((e1, e2), args)), e| Spanned { node: ExprNode::Perform { path: vec![e1, e2], args }, span: e.span() });
 
-    let atom = choice((unit, lit, perform, record_literal_expr(expr.clone()), block.clone(),
+    // Prefix-style with-block: with { Handler1, Handler2 } { ... }
+    let handler_list = path()
+        .padded_by(trivia())
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace));
+
+    let with_block = just(Token::With)
+        .ignore_then(handler_list)
+        .then(block.clone())
+        .map_with(|(handlers, body), e| {
+            // Desugar multiple handlers into nested Handle nodes: leftmost is outermost
+            let mut acc = body;
+            for h in handlers.into_iter().rev() {
+                acc = Spanned { node: ExprNode::Handle { body: Box::new(acc), handler: HandlerBody::Path(h) }, span: e.span() };
+            }
+            acc
+        });
+
+    let atom = choice((unit, lit, perform, with_block, record_literal_expr(expr.clone()), block.clone(),
         path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
         expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))
@@ -399,12 +425,18 @@ fn import_item<'src>() -> impl Parser<'src, &'src [Token<'src>], ImportPath<'src
 
 fn import_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     just(Token::Import)
-        .ignore_then(import_item().repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .ignore_then(
+            just(Token::LBrace)
+                .ignore_then(trivia())
+                .ignore_then(import_item().padded_by(trivia()).repeated().collect::<Vec<_>>())
+                .then_ignore(trivia())
+                .then_ignore(just(Token::RBrace)),
+        )
         .map_with(|imports, e| Spanned { node: ItemNode::ImportBlock { imports }, span: e.span() })
 }
 
 fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (_expr, _stmt, block) = expression_bundle();
+    let (expr, _stmt, _block) = expression_bundle();
     let ty = type_parser();
     let params = params_parser();
     just(Token::Fn)
@@ -413,7 +445,7 @@ fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
          .then(with_types(|| type_parser()))
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
-        .then(block)
+        .then(expr)
         .map(|((((name, params), ret_type), effects), body)| Function { name, generics: vec![], params, ret_type, effects, body, is_public: true })
 }
 
@@ -446,7 +478,12 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
         .then(with_types(|| type_parser()))
         .map(|(primary, mut rest)| { let mut v = vec![primary]; v.append(&mut rest); v });
     // Handler supports either '= { ... }' or inline '{ ... }' as in tests
-    let make_block = || fn_def_parser().repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace));
+    let make_block = ||
+        just(Token::LBrace)
+            .ignore_then(trivia())
+            .ignore_then(fn_def_parser().padded_by(trivia()).repeated().collect::<Vec<_>>())
+            .then_ignore(trivia())
+            .then_ignore(just(Token::RBrace));
     just(Token::Handler)
         .ignore_then(ident())
         .then(effects)
@@ -528,6 +565,9 @@ fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, ext
 }
 
 pub fn file_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
-    item_parser().repeated().collect::<Vec<_>>().then_ignore(end())
+    trivia()
+        .ignore_then(item_parser().padded_by(trivia()).repeated().collect::<Vec<_>>())
+        .then_ignore(trivia())
+        .then_ignore(end())
 }
 

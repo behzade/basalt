@@ -76,6 +76,16 @@ pub struct ItemContext {
 }
 
 impl Typechecker {
+    fn mangle_method_name(module_path: &PathBuf, type_name: &hir::OwnedPath, method: &str) -> String {
+        // module path last segment (file stem) + receiver type path + method name
+        let module = module_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_string();
+        let ty = type_name.join("_");
+        format!("{}__{}__{}", module, ty, method)
+    }
     fn mark_variable_initialized(&mut self, name: &str) {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(Symbol::Variable { initialized, .. }) = scope.get_mut(name) {
@@ -177,13 +187,22 @@ impl Typechecker {
                     // Capture impl methods for method lookup later
                     if let hir::Item::Impl(impl_block) = &it {
                         if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &impl_block.target_type {
-                            let entry = self.impl_methods.entry(name.clone()).or_default();
+                            let mut to_insert: Vec<(String, (hir::HirFunctionSignature, bool, PathBuf), String)> = Vec::new();
                             for f in &impl_block.methods {
-                                entry.insert(
-                                    f.signature.name.clone(),
-                                    (f.signature.clone(), f.is_public, path.clone()),
-                                );
+                                let method_name = f.signature.name.clone();
+                                let sig = f.signature.clone();
+                                let mangled = Self::mangle_method_name(path, name, &method_name);
+                                to_insert.push((method_name, (sig, f.is_public, path.clone()), mangled));
                             }
+                            // Insert impl methods
+                            {
+                                let entry = self.impl_methods.entry(name.clone()).or_default();
+                                for (method_name, (sig, is_public, def_path), _) in &to_insert {
+                                    entry.insert(method_name.clone(), (sig.clone(), *is_public, def_path.clone()));
+                                }
+                            }
+                            // Do not register mangled method symbols in global scope; method
+                            // resolution is internal via `impl_methods` to avoid UFCS pollution.
                         }
                     }
                     hir_items.push(it);
@@ -310,13 +329,16 @@ impl Typechecker {
             self.add_symbol_to_current_scope(p_name.clone(), symbol);
         }
 
-        // 3. Lower the function body.
+        // 3. Lower the function body (propagate expected return type to help record literals, etc.).
         // The AST has an `OwnedExpr` body, while the HIR expects a `HirBlock`.
-        // We lower the expression and ensure it's a block.
-        let body_expr = self.lower_expr(func.body, context.clone())?;
+        // We lower the expression with the expected return type and ensure it's a block.
+        let body_expr = self.lower_expr_with_expected(
+            func.body,
+            signature.ret_type.clone(),
+            context.clone(),
+        )?;
         let body_block = match body_expr.kind {
             hir::ExprKind::Block(block) => {
-                // The type of the block must match the function's return type.
                 if block.ty != signature.ret_type {
                     self.errors.push(TypeError {
                         message: format!(
@@ -330,13 +352,25 @@ impl Typechecker {
                 }
                 block
             }
-            _ => {
-                // Gracefully report instead of panicking
-                self.errors.push(TypeError {
-                    message: "Function body did not lower to a block expression".to_string(),
-                    context: context.clone(),
-                });
-                return Err(());
+            other_kind => {
+                // Allow expression bodies: wrap into a block with this expression as the value
+                let ty = body_expr.ty.clone();
+                if ty != signature.ret_type {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Mismatched return type for function '{}': expected {} but found {}",
+                            func.name,
+                            Typechecker::format_ty(&signature.ret_type),
+                            Typechecker::format_ty(&ty)
+                        ),
+                        context: context.clone(),
+                    });
+                }
+                hir::HirBlock {
+                    stmts: vec![],
+                    last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone() })),
+                    ty,
+                }
             }
         };
 
@@ -607,35 +641,9 @@ impl Typechecker {
                     }
                 }
 
-                // Default behavior: lower receiver and try method lookup on impls or struct field
+                // Default behavior: lower receiver and try struct field
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
-                // 1) Method lookup: if receiver is nominal ADT, check impl_methods
-                if let hir::Ty::Adt(adt) = &recv_hir.ty {
-                    let type_name: Option<&hir::OwnedPath> = match adt {
-                        hir::AdtTy::Struct { name, .. } | hir::AdtTy::Enum { name, .. } => Some(name),
-                        _ => None,
-                    };
-                    if let Some(name) = type_name {
-                        if let Some(methods) = self.impl_methods.get(name) {
-                            if let Some((sig, is_public, defined_in)) = methods.get(&field).cloned() {
-                                if !is_public && defined_in != context.path {
-                                    self.errors.push(TypeError { message: format!("Method `{}` is private", field), context: context.clone() });
-                                    return Err(());
-                                }
-                                // Method value is a function; receiver will need to be passed explicitly by callers later
-                                return Ok(hir::Expr {
-                                    kind: hir::ExprKind::Path(vec![field.clone()]),
-                                    ty: hir::Ty::Function {
-                                        param_types: sig.params.iter().map(|(_, t)| t.clone()).collect(),
-                                        ret_type: Box::new(sig.ret_type.clone()),
-                                        effects: sig.effects.clone(),
-                                    },
-                                });
-                            }
-                        }
-                    }
-                }
-                // 2) Struct field access
+                // Struct field access
                 if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = recv_hir.ty.clone() {
                     if let Some(ty) = self.lookup_struct_field_type(&name, &field).cloned() {
                         return Ok(hir::Expr {
@@ -646,21 +654,6 @@ impl Typechecker {
                             ty,
                         });
                     }
-                }
-                // As a final fallback, if `field` is a known global function, reference it directly
-                if let Some(Symbol::Function { signature, is_public, defined_in }) = self.lookup_symbol(&field).cloned() {
-                    if !is_public && defined_in != context.path {
-                        self.errors.push(TypeError { message: format!("Function `{}` is private", field), context: context.clone() });
-                        return Err(());
-                    }
-                    return Ok(hir::Expr {
-                        kind: hir::ExprKind::Path(vec![field]),
-                        ty: hir::Ty::Function {
-                            param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(),
-                            ret_type: Box::new(signature.ret_type.clone()),
-                            effects: signature.effects.clone(),
-                        },
-                    });
                 }
                 self.errors.push(TypeError {
                     message: "Unknown field access on non-record type or missing field".to_string(),
@@ -673,8 +666,28 @@ impl Typechecker {
                 match fun.item.clone() {
                     OwnedExpr::Path(path) => {
                         let name = path.last().expect("Path cannot be empty").clone();
-                        // 1) Function call
-                        let signature_opt = match self.lookup_symbol(&name) {
+                        // 1) Method call via first-arg receiver type (internal desugaring)
+                        let mut signature_opt: Option<hir::HirFunctionSignature> = None;
+                        if let Some(first) = args.get(0) {
+                            if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
+                                if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. })
+                                    | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty
+                                {
+                                    if let Some(methods) = self.impl_methods.get(&ty_name) {
+                                        if let Some((sig, is_public, defined_in)) = methods.get(&name) {
+                                            if !*is_public && defined_in != &context.path {
+                                                self.errors.push(TypeError { message: format!("Method `{}` is private", name), context: context.clone() });
+                                                return Err(());
+                                            }
+                                            signature_opt = Some(sig.clone());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        // Fallback to global function lookup (no UFCS pollution)
+                        if signature_opt.is_none() {
+                            signature_opt = match self.lookup_symbol(&name) {
                              Some(Symbol::Function { signature, is_public, defined_in }) => {
                                  if !is_public && defined_in != &context.path {
                                      self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
@@ -684,25 +697,12 @@ impl Typechecker {
                                  }
                              }
                             _ => None,
-                        };
+                            };
+                        }
                         if let Some(signature) = signature_opt {
-                            // Drop receiver if this is a module-style call like `io.println(x)`
-                            let mut call_args: Vec<SpannedExpr> = args;
-                            if let Some(first) = call_args.first() {
-                                if let OwnedExpr::Path(p) = &first.item {
-                                    if let Some(base) = p.last() {
-                                        if let Some(names) = self.imports_by_file.get(&context.path) {
-                                            if names.contains(base) {
-                                                call_args.remove(0);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Lower args
+                            // Lower args as-is; method signatures include the receiver parameter
                             let mut lowered_args = Vec::new();
-                            for (idx, arg) in call_args.into_iter().enumerate() {
+                            for (idx, arg) in args.clone().into_iter().enumerate() {
                                 let arg_expr = self.lower_expr(arg, context.clone())?;
                                 if let Some((_, expected)) = signature.params.get(idx) {
                                     if &arg_expr.ty != expected {
@@ -1394,9 +1394,18 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::HirImplBlock, ()> {
         let trait_path = imp.interface.clone();
+        let target_type_owned = imp.target_type.clone();
         let target_type = self.resolve_type(&imp.target_type, context.clone())?;
         let mut methods = Vec::new();
-        for f in imp.methods {
+        for mut f in imp.methods {
+            // If first param is self-like (named same as identifier) without explicit type, coerce to impl target
+            if let Some((name_opt, pty)) = f.params.get_mut(0) {
+                if let Some(pn) = name_opt {
+                    if pty.path.len() == 1 && pty.path[0] == *pn {
+                        *pty = target_type_owned.clone();
+                    }
+                }
+            }
             methods.push(self.lower_function(f, context.clone())?);
         }
         Ok(hir::HirImplBlock { trait_path, target_type, methods })
@@ -1813,6 +1822,40 @@ impl Typechecker {
                 }
                 // Fallback
                 self.lower_expr(Spanned { item: OwnedExpr::Literal(lit), span: expr.span }, context)
+            }
+            (OwnedExpr::Block { mut stmts, last_expr }, expected_ty) => {
+                self.enter_scope();
+                let mut hir_stmts: Vec<hir::Stmt> = Vec::new();
+                let mut trailing_expr_opt: Option<SpannedExpr> = None;
+                if last_expr.is_none() {
+                    if let Some(last) = stmts.last() {
+                        if let OwnedStmt::Expr(e) = &last.item {
+                            trailing_expr_opt = Some(e.clone());
+                            stmts.pop();
+                        }
+                    }
+                }
+                // Lower all non-trailing statements
+                for s in stmts.into_iter() {
+                    if let Ok(stmt) = self.lower_stmt(s, context.clone()) {
+                        hir_stmts.push(stmt);
+                    }
+                }
+                // Decide the last expression source
+                let (hir_last_expr, block_ty) = if let Some(expr) = last_expr {
+                    let lowered = self.lower_expr_with_expected(*expr, expected_ty.clone(), context.clone())?;
+                    (Some(Box::new(lowered.clone())), lowered.ty)
+                } else if let Some(expr) = trailing_expr_opt {
+                    let lowered = self.lower_expr_with_expected(expr, expected_ty.clone(), context.clone())?;
+                    (Some(Box::new(lowered.clone())), lowered.ty)
+                } else {
+                    (None, hir::Ty::Special(hir::SpecialTy::Unit))
+                };
+                self.leave_scope();
+                Ok(hir::Expr {
+                    ty: block_ty.clone(),
+                    kind: hir::ExprKind::Block(hir::HirBlock { stmts: hir_stmts, last_expr: hir_last_expr, ty: block_ty }),
+                })
             }
             _ => self.lower_expr(expr, context),
         }
