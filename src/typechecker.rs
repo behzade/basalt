@@ -4,7 +4,7 @@ use crate::hir; // Your HIR definitions
 use crate::token::SimpleSpan;
 use crate::type_unifier::TypeUnifier;
 use ariadne::{Color, Fmt};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 /// A type error with source location information
@@ -51,6 +51,10 @@ pub struct Typechecker {
     /// Cached map from enum (union) name to its variants for quick lookup.
     /// Populated from type aliases that define unions.
     union_variants: HashMap<hir::OwnedPath, Vec<(String, Option<Vec<hir::Ty>>)>>,
+
+    /// Map of file path -> set of imported names (aliases or last path segment).
+    /// Used to suppress spurious unknown-name errors for module identifiers like `io`.
+    imports_by_file: HashMap<PathBuf, HashSet<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -126,6 +130,26 @@ impl Typechecker {
 
         // Register builtin functions needed by tests
         self.register_builtin_functions();
+
+        // Collect import aliases/names per file for module-aware name handling
+        let mut imports_map: HashMap<PathBuf, HashSet<String>> = HashMap::new();
+        for (path, items) in &files {
+            let entry = imports_map.entry(path.clone()).or_default();
+            for it in items {
+                if let OwnedItem::ImportBlock { imports } = &it.item {
+                    for imp in imports {
+                        let name = imp
+                            .alias
+                            .clone()
+                            .unwrap_or_else(|| imp.path.last().cloned().unwrap_or_default());
+                        if !name.is_empty() {
+                            entry.insert(name);
+                        }
+                    }
+                }
+            }
+        }
+        self.imports_by_file = imports_map;
 
         // --- PASS 1: Register all top-level definitions ---
         for file in &files {
@@ -316,6 +340,13 @@ impl Typechecker {
                         },
                     }),
                     None => {
+                        // If the identifier matches an imported module name in this file,
+                        // treat it as a module placeholder instead of an unknown value.
+                        if let Some(names) = self.imports_by_file.get(&context.path) {
+                            if names.contains(name) {
+                                return Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Special(hir::SpecialTy::Unit) });
+                            }
+                        }
                         self.errors.push(TypeError {
                             message: format!("Cannot find value `{}` in this scope", name),
                             context: context.clone(),
@@ -474,30 +505,65 @@ impl Typechecker {
                 })
             }
             OwnedExpr::FieldAccess { receiver, field } => {
-                let recv_hir = self.lower_expr(*receiver, context.clone())?;
-                // Try to find struct fields if receiver has struct type
-                let field_ty = match recv_hir.ty.clone() {
-                    hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) => {
-                        self.lookup_struct_field_type(&name, &field).cloned()
-                    }
-                    _ => None,
-                };
-                match field_ty {
-                    Some(ty) => Ok(hir::Expr {
-                        kind: hir::ExprKind::FieldAccess {
-                            receiver: Box::new(recv_hir),
-                            field,
-                        },
-                        ty,
-                    }),
-                    None => {
-                        self.errors.push(TypeError {
-                            message: "Unknown field access on non-record type or missing field".to_string(),
-                            context: context.clone(),
-                        });
-                        Err(())
+                // Special-case import-like expressions: `io.println(...)`
+                if let OwnedExpr::Path(path) = &receiver.item {
+                    if let Some(base) = path.last() {
+                        match self.lookup_symbol(base).cloned() {
+                            Some(_) => {
+                                // Base is a known value; fall through to normal field access below
+                            }
+                            None => {
+                                // Unknown base: treat `base.field` as a reference to a global function `field`
+                                if let Some(Symbol::Function { signature }) = self.lookup_symbol(&field).cloned() {
+                                    return Ok(hir::Expr {
+                                        kind: hir::ExprKind::Path(vec![field]),
+                                        ty: hir::Ty::Function {
+                                            param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(),
+                                            ret_type: Box::new(signature.ret_type.clone()),
+                                            effects: signature.effects.clone(),
+                                        },
+                                    });
+                                }
+                                // Report missing base name rather than generic field error
+                                self.errors.push(TypeError {
+                                    message: format!("Cannot find value `{}` in this scope", base),
+                                    context: context.clone(),
+                                });
+                                return Err(());
+                            }
+                        }
                     }
                 }
+
+                // Default behavior: lower receiver and attempt struct field access
+                let recv_hir = self.lower_expr(*receiver, context.clone())?;
+                if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = recv_hir.ty.clone() {
+                    if let Some(ty) = self.lookup_struct_field_type(&name, &field).cloned() {
+                        return Ok(hir::Expr {
+                            kind: hir::ExprKind::FieldAccess {
+                                receiver: Box::new(recv_hir),
+                                field,
+                            },
+                            ty,
+                        });
+                    }
+                }
+                // As a final fallback, if `field` is a known global function, reference it directly
+                if let Some(Symbol::Function { signature }) = self.lookup_symbol(&field).cloned() {
+                    return Ok(hir::Expr {
+                        kind: hir::ExprKind::Path(vec![field]),
+                        ty: hir::Ty::Function {
+                            param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(),
+                            ret_type: Box::new(signature.ret_type.clone()),
+                            effects: signature.effects.clone(),
+                        },
+                    });
+                }
+                self.errors.push(TypeError {
+                    message: "Unknown field access on non-record type or missing field".to_string(),
+                    context: context.clone(),
+                });
+                Err(())
             }
             OwnedExpr::Call { fun, args } => {
                 // Prefer handling path callees specially to support functions and union variants
@@ -510,9 +576,23 @@ impl Typechecker {
                             _ => None,
                         };
                         if let Some(signature) = signature_opt {
+                            // Drop receiver if this is a module-style call like `io.println(x)`
+                            let mut call_args: Vec<SpannedExpr> = args;
+                            if let Some(first) = call_args.first() {
+                                if let OwnedExpr::Path(p) = &first.item {
+                                    if let Some(base) = p.last() {
+                                        if let Some(names) = self.imports_by_file.get(&context.path) {
+                                            if names.contains(base) {
+                                                call_args.remove(0);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             // Lower args
                             let mut lowered_args = Vec::new();
-                            for (idx, arg) in args.into_iter().enumerate() {
+                            for (idx, arg) in call_args.into_iter().enumerate() {
                                 let arg_expr = self.lower_expr(arg, context.clone())?;
                                 if let Some((_, expected)) = signature.params.get(idx) {
                                     if &arg_expr.ty != expected {
