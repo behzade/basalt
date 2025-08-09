@@ -20,14 +20,14 @@ impl Typechecker {
                                 let v = if let Some(exp_ty) = v_expected_ty { self.lower_expr_with_expected(v_expr, exp_ty, context.clone())? } else { self.lower_expr(v_expr, context.clone())? };
                                 lowered_fields.push((key, v));
                             }
-                            let init_expr = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::StructInit { path: struct_path.clone(), fields: lowered_fields } };
+                            let init_expr = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::StructInit { path: struct_path.clone(), fields: lowered_fields }, span: stmt.span };
                             (Some(init_expr), resolved_ty.clone())
                         }
                         (Some(vexpr), _) => {
                             let mut lowered = self.lower_expr(Spanned { item: vexpr.clone(), span: stmt.span }, context.clone())?;
                             if lowered.ty != resolved_ty {
                                 if TypeUnifier::is_numeric(&lowered.ty) && TypeUnifier::is_numeric(&resolved_ty) {
-                                    lowered = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(lowered) } };
+                                    lowered = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(lowered) }, span: stmt.span };
                                 } else {
                                     self.errors.push(TypeError { message: format!(
                                         "Mismatched types for variable '{}': expected {} but found {}",
@@ -58,13 +58,13 @@ impl Typechecker {
                 let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some() };
                 self.add_symbol_to_current_scope(name.clone(), symbol);
 
-                Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut })
+                Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut, span: stmt.span })
             }
             OwnedStmt::Assign(lhs, rhs) => {
                 let lhs_hir = match &lhs.item {
                     OwnedExpr::Path(path) => {
                         let name = match path.last() { Some(n) => n.clone(), None => "".to_string() };
-                        if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned() { hir::Expr { kind: hir::ExprKind::Path(path.clone()), ty } } else { self.lower_expr(lhs.clone(), context.clone())? }
+                        if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned() { hir::Expr { kind: hir::ExprKind::Path(path.clone()), ty, span: lhs.span } } else { self.lower_expr(lhs.clone(), context.clone())? }
                     }
                     _ => self.lower_expr(lhs.clone(), context.clone())?,
                 };
@@ -73,7 +73,7 @@ impl Typechecker {
                     self.errors.push(TypeError { message: format!("Assignment type mismatch: lhs={}, rhs={}", Typechecker::format_ty(&lhs_hir.ty), Typechecker::format_ty(&rhs_hir.ty)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
                 }
                 if let hir::ExprKind::Path(p) = &lhs_hir.kind { if let Some(var_name) = p.last() { self.mark_variable_initialized(var_name); } }
-                Ok(hir::Stmt::Assign(lhs_hir, rhs_hir))
+                Ok(hir::Stmt::Assign { lhs: lhs_hir, rhs: rhs_hir, span: stmt.span })
             }
             OwnedStmt::Return(expr_opt) => {
                 let expr_hir_opt = if let Some(e) = expr_opt { Some(self.lower_expr(e, context.clone())?) } else { None };
@@ -83,10 +83,10 @@ impl Typechecker {
                         self.errors.push(TypeError { message: format!("Return type mismatch: expected {}, found {}", Typechecker::format_ty(expected), Typechecker::format_ty(&actual)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
                     }
                 }
-                Ok(hir::Stmt::Return(expr_hir_opt))
+                Ok(hir::Stmt::Return { value: expr_hir_opt, span: stmt.span })
             }
-            OwnedStmt::Expr(e) => { let e_hir = self.lower_expr(e, context.clone())?; Ok(hir::Stmt::Expr(e_hir)) }
-            OwnedStmt::Error => Ok(hir::Stmt::Error),
+            OwnedStmt::Expr(e) => { let e_hir = self.lower_expr(e, context.clone())?; Ok(hir::Stmt::Expr { expr: e_hir, span: stmt.span }) }
+            OwnedStmt::Error => Ok(hir::Stmt::Error { span: stmt.span }),
         }
     }
 

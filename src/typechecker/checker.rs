@@ -272,7 +272,7 @@ impl Typechecker {
                 }
                 hir::HirBlock {
                     stmts: vec![],
-                    last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone() })),
+                    last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone(), span: context.span })),
                     ty,
                 }
             }

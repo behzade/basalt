@@ -154,11 +154,12 @@ pub enum Stmt {
         value: Option<Expr>,
         ty: Ty, // Type is resolved and non-optional
         is_mut: bool,
+        span: crate::token::SimpleSpan,
     },
-    Return(Option<Expr>),
-    Assign(Expr, Expr), // lhs (e.g., path or field access) and rhs
-    Expr(Expr),
-    Error,
+    Return { value: Option<Expr>, span: crate::token::SimpleSpan },
+    Assign { lhs: Expr, rhs: Expr, span: crate::token::SimpleSpan }, // lhs (e.g., path or field access) and rhs
+    Expr { expr: Expr, span: crate::token::SimpleSpan },
+    Error { span: crate::token::SimpleSpan },
 }
 
 /// A block of code, which has a list of statements and an optional final expression.
@@ -174,6 +175,7 @@ pub struct HirBlock {
 pub struct Expr {
     pub kind: ExprKind,
     pub ty: Ty,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
