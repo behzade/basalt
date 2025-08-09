@@ -118,6 +118,7 @@ fn record_literal_expr<'src>(
         .then(expr.clone())
         .separated_by(just(Token::Comma))
         .allow_trailing()
+        .at_least(1)
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace))
         .map_with(|fields, e| Spanned { node: ExprNode::RecordLiteral { fields }, span: e.span() })
@@ -193,7 +194,7 @@ fn expression_bundle<'src>() -> (
             acc
         });
 
-    let atom = choice((unit, lit, perform, with_block, record_literal_expr(expr.clone()), block.clone(),
+    let atom = choice((unit, lit, perform, with_block, block.clone(), record_literal_expr(expr.clone()),
         path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
         expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))
@@ -436,7 +437,7 @@ fn import_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, e
 }
 
 fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, _stmt, _block) = expression_bundle();
+    let (expr, _stmt, block) = expression_bundle();
     let ty = type_parser();
     let params = params_parser();
     just(Token::Fn)
@@ -445,7 +446,17 @@ fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
          .then(with_types(|| type_parser()))
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
-        .then(expr)
+        .then(
+            // Allow empty function bodies: either a normal expr, or an empty block
+            expr.clone().or(block.map(|b| {
+                // Ensure the empty block becomes a unit literal if empty
+                match &b.node {
+                    ExprNode::Block { stmts, last_expr } if stmts.is_empty() && last_expr.is_none() =>
+                        Spanned { node: ExprNode::Literal(Literal::Unit), span: b.span },
+                    _ => b,
+                }
+            }))
+        )
         .map(|((((name, params), ret_type), effects), body)| Function { name, generics: vec![], params, ret_type, effects, body, is_public: true })
 }
 
