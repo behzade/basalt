@@ -340,21 +340,24 @@ fn expression_bundle<'src>() -> (
         .labelled("expression")
         .boxed();
 
-    // let [mut] name [: Type]? = expr
+    // let [mut] name [: Type]? (= expr)?
     let let_decl = just(Token::Let)
         .ignore_then(just(Token::Mut).or_not())
         .then(ident())
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
-        .then(expr.clone())
-        .map_with(|(((is_mut, name), ty), value), e| Spanned { node: StmtNode::Let { is_mut: is_mut.is_some(), name, ty, value }, span: e.span() });
+        .then(
+            select! { Token::Op(op) if op == "=" => () }
+                .ignore_then(expr.clone())
+                .or_not(),
+        )
+        .map_with(|(((is_mut, name), ty), value_opt), e| Spanned { node: StmtNode::Let { is_mut: is_mut.is_some(), name, ty, value: value_opt }, span: e.span() });
 
     // shorthand typed init: name: Type = expr
     let typed_init = ident()
         .then(just(Token::Colon).ignore_then(type_parser()))
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
-        .map_with(|((name, ty), value), e| Spanned { node: StmtNode::Let { is_mut: false, name, ty: Some(ty), value }, span: e.span() });
+        .map_with(|((name, ty), value), e| Spanned { node: StmtNode::Let { is_mut: false, name, ty: Some(ty), value: Some(value) }, span: e.span() });
 
     // assignment: simple lhs (path with optional .field chain) <- expr
     let lhs = path()

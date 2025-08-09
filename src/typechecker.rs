@@ -21,6 +21,7 @@ enum Symbol {
     Variable {
         ty: hir::Ty,
         is_mut: bool,
+        initialized: bool,
     },
     Function {
         signature: hir::HirFunctionSignature,
@@ -59,6 +60,14 @@ pub struct ItemContext {
 }
 
 impl Typechecker {
+    fn mark_variable_initialized(&mut self, name: &str) {
+        for scope in self.scopes.iter_mut().rev() {
+            if let Some(Symbol::Variable { initialized, .. }) = scope.get_mut(name) {
+                *initialized = true;
+                break;
+            }
+        }
+    }
     fn format_ty(ty: &hir::Ty) -> String {
         use hir::*;
         match ty {
@@ -214,6 +223,7 @@ impl Typechecker {
             let symbol = Symbol::Variable {
                 ty: p_ty.clone(),
                 is_mut: false,
+                initialized: true,
             };
             self.add_symbol_to_current_scope(p_name.clone(), symbol);
         }
@@ -285,11 +295,18 @@ impl Typechecker {
             OwnedExpr::Path(path) => {
                 // Look up the path in the current scope to find what it refers to.
                 let name = path.last().expect("Path cannot be empty");
-                match self.lookup_symbol(name) {
-                    Some(Symbol::Variable { ty, .. }) => Ok(hir::Expr {
-                        kind: hir::ExprKind::Path(path),
-                        ty: ty.clone(),
-                    }),
+                // Lookup first, then push any error after releasing the borrow
+                let sym_opt = self.lookup_symbol(name).cloned();
+                match sym_opt {
+                    Some(Symbol::Variable { ty, initialized, .. }) => {
+                        if !initialized {
+                            self.errors.push(TypeError {
+                                message: format!("Use of variable '{}' before initialization", name),
+                                context: context.clone(),
+                            });
+                        }
+                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone() })
+                    }
                     Some(Symbol::Function { signature }) => Ok(hir::Expr {
                         kind: hir::ExprKind::Path(path),
                         ty: hir::Ty::Function {
@@ -914,13 +931,10 @@ impl Typechecker {
             } => {
                 // If annotated with a record type and value is a record literal (Map),
                 // lower as struct init with that type.
-                let (hir_value, var_ty) = if let Some(annotated_ty) = ty.clone() {
+                let (hir_value_opt, var_ty) = if let Some(annotated_ty) = ty.clone() {
                     let resolved_ty = self.resolve_type(&annotated_ty, context.clone())?;
-                    match (&resolved_ty, &value.item) {
-                        (
-                            hir::Ty::Adt(hir::AdtTy::Struct { name: struct_path, .. }),
-                            OwnedExpr::Map(entries),
-                        ) => {
+                    match (value.as_ref().map(|v| &v.item), &resolved_ty) {
+                        (Some(OwnedExpr::Map(entries)), hir::Ty::Adt(hir::AdtTy::Struct { name: struct_path, .. })) => {
                             // Lower each field
                             let mut lowered_fields = Vec::new();
                             for (k_expr, v_expr) in entries.clone() {
@@ -947,10 +961,10 @@ impl Typechecker {
                                     fields: lowered_fields,
                                 },
                             };
-                            (init_expr, resolved_ty.clone())
+                            (Some(init_expr), resolved_ty.clone())
                         }
-                        _ => {
-                            let mut lowered = self.lower_expr(value, context.clone())?;
+                        (Some(vexpr), _) => {
+                            let mut lowered = self.lower_expr(Spanned { item: vexpr.clone(), span: stmt.span }, context.clone())?;
                             // If numeric mismatch, allow coercion to annotated type
                             if lowered.ty != resolved_ty {
                                 if TypeUnifier::is_numeric(&lowered.ty) && TypeUnifier::is_numeric(&resolved_ty) {
@@ -970,25 +984,47 @@ impl Typechecker {
                         });
                     }
                             }
-                            (lowered, resolved_ty.clone())
+                            (Some(lowered), resolved_ty.clone())
                         }
+                        (None, _) => (None, resolved_ty.clone()),
                     }
                 } else {
-                    let lowered = self.lower_expr(value, context.clone())?;
-                    (lowered.clone(), lowered.ty.clone())
+                    match value {
+                        Some(v) => {
+                            let lowered = self.lower_expr(v, context.clone())?;
+                            (Some(lowered.clone()), lowered.ty.clone())
+                        }
+                        None => {
+                            // Without annotation and without initializer, default to unit type
+                            (None, hir::Ty::Special(hir::SpecialTy::Unit))
+                        }
+                    }
                 };
 
                 // Add the new variable to the current scope.
                 let symbol = Symbol::Variable {
                     ty: var_ty.clone(),
                     is_mut,
+                    initialized: hir_value_opt.is_some(),
                 };
                 self.add_symbol_to_current_scope(name.clone(), symbol);
 
-                Ok(hir::Stmt::Let { name, value: hir_value, ty: var_ty, is_mut })
+                Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut })
             }
             OwnedStmt::Assign(lhs, rhs) => {
-                let lhs_hir = self.lower_expr(lhs, context.clone())?;
+                // Special-case LHS path to avoid uninitialized read error during assignment
+                let lhs_hir = match &lhs.item {
+                    OwnedExpr::Path(path) => {
+                        let name = match path.last() { Some(n) => n.clone(), None => "".to_string() };
+                        if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned() {
+                            hir::Expr { kind: hir::ExprKind::Path(path.clone()), ty }
+                        } else {
+                            // Fall back to normal lowering for better errors
+                            self.lower_expr(lhs.clone(), context.clone())?
+                        }
+                    }
+                    _ => self.lower_expr(lhs.clone(), context.clone())?,
+                };
                 let rhs_hir = self.lower_expr(rhs, context.clone())?;
                 if lhs_hir.ty != rhs_hir.ty {
                 self.errors.push(TypeError {
@@ -998,6 +1034,10 @@ impl Typechecker {
                         ),
                     context: ItemContext { span: stmt.span, path: context.path.clone() },
                 });
+                }
+                // If assigning to a simple variable, mark it as initialized
+                if let hir::ExprKind::Path(p) = &lhs_hir.kind {
+                    if let Some(var_name) = p.last() { self.mark_variable_initialized(var_name); }
                 }
                 Ok(hir::Stmt::Assign(lhs_hir, rhs_hir))
             }
@@ -1499,7 +1539,7 @@ impl Typechecker {
         };
         // Insert bindings
         for (name, ty) in &bound_types {
-            self.add_symbol_to_current_scope(name.clone(), Symbol::Variable { ty: ty.clone(), is_mut: false });
+            self.add_symbol_to_current_scope(name.clone(), Symbol::Variable { ty: ty.clone(), is_mut: false, initialized: true });
         }
         let arm_expr = self.lower_expr(expr, context)?;
         Ok((hir_pat, arm_expr))

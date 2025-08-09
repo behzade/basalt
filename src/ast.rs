@@ -56,7 +56,7 @@ pub enum StmtNode<'src> {
         is_mut: bool,
         name: &'src str,
         ty: Option<Type<'src>>,
-        value: Expr<'src>,
+        value: Option<Expr<'src>>,
     },
     Return(Option<Expr<'src>>),
     Assign(Expr<'src>, Expr<'src>),
