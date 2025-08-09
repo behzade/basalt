@@ -11,7 +11,16 @@ pub(crate) enum Symbol {
 
 impl super::checker::Typechecker {
     pub(crate) fn add_symbol_to_current_scope(&mut self, name: String, symbol: Symbol) {
-        self.scopes.last_mut().unwrap().insert(name, symbol);
+        // Prevent redeclaration in the same (innermost) scope
+        if let Some(current) = self.scopes.last_mut() {
+            if current.contains_key(&name) {
+                // Push a type error if we have context available elsewhere. Since we do not
+                // have span/path here, leave enforcement to callers that can emit an error.
+                // Silently skip insertion to avoid poisoning scope with duplicate.
+                return;
+            }
+            current.insert(name, symbol);
+        }
     }
 }
 

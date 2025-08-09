@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::hir;
-use crate::typechecker::errors::ItemContext;
+use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
 use crate::typechecker::checker::Typechecker;
 use crate::ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedTypeAliasBody};
@@ -11,6 +11,11 @@ impl Typechecker {
         match &item.item {
             OwnedItem::Fn(func) => {
                 let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
+                // Disallow duplicate function names globally (including multiple 'main')
+                if self.top_level_functions.contains_key(&func.name) {
+                    self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
+                    return;
+                }
                 let mut params = Vec::new();
                 let mut has_error = false;
                 for (name_opt, ty) in &func.params {
@@ -98,6 +103,11 @@ impl Typechecker {
         let ctx = ItemContext { span: item.span, path: file.clone() };
         match &mut item_clone.item {
             OwnedItem::Fn(func) => {
+                // Disallow duplicate function names globally (including multiple 'main')
+                if self.top_level_functions.contains_key(&func.name) {
+                    self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
+                    return;
+                }
                 let mut params = Vec::new();
                 let mut has_error = false;
                 for (name_opt, ty) in &func.params {
