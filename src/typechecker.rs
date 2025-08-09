@@ -25,6 +25,8 @@ enum Symbol {
     },
     Function {
         signature: hir::HirFunctionSignature,
+        is_public: bool,
+        defined_in: PathBuf,
     },
     Type {
         canonical_path: hir::OwnedPath,
@@ -55,6 +57,12 @@ pub struct Typechecker {
     /// Map of file path -> set of imported names (aliases or last path segment).
     /// Used to suppress spurious unknown-name errors for module identifiers like `io`.
     imports_by_file: HashMap<PathBuf, HashSet<String>>,
+
+    /// Map of type path -> (defined file, is_public)
+    type_definition_meta: HashMap<hir::OwnedPath, (PathBuf, bool)>,
+
+    /// Top-level value functions by simple name. Ambiguities are not handled here yet.
+    top_level_functions: HashMap<String, (hir::HirFunctionSignature, bool, PathBuf)>,
 }
 
 #[derive(Debug, Clone)]
@@ -152,9 +160,9 @@ impl Typechecker {
         self.imports_by_file = imports_map;
 
         // --- PASS 1: Register all top-level definitions ---
-        for file in &files {
-            for item in file.1 {
-                self.register_top_level_item(item);
+        for (path, items) in &files {
+            for item in items {
+                self.register_top_level_item_with_file(item, path);
             }
         }
 
@@ -199,9 +207,19 @@ impl Typechecker {
                     },
                 )
                 .map(hir::Item::Struct),
-            // For this pass, we skip lowering of other item kinds (type aliases, enums, traits,
-            // effects, handlers, impls, and top-level statements). They are either registered
-            // during pass 1 or intentionally ignored without error.
+            OwnedItem::TypeAlias(ta) => self
+                .lower_type_alias(
+                    ta,
+                    ItemContext { span: item.span, path },
+                )
+                .map(hir::Item::TypeAlias),
+            OwnedItem::Enum(e) => self
+                .lower_enum(
+                    e,
+                    ItemContext { span: item.span, path },
+                )
+                .map(hir::Item::Enum),
+            // Skip traits/impls/effects/handlers/methods for this milestone
             _ => Err(()),
         }
     }
@@ -331,14 +349,24 @@ impl Typechecker {
                         }
                         Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone() })
                     }
-                    Some(Symbol::Function { signature }) => Ok(hir::Expr {
+                    Some(Symbol::Function { signature, is_public, defined_in }) => {
+                        // Visibility check for function
+                        if !is_public && &defined_in != &context.path {
+                            self.errors.push(TypeError {
+                                message: format!("Function `{}` is private", name),
+                                context: context.clone(),
+                            });
+                            return Err(());
+                        }
+                        Ok(hir::Expr {
                         kind: hir::ExprKind::Path(path),
                         ty: hir::Ty::Function {
                             param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(),
                             ret_type: Box::new(signature.ret_type.clone()),
                             effects: signature.effects.clone(),
                         },
-                    }),
+                    })
+                    }
                     None => {
                         // If the identifier matches an imported module name in this file,
                         // treat it as a module placeholder instead of an unknown value.
@@ -514,7 +542,11 @@ impl Typechecker {
                             }
                             None => {
                                 // Unknown base: treat `base.field` as a reference to a global function `field`
-                                if let Some(Symbol::Function { signature }) = self.lookup_symbol(&field).cloned() {
+                                if let Some(Symbol::Function { signature, is_public, defined_in }) = self.lookup_symbol(&field).cloned() {
+                                    if !is_public && defined_in != context.path {
+                                        self.errors.push(TypeError { message: format!("Function `{}` is private", field), context: context.clone() });
+                                        return Err(());
+                                    }
                                     return Ok(hir::Expr {
                                         kind: hir::ExprKind::Path(vec![field]),
                                         ty: hir::Ty::Function {
@@ -549,7 +581,11 @@ impl Typechecker {
                     }
                 }
                 // As a final fallback, if `field` is a known global function, reference it directly
-                if let Some(Symbol::Function { signature }) = self.lookup_symbol(&field).cloned() {
+                if let Some(Symbol::Function { signature, is_public, defined_in }) = self.lookup_symbol(&field).cloned() {
+                    if !is_public && defined_in != context.path {
+                        self.errors.push(TypeError { message: format!("Function `{}` is private", field), context: context.clone() });
+                        return Err(());
+                    }
                     return Ok(hir::Expr {
                         kind: hir::ExprKind::Path(vec![field]),
                         ty: hir::Ty::Function {
@@ -572,7 +608,14 @@ impl Typechecker {
                         let name = path.last().expect("Path cannot be empty").clone();
                         // 1) Function call
                         let signature_opt = match self.lookup_symbol(&name) {
-                            Some(Symbol::Function { signature }) => Some(signature.clone()),
+                             Some(Symbol::Function { signature, is_public, defined_in }) => {
+                                 if !is_public && defined_in != &context.path {
+                                     self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
+                                     None
+                                 } else {
+                                     Some(signature.clone())
+                                 }
+                             }
                             _ => None,
                         };
                         if let Some(signature) = signature_opt {
@@ -1172,6 +1215,73 @@ impl Typechecker {
         })
     }
 
+    fn lower_enum(
+        &mut self,
+        e: OwnedEnumDef,
+        context: ItemContext,
+    ) -> Result<hir::HirEnumDef, ()> {
+        let name = e.name.unwrap_or_default();
+        let mut variants: Vec<(String, Option<Vec<hir::Ty>>)> = Vec::new();
+        for (vname, payload_opt) in e.variants {
+            let lowered_payload = match payload_opt {
+                Some(ts) => {
+                    let mut out: Vec<hir::Ty> = Vec::new();
+                    for t in ts {
+                        out.push(self.resolve_type(&t, context.clone())?);
+                    }
+                    Some(out)
+                }
+                None => None,
+            };
+            variants.push((vname, lowered_payload));
+        }
+        Ok(hir::HirEnumDef { name, variants, is_public: e.is_public })
+    }
+
+    fn lower_type_alias(
+        &mut self,
+        ta: OwnedTypeAliasDef,
+        context: ItemContext,
+    ) -> Result<hir::HirTypeAlias, ()> {
+        use crate::ast_owned::OwnedTypeAliasBody as Body;
+        let name = ta.name.clone();
+        match ta.aliased {
+            Body::Type(t) => {
+                let aliased = self.resolve_type(&t, context.clone())?;
+                Ok(hir::HirTypeAlias { name, aliased, is_public: ta.is_public })
+            }
+            Body::Record(fields) => {
+                // Lower to struct def and also create an alias to that nominal type
+                let mut lowered_fields = Vec::new();
+                for (fname, fty) in fields {
+                    lowered_fields.push((fname, self.resolve_type(&fty, context.clone())?));
+                }
+                let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public };
+                // record the struct in definitions
+                self.type_definitions.insert(vec![ta.name.clone()], hir::Item::Struct(def));
+                let aliased = hir::Ty::Adt(hir::AdtTy::Struct { name: vec![ta.name.clone()], generics: vec![] });
+                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true })
+            }
+            Body::Union(variants) => {
+                // Lower to enum def and alias to that nominal enum
+                let mut lowered: Vec<(String, Option<Vec<hir::Ty>>)> = Vec::new();
+                for (vname, payload) in variants {
+                    let payload_tys = match payload {
+                        Some(t) => Some(vec![self.resolve_type(&t, context.clone())?]),
+                        None => None,
+                    };
+                    lowered.push((vname, payload_tys));
+                }
+                let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public };
+                let path = vec![ta.name.clone()];
+                self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
+                self.union_variants.insert(path.clone(), lowered);
+                let aliased = hir::Ty::Adt(hir::AdtTy::Enum { name: path, generics: vec![] });
+                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true })
+            }
+        }
+    }
+
     //================================================================================//
     //                             Helper & Utility Functions
     //================================================================================//
@@ -1195,6 +1305,16 @@ impl Typechecker {
                 // Try to resolve against registered type definitions
                 let path_vec = owned_ty.path.clone();
                 if let Some(item) = self.type_definitions.get(&path_vec) {
+                    // Enforce visibility at module boundaries for types
+                    if let Some((defined_in, is_public)) = self.type_definition_meta.get(&path_vec) {
+                        if !*is_public && defined_in != &context.path {
+                            self.errors.push(TypeError {
+                                message: format!("Type `{}` is private", type_name),
+                                context: context.clone(),
+                            });
+                            return Err(());
+                        }
+                    }
                     match item {
                         hir::Item::Struct(_) => Ok(hir::Ty::Adt(hir::AdtTy::Struct {
                             name: path_vec,
@@ -1255,9 +1375,14 @@ impl Typechecker {
                         ret_type: ret_ty,
                         effects: vec![],
                     };
+                    // Record as top-level function with visibility
+                    self.top_level_functions.insert(
+                        func.name.clone(),
+                        (signature.clone(), func.is_public, ctx.path.clone()),
+                    );
                     self.add_symbol_to_current_scope(
                         func.name.clone(),
-                        Symbol::Function { signature },
+                        Symbol::Function { signature, is_public: func.is_public, defined_in: ctx.path.clone() },
                     );
                 }
             }
@@ -1273,8 +1398,9 @@ impl Typechecker {
                             }
                         }
                         let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public };
-                        self.type_definitions
-                            .insert(vec![ta.name.clone()], hir::Item::Struct(def));
+                        let path = vec![ta.name.clone()];
+                        self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
+                        self.type_definition_meta.insert(path, (ctx.path.clone(), ta.is_public));
                     }
                     OwnedTypeAliasBody::Union(variants) => {
                         let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
@@ -1291,8 +1417,8 @@ impl Typechecker {
                         }
                         let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered_variants.clone(), is_public: ta.is_public };
                         let path = vec![ta.name.clone()];
-                        self.type_definitions
-                            .insert(path.clone(), hir::Item::Enum(def));
+                        self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
+                        self.type_definition_meta.insert(path.clone(), (ctx.path.clone(), ta.is_public));
                         self.union_variants.insert(path, lowered_variants);
                     }
                     OwnedTypeAliasBody::Type(_) => {
@@ -1317,11 +1443,46 @@ impl Typechecker {
                     ops.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type: ret_ty, effects: vec![] });
                 }
                 let def = hir::HirEffectDef { name: eff.name.clone(), operations: ops, is_public: eff.is_public };
-                self.type_definitions
-                    .insert(vec![eff.name.clone()], hir::Item::Effect(def));
+                let path = vec![eff.name.clone()];
+                self.type_definitions.insert(path.clone(), hir::Item::Effect(def));
+                self.type_definition_meta.insert(path, (ctx.path.clone(), eff.is_public));
             }
             // Ignore others in registration for this pass
             _ => {}
+        }
+    }
+
+    /// Variant that gets file path to track visibility meta
+    fn register_top_level_item_with_file(&mut self, item: &OwnedItemWithSpan, file: &PathBuf) {
+        let mut item_clone = item.clone();
+        // Rewrite context path for registration visibility bookkeeping
+        let ctx = ItemContext { span: item.span, path: file.clone() };
+        match &mut item_clone.item {
+            OwnedItem::Fn(func) => {
+                // Build function signature and register
+                let mut params = Vec::new();
+                let mut has_error = false;
+                for (name_opt, ty) in &func.params {
+                    match self.resolve_type(ty, ctx.clone()) {
+                        Ok(t) => params.push((name_opt.clone().clone().unwrap_or("_".to_string()), t)),
+                        Err(_) => has_error = true,
+                    }
+                }
+                let ret_ty = match &func.ret_type {
+                    Some(rt) => self.resolve_type(rt, ctx.clone()).unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit)),
+                    None => hir::Ty::Special(hir::SpecialTy::Unit),
+                };
+                if !has_error {
+                    let signature = hir::HirFunctionSignature { name: func.name.clone(), params, ret_type: ret_ty, effects: vec![] };
+                    self.top_level_functions.insert(func.name.clone(), (signature.clone(), func.is_public, ctx.path.clone()));
+                    self.add_symbol_to_current_scope(func.name.clone(), Symbol::Function { signature, is_public: func.is_public, defined_in: ctx.path.clone() });
+                }
+            }
+            _ => {
+                // Delegate to original registration using this ctx to capture file
+                let saved = ItemContext { span: item.span, path: file.clone() };
+                self.register_top_level_item(&OwnedItemWithSpan { item: item.item.clone(), span: saved.span });
+            }
         }
     }
 
@@ -1395,7 +1556,14 @@ impl Typechecker {
             ret_type: hir::Ty::Primitive(hir::PrimitiveTy::I32),
             effects: vec![],
         };
-        self.add_symbol_to_current_scope("len".to_string(), Symbol::Function { signature });
+        self.add_symbol_to_current_scope(
+            "len".to_string(),
+            Symbol::Function {
+                signature,
+                is_public: true,
+                defined_in: PathBuf::from("<builtin>"),
+            },
+        );
     }
 
     fn is_numeric_type(&self, ty: &hir::Ty) -> bool {

@@ -69,6 +69,7 @@ pub enum Item {
     Fn(HirFunction),
     Struct(HirStructDef),
     Enum(HirEnumDef),
+    TypeAlias(HirTypeAlias),
     Trait(HirTraitDef),
     Effect(HirEffectDef),
     Impl(HirImplBlock),
@@ -101,6 +102,13 @@ pub struct HirStructDef {
 pub struct HirEnumDef {
     pub name: String,
     pub variants: Vec<(String, Option<Vec<Ty>>)>, // Variant name and optional associated types
+    pub is_public: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirTypeAlias {
+    pub name: String,
+    pub aliased: Ty,
     pub is_public: bool,
 }
 
