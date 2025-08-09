@@ -332,6 +332,79 @@ impl Backend {
             }
         }
 
+        // Resolve diagnostics: report unknown imports and name conflicts with union constructors
+        for (file, items) in &ast {
+            // Build a set of union constructor names defined in this file
+            let mut union_constructors: std::collections::HashSet<String> = std::collections::HashSet::new();
+            for it in items {
+                if let OwnedItem::TypeAlias(ta) = &it.item {
+                    if let OwnedTypeAliasBody::Union(vars) = &ta.aliased {
+                        for (vname, _payload) in vars {
+                            union_constructors.insert(vname.clone());
+                        }
+                    }
+                }
+            }
+
+            // Now scan import blocks for this file
+            for it in items {
+                if let OwnedItem::ImportBlock { imports } = &it.item {
+                    for imp in imports {
+                        let import_name = imp
+                            .alias
+                            .clone()
+                            .unwrap_or_else(|| imp.path.last().cloned().unwrap_or_default());
+
+                        // Conflict with union constructor name
+                        if union_constructors.contains(&import_name) {
+                            if let Some(text) = sources.get(file) {
+                                if let Some(tok_spans) = token_spans_map.get(file) {
+                                    let range = Self::token_index_span_to_range(text, tok_spans, it.span);
+                                    Self::diagnostics_push(
+                                        &mut diagnostics,
+                                        file,
+                                        lsp::Diagnostic {
+                                            range,
+                                            severity: Some(lsp::DiagnosticSeverity::ERROR),
+                                            source: Some("basalt-resolve".to_string()),
+                                            message: format!(
+                                                "Import name '{}' conflicts with union constructor '{}' in this file",
+                                                import_name, import_name
+                                            ),
+                                            ..Default::default()
+                                        },
+                                    );
+                                }
+                            }
+                        }
+
+                        // Unknown import path (module directory missing)
+                        if let Some(dir) = Self::resolve_module_dir_path(&imp.path) {
+                            if !dir.exists() {
+                                if let Some(text) = sources.get(file) {
+                                    if let Some(tok_spans) = token_spans_map.get(file) {
+                                        let range = Self::token_index_span_to_range(text, tok_spans, it.span);
+                                        let display_path = imp.path.join("/");
+                                        Self::diagnostics_push(
+                                            &mut diagnostics,
+                                            file,
+                                            lsp::Diagnostic {
+                                                range,
+                                                severity: Some(lsp::DiagnosticSeverity::ERROR),
+                                                source: Some("basalt-resolve".to_string()),
+                                                message: format!("Unknown import: {}", display_path),
+                                                ..Default::default()
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Typecheck
         let mut typechecker = Typechecker::default();
         let hir = match typechecker.check_program(ast.clone()) {

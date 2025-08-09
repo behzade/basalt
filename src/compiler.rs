@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     ast::{Item, ItemNode},
-    ast_owned::{OwnedItem, OwnedItemWithSpan, Spanned},
+    ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedTypeAliasBody, Spanned},
     hir::{self, Item as HirItem},
     lexer::lexer,
     parser::file_parser,
@@ -35,7 +35,8 @@ pub struct Compiler {
 #[derive(Default)]
 pub struct Workspace {
     tokens: Vec<OwnedTokenWithSpan>,
-    imports: Vec<OwnedItem>,
+    // Keep import blocks along with their source file path and span
+    imports: Vec<(PathBuf, Spanned<OwnedItem>)>,
     sources: HashMap<PathBuf, String>,
     pub ast: HashMap<PathBuf, Vec<Spanned<OwnedItem>>>,
     pub hir: Vec<hir::Item>,
@@ -131,7 +132,19 @@ impl Compiler {
             for item in items {
                 match &item.node {
                     ItemNode::ImportBlock { .. } => {
-                        self.workspace.imports.push((&item).into());
+                        // Store import block with its source path and span for diagnostics
+                        self.workspace.imports.push((
+                            PathBuf::from(file_to_parse.clone()),
+                            Spanned {
+                                item: (&item).into(),
+                                span: item.span,
+                            },
+                        ));
+                        // Also keep it in the AST so later passes can see import blocks if needed
+                        owned_items.push(Spanned {
+                            item: (&item).into(),
+                            span: item.span,
+                        });
                     }
                     _ => {
                         owned_items.push(Spanned {
@@ -191,11 +204,56 @@ impl Compiler {
 
         let mut worklist = std::mem::take(&mut self.workspace.imports);
 
-        while let Some(item) = worklist.pop() {
-            if let OwnedItem::ImportBlock { imports } = item {
+        // Collect resolve-time diagnostics (unresolved imports, name conflicts)
+        let mut resolve_errors: Vec<TypeError> = Vec::new();
+
+        while let Some((item_path, item)) = worklist.pop() {
+            if let OwnedItem::ImportBlock { imports } = item.item {
+                // Precompute union constructor names defined in the same file for conflict checks
+                let mut local_union_constructors: HashSet<String> = HashSet::new();
+                if let Some(items_in_file) = self.workspace.ast.get(&item_path) {
+                    for owned in items_in_file {
+                        if let OwnedItem::TypeAlias(ta) = &owned.item {
+                            if let OwnedTypeAliasBody::Union(variants) = &ta.aliased {
+                                for (vname, _) in variants {
+                                    local_union_constructors.insert(vname.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+
                 for import in imports {
+                    let import_name = import
+                        .alias
+                        .clone()
+                        .unwrap_or_else(|| import.path.last().cloned().unwrap_or_default());
+
+                    // Name conflict: import name collides with a local union constructor
+                    if local_union_constructors.contains(&import_name) {
+                        resolve_errors.push(TypeError {
+                            message: format!(
+                                "Import name '{}' conflicts with union constructor '{}' in this file",
+                                import_name, import_name
+                            ),
+                            context: crate::typechecker::ItemContext {
+                                span: item.span,
+                                path: item_path.clone(),
+                            },
+                        });
+                    }
+
                     if let Some(dir_path) = Compiler::resolve_module_dir_path(&import.path) {
                         if !dir_path.exists() {
+                            // Unresolved import path -> diagnostic at the import block span
+                            let display_path = import.path.join("/");
+                            resolve_errors.push(TypeError {
+                                message: format!("Unknown import: {}", display_path),
+                                context: crate::typechecker::ItemContext {
+                                    span: item.span,
+                                    path: item_path.clone(),
+                                },
+                            });
                             continue;
                         }
 
@@ -226,6 +284,11 @@ impl Compiler {
                     }
                 }
             }
+        }
+
+        // If we collected any errors, report them but do not fail the resolve stage
+        if !resolve_errors.is_empty() {
+            self.report_type_errors(&resolve_errors);
         }
         Ok(())
     }
