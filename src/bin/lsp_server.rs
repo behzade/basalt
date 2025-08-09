@@ -46,8 +46,16 @@ struct TopLevelIndex {
     traits: HashMap<String, (PathBuf, SimpleSpan)>,
     // method name -> possibly multiple definitions (impls on different types)
     methods: HashMap<String, Vec<DefInfo>>,
+    // trait method name -> possibly multiple definitions (interface declarations)
+    trait_methods: HashMap<String, Vec<DefInfo>>,
     // per-file local variable definitions: name -> span
-    locals_by_file: HashMap<PathBuf, HashMap<String, SimpleSpan>>, 
+    locals_by_file: HashMap<PathBuf, HashMap<String, SimpleSpan>>,
+    // per-file local variables with annotated types: name -> pretty type
+    local_annotated_types_by_file: HashMap<PathBuf, HashMap<String, String>>,
+    // per-file local variables with inferred types: name -> hir::Ty
+    local_inferred_types_by_file: HashMap<PathBuf, HashMap<String, hir::Ty>>,
+    // record fields index: field name -> list of (file, span, parent type name, field type)
+    record_fields: HashMap<String, Vec<(PathBuf, SimpleSpan, String, ast_owned::OwnedType)>>,
 }
 
 #[derive(Default, Clone)]
@@ -531,6 +539,12 @@ impl Backend {
                         if let Some(tokens) = token_cache.get(file) {
                             Self::collect_locals_in_expr(&f.body, tokens, locals);
                         }
+                        // Capture annotated types for locals in this file
+                        let ann_map = index.local_annotated_types_by_file.entry(file.clone()).or_default();
+                        Self::collect_local_annotated_types_in_fn(&f.body, ann_map);
+                        // Capture inferred local types from HIR
+                        let inferred = index.local_inferred_types_by_file.entry(file.clone()).or_default();
+                        Self::collect_local_inferred_types_in_hir_block(&f.body, inferred);
                     }
                     OwnedItem::TypeAlias(ta) => {
                         // Prefer the span of the alias name token
@@ -548,6 +562,19 @@ impl Backend {
                                     .unwrap_or(it.span);
                                 index.union_variants.insert(vname.clone(), (file.clone(), v_span));
                             }
+                        } else if let OwnedTypeAliasBody::Record(fields) = &ta.aliased {
+                            // Index record fields for hover/definition
+                            for (field_name, field_ty) in fields {
+                                let f_span = token_cache
+                                    .get(file)
+                                    .and_then(|toks| find_ident_span(toks, it.span, field_name))
+                                    .unwrap_or(it.span);
+                                index
+                                    .record_fields
+                                    .entry(field_name.clone())
+                                    .or_default()
+                                    .push((file.clone(), f_span, ta.name.clone(), field_ty.clone()));
+                            }
                         }
                     }
                     OwnedItem::Trait(tr) => {
@@ -557,6 +584,18 @@ impl Backend {
                             .and_then(|toks| find_ident_span(toks, it.span, &tr.name))
                             .unwrap_or(it.span);
                         index.traits.insert(tr.name.clone(), (file.clone(), name_span));
+                        // Collect trait methods as declarations for hover/definition
+                        for m in &tr.methods {
+                            let m_span = token_cache
+                                .get(file)
+                                .and_then(|toks| find_ident_span(toks, it.span, &m.name))
+                                .unwrap_or(it.span);
+                            index
+                                .trait_methods
+                                .entry(m.name.clone())
+                                .or_default()
+                                .push(DefInfo { path: file.clone(), span: m_span, signature: Some(HirFunctionSignature { name: m.name.clone(), params: m.params.iter().map(|(n, t)| (n.clone().unwrap_or_default(), Self::owned_type_to_hir_ty(t))).collect(), ret_type: m.ret_type.as_ref().map(Self::owned_type_to_hir_ty).unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit)), effects: vec![] }) });
+                        }
                     }
                     OwnedItem::Impl(imp) => {
                         // Index methods inside impl blocks
@@ -577,6 +616,10 @@ impl Backend {
                             if let Some(tokens) = token_cache.get(file) {
                                 Self::collect_locals_in_expr(&m.body, tokens, locals);
                             }
+                            let ann_map = index.local_annotated_types_by_file.entry(file.clone()).or_default();
+                            Self::collect_local_annotated_types_in_fn(&m.body, ann_map);
+                            let inferred = index.local_inferred_types_by_file.entry(file.clone()).or_default();
+                            Self::collect_local_inferred_types_in_hir_block(&m.body, inferred);
                         }
                     }
                     OwnedItem::ImportBlock { imports } => {
@@ -663,6 +706,93 @@ impl Backend {
             OE::Map(entries) => { for (_k, v) in entries { Self::collect_locals_in_expr(v, tokens, locals_out); } }
             OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
         }
+    }
+
+    fn collect_local_annotated_types_in_fn(
+        expr: &ast_owned::Spanned<ast_owned::OwnedExpr>,
+        out: &mut HashMap<String, String>,
+    ) {
+        use ast_owned::OwnedExpr as OE;
+        use ast_owned::OwnedStmt as OS;
+        match &expr.item {
+            OE::Block { stmts, last_expr } => {
+                for s in stmts {
+                    if let OS::Let { is_mut: _, name, ty, value: _ } = &s.item {
+                        if let Some(t) = ty {
+                            out.insert(name.clone(), Self::format_type_node(t));
+                        }
+                    }
+                }
+                if let Some(le) = last_expr {
+                    Self::collect_local_annotated_types_in_fn(le, out);
+                }
+            }
+            OE::Unary { rhs, .. } => Self::collect_local_annotated_types_in_fn(rhs, out),
+            OE::Binary { lhs, rhs, .. } => {
+                Self::collect_local_annotated_types_in_fn(lhs, out);
+                Self::collect_local_annotated_types_in_fn(rhs, out);
+            }
+            OE::FieldAccess { receiver, .. } => Self::collect_local_annotated_types_in_fn(receiver, out),
+            OE::Call { fun, args } => {
+                Self::collect_local_annotated_types_in_fn(fun, out);
+                for a in args { Self::collect_local_annotated_types_in_fn(a, out); }
+            }
+            OE::If { cond, then_block, else_block } => {
+                Self::collect_local_annotated_types_in_fn(cond, out);
+                Self::collect_local_annotated_types_in_fn(then_block, out);
+                if let Some(e) = else_block { Self::collect_local_annotated_types_in_fn(e, out); }
+            }
+            OE::While { cond, body } => {
+                Self::collect_local_annotated_types_in_fn(cond, out);
+                Self::collect_local_annotated_types_in_fn(body, out);
+            }
+            OE::Match { scrutinee, arms } => {
+                Self::collect_local_annotated_types_in_fn(scrutinee, out);
+                for (_pat, arm) in arms { Self::collect_local_annotated_types_in_fn(arm, out); }
+            }
+            OE::Handle { body, .. } => Self::collect_local_annotated_types_in_fn(body, out),
+            OE::Cast { expr, .. } => Self::collect_local_annotated_types_in_fn(expr, out),
+            OE::StructInit { fields, .. } => {
+                for (_n, e) in fields { Self::collect_local_annotated_types_in_fn(e, out); }
+            }
+            OE::Array(elems) => { for e in elems { Self::collect_local_annotated_types_in_fn(e, out); } }
+            OE::Map(entries) => { for (_k, v) in entries { Self::collect_local_annotated_types_in_fn(v, out); } }
+            OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
+        }
+    }
+
+    fn collect_local_inferred_types_in_hir_block(
+        _expr: &ast_owned::Spanned<ast_owned::OwnedExpr>,
+        _out: &mut HashMap<String, hir::Ty>,
+    ) {
+        // TODO: Wire to HIR when variable table is available.
+        // Placeholder to keep index structure consistent without compile errors.
+    }
+
+    fn format_type_node(ty: &ast_owned::OwnedType) -> String {
+        let path = ty.path.join("::");
+        if ty.generics.is_empty() {
+            path
+        } else {
+            let gens: Vec<String> = ty.generics.iter().map(Self::format_type_node).collect();
+            format!("{}<{}>", path, gens.join(", "))
+        }
+    }
+
+    fn owned_type_to_hir_ty(ty: &ast_owned::OwnedType) -> hir::Ty {
+        if ty.path.len() == 1 {
+            match ty.path[0].as_str() {
+                "bool" => return hir::Ty::Primitive(hir::PrimitiveTy::Bool),
+                "byte" => return hir::Ty::Primitive(hir::PrimitiveTy::Byte),
+                "i32" => return hir::Ty::Primitive(hir::PrimitiveTy::I32),
+                "i64" => return hir::Ty::Primitive(hir::PrimitiveTy::I64),
+                "f64" => return hir::Ty::Primitive(hir::PrimitiveTy::F64),
+                "str" => return hir::Ty::Primitive(hir::PrimitiveTy::Str),
+                "()" => return hir::Ty::Special(hir::SpecialTy::Unit),
+                _ => {}
+            }
+        }
+        hir::Ty::Adt(hir::AdtTy::Struct { name: ty.path.clone(), generics: ty.generics.iter().map(Self::owned_type_to_hir_ty).collect() })
     }
 
     fn find_ident_in_span(
@@ -790,8 +920,14 @@ impl LanguageServer for Backend {
                     return Ok(Some(lsp::Hover { contents, range: None }));
                 }
             }
-            // Method hover
-            if let Some(defs) = analysis.index.methods.get(&name) {
+            // Method hover: prefer interface declaration if present
+            if let Some(defs) = analysis
+                .index
+                .trait_methods
+                .get(&name)
+                .cloned()
+                .or_else(|| analysis.index.methods.get(&name).cloned())
+            {
                 if let Some(sig) = defs.iter().find_map(|d| d.signature.clone()) {
                     let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
                         kind: lsp::MarkupKind::PlainText,
@@ -799,10 +935,7 @@ impl LanguageServer for Backend {
                     });
                     return Ok(Some(lsp::Hover { contents, range: None }));
                 } else {
-                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
-                        kind: lsp::MarkupKind::PlainText,
-                        value: format!("method {}(..)", name),
-                    });
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("method {}(..)", name) });
                     return Ok(Some(lsp::Hover { contents, range: None }));
                 }
             }
@@ -820,13 +953,28 @@ impl LanguageServer for Backend {
                 });
                 return Ok(Some(lsp::Hover { contents, range: None }));
             }
-            // Local variable hover
+            // Record field hover: name: Type when hovering field name inside record literal or type alias
+            if let Some(defs) = analysis.index.record_fields.get(&name) {
+                if let Some((_, _, owner, field_ty)) = defs.first() {
+                    let ty_str = Self::format_type_node(field_ty);
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("{}: {}", name, ty_str) });
+                    return Ok(Some(lsp::Hover { contents, range: None }));
+                }
+            }
+            // Local variable hover: if we have an annotated or inferred type, show it
             if let Some(locals) = analysis.index.locals_by_file.get(&path) {
                 if locals.contains_key(&name) {
-                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
-                        kind: lsp::MarkupKind::PlainText,
-                        value: format!("let {}", name),
-                    });
+                    if let Some(map) = analysis.index.local_annotated_types_by_file.get(&path) {
+                        if let Some(ty_str) = map.get(&name) {
+                            let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("{}: {}", name, ty_str) });
+                            return Ok(Some(lsp::Hover { contents, range: None }));
+                        }
+                    }
+                    if let Some(inferred) = analysis.index.local_inferred_types_by_file.get(&path).and_then(|m| m.get(&name)) {
+                        let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("{}: {:?}", name, inferred) });
+                        return Ok(Some(lsp::Hover { contents, range: None }));
+                    }
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("{}", name) });
                     return Ok(Some(lsp::Hover { contents, range: None }));
                 }
             }
@@ -938,6 +1086,35 @@ impl LanguageServer for Backend {
                 }
                 if !locs.is_empty() {
                     return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
+                }
+            }
+            if let Some(defs) = analysis.index.trait_methods.get(&name) {
+                let mut locs: Vec<lsp::Location> = Vec::new();
+                for d in defs {
+                    if let Some(src_text) = analysis.sources.get(&d.path) {
+                        let range = Self::simple_span_to_range(src_text, d.span);
+                        let uri = match lsp::Url::from_file_path(&d.path) { Ok(u) => u, Err(_) => continue };
+                        locs.push(lsp::Location { uri, range });
+                    }
+                }
+                if !locs.is_empty() {
+                    return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
+                }
+            }
+            // Record field go-to-definition: jump to field declaration in type alias record
+            if let Some((file_fields, _)) = analysis.index.type_aliases.iter().next() {
+                if let Some(defs) = analysis.index.record_fields.get(&name) {
+                    let mut locs: Vec<lsp::Location> = Vec::new();
+                    for (p, sp, _owner, _ty) in defs {
+                        if let Some(src_text) = analysis.sources.get(p) {
+                            let range = Self::simple_span_to_range(src_text, *sp);
+                            let uri = match lsp::Url::from_file_path(p) { Ok(u) => u, Err(_) => continue };
+                            locs.push(lsp::Location { uri, range });
+                        }
+                    }
+                    if !locs.is_empty() {
+                        return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
+                    }
                 }
             }
             if let Some(locals) = analysis.index.locals_by_file.get(&path) {
