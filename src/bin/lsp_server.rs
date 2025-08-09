@@ -493,12 +493,17 @@ impl Backend {
         let mut fn_sigs: HashMap<String, HirFunctionSignature> = HashMap::new();
         // Map method name -> signatures (there can be multiple)
         let mut method_sigs: HashMap<String, Vec<HirFunctionSignature>> = HashMap::new();
+        // Bodies for inference
+        let mut fn_bodies: HashMap<String, hir::HirBlock> = HashMap::new();
+        let mut method_bodies: HashMap<String, Vec<hir::HirBlock>> = HashMap::new();
         for item in &hir {
             if let HirItem::Fn(f) = item {
                 fn_sigs.insert(f.signature.name.clone(), f.signature.clone());
+                fn_bodies.insert(f.signature.name.clone(), f.body.clone());
             } else if let HirItem::Impl(imp) = item {
                 for m in &imp.methods {
                     method_sigs.entry(m.signature.name.clone()).or_default().push(m.signature.clone());
+                    method_bodies.entry(m.signature.name.clone()).or_default().push(m.body.clone());
                 }
             }
         }
@@ -542,9 +547,11 @@ impl Backend {
                         // Capture annotated types for locals in this file
                         let ann_map = index.local_annotated_types_by_file.entry(file.clone()).or_default();
                         Self::collect_local_annotated_types_in_fn(&f.body, ann_map);
-                        // Capture inferred local types from HIR
-                        let inferred = index.local_inferred_types_by_file.entry(file.clone()).or_default();
-                        Self::collect_local_inferred_types_in_hir_block(&f.body, inferred);
+                        // Capture inferred local types from HIR using body matched by name
+                        if let Some(hb) = fn_bodies.get(&f.name) {
+                            let inferred = index.local_inferred_types_by_file.entry(file.clone()).or_default();
+                            Self::collect_local_inferred_types_in_hir_block(hb, inferred);
+                        }
                     }
                     OwnedItem::TypeAlias(ta) => {
                         // Prefer the span of the alias name token
@@ -618,8 +625,10 @@ impl Backend {
                             }
                             let ann_map = index.local_annotated_types_by_file.entry(file.clone()).or_default();
                             Self::collect_local_annotated_types_in_fn(&m.body, ann_map);
-                            let inferred = index.local_inferred_types_by_file.entry(file.clone()).or_default();
-                            Self::collect_local_inferred_types_in_hir_block(&m.body, inferred);
+                            if let Some(hb) = method_bodies.get(&m.name).and_then(|v| v.first()) {
+                                let inferred = index.local_inferred_types_by_file.entry(file.clone()).or_default();
+                                Self::collect_local_inferred_types_in_hir_block(hb, inferred);
+                            }
                         }
                     }
                     OwnedItem::ImportBlock { imports } => {
@@ -762,11 +771,18 @@ impl Backend {
     }
 
     fn collect_local_inferred_types_in_hir_block(
-        _expr: &ast_owned::Spanned<ast_owned::OwnedExpr>,
-        _out: &mut HashMap<String, hir::Ty>,
+        block: &hir::HirBlock,
+        out: &mut HashMap<String, hir::Ty>,
     ) {
-        // TODO: Wire to HIR when variable table is available.
-        // Placeholder to keep index structure consistent without compile errors.
+        use hir::Stmt as HS;
+        for s in &block.stmts {
+            if let HS::Let { name, ty, .. } = s {
+                out.insert(name.clone(), ty.clone());
+            }
+        }
+        if let Some(last) = &block.last_expr {
+            let _ = &last.ty; // currently unused; could be wired to special identifier `_` etc.
+        }
     }
 
     fn format_type_node(ty: &ast_owned::OwnedType) -> String {
@@ -921,18 +937,20 @@ impl LanguageServer for Backend {
                 }
             }
             // Method hover: prefer interface declaration if present
-            if let Some(defs) = analysis
-                .index
-                .trait_methods
-                .get(&name)
-                .cloned()
-                .or_else(|| analysis.index.methods.get(&name).cloned())
-            {
+            if let Some(defs) = analysis.index.trait_methods.get(&name).cloned() {
                 if let Some(sig) = defs.iter().find_map(|d| d.signature.clone()) {
                     let contents = lsp::HoverContents::Markup(lsp::MarkupContent {
                         kind: lsp::MarkupKind::PlainText,
                         value: Self::build_signature_string(&sig),
                     });
+                    return Ok(Some(lsp::Hover { contents, range: None }));
+                } else {
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("method {}(..)", name) });
+                    return Ok(Some(lsp::Hover { contents, range: None }));
+                }
+            } else if let Some(defs) = analysis.index.methods.get(&name) {
+                if let Some(sig) = defs.iter().find_map(|d| d.signature.clone()) {
+                    let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: Self::build_signature_string(&sig) });
                     return Ok(Some(lsp::Hover { contents, range: None }));
                 } else {
                     let contents = lsp::HoverContents::Markup(lsp::MarkupContent { kind: lsp::MarkupKind::PlainText, value: format!("method {}(..)", name) });
@@ -1102,19 +1120,17 @@ impl LanguageServer for Backend {
                 }
             }
             // Record field go-to-definition: jump to field declaration in type alias record
-            if let Some((file_fields, _)) = analysis.index.type_aliases.iter().next() {
-                if let Some(defs) = analysis.index.record_fields.get(&name) {
-                    let mut locs: Vec<lsp::Location> = Vec::new();
-                    for (p, sp, _owner, _ty) in defs {
-                        if let Some(src_text) = analysis.sources.get(p) {
-                            let range = Self::simple_span_to_range(src_text, *sp);
-                            let uri = match lsp::Url::from_file_path(p) { Ok(u) => u, Err(_) => continue };
-                            locs.push(lsp::Location { uri, range });
-                        }
+            if let Some(defs) = analysis.index.record_fields.get(&name) {
+                let mut locs: Vec<lsp::Location> = Vec::new();
+                for (p, sp, _owner, _ty) in defs {
+                    if let Some(src_text) = analysis.sources.get(p) {
+                        let range = Self::simple_span_to_range(src_text, *sp);
+                        let uri = match lsp::Url::from_file_path(p) { Ok(u) => u, Err(_) => continue };
+                        locs.push(lsp::Location { uri, range });
                     }
-                    if !locs.is_empty() {
-                        return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                    }
+                }
+                if !locs.is_empty() {
+                    return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
                 }
             }
             if let Some(locals) = analysis.index.locals_by_file.get(&path) {
