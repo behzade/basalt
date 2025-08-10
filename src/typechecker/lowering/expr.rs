@@ -379,16 +379,6 @@ impl Typechecker {
 
     pub(crate) fn lower_expr_with_expected(&mut self, expr: SpannedExpr, expected: hir::Ty, context: ItemContext) -> Result<hir::Expr, ()> {
         match (expr.item.clone(), expected.clone()) {
-            (OwnedExpr::Map(entries), hir::Ty::Adt(hir::AdtTy::Struct { name, .. })) => {
-                let mut lowered_fields = Vec::new();
-                for (k_expr, v_expr) in entries {
-                    let key = match k_expr.item { OwnedExpr::Literal(OwnedLiteral::Str(s)) => s, _ => "<key>".to_string() };
-                    let field_expected = self.lookup_struct_field_type(&name, &key).cloned();
-                    let v = if let Some(exp) = field_expected { self.lower_expr_with_expected(v_expr, exp, context.clone())? } else { self.lower_expr(v_expr, context.clone())? };
-                    lowered_fields.push((key, v));
-                }
-                Ok(hir::Expr { ty: expected.clone(), kind: hir::ExprKind::StructInit { path: name, fields: lowered_fields }, span: expr.span, resolution: None })
-            }
             (OwnedExpr::Literal(lit), hir::Ty::Primitive(exp_prim)) => {
                 if let Some((pty, s)) = self.coerce_numeric_literal(&lit, exp_prim.clone()) {
                     return Ok(hir::Expr { ty: hir::Ty::Primitive(pty.clone()), kind: hir::ExprKind::Literal(pty, s), span: expr.span, resolution: None });

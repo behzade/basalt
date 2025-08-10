@@ -194,7 +194,21 @@ fn expression_bundle<'src>() -> (
             acc
         });
 
-    let atom = choice((unit, lit, perform, with_block, block.clone(), record_literal_expr(expr.clone()),
+    // Struct init: Path '{' named_fields '}'
+    let struct_init = path()
+        .map_with(|p, e| (p, e.span()))
+        .then(record_literal_expr(expr.clone()))
+        .map(|((p, p_span), rec)| {
+            let fields = match &rec.node {
+                ExprNode::RecordLiteral { fields } => fields.clone(),
+                _ => vec![],
+            };
+            let span = SimpleSpan { context: (), start: p_span.start, end: rec.span.end };
+            Spanned { node: ExprNode::StructInit { path: p, generics: vec![], fields }, span }
+        })
+        .boxed();
+
+    let atom = choice((unit, lit, perform, with_block, block.clone(), struct_init, record_literal_expr(expr.clone()),
         path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
         expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))

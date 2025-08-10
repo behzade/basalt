@@ -9,7 +9,7 @@ type Person = {
 }
 
 impl Person = {
-    fn new(name: str, age: i32) -> Person = {{ name: name, age: age } }
+    fn new(name: str, age: i32) -> Person = { Person { name: name, age: age } }
 }
 
 impl Person: WithAge = {
@@ -18,7 +18,7 @@ impl Person: WithAge = {
 }
 
 fn main() -> i32 = {
-    let mut p: Person = { name: "behzad", age: 10 }
+    let mut p: Person = Person { name: "behzad", age: 10 }
     let age = p.get_age()
     let inc = p.up_age_by(2)
     inc

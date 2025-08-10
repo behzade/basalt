@@ -5,8 +5,8 @@ type Company = { company_id: i32, name: str }
 type UserType = B2B(Company) | B2C(Person)
 
 fn main() -> i32 = {
-    let mut person: Person = { name: "behzad", age: 12 }
-    let user: UserType = B2B({ company_id: 1, name: "acme" })
+    let mut person: Person = { Person { name: "behzad", age: 12 } }
+    let user: UserType = B2B({ Company { company_id: 1, name: "acme" } })
 
     let match_result = match user
         | B2B(b2b) -> b2b.name
