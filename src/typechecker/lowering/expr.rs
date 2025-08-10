@@ -27,11 +27,11 @@ impl Typechecker {
                 let name = path.last().cloned().expect("Path cannot be empty");
                 let sym_opt = self.lookup_symbol(&name).cloned();
                 match sym_opt {
-                    Some(Symbol::Variable { ty, initialized, .. }) => {
+                    Some(Symbol::Variable { ty, initialized, decl_span, .. }) => {
                         if !initialized {
                             self.errors.push(TypeError { message: format!("Use of variable '{}' before initialization", name), context: context.clone() });
                         }
-                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone(), span: expr.span, resolution: Some(hir::Resolution::Local { name: name.clone(), decl_span: None }) })
+                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone(), span: expr.span, resolution: Some(hir::Resolution::Local { name: name.clone(), decl_span }) })
                     }
                     Some(Symbol::Function { signature, is_public, defined_in }) => {
                         if !is_public && &defined_in != &context.path {
@@ -223,7 +223,7 @@ impl Typechecker {
                                     "Function `{}` expects {} args, found {}", signature.name, signature.params.len(), lowered_args.len()
                                 ), context: context.clone() });
                             }
-                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span, resolution: None };
+                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: fun.span, resolution: None };
                             return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: None });
                         }
 
@@ -239,7 +239,7 @@ impl Typechecker {
                                     self.errors.push(TypeError { message: format!("Variant `{}` expects 1 argument", name), context: context.clone() });
                                 }
                             }
-                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(vec![name]), ty: hir::Ty::Function { param_types: expected_payload_ty.map(|t| vec![t]).unwrap_or_default(), ret_type: Box::new(ret_ty.clone()), effects: vec![] }, span: expr.span, resolution: None };
+                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(vec![name]), ty: hir::Ty::Function { param_types: expected_payload_ty.map(|t| vec![t]).unwrap_or_default(), ret_type: Box::new(ret_ty.clone()), effects: vec![] }, span: fun.span, resolution: None };
                             return Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: None });
                         }
 
