@@ -33,7 +33,7 @@ impl Typechecker {
                         }
                         Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone(), span: expr.span, resolution: Some(hir::Resolution::Local { name: name.clone(), decl_span }) })
                     }
-                    Some(Symbol::Function { signature, is_public, defined_in }) => {
+                    Some(Symbol::Function { signature, is_public, defined_in, decl_span: _ }) => {
                         if !is_public && &defined_in != &context.path {
                             self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
                             return Err(());
@@ -127,7 +127,7 @@ impl Typechecker {
                         match self.lookup_symbol(base).cloned() {
                             Some(_) => {}
                             None => {
-                                if let Some(Symbol::Function { signature, is_public, defined_in }) = self.lookup_symbol(&field).cloned() {
+                                if let Some(Symbol::Function { signature, is_public, defined_in, decl_span: _ }) = self.lookup_symbol(&field).cloned() {
                                     if !is_public && defined_in != context.path {
                                         self.errors.push(TypeError { message: format!("Function `{}` is private", field), context: context.clone() });
                                         return Err(());
@@ -181,7 +181,7 @@ impl Typechecker {
                                 if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
                                     if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty {
                                         if let Some(methods) = self.impl_methods.get(&ty_name) {
-                                            if let Some((sig, is_public, defined_in)) = methods.get(&name) {
+                                            if let Some((sig, is_public, defined_in, span)) = methods.get(&name) {
                                                 if !*is_public && defined_in != &context.path {
                                                     self.errors.push(TypeError { message: format!("Method `{}` is private", name), context: context.clone() });
                                                     return Err(());
@@ -196,7 +196,7 @@ impl Typechecker {
 
                         if signature_opt.is_none() {
                             signature_opt = match self.lookup_symbol(&name) {
-                                Some(Symbol::Function { signature, is_public, defined_in }) => {
+                                Some(Symbol::Function { signature, is_public, defined_in, decl_span: _ }) => {
                                     if !is_public && *defined_in != context.path {
                                         self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
                                         None
@@ -223,8 +223,26 @@ impl Typechecker {
                                     "Function `{}` expects {} args, found {}", signature.name, signature.params.len(), lowered_args.len()
                                 ), context: context.clone() });
                             }
-                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: fun.span, resolution: None };
-                            return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: None });
+                            // Attach semantic resolution for top-level function or method calls
+                            let mut fun_resolution: Option<hir::Resolution> = None;
+                            if is_module_qualified {
+                                if let Some(Symbol::Function { signature: sig, is_public, defined_in, decl_span }) = self.lookup_symbol(&name).cloned() {
+                                    if is_public { if let Some(sp) = decl_span { fun_resolution = Some(hir::Resolution::Function { defined_in, span: sp }); } }
+                                }
+                            } else if let Some(first) = args.get(0) {
+                                if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
+                                    if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty {
+                                        if let Some(methods) = self.impl_methods.get(&ty_name) {
+                                            if let Some((_sig, is_public, defined_in, span)) = methods.get(&name) {
+                                                if *is_public { fun_resolution = Some(hir::Resolution::Method { defined_in: defined_in.clone(), span: *span }); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            let mut fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: fun.span, resolution: None };
+                            if let Some(res) = fun_resolution.clone() { fun_expr.resolution = Some(res); }
+                            return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: fun_resolution });
                         }
 
                         if let Some((union_path, payload_types)) = self.find_union_variant(&name) {

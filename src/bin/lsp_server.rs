@@ -782,6 +782,15 @@ impl LanguageServer for Backend {
                                     return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
                                 }
                             }
+                            hir::Resolution::Function { defined_in, span } | hir::Resolution::Method { defined_in, span } => {
+                                if let Some(src_text) = analysis.sources.get(defined_in) {
+                                    let tok_spans = analysis.token_spans.get(defined_in).cloned().unwrap_or_default();
+                                    let range = Backend::token_index_span_to_range(src_text, &tok_spans, *span);
+                                    if let Some(uri) = lsp::Url::from_file_path(defined_in).ok() {
+                                        return Ok(Some(lsp::GotoDefinitionResponse::Scalar(lsp::Location { uri, range })));
+                                    }
+                                }
+                            }
                         }
                     }
                 }
