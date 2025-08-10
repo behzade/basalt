@@ -16,11 +16,11 @@ impl Typechecker {
                     self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
                     return;
                 }
-                let mut params = Vec::new();
+                let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
                 for (name_opt, ty) in &func.params {
                     match self.resolve_type(ty, ctx.clone()) {
-                        Ok(t) => params.push((name_opt.clone().unwrap_or("_".to_string()), t)),
+                        Ok(t) => params.push(hir::HirParam { name: name_opt.clone().unwrap_or("_".to_string()), ty: t, span: None }),
                         Err(_) => has_error = true,
                     }
                 }
@@ -41,10 +41,10 @@ impl Typechecker {
                 match &ta.aliased {
                     OwnedTypeAliasBody::Record(fields) => {
                         let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
-                        let mut lowered_fields = Vec::new();
+                        let mut lowered_fields: Vec<hir::HirField> = Vec::new();
                         for (name, ty) in fields {
                             if let Ok(t) = self.resolve_type(ty, ctx.clone()) {
-                                lowered_fields.push((name.clone(), t));
+                                lowered_fields.push(hir::HirField { name: name.clone(), ty: t, name_span: None });
                             }
                         }
                         let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span };
@@ -54,7 +54,7 @@ impl Typechecker {
                     }
                     OwnedTypeAliasBody::Union(variants) => {
                         let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
-                        let mut lowered_variants: Vec<(String, Option<Vec<hir::Ty>>)> = Vec::new();
+                        let mut lowered_variants: Vec<hir::HirEnumVariant> = Vec::new();
                         for (vname, payload) in variants {
                             let lowered_payload = match payload {
                                 Some(t) => match self.resolve_type(t, ctx.clone()) {
@@ -63,25 +63,26 @@ impl Typechecker {
                                 },
                                 None => None,
                             };
-                            lowered_variants.push((vname.clone(), lowered_payload));
+                            lowered_variants.push(hir::HirEnumVariant { name: vname.clone(), payload: lowered_payload, name_span: None });
                         }
                         let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered_variants.clone(), is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span };
                         let path = vec![ta.name.clone()];
                         self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
                         self.type_definition_meta.insert(path.clone(), (ctx.path.clone(), ta.is_public));
-                        self.union_variants.insert(path, lowered_variants);
+                        let uv: Vec<(String, Option<Vec<hir::Ty>>)> = lowered_variants.iter().map(|v| (v.name.clone(), v.payload.clone())).collect();
+                        self.union_variants.insert(path, uv);
                     }
                     OwnedTypeAliasBody::Type(_) => {}
                 }
             }
             OwnedItem::Effect(eff) => {
                 let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
-                let mut ops = Vec::new();
+                let mut ops: Vec<hir::HirFunctionSignature> = Vec::new();
                 for op in &eff.operations {
-                    let mut params = Vec::new();
+                    let mut params: Vec<hir::HirParam> = Vec::new();
                     for p in &op.params {
                         if let Ok(t) = self.resolve_type(p, ctx.clone()) {
-                            params.push(("_".to_string(), t));
+                            params.push(hir::HirParam { name: "_".to_string(), ty: t, span: None });
                         }
                     }
                     let ret_ty = self
@@ -108,11 +109,11 @@ impl Typechecker {
                     self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
                     return;
                 }
-                let mut params = Vec::new();
+                let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
                 for (name_opt, ty) in &func.params {
                     match self.resolve_type(ty, ctx.clone()) {
-                        Ok(t) => params.push((name_opt.clone().clone().unwrap_or("_".to_string()), t)),
+                        Ok(t) => params.push(hir::HirParam { name: name_opt.clone().clone().unwrap_or("_".to_string()), ty: t, span: None }),
                         Err(_) => has_error = true,
                     }
                 }
@@ -137,7 +138,7 @@ impl Typechecker {
     pub(crate) fn register_builtin_functions(&mut self) {
         let signature = hir::HirFunctionSignature {
             name: "len".to_string(),
-            params: vec![("s".to_string(), hir::Ty::Primitive(hir::PrimitiveTy::Str))],
+            params: vec![hir::HirParam { name: "s".to_string(), ty: hir::Ty::Primitive(hir::PrimitiveTy::Str), span: None }],
             ret_type: hir::Ty::Primitive(hir::PrimitiveTy::I32),
             effects: vec![],
         };

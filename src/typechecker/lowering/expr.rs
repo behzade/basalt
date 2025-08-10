@@ -15,34 +15,35 @@ impl Typechecker {
                         ty: hir::Ty::Special(hir::SpecialTy::Unit),
                         kind: hir::ExprKind::Block(hir::HirBlock { stmts: vec![], last_expr: None, ty: hir::Ty::Special(hir::SpecialTy::Unit) }),
                         span: expr.span,
+                        resolution: None,
                     }),
                     _ => {
                         let (ty, val_str) = self.lower_literal(lit);
-                        Ok(hir::Expr { kind: hir::ExprKind::Literal(ty.clone(), val_str), ty: hir::Ty::Primitive(ty), span: expr.span })
+                        Ok(hir::Expr { kind: hir::ExprKind::Literal(ty.clone(), val_str), ty: hir::Ty::Primitive(ty), span: expr.span, resolution: None })
                     }
                 }
             }
             OwnedExpr::Path(path) => {
-                let name = path.last().expect("Path cannot be empty");
-                let sym_opt = self.lookup_symbol(name).cloned();
+                let name = path.last().cloned().expect("Path cannot be empty");
+                let sym_opt = self.lookup_symbol(&name).cloned();
                 match sym_opt {
                     Some(Symbol::Variable { ty, initialized, .. }) => {
                         if !initialized {
                             self.errors.push(TypeError { message: format!("Use of variable '{}' before initialization", name), context: context.clone() });
                         }
-                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone(), span: expr.span })
+                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: ty.clone(), span: expr.span, resolution: Some(hir::Resolution::Local { name: name.clone(), decl_span: None }) })
                     }
                     Some(Symbol::Function { signature, is_public, defined_in }) => {
                         if !is_public && &defined_in != &context.path {
                             self.errors.push(TypeError { message: format!("Function `{}` is private", name), context: context.clone() });
                             return Err(());
                         }
-                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span })
+                        Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span, resolution: None })
                     }
                     None => {
                         if let Some(names) = self.imports_by_file.get(&context.path) {
-                            if names.contains(name) {
-                                return Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Special(hir::SpecialTy::Unit), span: expr.span });
+                            if names.contains(&name) {
+                                return Ok(hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Special(hir::SpecialTy::Unit), span: expr.span, resolution: None });
                             }
                         }
                         self.errors.push(TypeError { message: format!("Cannot find value `{}` in this scope", name), context: context.clone() });
@@ -74,7 +75,7 @@ impl Typechecker {
                         }
                     },
                 };
-                Ok(hir::Expr { kind: hir::ExprKind::Unary { op: hir_op, rhs: Box::new(hir_rhs) }, ty: result_ty, span: expr.span })
+                Ok(hir::Expr { kind: hir::ExprKind::Unary { op: hir_op, rhs: Box::new(hir_rhs) }, ty: result_ty, span: expr.span, resolution: None })
             }
             OwnedExpr::Binary { op, lhs, rhs } => {
                 let (hir_lhs, hir_rhs) = match (&lhs.item, &rhs.item) {
@@ -118,7 +119,7 @@ impl Typechecker {
                     hir::BinaryOp::Eq | hir::BinaryOp::Ne | hir::BinaryOp::Lt | hir::BinaryOp::Lte | hir::BinaryOp::Gt | hir::BinaryOp::Gte | hir::BinaryOp::And | hir::BinaryOp::Or => hir::Ty::Primitive(hir::PrimitiveTy::Bool),
                 };
 
-                Ok(hir::Expr { kind: hir::ExprKind::Binary { op: self.lower_binary_op(op), lhs: Box::new(hir_lhs), rhs: Box::new(hir_rhs) }, ty: result_ty, span: expr.span })
+                Ok(hir::Expr { kind: hir::ExprKind::Binary { op: self.lower_binary_op(op), lhs: Box::new(hir_lhs), rhs: Box::new(hir_rhs) }, ty: result_ty, span: expr.span, resolution: None })
             }
             OwnedExpr::FieldAccess { receiver, field } => {
                 if let OwnedExpr::Path(path) = &receiver.item {
@@ -131,7 +132,7 @@ impl Typechecker {
                                         self.errors.push(TypeError { message: format!("Function `{}` is private", field), context: context.clone() });
                                         return Err(());
                                     }
-                                    return Ok(hir::Expr { kind: hir::ExprKind::Path(vec![field]), ty: hir::Ty::Function { param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span });
+                                    return Ok(hir::Expr { kind: hir::ExprKind::Path(vec![field]), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span, resolution: None });
                                 }
                                 self.errors.push(TypeError { message: format!("Cannot find value `{}` in this scope", base), context: context.clone() });
                                 return Err(());
@@ -143,7 +144,7 @@ impl Typechecker {
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
                 if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = recv_hir.ty.clone() {
                     if let Some(ty) = self.lookup_struct_field_type(&name, &field).cloned() {
-                        return Ok(hir::Expr { kind: hir::ExprKind::FieldAccess { receiver: Box::new(recv_hir), field }, ty, span: expr.span });
+                        return Ok(hir::Expr { kind: hir::ExprKind::FieldAccess { receiver: Box::new(recv_hir), field: field.clone() }, ty, span: expr.span, resolution: Some(hir::Resolution::Field { owner: name, field }) });
                     }
                 }
                 self.errors.push(TypeError { message: "Unknown field access on non-record type or missing field".to_string(), context: context.clone() });
@@ -210,8 +211,8 @@ impl Typechecker {
                         if let Some(signature) = signature_opt {
                             let mut lowered_args = Vec::new();
                             for (idx, arg) in adjusted_args.into_iter().enumerate() {
-                                let arg_expr = if let Some((_, expected)) = signature.params.get(idx) {
-                                    self.lower_expr_with_expected(arg, expected.clone(), context.clone())?
+                                let arg_expr = if let Some(p) = signature.params.get(idx) {
+                                    self.lower_expr_with_expected(arg, p.ty.clone(), context.clone())?
                                 } else {
                                     self.lower_expr(arg, context.clone())?
                                 };
@@ -222,8 +223,8 @@ impl Typechecker {
                                     "Function `{}` expects {} args, found {}", signature.name, signature.params.len(), lowered_args.len()
                                 ), context: context.clone() });
                             }
-                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|(_, t)| t.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span };
-                            return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span });
+                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span, resolution: None };
+                            return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: None });
                         }
 
                         if let Some((union_path, payload_types)) = self.find_union_variant(&name) {
@@ -238,8 +239,8 @@ impl Typechecker {
                                     self.errors.push(TypeError { message: format!("Variant `{}` expects 1 argument", name), context: context.clone() });
                                 }
                             }
-                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(vec![name]), ty: hir::Ty::Function { param_types: expected_payload_ty.map(|t| vec![t]).unwrap_or_default(), ret_type: Box::new(ret_ty.clone()), effects: vec![] }, span: expr.span };
-                            return Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span });
+                            let fun_expr = hir::Expr { kind: hir::ExprKind::Path(vec![name]), ty: hir::Ty::Function { param_types: expected_payload_ty.map(|t| vec![t]).unwrap_or_default(), ret_type: Box::new(ret_ty.clone()), effects: vec![] }, span: expr.span, resolution: None };
+                            return Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: None });
                         }
 
                         self.errors.push(TypeError { message: format!("Unknown function or constructor `{}`", name), context: context.clone() });
@@ -260,7 +261,7 @@ impl Typechecker {
                             lowered_args.push(arg_expr);
                         }
                         let ret_ty = match &fun_hir.ty { hir::Ty::Function { ret_type, .. } => (*ret_type.clone()).clone(), _ => hir::Ty::Special(hir::SpecialTy::Unit) };
-                        Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_hir), args: lowered_args }, span: expr.span })
+                        Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_hir), args: lowered_args }, span: expr.span, resolution: None })
                     }
                 }
             }
@@ -280,7 +281,7 @@ impl Typechecker {
                 };
                 self.leave_scope();
                 let block = hir::HirBlock { stmts: hir_stmts, last_expr: hir_last_expr, ty: block_ty.clone() };
-                Ok(hir::Expr { kind: hir::ExprKind::Block(block), ty: block_ty, span: expr.span })
+                Ok(hir::Expr { kind: hir::ExprKind::Block(block), ty: block_ty, span: expr.span, resolution: None })
             }
             OwnedExpr::If { cond, then_block, else_block } => {
                 let cond_hir = self.lower_expr(*cond, context.clone())?;
@@ -296,7 +297,7 @@ impl Typechecker {
                     }
                     else_hir.ty.clone()
                 } else { hir::Ty::Special(hir::SpecialTy::Unit) };
-                Ok(hir::Expr { ty: result_ty, kind: hir::ExprKind::If { cond: Box::new(cond_hir), then_block, else_block: else_hir_opt }, span: expr.span })
+                Ok(hir::Expr { ty: result_ty, kind: hir::ExprKind::If { cond: Box::new(cond_hir), then_block, else_block: else_hir_opt }, span: expr.span, resolution: None })
             }
             OwnedExpr::While { cond, body } => {
                 let cond_hir = self.lower_expr(*cond, context.clone())?;
@@ -305,7 +306,7 @@ impl Typechecker {
                 }
                 let body_hir = self.lower_expr(*body, context.clone())?;
                 let body_block = match body_hir.kind { hir::ExprKind::Block(b) => b, _ => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(body_hir.clone())), ty: body_hir.ty.clone() } };
-                Ok(hir::Expr { ty: hir::Ty::Special(hir::SpecialTy::Unit), kind: hir::ExprKind::While { cond: Box::new(cond_hir), body: body_block }, span: expr.span })
+                Ok(hir::Expr { ty: hir::Ty::Special(hir::SpecialTy::Unit), kind: hir::ExprKind::While { cond: Box::new(cond_hir), body: body_block }, span: expr.span, resolution: None })
             }
             OwnedExpr::Match { scrutinee, arms } => {
                 let scrutinee_hir = self.lower_expr(*scrutinee, context.clone())?;
@@ -319,13 +320,13 @@ impl Typechecker {
                     self.leave_scope();
                 }
                 let result_ty = result_ty.unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
-                Ok(hir::Expr { ty: result_ty, kind: hir::ExprKind::Match { scrutinee: Box::new(scrutinee_hir), arms: lowered_arms }, span: expr.span })
+                Ok(hir::Expr { ty: result_ty, kind: hir::ExprKind::Match { scrutinee: Box::new(scrutinee_hir), arms: lowered_arms }, span: expr.span, resolution: None })
             }
             OwnedExpr::Perform { path, args } => {
                 let (ret_ty, _param_tys) = self.resolve_effect_op(&path).unwrap_or((hir::Ty::Special(hir::SpecialTy::Unit), vec![]));
                 let mut lowered_args = Vec::new();
-                for a in args { match self.lower_expr(a.clone(), context.clone()) { Ok(e) => lowered_args.push(e), Err(_) => lowered_args.push(hir::Expr { kind: hir::ExprKind::Error, ty: hir::Ty::Generic("_unknown".to_string()), span: a.span }), } }
-                Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Perform { path, args: lowered_args }, span: expr.span })
+                for a in args { match self.lower_expr(a.clone(), context.clone()) { Ok(e) => lowered_args.push(e), Err(_) => lowered_args.push(hir::Expr { kind: hir::ExprKind::Error, ty: hir::Ty::Generic("_unknown".to_string()), span: a.span, resolution: None }), } }
+                Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Perform { path, args: lowered_args }, span: expr.span, resolution: None })
             }
             OwnedExpr::Handle { body, handler } => {
                 let body_hir = self.lower_expr(*body, context.clone())?;
@@ -337,24 +338,24 @@ impl Typechecker {
                         hir::HirHandlerBody::Inline(lowered)
                     }
                 };
-                Ok(hir::Expr { ty: body_hir.ty.clone(), kind: hir::ExprKind::Handle { body: match body_hir.kind.clone() { hir::ExprKind::Block(b) => b, _ => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(body_hir.clone())), ty: body_hir.ty.clone() } }, handler: handler_hir }, span: expr.span })
+                Ok(hir::Expr { ty: body_hir.ty.clone(), kind: hir::ExprKind::Handle { body: match body_hir.kind.clone() { hir::ExprKind::Block(b) => b, _ => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(body_hir.clone())), ty: body_hir.ty.clone() } }, handler: handler_hir }, span: expr.span, resolution: None })
             }
             OwnedExpr::Cast { expr: inner, ty } => {
                 let inner_hir = self.lower_expr(*inner, context.clone())?;
                 let target_ty = self.resolve_type(&ty, context.clone())?;
-                Ok(hir::Expr { ty: target_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(inner_hir) }, span: expr.span })
+                Ok(hir::Expr { ty: target_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(inner_hir) }, span: expr.span, resolution: None })
             }
             OwnedExpr::StructInit { path, fields, .. } => {
                 let adt_ty = hir::Ty::Adt(hir::AdtTy::Struct { name: path.clone(), generics: vec![] });
                 let mut lowered_fields = Vec::new();
                 for (name, expr) in fields { let e = self.lower_expr(expr, context.clone())?; lowered_fields.push((name, e)); }
-                Ok(hir::Expr { ty: adt_ty.clone(), kind: hir::ExprKind::StructInit { path, fields: lowered_fields }, span: expr.span })
+                Ok(hir::Expr { ty: adt_ty.clone(), kind: hir::ExprKind::StructInit { path, fields: lowered_fields }, span: expr.span, resolution: None })
             }
             OwnedExpr::Array(_) | OwnedExpr::Map(_) => {
                 self.errors.push(TypeError { message: "Cannot infer type for map/record literal without annotation".to_string(), context: context.clone() });
                 Err(())
             }
-            OwnedExpr::Error => Ok(hir::Expr { kind: hir::ExprKind::Error, ty: hir::Ty::Special(hir::SpecialTy::Unit), span: expr.span }),
+            OwnedExpr::Error => Ok(hir::Expr { kind: hir::ExprKind::Error, ty: hir::Ty::Special(hir::SpecialTy::Unit), span: expr.span, resolution: None }),
         }
     }
 
@@ -368,11 +369,11 @@ impl Typechecker {
                     let v = if let Some(exp) = field_expected { self.lower_expr_with_expected(v_expr, exp, context.clone())? } else { self.lower_expr(v_expr, context.clone())? };
                     lowered_fields.push((key, v));
                 }
-                Ok(hir::Expr { ty: expected.clone(), kind: hir::ExprKind::StructInit { path: name, fields: lowered_fields }, span: expr.span })
+                Ok(hir::Expr { ty: expected.clone(), kind: hir::ExprKind::StructInit { path: name, fields: lowered_fields }, span: expr.span, resolution: None })
             }
             (OwnedExpr::Literal(lit), hir::Ty::Primitive(exp_prim)) => {
                 if let Some((pty, s)) = self.coerce_numeric_literal(&lit, exp_prim.clone()) {
-                    return Ok(hir::Expr { ty: hir::Ty::Primitive(pty.clone()), kind: hir::ExprKind::Literal(pty, s), span: expr.span });
+                    return Ok(hir::Expr { ty: hir::Ty::Primitive(pty.clone()), kind: hir::ExprKind::Literal(pty, s), span: expr.span, resolution: None });
                 }
                 self.lower_expr(Spanned { item: OwnedExpr::Literal(lit), span: expr.span }, context)
             }
@@ -386,7 +387,7 @@ impl Typechecker {
                 for s in stmts.into_iter() { if let Ok(stmt) = self.lower_stmt(s, context.clone()) { hir_stmts.push(stmt); } }
                 let (hir_last_expr, block_ty) = if let Some(expr) = last_expr { let lowered = self.lower_expr_with_expected(*expr, expected_ty.clone(), context.clone())?; (Some(Box::new(lowered.clone())), lowered.ty) } else if let Some(expr) = trailing_expr_opt { let lowered = self.lower_expr_with_expected(expr, expected_ty.clone(), context.clone())?; (Some(Box::new(lowered.clone())), lowered.ty) } else { (None, hir::Ty::Special(hir::SpecialTy::Unit)) };
                 self.leave_scope();
-                Ok(hir::Expr { ty: block_ty.clone(), kind: hir::ExprKind::Block(hir::HirBlock { stmts: hir_stmts, last_expr: hir_last_expr, ty: block_ty }), span: expr.span })
+                Ok(hir::Expr { ty: block_ty.clone(), kind: hir::ExprKind::Block(hir::HirBlock { stmts: hir_stmts, last_expr: hir_last_expr, ty: block_ty }), span: expr.span, resolution: None })
             }
             _ => self.lower_expr(expr, context),
         }

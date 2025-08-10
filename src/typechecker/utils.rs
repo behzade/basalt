@@ -59,7 +59,7 @@ impl Typechecker {
 
     pub(crate) fn lookup_struct_field_type(&self, path: &hir::OwnedPath, field: &str) -> Option<&hir::Ty> {
         match self.type_definitions.get(path) {
-            Some(hir::Item::Struct(def)) => def.fields.iter().find(|(n, _)| n == field).map(|(_, t)| t),
+            Some(hir::Item::Struct(def)) => def.fields.iter().find(|f| f.name == field).map(|f| &f.ty),
             _ => None,
         }
     }
@@ -80,7 +80,7 @@ impl Typechecker {
         match self.type_definitions.get(&effect_name) {
             Some(hir::Item::Effect(def)) => {
                 for sig in &def.operations {
-                    if &sig.name == op_name { return Some((sig.ret_type.clone(), sig.params.iter().map(|(_, t)| t.clone()).collect())); }
+                    if &sig.name == op_name { return Some((sig.ret_type.clone(), sig.params.iter().map(|p| p.ty.clone()).collect())); }
                 }
                 None
             }

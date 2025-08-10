@@ -93,27 +93,48 @@ pub struct HirFunction {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HirFunctionSignature {
     pub name: String,
-    pub params: Vec<(String, Ty)>, // Name and resolved type
+    pub params: Vec<HirParam>, // Name and resolved type
     pub ret_type: Ty,
     pub effects: Vec<Ty>, // List of canonical effect types this function can perform
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HirParam {
+    pub name: String,
+    pub ty: Ty,
+    pub span: Option<crate::token::SimpleSpan>,
 }
 
 #[derive(Debug, Clone)]
 pub struct HirStructDef {
     pub name: String,
-    pub fields: Vec<(String, Ty)>, // Name and resolved type
+    pub fields: Vec<HirField>,
     pub is_public: bool,
     pub defined_in: PathBuf,
     pub span: crate::token::SimpleSpan,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HirField {
+    pub name: String,
+    pub ty: Ty,
+    pub name_span: Option<crate::token::SimpleSpan>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HirEnumDef {
     pub name: String,
-    pub variants: Vec<(String, Option<Vec<Ty>>)>, // Variant name and optional associated types
+    pub variants: Vec<HirEnumVariant>,
     pub is_public: bool,
     pub defined_in: PathBuf,
     pub span: crate::token::SimpleSpan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct HirEnumVariant {
+    pub name: String,
+    pub payload: Option<Vec<Ty>>,
+    pub name_span: Option<crate::token::SimpleSpan>,
 }
 
 #[derive(Debug, Clone)]
@@ -175,6 +196,8 @@ pub enum Stmt {
         ty: Ty, // Type is resolved and non-optional
         is_mut: bool,
         span: crate::token::SimpleSpan,
+        /// Span of the variable identifier token
+        name_span: Option<crate::token::SimpleSpan>,
     },
     Return { value: Option<Expr>, span: crate::token::SimpleSpan },
     Assign { lhs: Expr, rhs: Expr, span: crate::token::SimpleSpan }, // lhs (e.g., path or field access) and rhs
@@ -196,6 +219,8 @@ pub struct Expr {
     pub kind: ExprKind,
     pub ty: Ty,
     pub span: crate::token::SimpleSpan,
+    /// Optional semantic resolution for goto/hover without re-resolving
+    pub resolution: Option<Resolution>,
 }
 
 #[derive(Debug, Clone)]
@@ -252,6 +277,15 @@ pub enum ExprKind {
                          // The target type is in the parent Expr's `ty` field
     },
     Error,
+}
+
+/// Semantic resolution info attached to expressions when available
+#[derive(Debug, Clone)]
+pub enum Resolution {
+    /// Reference to a local binding (including parameters); name and declaration span
+    Local { name: String, decl_span: Option<crate::token::SimpleSpan> },
+    /// Access to a struct field; owner type path and field name
+    Field { owner: OwnedPath, field: String },
 }
 
 #[derive(Debug, Clone)]

@@ -20,14 +20,14 @@ impl Typechecker {
                                 let v = if let Some(exp_ty) = v_expected_ty { self.lower_expr_with_expected(v_expr, exp_ty, context.clone())? } else { self.lower_expr(v_expr, context.clone())? };
                                 lowered_fields.push((key, v));
                             }
-                            let init_expr = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::StructInit { path: struct_path.clone(), fields: lowered_fields }, span: stmt.span };
+                            let init_expr = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::StructInit { path: struct_path.clone(), fields: lowered_fields }, span: stmt.span, resolution: None };
                             (Some(init_expr), resolved_ty.clone())
                         }
                         (Some(vexpr), _) => {
                             let mut lowered = self.lower_expr(Spanned { item: vexpr.clone(), span: stmt.span }, context.clone())?;
                             if lowered.ty != resolved_ty {
                                 if TypeUnifier::is_numeric(&lowered.ty) && TypeUnifier::is_numeric(&resolved_ty) {
-                                    lowered = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(lowered) }, span: stmt.span };
+                                    lowered = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(lowered) }, span: stmt.span, resolution: None };
                                 } else {
                                     self.errors.push(TypeError { message: format!(
                                         "Mismatched types for variable '{}': expected {} but found {}",
@@ -55,16 +55,16 @@ impl Typechecker {
                         }
                     }
                 }
-                let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some() };
+                let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some(), decl_span: None };
                 self.add_symbol_to_current_scope(name.clone(), symbol);
 
-                Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut, span: stmt.span })
+                Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut, span: stmt.span, name_span: None })
             }
             OwnedStmt::Assign(lhs, rhs) => {
                 let lhs_hir = match &lhs.item {
                     OwnedExpr::Path(path) => {
                         let name = match path.last() { Some(n) => n.clone(), None => "".to_string() };
-                        if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned() { hir::Expr { kind: hir::ExprKind::Path(path.clone()), ty, span: lhs.span } } else { self.lower_expr(lhs.clone(), context.clone())? }
+                        if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned() { hir::Expr { kind: hir::ExprKind::Path(path.clone()), ty, span: lhs.span, resolution: Some(hir::Resolution::Local { name: name.clone(), decl_span: None }) } } else { self.lower_expr(lhs.clone(), context.clone())? }
                     }
                     _ => self.lower_expr(lhs.clone(), context.clone())?,
                 };
@@ -111,7 +111,7 @@ impl Typechecker {
             }
             OwnedPattern::Literal(lit) => { let (pty, s) = self.lower_literal(lit); (hir::HirPattern { kind: hir::HirPatternKind::Literal(pty.clone(), s), ty: hir::Ty::Primitive(pty) }, vec![]) }
         };
-        for (name, ty) in &bound_types { self.add_symbol_to_current_scope(name.clone(), Symbol::Variable { ty: ty.clone(), is_mut: false, initialized: true }); }
+        for (name, ty) in &bound_types { self.add_symbol_to_current_scope(name.clone(), Symbol::Variable { ty: ty.clone(), is_mut: false, initialized: true, decl_span: None }); }
         let arm_expr = self.lower_expr(expr, context)?;
         Ok((hir_pat, arm_expr))
     }

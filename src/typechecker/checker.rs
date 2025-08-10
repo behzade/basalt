@@ -194,13 +194,12 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::HirFunction, ()> {
         // 1. Resolve types for the function signature.
-        let params = func
+        let params: Vec<hir::HirParam> = func
             .params
             .iter()
             .map(|(name, ty)| {
                 let resolved_ty = self.resolve_type(ty, context.clone())?;
-                // Assume param name is present for now.
-                Ok((name.clone().unwrap_or_else(|| "_".to_string()), resolved_ty))
+                Ok(hir::HirParam { name: name.clone().unwrap_or_else(|| "_".to_string()), ty: resolved_ty, span: None })
             })
             .collect::<Result<Vec<_>, ()>>()?;
 
@@ -224,13 +223,14 @@ impl Typechecker {
         self.enter_scope();
 
         // Add function parameters as variables to the new scope.
-        for (p_name, p_ty) in &params {
+        for p in &params {
             let symbol = Symbol::Variable {
-                ty: p_ty.clone(),
+                ty: p.ty.clone(),
                 is_mut: false,
                 initialized: true,
+                decl_span: None,
             };
-            self.add_symbol_to_current_scope(p_name.clone(), symbol);
+            self.add_symbol_to_current_scope(p.name.clone(), symbol);
         }
 
         // 3. Lower the function body (propagate expected return type to help record literals, etc.).
@@ -272,7 +272,7 @@ impl Typechecker {
                 }
                 hir::HirBlock {
                     stmts: vec![],
-                    last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone(), span: context.span })),
+                    last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone(), span: context.span, resolution: None })),
                     ty,
                 }
             }
@@ -301,7 +301,7 @@ impl Typechecker {
         let fields = s
             .fields
             .into_iter()
-            .map(|(name, ty)| self.resolve_type(&ty, context.clone()).map(|t| (name, t)))
+            .map(|(name, ty)| self.resolve_type(&ty, context.clone()).map(|t| hir::HirField { name, ty: t, name_span: None }))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(hir::HirStructDef {
@@ -319,7 +319,7 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::HirEnumDef, ()> {
         let name = e.name.unwrap_or_default();
-        let mut variants: Vec<(String, Option<Vec<hir::Ty>>)> = Vec::new();
+        let mut variants: Vec<hir::HirEnumVariant> = Vec::new();
         for (vname, payload_opt) in e.variants {
             let lowered_payload = match payload_opt {
                 Some(ts) => {
@@ -331,7 +331,7 @@ impl Typechecker {
                 }
                 None => None,
             };
-            variants.push((vname, lowered_payload));
+            variants.push(hir::HirEnumVariant { name: vname, payload: lowered_payload, name_span: None });
         }
         Ok(hir::HirEnumDef { name, variants, is_public: e.is_public, defined_in: context.path.clone(), span: context.span })
     }
@@ -350,9 +350,9 @@ impl Typechecker {
             }
             Body::Record(fields) => {
                 // Lower to struct def and also create an alias to that nominal type
-                let mut lowered_fields = Vec::new();
+                let mut lowered_fields: Vec<hir::HirField> = Vec::new();
                 for (fname, fty) in fields {
-                    lowered_fields.push((fname, self.resolve_type(&fty, context.clone())?));
+                    lowered_fields.push(hir::HirField { name: fname, ty: self.resolve_type(&fty, context.clone())?, name_span: None });
                 }
                 let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span };
                 // record the struct in definitions
@@ -362,18 +362,23 @@ impl Typechecker {
             }
             Body::Union(variants) => {
                 // Lower to enum def and alias to that nominal enum
-                let mut lowered: Vec<(String, Option<Vec<hir::Ty>>)> = Vec::new();
+                let mut lowered: Vec<hir::HirEnumVariant> = Vec::new();
                 for (vname, payload) in variants {
                     let payload_tys = match payload {
                         Some(t) => Some(vec![self.resolve_type(&t, context.clone())?]),
                         None => None,
                     };
-                    lowered.push((vname, payload_tys));
+                    lowered.push(hir::HirEnumVariant { name: vname, payload: payload_tys, name_span: None });
                 }
                 let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public, defined_in: context.path.clone(), span: context.span };
                 let path = vec![ta.name.clone()];
                 self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
-                self.union_variants.insert(path.clone(), lowered);
+                // Keep internal union_variants as tuple vec
+                let uv: Vec<(String, Option<Vec<hir::Ty>>)> = lowered
+                    .iter()
+                    .map(|v| (v.name.clone(), v.payload.clone()))
+                    .collect();
+                self.union_variants.insert(path.clone(), uv);
                 let aliased = hir::Ty::Adt(hir::AdtTy::Enum { name: path, generics: vec![] });
                 Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true, defined_in: context.path.clone(), span: context.span })
             }
@@ -387,9 +392,9 @@ impl Typechecker {
     ) -> Result<hir::HirEffectDef, ()> {
         let mut operations: Vec<hir::HirFunctionSignature> = Vec::new();
         for op in &eff.operations {
-            let mut params = Vec::new();
+            let mut params: Vec<hir::HirParam> = Vec::new();
             for p in &op.params {
-                params.push(("_".to_string(), self.resolve_type(p, context.clone())?));
+                params.push(hir::HirParam { name: "_".to_string(), ty: self.resolve_type(p, context.clone())?, span: None });
             }
             let ret_type = self.resolve_type(&op.ret_type, context.clone())?;
             operations.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type, effects: vec![] });
@@ -404,11 +409,11 @@ impl Typechecker {
     ) -> Result<hir::HirTraitDef, ()> {
         let mut methods: Vec<hir::HirFunctionSignature> = Vec::new();
         for m in &tr.methods {
-            let mut params: Vec<(String, hir::Ty)> = Vec::new();
+            let mut params: Vec<hir::HirParam> = Vec::new();
             for (name_opt, ty) in &m.params {
                 let pname = name_opt.clone().unwrap_or("_".to_string());
                 let pty = self.resolve_type(ty, context.clone())?;
-                params.push((pname, pty));
+                params.push(hir::HirParam { name: pname, ty: pty, span: None });
             }
             let ret_type = match &m.ret_type {
                 Some(rt) => self.resolve_type(rt, context.clone())?,
