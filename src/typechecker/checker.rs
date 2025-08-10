@@ -30,6 +30,8 @@ pub struct Typechecker {
     /// Map of file path -> set of imported names (aliases or last path segment).
     /// Used to suppress spurious unknown-name errors for module identifiers like `io`.
     pub(crate) imports_by_file: HashMap<PathBuf, HashSet<String>>,
+    /// Map of file path -> alias name -> fully-qualified module path (e.g., "fmt" -> ["std","fmt"])
+    pub(crate) import_alias_map: HashMap<PathBuf, HashMap<String, hir::OwnedPath>>,
 
     /// Map of type path -> (defined file, is_public)
     pub(crate) type_definition_meta: HashMap<hir::OwnedPath, (PathBuf, bool)>,
@@ -59,8 +61,10 @@ impl Typechecker {
 
         // Collect import aliases/names per file for module-aware name handling
         let mut imports_map: HashMap<PathBuf, HashSet<String>> = HashMap::new();
+        let mut alias_map: HashMap<PathBuf, HashMap<String, hir::OwnedPath>> = HashMap::new();
         for (path, items) in &files {
             let entry = imports_map.entry(path.clone()).or_default();
+            let alias_entry = alias_map.entry(path.clone()).or_default();
             for it in items {
                 if let OwnedItem::ImportBlock { imports } = &it.item {
                     for imp in imports {
@@ -69,13 +73,15 @@ impl Typechecker {
                             .clone()
                             .unwrap_or_else(|| imp.path.last().cloned().unwrap_or_default());
                         if !name.is_empty() {
-                            entry.insert(name);
+                            entry.insert(name.clone());
+                            alias_entry.insert(name, imp.path.clone());
                         }
                     }
                 }
             }
         }
         self.imports_by_file = imports_map;
+        self.import_alias_map = alias_map;
 
         // --- PASS 1: Register all top-level definitions ---
         for (path, items) in &files {

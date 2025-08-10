@@ -1,10 +1,10 @@
 // file based modules, each directory is a module, self refers to src directory, other modules are in ./modules
 import {
-    std/os
-    std/fmt
-    std/fmt as second_fmt // aliasing. if imports have conflicts, compiler forces you to use an alias
-    std/collections/vector
-    self/util
+    std::os
+    std::fmt
+    std::fmt as second_fmt // aliasing. if imports have conflicts, compiler forces you to use an alias
+    std::collections::vector
+    self::util
 }
 
 // Language targets cranelift ir, variables will immutable by default.
