@@ -6,6 +6,8 @@
 //! expressions, carries resolved type information. This makes the HIR a more
 //! suitable input for code generation and other analysis passes.
 
+use std::path::PathBuf;
+
 //================================================================================//
 //                                Core Type Definitions
 //================================================================================//
@@ -82,6 +84,10 @@ pub struct HirFunction {
     pub signature: HirFunctionSignature,
     pub body: HirBlock,
     pub is_public: bool,
+    /// Absolute path to the file where this function is defined
+    pub defined_in: PathBuf,
+    /// Token-index span covering the function item (best-effort)
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -97,6 +103,8 @@ pub struct HirStructDef {
     pub name: String,
     pub fields: Vec<(String, Ty)>, // Name and resolved type
     pub is_public: bool,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -104,6 +112,8 @@ pub struct HirEnumDef {
     pub name: String,
     pub variants: Vec<(String, Option<Vec<Ty>>)>, // Variant name and optional associated types
     pub is_public: bool,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +121,8 @@ pub struct HirTypeAlias {
     pub name: String,
     pub aliased: Ty,
     pub is_public: bool,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -118,6 +130,8 @@ pub struct HirTraitDef {
     pub name: String,
     pub methods: Vec<HirFunctionSignature>,
     pub is_public: bool,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -125,6 +139,8 @@ pub struct HirImplBlock {
     pub trait_path: Option<OwnedPath>, // The trait being implemented, if any.
     pub target_type: Ty,               // The type the trait is implemented for.
     pub methods: Vec<HirFunction>,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -132,6 +148,8 @@ pub struct HirEffectDef {
     pub name: String,
     pub operations: Vec<HirFunctionSignature>,
     pub is_public: bool,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone)]
@@ -140,6 +158,8 @@ pub struct HirHandlerDef {
     pub effects: Vec<Ty>,
     pub functions: Vec<HirFunction>,
     pub is_public: bool,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
 }
 
 //================================================================================//

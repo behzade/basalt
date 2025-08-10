@@ -47,7 +47,7 @@ impl Typechecker {
                                 lowered_fields.push((name.clone(), t));
                             }
                         }
-                        let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public };
+                        let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span };
                         let path = vec![ta.name.clone()];
                         self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
                         self.type_definition_meta.insert(path, (ctx.path.clone(), ta.is_public));
@@ -65,7 +65,7 @@ impl Typechecker {
                             };
                             lowered_variants.push((vname.clone(), lowered_payload));
                         }
-                        let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered_variants.clone(), is_public: ta.is_public };
+                        let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered_variants.clone(), is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span };
                         let path = vec![ta.name.clone()];
                         self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
                         self.type_definition_meta.insert(path.clone(), (ctx.path.clone(), ta.is_public));
@@ -89,7 +89,7 @@ impl Typechecker {
                         .unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
                     ops.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type: ret_ty, effects: vec![] });
                 }
-                let def = hir::HirEffectDef { name: eff.name.clone(), operations: ops, is_public: eff.is_public };
+                let def = hir::HirEffectDef { name: eff.name.clone(), operations: ops, is_public: eff.is_public, defined_in: ctx.path.clone(), span: item.span };
                 let path = vec![eff.name.clone()];
                 self.type_definitions.insert(path.clone(), hir::Item::Effect(def));
                 self.type_definition_meta.insert(path, (ctx.path.clone(), eff.is_public));
