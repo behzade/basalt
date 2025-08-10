@@ -36,6 +36,8 @@ struct AnalysisResult {
     // Per-file token spans from the lexer (character ranges), used to translate
     // token-index spans produced by the parser/typechecker into character ranges
     token_spans: HashMap<PathBuf, Vec<SimpleSpan>>, 
+        // Optional: future storage for contexts and symbols
+        contexts: Vec<hir::HirContext>,
 }
 
 struct Backend {
@@ -487,7 +489,8 @@ impl Backend {
             }
         };
 
-        AnalysisResult { sources, hir, diagnostics, token_spans: token_spans_map }
+        // Capture contexts if the typechecker exposed them (requires API change). For now, clone via getter when added.
+        AnalysisResult { sources, hir, diagnostics, token_spans: token_spans_map, contexts: typechecker.contexts.clone() }
     }
 
     fn hir_ty_to_string(ty: &hir::Ty) -> String {
@@ -936,6 +939,27 @@ impl Backend {
                             }
                         }
                     }
+                    HirItem::Enum(en) => {
+                        if let Ok(uri) = lsp::Url::from_file_path(defined_in) {
+                            for v in &en.variants {
+                                // Try to use variant name span when available
+                                let vr = if let Some(vsp) = v.name_span {
+                                    let (schar, echar) = Self::token_index_span_to_char_offsets(&token_spans, vsp);
+                                    lsp::Range { start: Self::offset_to_position(text, schar), end: Self::offset_to_position(text, echar) }
+                                } else {
+                                    range
+                                };
+                                out.push(lsp::SymbolInformation {
+                                    name: v.name.clone(),
+                                    kind: lsp::SymbolKind::ENUM_MEMBER,
+                                    tags: None,
+                                    deprecated: None,
+                                    location: lsp::Location { uri: uri.clone(), range: vr },
+                                    container_name: Some(en.name.clone()),
+                                });
+                            }
+                        }
+                    }
                     HirItem::Effect(eff) => {
                         if let Ok(uri) = lsp::Url::from_file_path(defined_in) {
                             for op in &eff.operations {
@@ -982,6 +1006,42 @@ impl Backend {
                         }
                     }
                     _ => {}
+                }
+            }
+        }
+        // Additionally, surface Variables, Params, and EnumVariants from HIR contexts without inference
+        for ctx in &analysis.contexts {
+            let defined_in = &ctx.defined_in;
+            let Some(text) = analysis.sources.get(defined_in) else { continue; };
+            let token_spans = analysis.token_spans.get(defined_in).cloned().unwrap_or_default();
+            // Heuristic container name: match items that carry this context id
+            let container_name: Option<String> = analysis.hir.iter().find_map(|it| match it {
+                HirItem::Fn(f) if f.context_id == Some(ctx.id) => Some(f.signature.name.clone()),
+                HirItem::Struct(s) if s.context_id == Some(ctx.id) => Some(s.name.clone()),
+                HirItem::Enum(e) if e.context_id == Some(ctx.id) => Some(e.name.clone()),
+                _ => None,
+            });
+            for sym in &ctx.symbols {
+                use hir::HirSymbolKind as HK;
+                let lsp_kind = match sym.kind {
+                    HK::Variable => Some(lsp::SymbolKind::VARIABLE),
+                    HK::Param => Some(lsp::SymbolKind::VARIABLE),
+                    HK::EnumVariant => Some(lsp::SymbolKind::ENUM_MEMBER),
+                    _ => None,
+                };
+                if lsp_kind.is_none() { continue; }
+                if !query_lc.is_empty() && !sym.name.to_lowercase().contains(query_lc) { continue; }
+                let (schar, echar) = Self::token_index_span_to_char_offsets(&token_spans, sym.name_span.unwrap_or(sym.span));
+                let range = lsp::Range { start: Self::offset_to_position(text, schar), end: Self::offset_to_position(text, echar) };
+                if let Ok(uri) = lsp::Url::from_file_path(defined_in) {
+                    out.push(lsp::SymbolInformation {
+                        name: sym.name.clone(),
+                        kind: lsp_kind.unwrap(),
+                        tags: None,
+                        deprecated: None,
+                        location: lsp::Location { uri: uri.clone(), range },
+                        container_name: container_name.clone(),
+                    });
                 }
             }
         }
@@ -1415,9 +1475,17 @@ impl LanguageServer for Backend {
         };
 
         let mut out: Vec<lsp::SymbolInformation> = Vec::new();
+        let mut file_count = 0usize;
+        let mut ctx_count = 0usize;
+        let mut local_count = 0usize;
         for analysis in analyses {
+            let before = out.len();
             out.extend(Self::build_workspace_symbols_from_analysis(&analysis, &query));
+            file_count += analysis.sources.len();
+            ctx_count += analysis.contexts.len();
+            local_count += out.len().saturating_sub(before);
         }
+        let _ = self.client.log_message(lsp::MessageType::INFO, format!("workspace_symbol: files={}, contexts={}, symbols_added={}", file_count, ctx_count, local_count)).await;
         Ok(Some(out))
     }
 }

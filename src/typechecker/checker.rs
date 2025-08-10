@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::typechecker::symbols::Symbol;
+use crate::hir::{HirContext, HirContextKind, HirSymbolDecl, HirSymbolKind, ContextId};
 
 #[derive(Default)]
 pub struct Typechecker {
@@ -42,6 +43,11 @@ pub struct Typechecker {
     /// Inherent and trait methods registered via impl blocks, keyed by nominal type path.
     /// For now we only support inherent methods on nominal types without generics.
     pub(crate) impl_methods: HashMap<hir::OwnedPath, HashMap<String, (hir::HirFunctionSignature, bool, PathBuf, crate::token::SimpleSpan)>>,
+
+    /// Persistent HIR contexts being built during lowering
+    pub contexts: Vec<HirContext>,
+    /// Stack of active context ids during lowering (function, block, etc.)
+    pub(crate) current_context_stack: Vec<ContextId>,
 }
 
 // ItemContext is re-exported from errors.rs
@@ -49,6 +55,29 @@ pub struct Typechecker {
 impl Typechecker {
     
     // format_ty moved to errors.rs (impl on Typechecker)
+    fn new_context(&mut self, kind: HirContextKind, path: &PathBuf, span: crate::token::SimpleSpan) -> ContextId {
+        let id = self.contexts.len();
+        let ctx = HirContext { id, parent: None, kind, defined_in: path.clone(), span, symbols: Vec::new(), children: Vec::new() };
+        self.contexts.push(ctx);
+        id
+    }
+
+    fn add_child_context(&mut self, parent: ContextId, child: ContextId) {
+        if let Some(p) = self.contexts.get_mut(parent) { p.children.push(child); }
+        if let Some(c) = self.contexts.get_mut(child) { c.parent = Some(parent); }
+    }
+
+    fn set_context_kind(&mut self, id: ContextId, kind: HirContextKind) {
+        if let Some(c) = self.contexts.get_mut(id) { c.kind = kind; }
+    }
+
+    pub(crate) fn add_symbol_to_context(&mut self, id: ContextId, sym: HirSymbolDecl) {
+        if let Some(c) = self.contexts.get_mut(id) { c.symbols.push(sym); }
+    }
+
+    pub(crate) fn push_context(&mut self, id: ContextId) { self.current_context_stack.push(id); }
+    pub(crate) fn pop_context(&mut self) { let _ = self.current_context_stack.pop(); }
+    pub(crate) fn current_context(&self) -> Option<ContextId> { self.current_context_stack.last().copied() }
     pub fn check_program(
         &mut self,
         files: HashMap<PathBuf, Vec<OwnedItemWithSpan>>,
@@ -91,6 +120,7 @@ impl Typechecker {
         }
 
         let mut hir_items: Vec<hir::Item> = Vec::new();
+        self.contexts.clear();
         for (path, items) in &files {
             for item in items {
                 if let Ok(it) = self.lower_item(item.clone(), path.clone()) {
@@ -289,14 +319,32 @@ impl Typechecker {
         self.leave_scope();
         self.current_fn_return_type = old_return_type;
 
-        Ok(hir::HirFunction {
+        // Build a function context and capture params/lets
+        let ctx_id = self.new_context(HirContextKind::Function, &context.path, context.span);
+        self.push_context(ctx_id);
+        // record params in context symbols
+        for p in &params {
+            self.add_symbol_to_context(ctx_id, HirSymbolDecl {
+                name: p.name.clone(),
+                kind: HirSymbolKind::Param,
+                ty: Some(p.ty.clone()),
+                is_mut: Some(false),
+                span: body_span,
+                name_span: p.span,
+            });
+        }
+
+        let result = hir::HirFunction {
             signature,
             body: body_block,
             is_public: func.is_public,
             defined_in: context.path.clone(),
             // Use the body expression span as a best-effort function span for navigation
             span: body_span,
-        })
+            context_id: Some(ctx_id),
+        };
+        self.pop_context();
+        Ok(result)
     }
 
     /// Lowers a `OwnedStructDef` to a `hir::HirStructDef`.
@@ -312,12 +360,25 @@ impl Typechecker {
             .map(|(name, ty)| self.resolve_type(&ty, context.clone()).map(|t| hir::HirField { name, ty: t, name_span: None }))
             .collect::<Result<Vec<_>, _>>()?;
 
+        let ctx_id = self.new_context(HirContextKind::Struct, &context.path, context.span);
+        // Record fields as symbols in the struct context
+        for f in &fields {
+            self.add_symbol_to_context(ctx_id, HirSymbolDecl {
+                name: f.name.clone(),
+                kind: HirSymbolKind::Field,
+                ty: Some(f.ty.clone()),
+                is_mut: Some(false),
+                span: context.span,
+                name_span: f.name_span,
+            });
+        }
         Ok(hir::HirStructDef {
             name: s.name,
             fields,
             is_public: s.is_public,
             defined_in: context.path.clone(),
             span: context.span,
+            context_id: Some(ctx_id),
         })
     }
 
@@ -341,7 +402,18 @@ impl Typechecker {
             };
             variants.push(hir::HirEnumVariant { name: vname, payload: lowered_payload, name_span: None });
         }
-        Ok(hir::HirEnumDef { name, variants, is_public: e.is_public, defined_in: context.path.clone(), span: context.span })
+        let ctx_id = self.new_context(HirContextKind::Enum, &context.path, context.span);
+        for v in &variants {
+            self.add_symbol_to_context(ctx_id, HirSymbolDecl {
+                name: v.name.clone(),
+                kind: HirSymbolKind::EnumVariant,
+                ty: None,
+                is_mut: None,
+                span: context.span,
+                name_span: v.name_span,
+            });
+        }
+        Ok(hir::HirEnumDef { name, variants, is_public: e.is_public, defined_in: context.path.clone(), span: context.span, context_id: Some(ctx_id) })
     }
 
     fn lower_type_alias(
@@ -362,7 +434,7 @@ impl Typechecker {
                 for (fname, fty) in fields {
                     lowered_fields.push(hir::HirField { name: fname, ty: self.resolve_type(&fty, context.clone())?, name_span: None });
                 }
-                let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span };
+                let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span, context_id: None };
                 // record the struct in definitions
                 self.type_definitions.insert(vec![ta.name.clone()], hir::Item::Struct(def));
                 let aliased = hir::Ty::Adt(hir::AdtTy::Struct { name: vec![ta.name.clone()], generics: vec![] });
@@ -378,7 +450,7 @@ impl Typechecker {
                     };
                     lowered.push(hir::HirEnumVariant { name: vname, payload: payload_tys, name_span: None });
                 }
-                let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public, defined_in: context.path.clone(), span: context.span };
+                let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public, defined_in: context.path.clone(), span: context.span, context_id: None };
                 let path = vec![ta.name.clone()];
                 self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
                 // Keep internal union_variants as tuple vec
@@ -450,7 +522,12 @@ impl Typechecker {
                     }
                 }
             }
-            methods.push(self.lower_function(f, context.clone())?);
+            let mut hf = self.lower_function(f, context.clone())?;
+            // Mark the function context as ImplMethod for better classification
+            if let Some(cid) = hf.context_id {
+                self.set_context_kind(cid, HirContextKind::ImplMethod);
+            }
+            methods.push(hf);
         }
         Ok(hir::HirImplBlock { trait_path, target_type, methods, defined_in: context.path.clone(), span: context.span })
     }
