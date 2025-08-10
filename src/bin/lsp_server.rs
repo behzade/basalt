@@ -334,6 +334,84 @@ impl Backend {
         }
     }
 
+    fn find_let_decl_spans_in_block(block: &hir::HirBlock, name: &str, out: &mut Vec<token::SimpleSpan>) {
+        use hir::Stmt as HS;
+        for s in &block.stmts {
+            match s {
+                HS::Let { name: n, span, name_span, .. } if n == name => {
+                    out.push(name_span.unwrap_or(*span));
+                }
+                HS::Let { .. } => {}
+                HS::Assign { lhs, rhs, .. } => {
+                    if let hir::ExprKind::Block(b) = &lhs.kind { Self::find_let_decl_spans_in_block(b, name, out); }
+                    if let hir::ExprKind::Block(b) = &rhs.kind { Self::find_let_decl_spans_in_block(b, name, out); }
+                }
+                HS::Return { value, .. } => {
+                    if let Some(v) = value {
+                        if let hir::ExprKind::Block(b) = &v.kind { Self::find_let_decl_spans_in_block(b, name, out); }
+                    }
+                }
+                HS::Expr { expr, .. } => {
+                    Self::recurse_expr_for_lets(expr, name, out);
+                }
+                HS::Error { .. } => {}
+            }
+        }
+        if let Some(e) = &block.last_expr { Self::recurse_expr_for_lets(e, name, out); }
+    }
+
+    fn recurse_expr_for_lets(expr: &hir::Expr, name: &str, out: &mut Vec<token::SimpleSpan>) {
+        use hir::ExprKind as EK;
+        match &expr.kind {
+            EK::Block(b) => Self::find_let_decl_spans_in_block(b, name, out),
+            EK::If { cond, then_block, else_block } => {
+                Self::recurse_expr_for_lets(cond, name, out);
+                Self::find_let_decl_spans_in_block(then_block, name, out);
+                if let Some(eb) = else_block { Self::recurse_expr_for_lets(eb, name, out); }
+            }
+            EK::While { cond, body } => {
+                Self::recurse_expr_for_lets(cond, name, out);
+                Self::find_let_decl_spans_in_block(body, name, out);
+            }
+            EK::Match { scrutinee, arms } => {
+                Self::recurse_expr_for_lets(scrutinee, name, out);
+                for (_p, arm) in arms { Self::recurse_expr_for_lets(arm, name, out); }
+            }
+            EK::Unary { rhs, .. } => Self::recurse_expr_for_lets(rhs, name, out),
+            EK::Binary { lhs, rhs, .. } => { Self::recurse_expr_for_lets(lhs, name, out); Self::recurse_expr_for_lets(rhs, name, out); }
+            EK::FieldAccess { receiver, .. } => Self::recurse_expr_for_lets(receiver, name, out),
+            EK::Call { fun, args } => { Self::recurse_expr_for_lets(fun, name, out); for a in args { Self::recurse_expr_for_lets(a, name, out); } }
+            EK::StructInit { fields, .. } => { for (_n, e) in fields { Self::recurse_expr_for_lets(e, name, out); } }
+            EK::Array(es) => { for e in es { Self::recurse_expr_for_lets(e, name, out); } }
+            EK::Map(kvs) => { for (k, v) in kvs { Self::recurse_expr_for_lets(k, name, out); Self::recurse_expr_for_lets(v, name, out); } }
+            EK::Handle { body, .. } => Self::find_let_decl_spans_in_block(body, name, out),
+            EK::Cast { expr: inner } => Self::recurse_expr_for_lets(inner, name, out),
+            _ => {}
+        }
+    }
+
+    fn find_struct_field_location(
+        analysis: &AnalysisResult,
+        owner: &hir::OwnedPath,
+        field: &str,
+    ) -> Option<lsp::Location> {
+        let owner_name = owner.last().cloned().unwrap_or_default();
+        for item in &analysis.hir {
+            if let HirItem::Struct(s) = item {
+                if s.name == owner_name {
+                    if let Some(f) = s.fields.iter().find(|f| f.name == field) {
+                        if let Some(src_text) = analysis.sources.get(&s.defined_in) {
+                            let range = Backend::simple_span_to_range(src_text, f.name_span.unwrap_or(s.span));
+                            let uri = lsp::Url::from_file_path(&s.defined_in).ok()?;
+                            return Some(lsp::Location { uri, range });
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+
     // removed locate_method_impl
 
     // Extract a best-effort owner type path for a receiver expression, using inferred or annotated local types
@@ -768,15 +846,59 @@ impl LanguageServer for Backend {
             .get(&path)
             .and_then(|spans| spans.iter().position(|s| s.start <= char_offset && char_offset < s.end));
 
-        if let Some((name, _id_span)) = Self::ident_at(&text, pos_params.position) {
+        if let Some((_name, _id_span)) = Self::ident_at(&text, pos_params.position) {
             if let Some(tok_idx) = token_index_opt {
-                if let Some(loc) = Self::goto_via_hir_simple(&analysis, tok_idx, &name) {
-                        return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                // Search HIR blocks in this file
+                let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
+                for item in &analysis.hir {
+                    match item {
+                        HirItem::Fn(f) if f.defined_in == path => candidate_blocks.push(&f.body),
+                        HirItem::Impl(imp) if imp.defined_in == path => {
+                            for m in &imp.methods { candidate_blocks.push(&m.body); }
+                        }
+                        _ => {}
                     }
                 }
-            // Fallback: scan HIR items by simple name
-            if let Some(loc) = Self::goto_via_hir_simple(&analysis, usize::MAX, &name) {
-                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                for b in candidate_blocks {
+                    if let Some(expr) = Self::find_hir_expr_in_block(b, tok_idx) {
+                        // Prefer semantic resolution when available
+                        if let Some(res) = &expr.resolution {
+                            match res {
+                                hir::Resolution::Local { name, decl_span } => {
+                                    let target_span = if let Some(sp) = decl_span { *sp } else {
+                                        // Search for let with same name; pick closest preceding
+                                        let mut spans: Vec<token::SimpleSpan> = Vec::new();
+                                        Self::find_let_decl_spans_in_block(b, name, &mut spans);
+                                        let mut best: Option<token::SimpleSpan> = None;
+                                        let mut best_start = 0usize;
+                                        for sp in spans {
+                                            if sp.start <= expr.span.start && sp.start >= best_start { best_start = sp.start; best = Some(sp); }
+                                        }
+                                        best.unwrap_or(expr.span)
+                                    };
+                                    if let Some(src_text) = analysis.sources.get(&path) {
+                                        let range = Backend::token_index_span_to_range(&text, analysis.token_spans.get(&path).map(|v| v.as_slice()).unwrap_or(&[]), target_span);
+                                        let uri = lsp::Url::from_file_path(&path).ok();
+                                        if let Some(uri) = uri { return Ok(Some(lsp::GotoDefinitionResponse::Scalar(lsp::Location { uri, range }))); }
+                                    }
+                                }
+                                hir::Resolution::Field { owner, field } => {
+                                    if let Some(loc) = Self::find_struct_field_location(&analysis, owner, field) {
+                                        return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                                    }
+                                }
+                            }
+                        }
+                        // Top-level item fallback when clicking on function/struct names in value position
+                        if let hir::ExprKind::Path(p) = &expr.kind {
+                            if p.len() == 1 {
+                                if let Some(loc) = Self::goto_via_hir_simple(&analysis, tok_idx, &p[0]) {
+                                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
