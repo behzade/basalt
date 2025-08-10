@@ -25,14 +25,14 @@ interface WithAge = {
 }
 
 impl Person = {
-    fn new(name: str, age: i32) -> Person = { { name: name, age: age } }
+    fn new(name: str, age: i32) -> Person = Person { name: name, age: age }
 }
 impl Person: WithAge = {
     fn get_age(self) -> i32 = { self.age }
     fn up_age_by(mut self, n: i32) -> i32 = { self.age <- self.age + n; self.age }
 }
 
-let mut p2: Person = { name: "behzad", age: 10 }
+let mut p2: Person = Person { name: "behzad", age: 10 }
 
 // currying
 let up_age_by_behzad = up_age_by(p2) // if p2 was not mutable, this would be a compiler error
@@ -56,10 +56,10 @@ fn division(a: i32, b: i32) -> i32 with Panic = {
 
 fn main() -> i32 = {
     // does not allow shorthand omitted field names because adding fields to structs is a breaking change
-    let mut person: Person = { name: "behzad", age: 10 }
+    let mut person: Person = Person { name: "behzad", age: 10 }
     let age: i32 = person.get_age()
 
-    let user_type = B2B({ company_id: 1, name: "behzad" })
+    let user_type = B2B(Company { company_id: 1, name: "behzad" })
 
     let match_result = match user_type
         | B2B(b2b) -> b2b.name

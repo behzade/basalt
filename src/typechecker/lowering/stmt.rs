@@ -12,17 +12,7 @@ impl Typechecker {
                 let (hir_value_opt, var_ty) = if let Some(annotated_ty) = ty.clone() {
                     let resolved_ty = self.resolve_type(&annotated_ty, context.clone())?;
                     match (value.as_ref().map(|v| &v.item), &resolved_ty) {
-                        (Some(OwnedExpr::Map(entries)), hir::Ty::Adt(hir::AdtTy::Struct { name: struct_path, .. })) => {
-                            let mut lowered_fields = Vec::new();
-                            for (k_expr, v_expr) in entries.clone() {
-                                let key = match k_expr.item.clone() { OwnedExpr::Literal(OwnedLiteral::Str(s)) => s, _ => "<key>".to_string() };
-                                let v_expected_ty = self.lookup_struct_field_type(&struct_path, &key).cloned();
-                                let v = if let Some(exp_ty) = v_expected_ty { self.lower_expr_with_expected(v_expr, exp_ty, context.clone())? } else { self.lower_expr(v_expr, context.clone())? };
-                                lowered_fields.push((key, v));
-                            }
-                            let init_expr = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::StructInit { path: struct_path.clone(), fields: lowered_fields }, span: stmt.span, resolution: None };
-                            (Some(init_expr), resolved_ty.clone())
-                        }
+                        // Disallow anonymous struct map sugar; require explicit Person { ... }
                         (Some(vexpr), _) => {
                             let mut lowered = self.lower_expr(Spanned { item: vexpr.clone(), span: stmt.span }, context.clone())?;
                             if lowered.ty != resolved_ty {
