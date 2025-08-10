@@ -11,11 +11,7 @@ impl Typechecker {
         match &item.item {
             OwnedItem::Fn(func) => {
                 let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
-                // Disallow duplicate function names globally (including multiple 'main')
-                if self.top_level_functions.contains_key(&func.name) {
-                    self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
-                    return;
-                }
+                // Allow duplicate function names across modules; resolution can be qualified or via impls
                 let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
                 for (name_opt, ty) in &func.params {
@@ -104,10 +100,12 @@ impl Typechecker {
         let ctx = ItemContext { span: item.span, path: file.clone() };
         match &mut item_clone.item {
             OwnedItem::Fn(func) => {
-                // Disallow duplicate function names globally (including multiple 'main')
-                if self.top_level_functions.contains_key(&func.name) {
-                    self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
-                    return;
+                // Disallow duplicate function names within the same file/module
+                if let Some(Symbol::Function { defined_in, .. }) = self.lookup_symbol(&func.name) {
+                    if defined_in == &ctx.path {
+                        self.errors.push(TypeError { message: format!("Duplicate function '{}'", func.name), context: ctx.clone() });
+                        return;
+                    }
                 }
                 let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
@@ -136,16 +134,13 @@ impl Typechecker {
     }
 
     pub(crate) fn register_builtin_functions(&mut self) {
-        let signature = hir::HirFunctionSignature {
-            name: "len".to_string(),
-            params: vec![hir::HirParam { name: "s".to_string(), ty: hir::Ty::Primitive(hir::PrimitiveTy::Str), span: None }],
-            ret_type: hir::Ty::Primitive(hir::PrimitiveTy::I32),
-            effects: vec![],
-        };
-        self.add_symbol_to_current_scope(
-            "len".to_string(),
-            Symbol::Function { signature, is_public: true, defined_in: PathBuf::from("<builtin>"), decl_span: None },
-        );
+        let len_sig = hir::HirFunctionSignature { name: "len".to_string(), params: vec![hir::HirParam { name: "s".to_string(), ty: hir::Ty::Primitive(hir::PrimitiveTy::Str), span: None }], ret_type: hir::Ty::Primitive(hir::PrimitiveTy::I32), effects: vec![] };
+        self.add_symbol_to_current_scope("len".to_string(), Symbol::Function { signature: len_sig, is_public: true, defined_in: PathBuf::from("<builtin>"), decl_span: None });
+
+        let println_sig = hir::HirFunctionSignature { name: "println".to_string(), params: vec![hir::HirParam { name: "s".to_string(), ty: hir::Ty::Primitive(hir::PrimitiveTy::Str), span: None }], ret_type: hir::Ty::Special(hir::SpecialTy::Unit), effects: vec![] };
+        // Register under module-like aliases 'fmt' and 'io' by adding names to imports_by_file; since builtins are global, also add flattened alias entries to suppress unknown module errors.
+        self.add_symbol_to_current_scope("fmt::println".to_string(), Symbol::Function { signature: println_sig.clone(), is_public: true, defined_in: PathBuf::from("<builtin>"), decl_span: None });
+        self.add_symbol_to_current_scope("io::println".to_string(), Symbol::Function { signature: println_sig, is_public: true, defined_in: PathBuf::from("<builtin>"), decl_span: None });
     }
 }
 

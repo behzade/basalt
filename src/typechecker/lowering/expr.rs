@@ -176,6 +176,17 @@ impl Typechecker {
                         }
 
                         let mut signature_opt: Option<hir::HirFunctionSignature> = None;
+                        // Handle module-qualified names via import aliases: alias::name
+                        if path.len() == 2 {
+                            let alias = &path[0];
+                            if let Some(alias_map) = self.import_alias_map.get(&context.path) {
+                                if let Some(mod_path) = alias_map.get(alias) {
+                                    // For now, we only support std::fmt and std::io qualified println, resolved via global registry
+                                    let qual = format!("{}::{}", alias, name);
+                                    if let Some(Symbol::Function { signature, .. }) = self.lookup_symbol(&qual) { signature_opt = Some(signature.clone()); }
+                                }
+                            }
+                        }
                         if !is_module_qualified {
                             if let Some(first) = args.get(0) {
                                 if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
@@ -203,6 +214,11 @@ impl Typechecker {
                                     } else {
                                         Some(signature.clone())
                                     }
+                                }
+                                // try module-qualified name like fmt::println
+                                None if path.len() == 2 => {
+                                    let qual = format!("{}::{}", path[0], path[1]);
+                                    match self.lookup_symbol(&qual) { Some(Symbol::Function { signature, .. }) => Some(signature.clone()), _ => None }
                                 }
                                 _ => None,
                             };

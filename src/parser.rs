@@ -22,8 +22,9 @@ fn ident<'src>() -> impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err
 }
 
 fn path<'src>() -> impl Parser<'src, &'src [Token<'src>], Path<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let slash = select! { Token::Op(op) if op == "/" => () };
-    ident().separated_by(slash).at_least(1).collect::<Vec<_>>()
+    let colon = select! { Token::Colon => () };
+    let double_colon = colon.clone().then(colon).to(());
+    ident().separated_by(double_colon).at_least(1).collect::<Vec<_>>()
 }
 
 fn with_types<'src, F, P>(
