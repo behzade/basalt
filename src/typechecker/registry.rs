@@ -43,7 +43,7 @@ impl Typechecker {
                                 lowered_fields.push(hir::HirField { name: name.clone(), ty: t, name_span: None });
                             }
                         }
-                        let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span };
+                        let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span, context_id: None };
                         let path = vec![ta.name.clone()];
                         self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
                         self.type_definition_meta.insert(path, (ctx.path.clone(), ta.is_public));
@@ -61,7 +61,7 @@ impl Typechecker {
                             };
                             lowered_variants.push(hir::HirEnumVariant { name: vname.clone(), payload: lowered_payload, name_span: None });
                         }
-                        let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered_variants.clone(), is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span };
+                        let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered_variants.clone(), is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span, context_id: None };
                         let path = vec![ta.name.clone()];
                         self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
                         self.type_definition_meta.insert(path.clone(), (ctx.path.clone(), ta.is_public));

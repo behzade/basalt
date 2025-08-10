@@ -4,6 +4,7 @@ use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
+use crate::hir::{HirSymbolDecl, HirSymbolKind};
 
 impl Typechecker {
     pub(crate) fn lower_stmt(&mut self, stmt: SpannedStmt, context: ItemContext) -> Result<hir::Stmt, ()> {
@@ -47,6 +48,18 @@ impl Typechecker {
                 }
                 let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some(), decl_span: Some(stmt.span) };
                 self.add_symbol_to_current_scope(name.clone(), symbol);
+
+                // Persist local variable into the current function/block context if any
+                if let Some(cid) = self.current_context() {
+                    self.add_symbol_to_context(cid, HirSymbolDecl {
+                        name: name.clone(),
+                        kind: HirSymbolKind::Variable,
+                        ty: Some(var_ty.clone()),
+                        is_mut: Some(is_mut),
+                        span: stmt.span,
+                        name_span: None,
+                    });
+                }
 
                 Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut, span: stmt.span, name_span: None })
             }

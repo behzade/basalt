@@ -88,6 +88,8 @@ pub struct HirFunction {
     pub defined_in: PathBuf,
     /// Token-index span covering the function item (best-effort)
     pub span: crate::token::SimpleSpan,
+    /// Context for this function's parameters and local variables
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -112,6 +114,8 @@ pub struct HirStructDef {
     pub is_public: bool,
     pub defined_in: PathBuf,
     pub span: crate::token::SimpleSpan,
+    /// Context for this struct's field declarations
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -128,6 +132,8 @@ pub struct HirEnumDef {
     pub is_public: bool,
     pub defined_in: PathBuf,
     pub span: crate::token::SimpleSpan,
+    /// Context for this enum's variant declarations
+    pub context_id: Option<ContextId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -334,6 +340,63 @@ pub enum BinaryOp {
 pub struct HirPattern {
     pub kind: HirPatternKind,
     pub ty: Ty,
+}
+
+//================================================================================//
+//                                 Context & Symbols
+//================================================================================//
+
+pub type ContextId = usize;
+
+#[derive(Debug, Clone)]
+pub enum HirContextKind {
+    Module,
+    Function,
+    ImplMethod,
+    Struct,
+    Enum,
+    Trait,
+    Effect,
+    HandlerFunction,
+    Block,
+}
+
+#[derive(Debug, Clone)]
+pub enum HirSymbolKind {
+    Type,
+    TypeAlias,
+    Struct,
+    Enum,
+    Trait,
+    Effect,
+    Function,
+    Method,
+    Param,
+    Variable,
+    Field,
+    EnumVariant,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirSymbolDecl {
+    pub name: String,
+    pub kind: HirSymbolKind,
+    pub ty: Option<Ty>,
+    pub is_mut: Option<bool>,
+    /// Token-index span for the declaration (item/name)
+    pub span: crate::token::SimpleSpan,
+    pub name_span: Option<crate::token::SimpleSpan>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HirContext {
+    pub id: ContextId,
+    pub parent: Option<ContextId>,
+    pub kind: HirContextKind,
+    pub defined_in: PathBuf,
+    pub span: crate::token::SimpleSpan,
+    pub symbols: Vec<HirSymbolDecl>,
+    pub children: Vec<ContextId>,
 }
 
 #[derive(Debug, Clone)]
