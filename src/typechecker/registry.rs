@@ -33,7 +33,7 @@ impl Typechecker {
                     self.top_level_functions.insert(func.name.clone(), (signature.clone(), func.is_public, ctx.path.clone()));
                     self.add_symbol_to_current_scope(
                         func.name.clone(),
-                        Symbol::Function { signature, is_public: func.is_public, defined_in: ctx.path.clone() },
+                        Symbol::Function { signature, is_public: func.is_public, defined_in: ctx.path.clone(), decl_span: Some(item.span) },
                     );
                 }
             }
@@ -124,7 +124,7 @@ impl Typechecker {
                 if !has_error {
                     let signature = hir::HirFunctionSignature { name: func.name.clone(), params, ret_type: ret_ty, effects: vec![] };
                     self.top_level_functions.insert(func.name.clone(), (signature.clone(), func.is_public, ctx.path.clone()));
-                    self.add_symbol_to_current_scope(func.name.clone(), Symbol::Function { signature, is_public: func.is_public, defined_in: ctx.path.clone() });
+                    self.add_symbol_to_current_scope(func.name.clone(), Symbol::Function { signature, is_public: func.is_public, defined_in: ctx.path.clone(), decl_span: Some(item.span) });
                 }
             }
             _ => {
@@ -144,7 +144,7 @@ impl Typechecker {
         };
         self.add_symbol_to_current_scope(
             "len".to_string(),
-            Symbol::Function { signature, is_public: true, defined_in: PathBuf::from("<builtin>") },
+            Symbol::Function { signature, is_public: true, defined_in: PathBuf::from("<builtin>"), decl_span: None },
         );
     }
 }

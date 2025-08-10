@@ -286,6 +286,10 @@ pub enum Resolution {
     Local { name: String, decl_span: Option<crate::token::SimpleSpan> },
     /// Access to a struct field; owner type path and field name
     Field { owner: OwnedPath, field: String },
+    /// Reference to a top-level function; file and item span
+    Function { defined_in: std::path::PathBuf, span: crate::token::SimpleSpan },
+    /// Reference to a method function in an impl; file and item span
+    Method { defined_in: std::path::PathBuf, span: crate::token::SimpleSpan },
 }
 
 #[derive(Debug, Clone)]

@@ -39,7 +39,7 @@ pub struct Typechecker {
 
     /// Inherent and trait methods registered via impl blocks, keyed by nominal type path.
     /// For now we only support inherent methods on nominal types without generics.
-    pub(crate) impl_methods: HashMap<hir::OwnedPath, HashMap<String, (hir::HirFunctionSignature, bool, PathBuf)>>,
+    pub(crate) impl_methods: HashMap<hir::OwnedPath, HashMap<String, (hir::HirFunctionSignature, bool, PathBuf, crate::token::SimpleSpan)>>,
 }
 
 // ItemContext is re-exported from errors.rs
@@ -91,18 +91,18 @@ impl Typechecker {
                     // Capture impl methods for method lookup later
                     if let hir::Item::Impl(impl_block) = &it {
                         if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &impl_block.target_type {
-                            let mut to_insert: Vec<(String, (hir::HirFunctionSignature, bool, PathBuf), String)> = Vec::new();
+                            let mut to_insert: Vec<(String, (hir::HirFunctionSignature, bool, PathBuf, crate::token::SimpleSpan), String)> = Vec::new();
                             for f in &impl_block.methods {
                                 let method_name = f.signature.name.clone();
                                 let sig = f.signature.clone();
                                 let mangled = Self::mangle_method_name(path, name, &method_name);
-                                to_insert.push((method_name, (sig, f.is_public, path.clone()), mangled));
+                                to_insert.push((method_name, (sig, f.is_public, path.clone(), f.span), mangled));
                             }
                             // Insert impl methods
                             {
                                 let entry = self.impl_methods.entry(name.clone()).or_default();
-                                for (method_name, (sig, is_public, def_path), _) in &to_insert {
-                                    entry.insert(method_name.clone(), (sig.clone(), *is_public, def_path.clone()));
+                                for (method_name, (sig, is_public, def_path, span), _) in &to_insert {
+                                    entry.insert(method_name.clone(), (sig.clone(), *is_public, def_path.clone(), *span));
                                 }
                             }
                             // Do not register mangled method symbols in global scope; method
@@ -241,6 +241,7 @@ impl Typechecker {
             signature.ret_type.clone(),
             context.clone(),
         )?;
+        let body_span = body_expr.span;
         let body_block = match body_expr.kind {
             hir::ExprKind::Block(block) => {
                 if block.ty != signature.ret_type {
@@ -287,7 +288,8 @@ impl Typechecker {
             body: body_block,
             is_public: func.is_public,
             defined_in: context.path.clone(),
-            span: context.span,
+            // Use the body expression span as a best-effort function span for navigation
+            span: body_span,
         })
     }
 
