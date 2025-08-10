@@ -162,101 +162,7 @@ impl Backend {
 
     // removed AST-based enclosing expr search; HIR is source of truth
 
-    // Simplified HIR-only goto: resolve to matching HIR items by name
-    fn goto_via_hir_simple(
-        analysis: &AnalysisResult,
-        tok_idx: usize,
-        ident: &str,
-    ) -> Option<lsp::Location> {
-        let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
-        for item in &analysis.hir {
-            match item {
-                HirItem::Fn(f) => candidate_blocks.push(&f.body),
-                HirItem::Impl(imp) => { for m in &imp.methods { candidate_blocks.push(&m.body); } }
-                _ => {}
-            }
-        }
-        for b in candidate_blocks {
-            if let Some(expr) = Self::find_hir_expr_in_block(b, tok_idx) {
-                if let hir::ExprKind::Path(p) = &expr.kind {
-                    if p.len() == 1 && matches!(expr.ty, hir::Ty::Function { .. }) {
-                        let name = &p[0];
-                        for item in &analysis.hir {
-                            match item {
-                                HirItem::Fn(f) if &f.signature.name == name => {
-                                    if let Some(src_text) = analysis.sources.get(&f.defined_in) {
-                                        let range = Backend::simple_span_to_range(src_text, f.span);
-                                        let uri = lsp::Url::from_file_path(&f.defined_in).ok()?;
-                                        return Some(lsp::Location { uri, range });
-                                    }
-                                }
-                                HirItem::Impl(imp) => {
-                                    for m in &imp.methods {
-                                        if m.signature.name == *name {
-                                            if let Some(src_text) = analysis.sources.get(&m.defined_in) {
-                                                let range = Backend::simple_span_to_range(src_text, m.span);
-                                                let uri = lsp::Url::from_file_path(&m.defined_in).ok()?;
-                                                return Some(lsp::Location { uri, range });
-                                            }
-                                        }
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        for item in &analysis.hir {
-            match item {
-                HirItem::Fn(f) if f.signature.name == ident => {
-                    if let Some(src_text) = analysis.sources.get(&f.defined_in) {
-                        let range = Backend::simple_span_to_range(src_text, f.span);
-                        let uri = lsp::Url::from_file_path(&f.defined_in).ok()?;
-                        return Some(lsp::Location { uri, range });
-                    }
-                }
-                HirItem::Struct(s) if s.name == ident => {
-                    if let Some(src_text) = analysis.sources.get(&s.defined_in) {
-                        let range = Backend::simple_span_to_range(src_text, s.span);
-                        let uri = lsp::Url::from_file_path(&s.defined_in).ok()?;
-                        return Some(lsp::Location { uri, range });
-                    }
-                }
-                HirItem::Enum(e) if e.name == ident => {
-                    if let Some(src_text) = analysis.sources.get(&e.defined_in) {
-                        let range = Backend::simple_span_to_range(src_text, e.span);
-                        let uri = lsp::Url::from_file_path(&e.defined_in).ok()?;
-                        return Some(lsp::Location { uri, range });
-                    }
-                }
-                HirItem::TypeAlias(ta) if ta.name == ident => {
-                    if let Some(src_text) = analysis.sources.get(&ta.defined_in) {
-                        let range = Backend::simple_span_to_range(src_text, ta.span);
-                        let uri = lsp::Url::from_file_path(&ta.defined_in).ok()?;
-                        return Some(lsp::Location { uri, range });
-                    }
-                }
-                HirItem::Trait(tr) if tr.name == ident => {
-                    if let Some(src_text) = analysis.sources.get(&tr.defined_in) {
-                        let range = Backend::simple_span_to_range(src_text, tr.span);
-                        let uri = lsp::Url::from_file_path(&tr.defined_in).ok()?;
-                        return Some(lsp::Location { uri, range });
-                    }
-                }
-                HirItem::Effect(eff) if eff.name == ident => {
-                    if let Some(src_text) = analysis.sources.get(&eff.defined_in) {
-                        let range = Backend::simple_span_to_range(src_text, eff.span);
-                        let uri = lsp::Url::from_file_path(&eff.defined_in).ok()?;
-                        return Some(lsp::Location { uri, range });
-                    }
-                }
-                _ => {}
-            }
-        }
-        None
-    }
+    // Removed name-based fallbacks: LSP uses only HIR resolution and item metadata
 
     fn find_hir_expr_in_block(block: &hir::HirBlock, tok_idx: usize) -> Option<hir::Expr> {
         // Search statements first, then last_expr; return the smallest containing expr
@@ -846,53 +752,33 @@ impl LanguageServer for Backend {
             .get(&path)
             .and_then(|spans| spans.iter().position(|s| s.start <= char_offset && char_offset < s.end));
 
-        if let Some((_name, _id_span)) = Self::ident_at(&text, pos_params.position) {
-            if let Some(tok_idx) = token_index_opt {
-                // Search HIR blocks in this file
-                let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
-                for item in &analysis.hir {
-                    match item {
-                        HirItem::Fn(f) if f.defined_in == path => candidate_blocks.push(&f.body),
-                        HirItem::Impl(imp) if imp.defined_in == path => {
-                            for m in &imp.methods { candidate_blocks.push(&m.body); }
-                        }
-                        _ => {}
+        if let Some(tok_idx) = token_index_opt {
+            // Search HIR blocks in this file only
+            let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
+            for item in &analysis.hir {
+                match item {
+                    HirItem::Fn(f) if f.defined_in == path => candidate_blocks.push(&f.body),
+                    HirItem::Impl(imp) if imp.defined_in == path => {
+                        for m in &imp.methods { candidate_blocks.push(&m.body); }
                     }
+                    _ => {}
                 }
-                for b in candidate_blocks {
-                    if let Some(expr) = Self::find_hir_expr_in_block(b, tok_idx) {
-                        // Prefer semantic resolution when available
-                        if let Some(res) = &expr.resolution {
-                            match res {
-                                hir::Resolution::Local { name, decl_span } => {
-                                    let target_span = if let Some(sp) = decl_span { *sp } else {
-                                        // Search for let with same name; pick closest preceding
-                                        let mut spans: Vec<token::SimpleSpan> = Vec::new();
-                                        Self::find_let_decl_spans_in_block(b, name, &mut spans);
-                                        let mut best: Option<token::SimpleSpan> = None;
-                                        let mut best_start = 0usize;
-                                        for sp in spans {
-                                            if sp.start <= expr.span.start && sp.start >= best_start { best_start = sp.start; best = Some(sp); }
-                                        }
-                                        best.unwrap_or(expr.span)
-                                    };
-                                    if let Some(src_text) = analysis.sources.get(&path) {
-                                        let range = Backend::token_index_span_to_range(&text, analysis.token_spans.get(&path).map(|v| v.as_slice()).unwrap_or(&[]), target_span);
-                                        let uri = lsp::Url::from_file_path(&path).ok();
-                                        if let Some(uri) = uri { return Ok(Some(lsp::GotoDefinitionResponse::Scalar(lsp::Location { uri, range }))); }
-                                    }
-                                }
-                                hir::Resolution::Field { owner, field } => {
-                                    if let Some(loc) = Self::find_struct_field_location(&analysis, owner, field) {
-                                        return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
-                                    }
+            }
+            for b in candidate_blocks {
+                if let Some(expr) = Self::find_hir_expr_in_block(b, tok_idx) {
+                    if let Some(res) = &expr.resolution {
+                        match res {
+                            hir::Resolution::Local { name, decl_span } => {
+                                let target_span = decl_span.unwrap_or(expr.span);
+                                if let Some(src_text) = analysis.sources.get(&path) {
+                                    let ranges = analysis.token_spans.get(&path).cloned().unwrap_or_default();
+                                    let range = Backend::token_index_span_to_range(&text, &ranges, target_span);
+                                    let uri = lsp::Url::from_file_path(&path).ok();
+                                    if let Some(uri) = uri { return Ok(Some(lsp::GotoDefinitionResponse::Scalar(lsp::Location { uri, range }))); }
                                 }
                             }
-                        }
-                        // Top-level item fallback when clicking on function/struct names in value position
-                        if let hir::ExprKind::Path(p) = &expr.kind {
-                            if p.len() == 1 {
-                                if let Some(loc) = Self::goto_via_hir_simple(&analysis, tok_idx, &p[0]) {
+                            hir::Resolution::Field { owner, field } => {
+                                if let Some(loc) = Self::find_struct_field_location(&analysis, owner, field) {
                                     return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
                                 }
                             }

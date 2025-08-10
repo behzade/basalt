@@ -55,7 +55,7 @@ impl Typechecker {
                         }
                     }
                 }
-                let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some(), decl_span: None };
+                let symbol = Symbol::Variable { ty: var_ty.clone(), is_mut, initialized: hir_value_opt.is_some(), decl_span: Some(stmt.span) };
                 self.add_symbol_to_current_scope(name.clone(), symbol);
 
                 Ok(hir::Stmt::Let { name, value: hir_value_opt, ty: var_ty, is_mut, span: stmt.span, name_span: None })
