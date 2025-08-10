@@ -286,6 +286,8 @@ impl Typechecker {
             signature,
             body: body_block,
             is_public: func.is_public,
+            defined_in: context.path.clone(),
+            span: context.span,
         })
     }
 
@@ -306,6 +308,8 @@ impl Typechecker {
             name: s.name,
             fields,
             is_public: s.is_public,
+            defined_in: context.path.clone(),
+            span: context.span,
         })
     }
 
@@ -329,7 +333,7 @@ impl Typechecker {
             };
             variants.push((vname, lowered_payload));
         }
-        Ok(hir::HirEnumDef { name, variants, is_public: e.is_public })
+        Ok(hir::HirEnumDef { name, variants, is_public: e.is_public, defined_in: context.path.clone(), span: context.span })
     }
 
     fn lower_type_alias(
@@ -342,7 +346,7 @@ impl Typechecker {
         match ta.aliased {
             Body::Type(t) => {
                 let aliased = self.resolve_type(&t, context.clone())?;
-                Ok(hir::HirTypeAlias { name, aliased, is_public: ta.is_public })
+                Ok(hir::HirTypeAlias { name, aliased, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span })
             }
             Body::Record(fields) => {
                 // Lower to struct def and also create an alias to that nominal type
@@ -350,11 +354,11 @@ impl Typechecker {
                 for (fname, fty) in fields {
                     lowered_fields.push((fname, self.resolve_type(&fty, context.clone())?));
                 }
-                let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public };
+                let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span };
                 // record the struct in definitions
                 self.type_definitions.insert(vec![ta.name.clone()], hir::Item::Struct(def));
                 let aliased = hir::Ty::Adt(hir::AdtTy::Struct { name: vec![ta.name.clone()], generics: vec![] });
-                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true })
+                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true, defined_in: context.path.clone(), span: context.span })
             }
             Body::Union(variants) => {
                 // Lower to enum def and alias to that nominal enum
@@ -366,12 +370,12 @@ impl Typechecker {
                     };
                     lowered.push((vname, payload_tys));
                 }
-                let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public };
+                let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public, defined_in: context.path.clone(), span: context.span };
                 let path = vec![ta.name.clone()];
                 self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
                 self.union_variants.insert(path.clone(), lowered);
                 let aliased = hir::Ty::Adt(hir::AdtTy::Enum { name: path, generics: vec![] });
-                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true })
+                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true, defined_in: context.path.clone(), span: context.span })
             }
         }
     }
@@ -390,7 +394,7 @@ impl Typechecker {
             let ret_type = self.resolve_type(&op.ret_type, context.clone())?;
             operations.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type, effects: vec![] });
         }
-        Ok(hir::HirEffectDef { name: eff.name, operations, is_public: eff.is_public })
+        Ok(hir::HirEffectDef { name: eff.name, operations, is_public: eff.is_public, defined_in: context.path.clone(), span: context.span })
     }
 
     fn lower_trait(
@@ -412,7 +416,7 @@ impl Typechecker {
             };
             methods.push(hir::HirFunctionSignature { name: m.name.clone(), params, ret_type, effects: vec![] });
         }
-        Ok(hir::HirTraitDef { name: tr.name, methods, is_public: tr.is_public })
+        Ok(hir::HirTraitDef { name: tr.name, methods, is_public: tr.is_public, defined_in: context.path.clone(), span: context.span })
     }
 
     fn lower_impl(
@@ -435,7 +439,7 @@ impl Typechecker {
             }
             methods.push(self.lower_function(f, context.clone())?);
         }
-        Ok(hir::HirImplBlock { trait_path, target_type, methods })
+        Ok(hir::HirImplBlock { trait_path, target_type, methods, defined_in: context.path.clone(), span: context.span })
     }
 
     fn lower_handler(
@@ -457,7 +461,7 @@ impl Typechecker {
         for f in h.functions {
             functions.push(self.lower_function(f, context.clone())?);
         }
-        Ok(hir::HirHandlerDef { name: h.name, effects, functions, is_public: h.is_public })
+        Ok(hir::HirHandlerDef { name: h.name, effects, functions, is_public: h.is_public, defined_in: context.path.clone(), span: context.span })
     }
 
     //================================================================================//

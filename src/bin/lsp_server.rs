@@ -21,60 +21,21 @@ use basalt::token;
 use basalt::type_unifier;
 use basalt::typechecker;
 
-use ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedTypeAliasBody, Spanned as OwnedSpanned};
-use hir::{HirFunctionSignature, Item as HirItem};
+use ast_owned::{OwnedItem, OwnedItemWithSpan, Spanned as OwnedSpanned};
+use hir::{Item as HirItem};
 use lexer::lexer;
 use parser::file_parser;
 use token::{SimpleSpan, Token};
 use typechecker::{TypeError, Typechecker};
 
-#[derive(Clone, Debug)]
-struct DefInfo {
-    path: PathBuf,
-    span: SimpleSpan,
-    signature: Option<HirFunctionSignature>,
-}
-
-#[derive(Default, Clone)]
-struct TopLevelIndex {
-    // allow multiple functions with same simple name (different modules)
-    functions: HashMap<String, Vec<DefInfo>>,
-    type_aliases: HashMap<String, (PathBuf, SimpleSpan)>,
-    union_variants: HashMap<String, (PathBuf, SimpleSpan)>,
-    // module name (alias or last segment) -> (file path, name span in import block, full path segments)
-    modules: HashMap<String, (PathBuf, SimpleSpan, Vec<String>)>,
-    // trait/interface names
-    traits: HashMap<String, (PathBuf, SimpleSpan)>,
-    // method name -> possibly multiple definitions (impls on different types)
-    methods: HashMap<String, Vec<DefInfo>>,
-    // trait method name -> possibly multiple definitions (interface declarations)
-    trait_methods: HashMap<String, Vec<DefInfo>>,
-    // per-file local variable definitions: name -> span
-    locals_by_file: HashMap<PathBuf, HashMap<String, SimpleSpan>>,
-    // per-file locals with owning item span for disambiguation: name -> list of (ident span, owner item span)
-    locals_detailed_by_file: HashMap<PathBuf, HashMap<String, Vec<(SimpleSpan, SimpleSpan)>>>,
-    // per-file local variables with annotated types: name -> pretty type
-    local_annotated_types_by_file: HashMap<PathBuf, HashMap<String, String>>,
-    // per-file local variables with inferred types: name -> hir::Ty
-    local_inferred_types_by_file: HashMap<PathBuf, HashMap<String, hir::Ty>>,
-    // record fields index: field name -> list of (file, span, parent type name, field type)
-    record_fields: HashMap<String, Vec<(PathBuf, SimpleSpan, String, ast_owned::OwnedType)>>,
-}
-
 #[derive(Default, Clone)]
 struct AnalysisResult {
     sources: HashMap<PathBuf, String>,
-    ast: HashMap<PathBuf, Vec<OwnedSpanned<OwnedItem>>>,
     hir: Vec<HirItem>,
     diagnostics: HashMap<PathBuf, Vec<lsp::Diagnostic>>,
-    index: TopLevelIndex,
     // Per-file token spans from the lexer (character ranges), used to translate
     // token-index spans produced by the parser/typechecker into character ranges
     token_spans: HashMap<PathBuf, Vec<SimpleSpan>>, 
-    // HIR function and method bodies for span-based lookup
-    hir_fn_bodies: HashMap<String, hir::HirBlock>,
-    hir_method_bodies: HashMap<String, Vec<hir::HirBlock>>,
-    hir_method_sigs: HashMap<String, Vec<HirFunctionSignature>>,
 }
 
 struct Backend {
@@ -199,182 +160,96 @@ impl Backend {
         }
     }
 
-    // Attempt to find the smallest OwnedExpr that contains the given token index
-    fn find_enclosing_expr_in_items(
-        items: &[OwnedSpanned<OwnedItem>],
+    // removed AST-based enclosing expr search; HIR is source of truth
+
+    // Simplified HIR-only goto: resolve to matching HIR items by name
+    fn goto_via_hir_simple(
+        analysis: &AnalysisResult,
         tok_idx: usize,
-    ) -> Option<ast_owned::Spanned<ast_owned::OwnedExpr>> {
-        use ast_owned::OwnedExpr as OE;
-
-        fn descend(expr: &ast_owned::Spanned<ast_owned::OwnedExpr>, tok_idx: usize) -> Option<ast_owned::Spanned<ast_owned::OwnedExpr>> {
-            if !(expr.span.start <= tok_idx && tok_idx < expr.span.end) {
-                return None;
-            }
-            let mut best: Option<ast_owned::Spanned<ast_owned::OwnedExpr>> = None;
-            match &expr.item {
-                OE::Array(elems) => {
-                    for e in elems { if let Some(d) = descend(e, tok_idx) { best = Some(d); } }
-                }
-                OE::Map(entries) => {
-                    for (k, v) in entries {
-                        if let Some(d) = descend(k, tok_idx) { best = Some(d); }
-                        if let Some(d) = descend(v, tok_idx) { best = Some(d); }
-                    }
-                }
-                OE::FieldAccess { receiver, .. } => {
-                    if let Some(d) = descend(receiver, tok_idx) { best = Some(d); }
-                }
-                OE::Unary { rhs, .. } => { if let Some(d) = descend(rhs, tok_idx) { best = Some(d); } }
-                OE::Binary { lhs, rhs, .. } => {
-                    if let Some(d) = descend(lhs, tok_idx) { best = Some(d); }
-                    if let Some(d) = descend(rhs, tok_idx) { best = Some(d); }
-                }
-                OE::Call { fun, args } => {
-                    if let Some(d) = descend(fun, tok_idx) { best = Some(d); }
-                    for a in args { if let Some(d) = descend(a, tok_idx) { best = Some(d); } }
-                }
-                OE::StructInit { fields, .. } => {
-                    for (_n, e) in fields { if let Some(d) = descend(e, tok_idx) { best = Some(d); } }
-                }
-                OE::Block { stmts, last_expr } => {
-                    use ast_owned::OwnedStmt as OS;
-                    for s in stmts {
-                        if !(s.span.start <= tok_idx && tok_idx < s.span.end) { continue; }
-                        match &s.item {
-                            OS::Let { value, .. } => { if let Some(val) = value { if let Some(d) = descend(val, tok_idx) { best = Some(d); } } }
-                            OS::Assign(l, r) => {
-                                if let Some(d) = descend(l, tok_idx) { best = Some(d); }
-                                if let Some(d) = descend(r, tok_idx) { best = Some(d); }
-                            }
-                            OS::Return(e) => { if let Some(e) = e { if let Some(d) = descend(e, tok_idx) { best = Some(d); } } }
-                            OS::Expr(e) => { if let Some(d) = descend(e, tok_idx) { best = Some(d); } }
-                            OS::Error => {}
-                        }
-                    }
-                    if let Some(le) = last_expr { if let Some(d) = descend(le, tok_idx) { best = Some(d); } }
-                }
-                OE::If { cond, then_block, else_block } => {
-                    if let Some(d) = descend(cond, tok_idx) { best = Some(d); }
-                    if let Some(d) = descend(then_block, tok_idx) { best = Some(d); }
-                    if let Some(e) = else_block { if let Some(d) = descend(e, tok_idx) { best = Some(d); } }
-                }
-                OE::Match { scrutinee, arms } => {
-                    if let Some(d) = descend(scrutinee, tok_idx) { best = Some(d); }
-                    for (_p, arm) in arms { if let Some(d) = descend(arm, tok_idx) { best = Some(d); } }
-                }
-                OE::While { cond, body } => {
-                    if let Some(d) = descend(cond, tok_idx) { best = Some(d); }
-                    if let Some(d) = descend(body, tok_idx) { best = Some(d); }
-                }
-                OE::Handle { body, .. } => { if let Some(d) = descend(body, tok_idx) { best = Some(d); } }
-                OE::Cast { expr, .. } => { if let Some(d) = descend(expr, tok_idx) { best = Some(d); } }
-                OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
-            }
-            // If no deeper match, current expr is the smallest containing
-            Some(best.unwrap_or_else(|| expr.clone()))
-        }
-
-        for it in items {
-            match &it.item {
-                OwnedItem::Fn(f) => {
-                    if let Some(found) = descend(&f.body, tok_idx) { return Some(found); }
-                }
-                OwnedItem::Impl(imp) => {
-                    for m in &imp.methods {
-                        if let Some(found) = descend(&m.body, tok_idx) { return Some(found); }
-                    }
-                }
+        ident: &str,
+    ) -> Option<lsp::Location> {
+        let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
+        for item in &analysis.hir {
+            match item {
+                HirItem::Fn(f) => candidate_blocks.push(&f.body),
+                HirItem::Impl(imp) => { for m in &imp.methods { candidate_blocks.push(&m.body); } }
                 _ => {}
             }
         }
-        None
-    }
-
-    // Given a token index, try to find a precise HIR-based location for goto
-    fn goto_via_hir(
-        analysis: &AnalysisResult,
-        file: &PathBuf,
-        tok_idx: usize,
-        ident: &str,
-        text: &str,
-    ) -> Option<lsp::GotoDefinitionResponse> {
-        // Resolve locals/params provided by typechecker scope mapping under current owning span
-        if let Some(det) = analysis.index.locals_detailed_by_file.get(file).and_then(|m| m.get(ident)) {
-            if let Some((sp, _owner)) = det.iter().find(|(_lsp, owner_sp)| owner_sp.start <= tok_idx && tok_idx < owner_sp.end) {
-                let range = Backend::simple_span_to_range(text, *sp);
-                let loc = lsp::Location { uri: lsp::Url::from_file_path(file).ok()?, range };
-                return Some(lsp::GotoDefinitionResponse::Scalar(loc));
-            }
-        }
-
-        // Find HIR expr at position by scanning function/method bodies for this file
-        let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
-        // Top-level functions in this file
-        if let Some(funcs) = analysis.index.functions.iter().filter(|(_n, defs)| defs.iter().any(|d| &d.path == file)).map(|(n, _)| n.clone()).collect::<Vec<_>>().into_iter().next() { let _ = funcs; }
-        for (name, defs) in &analysis.index.functions {
-            if defs.iter().any(|d| &d.path == file) {
-                if let Some(b) = analysis.hir_fn_bodies.get(name) { candidate_blocks.push(b); }
-            }
-        }
-        // Methods in this file
-        for (name, defs) in &analysis.index.methods {
-            if defs.iter().any(|d| &d.path == file) {
-                if let Some(v) = analysis.hir_method_bodies.get(name) {
-                    for b in v { candidate_blocks.push(b); }
-                }
-            }
-        }
-
-        // Search the smallest expr containing tok_idx
-        let mut best: Option<hir::Expr> = None;
         for b in candidate_blocks {
-            if let Some(e) = Self::find_hir_expr_in_block(b, tok_idx) {
-                best = Some(e);
-                break;
-            }
-        }
-        if let Some(expr) = best {
-            use hir::ExprKind as EK;
-            match &expr.kind {
-                EK::Path(p) => {
-                    if p.len() == 1 {
-                        // Function vs variable: decide by type
-                        match &expr.ty {
-                            hir::Ty::Function { param_types, .. } => {
-                                // If method-like (first param Adt), prefer method definitions
-                                if let Some(first) = param_types.get(0) {
-                                    if let Some(owner_last) = Self::hir_type_to_path(first).and_then(|v| v.last().cloned()) {
-                                        if let Some(loc) = Self::locate_method_impl(analysis, &expr, &owner_last, text) { return Some(lsp::GotoDefinitionResponse::Scalar(loc)); }
+            if let Some(expr) = Self::find_hir_expr_in_block(b, tok_idx) {
+                if let hir::ExprKind::Path(p) = &expr.kind {
+                    if p.len() == 1 && matches!(expr.ty, hir::Ty::Function { .. }) {
+                        let name = &p[0];
+                        for item in &analysis.hir {
+                            match item {
+                                HirItem::Fn(f) if &f.signature.name == name => {
+                                    if let Some(src_text) = analysis.sources.get(&f.defined_in) {
+                                        let range = Backend::simple_span_to_range(src_text, f.span);
+                                        let uri = lsp::Url::from_file_path(&f.defined_in).ok()?;
+                                        return Some(lsp::Location { uri, range });
                                     }
                                 }
-                                // Else top-level function
-                                if let Some((pfile, sp)) = analysis.index.functions.get(&ident.to_string()).and_then(|v| v.first()).map(|d| (d.path.clone(), d.span)) {
-                                    if let Some(src_text) = analysis.sources.get(&pfile) {
-                                        let range = Backend::simple_span_to_range(src_text, sp);
-                                        let uri = lsp::Url::from_file_path(&pfile).ok()?;
-                                        return Some(lsp::GotoDefinitionResponse::Scalar(lsp::Location { uri, range }));
+                                HirItem::Impl(imp) => {
+                                    for m in &imp.methods {
+                                        if m.signature.name == *name {
+                                            if let Some(src_text) = analysis.sources.get(&m.defined_in) {
+                                                let range = Backend::simple_span_to_range(src_text, m.span);
+                                                let uri = lsp::Url::from_file_path(&m.defined_in).ok()?;
+                                                return Some(lsp::Location { uri, range });
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                            _ => {
-                                // Already tried locals; no further HIR mapping needed here
+                                _ => {}
                             }
                         }
                     }
                 }
-                EK::FieldAccess { receiver, field } => {
-                    if let Some(owner) = Self::hir_type_to_path(&receiver.ty).and_then(|v| v.last().cloned()) {
-                        if let Some(defs) = analysis.index.record_fields.get(field) {
-                            for (p, sp, own, _ty) in defs {
-                                if own == &owner {
-                                    if let Some(src_text) = analysis.sources.get(p) {
-                                        let range = Backend::simple_span_to_range(src_text, *sp);
-                                        let uri = lsp::Url::from_file_path(p).ok()?;
-                                        return Some(lsp::GotoDefinitionResponse::Scalar(lsp::Location { uri, range }));
-                                    }
-                                }
-                            }
-                        }
+            }
+        }
+        for item in &analysis.hir {
+            match item {
+                HirItem::Fn(f) if f.signature.name == ident => {
+                    if let Some(src_text) = analysis.sources.get(&f.defined_in) {
+                        let range = Backend::simple_span_to_range(src_text, f.span);
+                        let uri = lsp::Url::from_file_path(&f.defined_in).ok()?;
+                        return Some(lsp::Location { uri, range });
+                    }
+                }
+                HirItem::Struct(s) if s.name == ident => {
+                    if let Some(src_text) = analysis.sources.get(&s.defined_in) {
+                        let range = Backend::simple_span_to_range(src_text, s.span);
+                        let uri = lsp::Url::from_file_path(&s.defined_in).ok()?;
+                        return Some(lsp::Location { uri, range });
+                    }
+                }
+                HirItem::Enum(e) if e.name == ident => {
+                    if let Some(src_text) = analysis.sources.get(&e.defined_in) {
+                        let range = Backend::simple_span_to_range(src_text, e.span);
+                        let uri = lsp::Url::from_file_path(&e.defined_in).ok()?;
+                        return Some(lsp::Location { uri, range });
+                    }
+                }
+                HirItem::TypeAlias(ta) if ta.name == ident => {
+                    if let Some(src_text) = analysis.sources.get(&ta.defined_in) {
+                        let range = Backend::simple_span_to_range(src_text, ta.span);
+                        let uri = lsp::Url::from_file_path(&ta.defined_in).ok()?;
+                        return Some(lsp::Location { uri, range });
+                    }
+                }
+                HirItem::Trait(tr) if tr.name == ident => {
+                    if let Some(src_text) = analysis.sources.get(&tr.defined_in) {
+                        let range = Backend::simple_span_to_range(src_text, tr.span);
+                        let uri = lsp::Url::from_file_path(&tr.defined_in).ok()?;
+                        return Some(lsp::Location { uri, range });
+                    }
+                }
+                HirItem::Effect(eff) if eff.name == ident => {
+                    if let Some(src_text) = analysis.sources.get(&eff.defined_in) {
+                        let range = Backend::simple_span_to_range(src_text, eff.span);
+                        let uri = lsp::Url::from_file_path(&eff.defined_in).ok()?;
+                        return Some(lsp::Location { uri, range });
                     }
                 }
                 _ => {}
@@ -459,200 +334,25 @@ impl Backend {
         }
     }
 
-    fn locate_method_impl(analysis: &AnalysisResult, expr: &hir::Expr, owner_last: &str, _text: &str) -> Option<lsp::Location> {
-        let name = if let hir::ExprKind::Path(p) = &expr.kind { p.last()?.clone() } else { return None };
-        if let Some(defs) = analysis.index.methods.get(&name) {
-            for d in defs {
-                if let Some(src_text) = analysis.sources.get(&d.path) {
-                    // We do not have per-def signature binding; return first match
-                    let range = Backend::simple_span_to_range(src_text, d.span);
-                    let uri = lsp::Url::from_file_path(&d.path).ok()?;
-                    return Some(lsp::Location { uri, range });
-                }
-            }
-        }
-        None
-    }
+    // removed locate_method_impl
 
     // Extract a best-effort owner type path for a receiver expression, using inferred or annotated local types
-    fn infer_receiver_type_path(
-        analysis: &AnalysisResult,
-        file: &PathBuf,
-        recv: &ast_owned::Spanned<ast_owned::OwnedExpr>,
-    ) -> Option<Vec<String>> {
-        use ast_owned::OwnedExpr as OE;
-        match &recv.item {
-            OE::Path(segs) => {
-                if segs.len() == 1 {
-                    let var = &segs[0];
-                    if let Some(map) = analysis.index.local_inferred_types_by_file.get(file) {
-                        if let Some(ty) = map.get(var) { return Self::hir_type_to_path(ty); }
-                    }
-                    if let Some(map) = analysis.index.local_annotated_types_by_file.get(file) {
-                        if let Some(ty_str) = map.get(var) {
-                            let parts: Vec<String> = ty_str.split("::").map(|s| s.to_string()).collect();
-                            if !parts.is_empty() { return Some(parts); }
-                        }
-                    }
-                }
-                None
-            }
-            OE::StructInit { path, .. } => Some(path.clone()),
-            _ => None,
-        }
-    }
+    // removed infer_receiver_type_path
 
-    fn hir_type_to_path(ty: &hir::Ty) -> Option<Vec<String>> {
-        match ty {
-            hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) => Some(name.clone()),
-            hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => Some(name.clone()),
-            hir::Ty::Adt(hir::AdtTy::Effect { name, .. }) => Some(name.clone()),
-            _ => None,
-        }
-    }
+    // removed hir_type_to_path helper
 
     // Try to infer an owner type name from an enclosing let statement's annotated type
-    fn infer_owner_from_enclosing_let(
-        items: &[OwnedSpanned<OwnedItem>],
-        tok_idx: usize,
-    ) -> Option<String> {
-        use ast_owned::OwnedExpr as OE;
-        use ast_owned::OwnedStmt as OS;
+    // removed infer_owner_from_enclosing_let
 
-        fn visit_expr(expr: &ast_owned::Spanned<ast_owned::OwnedExpr>, tok_idx: usize) -> Option<String> {
-            if !(expr.span.start <= tok_idx && tok_idx < expr.span.end) { return None; }
-            match &expr.item {
-                OE::Block { stmts, last_expr } => {
-                    for s in stmts {
-                        if !(s.span.start <= tok_idx && tok_idx < s.span.end) { continue; }
-                        match &s.item {
-                            OS::Let { ty, value, .. } => {
-                                if let Some(val) = value {
-                                    if val.span.start <= tok_idx && tok_idx < val.span.end {
-                                        if let Some(t) = ty {
-                                            if let Some(last) = t.path.last() { return Some(last.clone()); }
-                                        }
-                                    }
-                                }
-                            }
-                            OS::Assign(l, r) => {
-                                if let Some(o) = visit_expr(l, tok_idx) { return Some(o); }
-                                if let Some(o) = visit_expr(r, tok_idx) { return Some(o); }
-                            }
-                            OS::Return(e) => { if let Some(e) = e { if let Some(o) = visit_expr(e, tok_idx) { return Some(o); } } }
-                            OS::Expr(e) => { if let Some(o) = visit_expr(e, tok_idx) { return Some(o); } }
-                            OS::Error => {}
-                        }
-                    }
-                    if let Some(le) = last_expr { return visit_expr(le, tok_idx); }
-                }
-                OE::Unary { rhs, .. } => return visit_expr(rhs, tok_idx),
-                OE::Binary { lhs, rhs, .. } => {
-                    if let Some(o) = visit_expr(lhs, tok_idx) { return Some(o); }
-                    if let Some(o) = visit_expr(rhs, tok_idx) { return Some(o); }
-                }
-                OE::FieldAccess { receiver, .. } => return visit_expr(receiver, tok_idx),
-                OE::Call { fun, args } => {
-                    if let Some(o) = visit_expr(fun, tok_idx) { return Some(o); }
-                    for a in args { if let Some(o) = visit_expr(a, tok_idx) { return Some(o); } }
-                }
-                OE::If { cond, then_block, else_block } => {
-                    if let Some(o) = visit_expr(cond, tok_idx) { return Some(o); }
-                    if let Some(o) = visit_expr(then_block, tok_idx) { return Some(o); }
-                    if let Some(e) = else_block { if let Some(o) = visit_expr(e, tok_idx) { return Some(o); } }
-                }
-                OE::While { cond, body } => {
-                    if let Some(o) = visit_expr(cond, tok_idx) { return Some(o); }
-                    if let Some(o) = visit_expr(body, tok_idx) { return Some(o); }
-                }
-                OE::Match { scrutinee, arms } => {
-                    if let Some(o) = visit_expr(scrutinee, tok_idx) { return Some(o); }
-                    for (_p, arm) in arms { if let Some(o) = visit_expr(arm, tok_idx) { return Some(o); } }
-                }
-                OE::Handle { body, .. } => return visit_expr(body, tok_idx),
-                OE::Cast { expr, .. } => return visit_expr(expr, tok_idx),
-                OE::StructInit { .. } | OE::Array(_) | OE::Map(_) | OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
-            }
-            None
-        }
+    // removed build_signature_string
 
-        for it in items {
-            match &it.item {
-                OwnedItem::Fn(f) => {
-                    if let Some(o) = visit_expr(&f.body, tok_idx) { return Some(o); }
-                }
-                OwnedItem::Impl(imp) => {
-                    for m in &imp.methods {
-                        if let Some(o) = visit_expr(&m.body, tok_idx) { return Some(o); }
-                    }
-                }
-                _ => {}
-            }
-        }
-        None
-    }
-
-    fn build_signature_string(sig: &HirFunctionSignature) -> String {
-        let params = sig
-            .params
-            .iter()
-            .map(|(n, t)| format!("{}: {:?}", n, t))
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!("fn {}({}) -> {:?}", sig.name, params, sig.ret_type)
-    }
-
-    fn resolve_module_dir_path(path: &[String]) -> Option<PathBuf> {
-        if path.is_empty() {
-            return None;
-        }
-        let (root_dir, path_segments) = if path[0].eq_ignore_ascii_case("self") {
-            ("./src", &path[1..])
-        } else {
-            ("./modules", &path[..])
-        };
-        let mut final_path = PathBuf::from(root_dir);
-        for segment in path_segments {
-            final_path.push(segment.to_lowercase());
-        }
-        Some(final_path)
-    }
+    // removed resolve_module_dir_path
 
     fn diagnostics_push(map: &mut HashMap<PathBuf, Vec<lsp::Diagnostic>>, path: &Path, diag: lsp::Diagnostic) {
         map.entry(path.to_path_buf()).or_default().push(diag);
     }
 
-    fn list_module_targets(dir: &Path) -> Vec<PathBuf> {
-        let mut targets: Vec<PathBuf> = Vec::new();
-        if !dir.exists() || !dir.is_dir() {
-            return targets;
-        }
-        let mut bst_files: Vec<PathBuf> = fs::read_dir(dir)
-            .ok()
-            .into_iter()
-            .flat_map(|rd| rd.filter_map(|e| e.ok()))
-            .map(|e| e.path())
-            .filter(|p| p.is_file() && p.extension().and_then(|s| s.to_str()) == Some("bst"))
-            .collect();
-        bst_files.sort();
-        let prefer = ["mod.bst", "index.bst", "main.bst"];
-        for name in &prefer {
-            let candidate = dir.join(name);
-            if bst_files.iter().any(|p| p == &candidate) {
-                // Return canonical path if possible
-                return vec![fs::canonicalize(&candidate).unwrap_or(candidate)];
-            }
-        }
-        if bst_files.len() == 1 {
-            let only = bst_files.remove(0);
-            return vec![fs::canonicalize(&only).unwrap_or(only)];
-        }
-        // Canonicalize all; if any fail, keep as-is
-        bst_files
-            .into_iter()
-            .map(|p| fs::canonicalize(&p).unwrap_or(p))
-            .collect()
-    }
+    // removed list_module_targets
 
     fn analyze(&self, entry_path: &Path, entry_text: &str) -> AnalysisResult {
         let mut sources: HashMap<PathBuf, String> = HashMap::new();
@@ -735,123 +435,8 @@ impl Backend {
             }
         }
 
-        // Parse entry
+        // Parse just the entry file and do not resolve imports; rely on typechecker
         parse_one_file(entry_path, entry_text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache, &mut token_spans_map);
-
-        // Collect imports in a worklist and parse those files from disk
-        let mut worklist: Vec<Vec<String>> = Vec::new();
-        if let Some(items) = ast.get(entry_path) {
-            for it in items {
-                if let OwnedItem::ImportBlock { imports } = &it.item {
-                    for imp in imports {
-                        worklist.push(imp.path.clone());
-                    }
-                }
-            }
-        }
-
-        let mut visited_files: std::collections::HashSet<PathBuf> = std::collections::HashSet::new();
-        while let Some(import_path) = worklist.pop() {
-            if let Some(dir) = Self::resolve_module_dir_path(&import_path) {
-                if let Ok(read_dir) = fs::read_dir(&dir) {
-                    for entry in read_dir.flatten() {
-                        let path = entry.path();
-                        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("bst") {
-                            let canonical = match fs::canonicalize(&path) { Ok(p) => p, Err(_) => continue };
-                            if !visited_files.insert(canonical.clone()) {
-                                continue;
-                            }
-                            if let Ok(text) = fs::read_to_string(&canonical) {
-                                parse_one_file(&canonical, &text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache, &mut token_spans_map);
-                                // Pull nested imports too
-                                if let Some(items) = ast.get(&canonical) {
-                                    for it in items {
-                                        if let OwnedItem::ImportBlock { imports } = &it.item {
-                                            for imp in imports {
-                                                worklist.push(imp.path.clone());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Resolve diagnostics: report unknown imports and name conflicts with union constructors
-        for (file, items) in &ast {
-            // Build a set of union constructor names defined in this file
-            let mut union_constructors: std::collections::HashSet<String> = std::collections::HashSet::new();
-            for it in items {
-                if let OwnedItem::TypeAlias(ta) = &it.item {
-                    if let OwnedTypeAliasBody::Union(vars) = &ta.aliased {
-                        for (vname, _payload) in vars {
-                            union_constructors.insert(vname.clone());
-                        }
-                    }
-                }
-            }
-
-            // Now scan import blocks for this file
-            for it in items {
-                if let OwnedItem::ImportBlock { imports } = &it.item {
-                    for imp in imports {
-                        let import_name = imp
-                            .alias
-                            .clone()
-                            .unwrap_or_else(|| imp.path.last().cloned().unwrap_or_default());
-
-                        // Conflict with union constructor name
-                        if union_constructors.contains(&import_name) {
-                            if let Some(text) = sources.get(file) {
-                                if let Some(tok_spans) = token_spans_map.get(file) {
-                                    let range = Self::token_index_span_to_range(text, tok_spans, it.span);
-                                    Self::diagnostics_push(
-                                        &mut diagnostics,
-                                        file,
-                                        lsp::Diagnostic {
-                                            range,
-                                            severity: Some(lsp::DiagnosticSeverity::ERROR),
-                                            source: Some("basalt-resolve".to_string()),
-                                            message: format!(
-                                                "Import name '{}' conflicts with union constructor '{}' in this file",
-                                                import_name, import_name
-                                            ),
-                                            ..Default::default()
-                                        },
-                                    );
-                                }
-                            }
-                        }
-
-                        // Unknown import path (module directory missing)
-                        if let Some(dir) = Self::resolve_module_dir_path(&imp.path) {
-                            if !dir.exists() {
-                                if let Some(text) = sources.get(file) {
-                                    if let Some(tok_spans) = token_spans_map.get(file) {
-                                        let range = Self::token_index_span_to_range(text, tok_spans, it.span);
-                                        let display_path = imp.path.join("/");
-                                        Self::diagnostics_push(
-                                            &mut diagnostics,
-                                            file,
-                                            lsp::Diagnostic {
-                                                range,
-                                                severity: Some(lsp::DiagnosticSeverity::ERROR),
-                                                source: Some("basalt-resolve".to_string()),
-                                                message: format!("Unknown import: {}", display_path),
-                                                ..Default::default()
-                                            },
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         // Typecheck
         let mut typechecker = Typechecker::default();
@@ -887,146 +472,7 @@ impl Backend {
             }
         };
 
-        // Build top-level index: functions, type aliases, union variants, modules
-        let mut index = TopLevelIndex::default();
-        // Map function name -> signature from HIR
-        let mut fn_sigs: HashMap<String, HirFunctionSignature> = HashMap::new();
-        // Map method name -> signatures (there can be multiple)
-        let mut method_sigs: HashMap<String, Vec<HirFunctionSignature>> = HashMap::new();
-        // Bodies for inference
-        let mut fn_bodies: HashMap<String, hir::HirBlock> = HashMap::new();
-        let mut method_bodies: HashMap<String, Vec<hir::HirBlock>> = HashMap::new();
-        for item in &hir {
-            if let HirItem::Fn(f) = item {
-                fn_sigs.insert(f.signature.name.clone(), f.signature.clone());
-                fn_bodies.insert(f.signature.name.clone(), f.body.clone());
-            } else if let HirItem::Impl(imp) = item {
-                for m in &imp.methods {
-                    method_sigs.entry(m.signature.name.clone()).or_default().push(m.signature.clone());
-                    method_bodies.entry(m.signature.name.clone()).or_default().push(m.body.clone());
-                }
-            }
-        }
-        // Helper to find a specific identifier token span in the token list within a given token range
-        let mut find_ident_span = |
-            tokens: &[(Token<'static>, SimpleSpan)],
-            item_span: SimpleSpan,
-            ident: &str,
-        | -> Option<SimpleSpan> {
-            let start = item_span.start;
-            let end = item_span.end.min(tokens.len());
-            for i in start..end {
-                if let Token::Ident(s) = tokens[i].0 {
-                    if s == ident {
-                        return Some(tokens[i].1);
-                    }
-                }
-            }
-            None
-        };
-
-        for (file, items) in &ast {
-            for it in items {
-                match &it.item {
-                    OwnedItem::Fn(f) => {
-                        let sig = fn_sigs.get(&f.name).cloned();
-                        // Prefer the span of the function name token
-                        let name_span = token_cache
-                            .get(file)
-                            .and_then(|toks| find_ident_span(toks, it.span, &f.name))
-                            .unwrap_or(it.span);
-                        index.functions.entry(f.name.clone()).or_default().push(DefInfo { path: file.clone(), span: name_span, signature: sig });
-                        // No local/type collection here; rely on typechecker/HIR upstream
-                    }
-                    OwnedItem::TypeAlias(ta) => {
-                        // Prefer the span of the alias name token
-                        let name_span = token_cache
-                            .get(file)
-                            .and_then(|toks| find_ident_span(toks, it.span, &ta.name))
-                            .unwrap_or(it.span);
-                        index.type_aliases.insert(ta.name.clone(), (file.clone(), name_span));
-                        if let OwnedTypeAliasBody::Union(vars) = &ta.aliased {
-                            for (vname, _payload) in vars {
-                                // Try to find each variant's ident span within the item span
-                                let v_span = token_cache
-                                    .get(file)
-                                    .and_then(|toks| find_ident_span(toks, it.span, vname))
-                                    .unwrap_or(it.span);
-                                index.union_variants.insert(vname.clone(), (file.clone(), v_span));
-                            }
-                        } else if let OwnedTypeAliasBody::Record(fields) = &ta.aliased {
-                            // Index record fields for hover/definition
-                            for (field_name, field_ty) in fields {
-                                let f_span = token_cache
-                                    .get(file)
-                                    .and_then(|toks| find_ident_span(toks, it.span, field_name))
-                                    .unwrap_or(it.span);
-                                index
-                                    .record_fields
-                                    .entry(field_name.clone())
-                                    .or_default()
-                                    .push((file.clone(), f_span, ta.name.clone(), field_ty.clone()));
-                            }
-                        }
-                    }
-                    OwnedItem::Trait(tr) => {
-                        // Trait/interface indexing
-                        let name_span = token_cache
-                            .get(file)
-                            .and_then(|toks| find_ident_span(toks, it.span, &tr.name))
-                            .unwrap_or(it.span);
-                        index.traits.insert(tr.name.clone(), (file.clone(), name_span));
-                        // Collect trait methods as declarations for hover/definition
-                        for m in &tr.methods {
-                            let m_span = token_cache
-                                .get(file)
-                                .and_then(|toks| find_ident_span(toks, it.span, &m.name))
-                                .unwrap_or(it.span);
-                            index
-                                .trait_methods
-                                .entry(m.name.clone())
-                                .or_default()
-                                .push(DefInfo { path: file.clone(), span: m_span, signature: Some(HirFunctionSignature { name: m.name.clone(), params: m.params.iter().map(|(n, t)| (n.clone().unwrap_or_default(), Self::owned_type_to_hir_ty(t))).collect(), ret_type: m.ret_type.as_ref().map(Self::owned_type_to_hir_ty).unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit)), effects: vec![] }) });
-                        }
-                    }
-                    OwnedItem::Impl(imp) => {
-                        // Index methods inside impl blocks
-                        for m in &imp.methods {
-                            let sig_opt = method_sigs.get(&m.name).and_then(|v| v.first()).cloned();
-                            let name_span = token_cache
-                                .get(file)
-                                .and_then(|toks| find_ident_span(toks, it.span, &m.name))
-                                .unwrap_or(it.span);
-                            index
-                                .methods
-                                .entry(m.name.clone())
-                                .or_default()
-                                .push(DefInfo { path: file.clone(), span: name_span, signature: sig_opt });
-
-                            // No local/type collection; rely on typechecker/HIR upstream
-                        }
-                    }
-                    OwnedItem::ImportBlock { imports } => {
-                        // Collect module names and their spans
-                        for imp in imports {
-                            let mod_name = imp
-                                .alias
-                                .clone()
-                                .unwrap_or_else(|| imp.path.last().cloned().unwrap_or_default());
-                            if mod_name.is_empty() { continue; }
-                            let name_span = token_cache
-                                .get(file)
-                                .and_then(|toks| find_ident_span(toks, it.span, &mod_name))
-                                .unwrap_or(it.span);
-                            index.modules.insert(mod_name, (file.clone(), name_span, imp.path.clone()));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        AnalysisResult { sources, ast, hir, diagnostics, index, token_spans: token_spans_map, hir_fn_bodies: fn_bodies, hir_method_bodies: method_bodies, hir_method_sigs: method_sigs }
+        AnalysisResult { sources, hir, diagnostics, token_spans: token_spans_map }
     }
 
     fn collect_locals_in_expr(
@@ -1285,16 +731,15 @@ impl LanguageServer for Backend {
             .get(&path)
             .and_then(|spans| spans.iter().position(|s| s.start <= char_offset && char_offset < s.end));
         if let Some(tok_idx) = token_index_opt {
-            // Collect candidate HIR blocks from this file
+            // Collect candidate HIR blocks from the HIR (no extra indexing)
             let mut candidate_blocks: Vec<&hir::HirBlock> = Vec::new();
-            for (name, defs) in &analysis.index.functions {
-                if defs.iter().any(|d| &d.path == &path) {
-                    if let Some(b) = analysis.hir_fn_bodies.get(name) { candidate_blocks.push(b); }
-                }
-            }
-            for (name, defs) in &analysis.index.methods {
-                if defs.iter().any(|d| &d.path == &path) {
-                    if let Some(v) = analysis.hir_method_bodies.get(name) { for b in v { candidate_blocks.push(b); } }
+            for item in &analysis.hir {
+                match item {
+                    HirItem::Fn(f) if f.defined_in == path => candidate_blocks.push(&f.body),
+                    HirItem::Impl(imp) if imp.defined_in == path => {
+                        for m in &imp.methods { candidate_blocks.push(&m.body); }
+                    }
+                    _ => {}
                 }
             }
             for b in candidate_blocks {
@@ -1324,243 +769,14 @@ impl LanguageServer for Backend {
             .and_then(|spans| spans.iter().position(|s| s.start <= char_offset && char_offset < s.end));
 
         if let Some((name, _id_span)) = Self::ident_at(&text, pos_params.position) {
-            // Determine context of the identifier (function call vs method call vs field access)
-            let mut is_method_ctx = false;
-            let mut method_owner_last: Option<String> = None;
-            let mut field_owner_last: Option<String> = None;
-            let mut on_field_name_token_owner: Option<String> = None;
-            // Exact struct field name token?
-            if let Some(defs) = analysis.index.record_fields.get(&name) {
-                for (p, sp, owner, _ty) in defs {
-                    if p == &path {
-                        if let Some(text_src) = analysis.sources.get(p) {
-                            let char_offset_here = char_offset; // already computed above
-                            if sp.start <= char_offset_here && char_offset_here < sp.end {
-                                on_field_name_token_owner = Some(owner.clone());
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
             if let Some(tok_idx) = token_index_opt {
-                if let Some(items) = analysis.ast.get(&path) {
-                    if let Some(expr) = Self::find_enclosing_expr_in_items(items, tok_idx) {
-                        use ast_owned::OwnedExpr as OE;
-                        match &expr.item {
-                            OE::Call { fun, .. } => {
-                                if let OE::FieldAccess { receiver, field } = &fun.item {
-                                    if field == &name {
-                                        is_method_ctx = true;
-                                        if let Some(p) = Self::infer_receiver_type_path(&analysis, &path, receiver) {
-                                            method_owner_last = p.last().cloned();
-                                        }
-                                    }
-                                }
-                            }
-                            OE::FieldAccess { receiver, field } => {
-                                if field == &name {
-                                    if let Some(p) = Self::infer_receiver_type_path(&analysis, &path, receiver) {
-                                        field_owner_last = p.last().cloned();
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                        if field_owner_last.is_none() {
-                            if let Some(owner) = Self::infer_owner_from_enclosing_let(items, tok_idx) {
-                                field_owner_last = Some(owner);
-                            }
-                        }
-                    }
-                }
-            }
-            // If exactly on a record field name, jump to that field first
-            if let Some(owner_name) = on_field_name_token_owner.clone() {
-                if let Some(defs) = analysis.index.record_fields.get(&name) {
-                    let mut locs: Vec<lsp::Location> = Vec::new();
-                    for (p, sp, own, _ty) in defs {
-                        if own != &owner_name { continue; }
-                        if let Some(src_text) = analysis.sources.get(p) {
-                            let range = Self::simple_span_to_range(src_text, *sp);
-                            let uri = match lsp::Url::from_file_path(p) { Ok(u) => u, Err(_) => continue };
-                            locs.push(lsp::Location { uri, range });
-                        }
-                    }
-                    if !locs.is_empty() {
-                        return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                    }
-                }
-            }
-            // Prefer locals (including params) before fields/functions if not on a field name token
-            if on_field_name_token_owner.is_none() {
-                let selected_local_span = if let Some(det) = analysis.index.locals_detailed_by_file.get(&path).and_then(|m| m.get(&name)) {
-                    det.iter().find_map(|(lsp, owner_sp)| {
-                        if owner_sp.start <= char_offset && char_offset < owner_sp.end { Some(*lsp) } else { None }
-                    })
-                } else {
-                    analysis.index.locals_by_file.get(&path).and_then(|m| m.get(&name)).copied()
-                };
-                if let Some(sp) = selected_local_span {
-                    if let Some(src_text) = analysis.sources.get(&path) {
-                        let range = Self::simple_span_to_range(src_text, sp);
-                        let loc = lsp::Location { uri: lsp::Url::from_file_path(&path).unwrap(), range };
+                if let Some(loc) = Self::goto_via_hir_simple(&analysis, tok_idx, &name) {
                         return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
                     }
                 }
-            }
-            // If identifier is a module name, jump to its import declaration span
-            if let Some((p, s, _full)) = analysis.index.modules.get(&name) {
-                if let Some(src_text) = analysis.sources.get(p) {
-                    let range = Self::simple_span_to_range(src_text, *s);
-                    let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
+            // Fallback: scan HIR items by simple name
+            if let Some(loc) = Self::goto_via_hir_simple(&analysis, usize::MAX, &name) {
                     return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
-                }
-            }
-            // First, handle import-context navigation
-            if let Some(tok_idx) = token_index_opt {
-                if let Some(items) = analysis.ast.get(&path) {
-                    // Find import block containing this token index
-                    if let Some(import_item) = items.iter().find(|it| matches!(it.item, OwnedItem::ImportBlock { .. }) && it.span.start <= tok_idx && tok_idx < it.span.end) {
-                        if let OwnedItem::ImportBlock { imports } = &import_item.item {
-                            let mut locations: Vec<lsp::Location> = Vec::new();
-                            for imp in imports {
-                                if let Some(pos_in_path) = imp.path.iter().position(|seg| seg == &name) {
-                                    let prefix: Vec<String> = imp.path.iter().take(pos_in_path + 1).cloned().collect();
-                                    if let Some(dir) = Self::resolve_module_dir_path(&prefix) {
-                                        let targets = Self::list_module_targets(&dir);
-                                        for t in targets {
-                                            // Ensure absolute file URI; skip if cannot construct
-                                            let uri = match lsp::Url::from_file_path(&t) {
-                                                Ok(u) => u,
-                                                Err(_) => continue,
-                                            };
-                                            // Jump to start of file
-                                            let range = lsp::Range { start: lsp::Position { line: 0, character: 0 }, end: lsp::Position { line: 0, character: 0 } };
-                                            locations.push(lsp::Location { uri, range });
-                                        }
-                                    }
-                                }
-                            }
-                            if !locations.is_empty() {
-                                return Ok(Some(if locations.len() == 1 {
-                                    lsp::GotoDefinitionResponse::Scalar(locations.remove(0))
-                                } else {
-                                    lsp::GotoDefinitionResponse::Array(locations)
-                                }));
-                            }
-                        }
-                    }
-                }
-            }
-
-            // HIR-first: try to use HIR to resolve precisely
-            if let Some(tok_idx) = token_index_opt {
-                if let Some(loc) = Self::goto_via_hir(&analysis, &path, tok_idx, &name, &text) { return Ok(Some(loc)); }
-            }
-
-            // Fallback to symbol-based navigation
-            // Bare call identifiers should resolve to free functions only; avoid jumping to methods here
-            if let Some(defs) = analysis.index.functions.get(&name) {
-                let mut locs: Vec<lsp::Location> = Vec::new();
-                for def in defs {
-                    if let Some(src_text) = analysis.sources.get(&def.path) {
-                        let range = Self::simple_span_to_range(src_text, def.span);
-                        let uri = match lsp::Url::from_file_path(&def.path) { Ok(u) => u, Err(_) => continue };
-                        locs.push(lsp::Location { uri, range });
-                    }
-                }
-                if !locs.is_empty() {
-                    return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                }
-            }
-            if let Some((p, s)) = analysis.index.traits.get(&name) {
-                if let Some(src_text) = analysis.sources.get(p) {
-                    let range = Self::simple_span_to_range(src_text, *s);
-                    let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
-                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
-                }
-            }
-            if let Some((p, s)) = analysis.index.type_aliases.get(&name) {
-                if let Some(src_text) = analysis.sources.get(p) {
-                    let range = Self::simple_span_to_range(src_text, *s);
-                    let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
-                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
-                }
-            }
-            if let Some((p, s)) = analysis.index.union_variants.get(&name) {
-                if let Some(src_text) = analysis.sources.get(p) {
-                    let range = Self::simple_span_to_range(src_text, *s);
-                    let loc = lsp::Location { uri: lsp::Url::from_file_path(p).unwrap(), range };
-                    return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc)));
-                }
-            }
-            if is_method_ctx {
-                // Prefer concrete impl when receiver type known; else trait
-                if let Some(defs) = analysis.index.methods.get(&name) {
-                    let mut locs: Vec<lsp::Location> = Vec::new();
-                    for d in defs {
-                        if let Some(sig) = &d.signature {
-                            let matches_owner = match sig.params.first() {
-                                Some((_n, t)) => Self::hir_type_to_path(t).and_then(|p| p.last().cloned()) == method_owner_last,
-                                None => false,
-                            };
-                            if !matches_owner { continue; }
-                        }
-                        if let Some(src_text) = analysis.sources.get(&d.path) {
-                            let range = Self::simple_span_to_range(src_text, d.span);
-                            let uri = match lsp::Url::from_file_path(&d.path) { Ok(u) => u, Err(_) => continue };
-                            locs.push(lsp::Location { uri, range });
-                        }
-                    }
-                    if !locs.is_empty() {
-                        return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                    }
-                }
-                if let Some(defs) = analysis.index.trait_methods.get(&name) {
-                    let mut locs: Vec<lsp::Location> = Vec::new();
-                    for d in defs {
-                        if let Some(src_text) = analysis.sources.get(&d.path) {
-                            let range = Self::simple_span_to_range(src_text, d.span);
-                            let uri = match lsp::Url::from_file_path(&d.path) { Ok(u) => u, Err(_) => continue };
-                            locs.push(lsp::Location { uri, range });
-                        }
-                    }
-                    if !locs.is_empty() {
-                        return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                    }
-                }
-            }
-            if let Some(defs) = analysis.index.trait_methods.get(&name) {
-                let mut locs: Vec<lsp::Location> = Vec::new();
-                for d in defs {
-                    if let Some(src_text) = analysis.sources.get(&d.path) {
-                        let range = Self::simple_span_to_range(src_text, d.span);
-                        let uri = match lsp::Url::from_file_path(&d.path) { Ok(u) => u, Err(_) => continue };
-                        locs.push(lsp::Location { uri, range });
-                    }
-                }
-                if !locs.is_empty() {
-                    return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                }
-            }
-            // Record field go-to-definition: only when we are in a field context or exactly at the field name
-            if (field_owner_last.is_some() || on_field_name_token_owner.is_some()) &&
-               (analysis.index.record_fields.get(&name).is_some()) {
-                let defs = analysis.index.record_fields.get(&name).unwrap();
-                let mut locs: Vec<lsp::Location> = Vec::new();
-                for (p, sp, owner, _ty) in defs {
-                    if let Some(ref want) = field_owner_last { if owner != want { continue; } }
-                    if let Some(ref want) = on_field_name_token_owner { if owner != want { continue; } }
-                    if let Some(src_text) = analysis.sources.get(p) {
-                        let range = Self::simple_span_to_range(src_text, *sp);
-                        let uri = match lsp::Url::from_file_path(p) { Ok(u) => u, Err(_) => continue };
-                        locs.push(lsp::Location { uri, range });
-                    }
-                }
-                if !locs.is_empty() {
-                    return Ok(Some(if locs.len() == 1 { lsp::GotoDefinitionResponse::Scalar(locs.remove(0)) } else { lsp::GotoDefinitionResponse::Array(locs) }));
-                }
             }
         }
 
