@@ -431,8 +431,8 @@ impl Typechecker {
             Body::Record(fields) => {
                 // Lower to struct def and also create an alias to that nominal type
                 let mut lowered_fields: Vec<hir::HirField> = Vec::new();
-                for (fname, fty) in fields {
-                    lowered_fields.push(hir::HirField { name: fname, ty: self.resolve_type(&fty, context.clone())?, name_span: None });
+                for f in fields {
+                    lowered_fields.push(hir::HirField { name: f.name, ty: self.resolve_type(&f.ty, context.clone())?, name_span: None });
                 }
                 let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span, context_id: None };
                 // record the struct in definitions

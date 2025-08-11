@@ -1,6 +1,6 @@
 // std/fmt module (placeholder, updated to new syntax)
 
-fn println(message: str) = { }
+pub fn println(message: str) = { }
 
 fn print(message: str) = { }
 

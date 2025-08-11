@@ -15,6 +15,7 @@ use tower_lsp::{Client, LanguageServer, LspService, Server};
 use basalt::ast;
 use basalt::ast_owned;
 use basalt::hir;
+use basalt::compiler::{Compiler, CompilerStage};
 use basalt::lexer;
 use basalt::parser;
 use basalt::token;
@@ -373,123 +374,65 @@ impl Backend {
 
     fn analyze(&self, entry_path: &Path, entry_text: &str) -> AnalysisResult {
         let mut sources: HashMap<PathBuf, String> = HashMap::new();
-        let mut ast: HashMap<PathBuf, Vec<OwnedSpanned<OwnedItem>>> = HashMap::new();
         let mut diagnostics: HashMap<PathBuf, Vec<lsp::Diagnostic>> = HashMap::new();
-        let mut token_cache: HashMap<PathBuf, Vec<(Token<'static>, SimpleSpan)>> = HashMap::new();
         let mut token_spans_map: HashMap<PathBuf, Vec<SimpleSpan>> = HashMap::new();
 
-        fn parse_one_file(
-            path: &Path,
-            text: &str,
-            sources: &mut HashMap<PathBuf, String>,
-            ast: &mut HashMap<PathBuf, Vec<OwnedSpanned<OwnedItem>>>,
-            diagnostics: &mut HashMap<PathBuf, Vec<lsp::Diagnostic>>,
-            token_cache: &mut HashMap<PathBuf, Vec<(Token<'static>, SimpleSpan)>>,
-            token_spans_out: &mut HashMap<PathBuf, Vec<SimpleSpan>>,
-        ) {
-            sources.insert(path.to_path_buf(), text.to_string());
+        // Run the real compiler pipeline (Parse + Resolve) with in-memory override for entry file
+        let entry_str = entry_path.to_string_lossy().to_string();
+        let mut compiler = Compiler::new(entry_str.clone(), None);
+        // Override entry file source with the current buffer text
+        compiler.set_source_override(entry_path.to_path_buf(), entry_text.to_string());
+        // Run parse for entry, then resolve imports
+        let _ = compiler.run_until(CompilerStage::Resolve);
+
+        // Collect sources from the compiler workspace (includes imported files)
+        for (p, text) in compiler.workspace.sources.clone() { sources.insert(p.clone(), text.clone()); }
+
+        // Build token spans and lex/parse diagnostics for each file
+        for (path, text) in &sources {
+            // Lex
             let (tokens, lex_errs) = lexer().parse(text).into_output_errors();
             for e in lex_errs {
-                let range = lsp::Range {
-                    start: Backend::offset_to_position(text, e.span().start),
-                    end: Backend::offset_to_position(text, e.span().end),
-                };
-                Backend::diagnostics_push(
-                    diagnostics,
-                    path,
-                    lsp::Diagnostic {
-                        range,
-                        severity: Some(lsp::DiagnosticSeverity::ERROR),
-                        source: Some("basalt-lexer".to_string()),
-                        message: format!("Lexing error: {}", e.reason()),
-                        ..Default::default()
-                    },
-                );
+                let range = lsp::Range { start: Backend::offset_to_position(text, e.span().start), end: Backend::offset_to_position(text, e.span().end) };
+                Backend::diagnostics_push(&mut diagnostics, path, lsp::Diagnostic { range, severity: Some(lsp::DiagnosticSeverity::ERROR), source: Some("basalt-lexer".to_string()), message: format!("Lexing error: {}", e.reason()), ..Default::default() });
             }
-            let tokens_with_spans: Vec<(Token, SimpleSpan)> = match tokens {
-                Some(t) => t,
-                None => Vec::new(),
-            };
-            // Extend lifetime for parser; safe for LSP process lifetime
+            let tokens_with_spans: Vec<(Token, SimpleSpan)> = tokens.unwrap_or_default();
+            // Extend lifetime for parser
             let owned_tokens: Vec<(Token<'static>, SimpleSpan)> = tokens_with_spans
                 .into_iter()
                 .map(|(tok, sp)| (unsafe { std::mem::transmute::<Token<'_>, Token<'static>>(tok) }, sp))
                 .collect();
             let tokens_for_parser: Vec<Token<'static>> = owned_tokens.iter().map(|(t, _)| t.clone()).collect();
-            let key = path.to_path_buf();
             let spans_only: Vec<SimpleSpan> = owned_tokens.iter().map(|(_, s)| *s).collect();
-            token_spans_out.insert(key.clone(), spans_only);
-            token_cache.insert(key, owned_tokens.clone());
-
-            let (items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
+            token_spans_map.insert(path.clone(), spans_only.clone());
+            // Parse (for diagnostics only; AST comes from compiler)
+            let (_items, parse_errs) = file_parser().parse(&tokens_for_parser).into_output_errors();
             for e in parse_errs {
-                // Use the token-range that chumsky provides for the error
                 let tok_span = SimpleSpan::new((), e.span().start..e.span().end);
-                let token_spans = token_cache
-                    .get(path)
-                    .map(|v| v.iter().map(|(_, s)| *s).collect::<Vec<_>>())
-                    .unwrap_or_default();
-                let range = Backend::token_index_span_to_range(text, &token_spans, tok_span);
-                Backend::diagnostics_push(
-                    diagnostics,
-                    path,
-                    lsp::Diagnostic {
-                        range,
-                        severity: Some(lsp::DiagnosticSeverity::ERROR),
-                        source: Some("basalt-parser".to_string()),
-                        message: format!("Parse error: {}", e.to_string()),
-                        ..Default::default()
-                    },
-                );
-            }
-            if let Some(items) = items {
-                let mut owned_items: Vec<OwnedItemWithSpan> = Vec::new();
-                for item in items {
-                    let owned: OwnedItem = (&item).into();
-                    owned_items.push(OwnedSpanned { item: owned, span: item.span });
-                }
-                ast.insert(path.to_path_buf(), owned_items);
+                let range = Backend::token_index_span_to_range(text, &spans_only, tok_span);
+                Backend::diagnostics_push(&mut diagnostics, path, lsp::Diagnostic { range, severity: Some(lsp::DiagnosticSeverity::ERROR), source: Some("basalt-parser".to_string()), message: format!("Parse error: {}", e.to_string()), ..Default::default() });
             }
         }
 
-        // Parse just the entry file and do not resolve imports; rely on typechecker
-        parse_one_file(entry_path, entry_text, &mut sources, &mut ast, &mut diagnostics, &mut token_cache, &mut token_spans_map);
-
-        // Typecheck
+        // Typecheck using the compiler's AST (with resolved imports)
         let mut typechecker = Typechecker::default();
-        let hir = match typechecker.check_program(ast.clone()) {
-            Ok(hir_items) => {
-                // no type errors
-                hir_items
-            }
+        let hir = match typechecker.check_program(compiler.workspace.ast.clone()) {
+            Ok(hir_items) => hir_items,
             Err(errors) => {
-                // Publish diagnostics for each file
                 for TypeError { message, context } in errors {
                     if let Some(text) = sources.get(&context.path) {
                         let range = if let Some(tok_spans) = token_spans_map.get(&context.path) {
                             Self::token_index_span_to_range(text, tok_spans, context.span)
                         } else {
-                            // Fallback
                             Self::simple_span_to_range(text, context.span)
                         };
-                        Self::diagnostics_push(
-                            &mut diagnostics,
-                            &context.path,
-                            lsp::Diagnostic {
-                                range,
-                                severity: Some(lsp::DiagnosticSeverity::ERROR),
-                                source: Some("basalt-typechecker".to_string()),
-                                message,
-                                ..Default::default()
-                            },
-                        );
+                        Self::diagnostics_push(&mut diagnostics, &context.path, lsp::Diagnostic { range, severity: Some(lsp::DiagnosticSeverity::ERROR), source: Some("basalt-typechecker".to_string()), message, ..Default::default() });
                     }
                 }
                 Vec::new()
             }
         };
 
-        // Capture contexts if the typechecker exposed them (requires API change). For now, clone via getter when added.
         AnalysisResult { sources, hir, diagnostics, token_spans: token_spans_map, contexts: typechecker.contexts.clone() }
     }
 

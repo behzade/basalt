@@ -496,8 +496,9 @@ fn import_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, e
 
 fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, _stmt, block) = expression_bundle();
-    just(Token::Fn)
-        .ignore_then(fn_signature_parser())
+    let vis = just(Token::Pub).or_not().map(|m| m.is_some());
+    vis.then_ignore(just(Token::Fn))
+        .then(fn_signature_parser())
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(
             // Allow empty function bodies: either a normal expr, or an empty block
@@ -510,18 +511,20 @@ fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src
                 }
             }))
         )
-        .map(|(((name, params, ret_type, effects), body))| Function { name, generics: vec![], params, ret_type, effects, body, is_public: true })
+        .map(|(((is_public, (name, params, ret_type, effects)), body))| Function { name, generics: vec![], params, ret_type, effects, body, is_public })
         .labelled("function definition")
 }
 
 fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ty = type_parser();
-    let op = ident()
+    let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
+    let op = vis.clone()
+        .then(ident())
         .then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()))
-        .map(|((name, params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public: true });
-    just(Token::Effect)
-        .ignore_then(
+        .map(|(((is_public, name), params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public });
+    vis.clone()
+        .then_ignore(just(Token::Effect))
+        .then(
             ident().then(
                 select! { Token::Op(op) if op == "<" => () }
                     .ignore_then(ident().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>())
@@ -532,16 +535,16 @@ fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'sr
         )
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(op.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
-        .map(|(name, operations)| EffectDef { name, operations, is_public: true })
+        .map(|(((is_public, name), operations))| EffectDef { name, operations, is_public })
 }
 
 fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ty = type_parser();
     let fndef = fn_def_parser();
     let effects = just(Token::Colon)
         .ignore_then(type_parser())
         .then(with_types(|| type_parser()))
         .map(|(primary, mut rest)| { let mut v = vec![primary]; v.append(&mut rest); v });
+    let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
     // Handler supports either '= { ... }' or inline '{ ... }' as in tests
     let make_block = ||
         just(Token::LBrace)
@@ -549,8 +552,9 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
             .ignore_then(fn_def_parser().padded_by(trivia()).repeated().collect::<Vec<_>>())
             .then_ignore(trivia())
             .then_ignore(just(Token::RBrace));
-    just(Token::Handler)
-        .ignore_then(ident())
+    vis.clone()
+        .then_ignore(just(Token::Handler))
+        .then(ident())
         .then(effects)
         .then(
             choice((
@@ -558,26 +562,31 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
                 just(Token::Op("=".to_string())).ignore_then(make_block()),
             )),
         )
-        .map(|((name, effects), functions)| HandlerDef { name, effects, functions, is_public: true })
+        .map(|((((is_public, name), effects), functions))| HandlerDef { name, effects, functions, is_public })
 }
 
 fn interface_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ty = type_parser();
+    let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
     let param = just(Token::Mut)
         .or_not()
         .ignore_then(ident())
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
         .map(|(n, t)| (Some(n), t.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![n], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } })));
-    let sig = ident()
+    let sig = just(Token::Pub)
+        .or_not()
+        .map(|m| m.is_some())
+        .then(ident())
         .then(param.separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LParen), just(Token::RParen)))
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
          .then(with_types(|| type_parser()))
-        .map(|(((name, params), ret_type), _effects)| TraitMethod { name, params, ret_type, is_public: true });
-    just(Token::Interface)
-        .ignore_then(ident())
+        .map(|((((is_public, name), params), ret_type), _effects)| TraitMethod { name, params, ret_type, is_public });
+    vis
+        .then_ignore(just(Token::Interface))
+        .then(ident())
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(sig.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
-        .map(|(name, methods)| TraitDef { name, methods, is_public: true })
+        .map(|(((is_public, name), methods))| TraitDef { name, methods, is_public })
 }
 
 fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src str, Vec<(Option<&'src str>, Type<'src>)>, Option<Type<'src>>, Vec<Type<'src>>), extra::Err<Rich<'src, Token<'src>>>> {
@@ -603,6 +612,7 @@ fn impl_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>
 
 fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAliasDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let ty = type_parser();
+    let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
     let generics = ident()
         .separated_by(just(Token::Comma))
         .allow_trailing()
@@ -613,14 +623,15 @@ fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAlias
 
     let variant = ident().then(type_parser().delimited_by(just(Token::LParen), just(Token::RParen)).or_not());
     let union_body = ident().then(type_parser().delimited_by(just(Token::LParen), just(Token::RParen)).or_not()).separated_by(select! { Token::Op(op) if op == "|" => () }).at_least(1).collect::<Vec<_>>().map(TypeAliasBody::Union);
-    let record_body = ident().then_ignore(just(Token::Colon)).then(type_parser()).separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)).map(TypeAliasBody::Record);
+    let record_field = just(Token::Pub).or_not().map(|m| m.is_some()).then(ident()).then_ignore(just(Token::Colon)).then(type_parser()).map(|(((is_public, name), ty))| RecordField { name, ty, is_public });
+    let record_body = record_field.separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)).map(TypeAliasBody::Record);
     let body = choice((record_body, union_body, type_parser().map(TypeAliasBody::Type)));
-    just(Token::Type)
-        .ignore_then(ident())
+    let name_with_vis = vis.then(just(Token::Type).ignore_then(ident()));
+    name_with_vis
         .then(generics)
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(body)
-        .map(|((name, generics), aliased)| TypeAliasDef { name, generics, aliased, is_public: true })
+        .map(|(((is_public, name), generics), aliased)| TypeAliasDef { name, generics, aliased, is_public })
 }
 
 fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
