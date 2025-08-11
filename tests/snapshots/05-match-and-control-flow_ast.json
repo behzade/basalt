@@ -301,7 +301,7 @@
                           },
                           "span": {
                             "start": 67,
-                            "end": 68
+                            "end": 82
                           }
                         }
                       }
@@ -376,7 +376,7 @@
                                     },
                                     "span": {
                                       "start": 93,
-                                      "end": 94
+                                      "end": 96
                                     }
                                   }
                                 ],
@@ -424,7 +424,7 @@
                                     },
                                     "span": {
                                       "start": 102,
-                                      "end": 103
+                                      "end": 105
                                     }
                                   }
                                 ],
@@ -495,7 +495,7 @@
                                       },
                                       "span": {
                                         "start": 113,
-                                        "end": 114
+                                        "end": 116
                                       }
                                     },
                                     "rhs": {
@@ -622,7 +622,7 @@
                                     },
                                     "span": {
                                       "start": 126,
-                                      "end": 127
+                                      "end": 129
                                     }
                                   },
                                   "rhs": {
@@ -695,7 +695,7 @@
                                                   },
                                                   "span": {
                                                     "start": 136,
-                                                    "end": 137
+                                                    "end": 139
                                                   }
                                                 },
                                                 "rhs": {
@@ -916,11 +916,11 @@
                             },
                             "rhs": {
                               "item": {
-                                "Call": {
-                                  "fun": {
+                                "MethodCall": {
+                                  "receiver": {
                                     "item": {
                                       "Path": [
-                                        "len"
+                                        "match_result"
                                       ]
                                     },
                                     "span": {
@@ -928,31 +928,20 @@
                                       "end": 167
                                     }
                                   },
-                                  "args": [
-                                    {
-                                      "item": {
-                                        "Path": [
-                                          "match_result"
-                                        ]
-                                      },
-                                      "span": {
-                                        "start": 166,
-                                        "end": 167
-                                      }
-                                    }
-                                  ]
+                                  "method": "len",
+                                  "args": []
                                 }
                               },
                               "span": {
                                 "start": 166,
-                                "end": 167
+                                "end": 171
                               }
                             }
                           }
                         },
                         "span": {
                           "start": 162,
-                          "end": 167
+                          "end": 171
                         }
                       }
                     },

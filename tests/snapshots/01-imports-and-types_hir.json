@@ -1,39 +1,5 @@
 [
   {
-    "Fn": {
-      "signature": {
-        "name": "println",
-        "params": [
-          {
-            "name": "s",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Special": "Unit"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": null,
-        "ty": {
-          "Special": "Unit"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/io/io.bst",
-      "span": {
-        "start": 9,
-        "end": 11
-      },
-      "context_id": 0
-    }
-  },
-  {
     "TypeAlias": {
       "name": "Person",
       "aliased": {
@@ -185,7 +151,7 @@
                 },
                 "span": {
                   "start": 59,
-                  "end": 63
+                  "end": 66
                 },
                 "resolution": null
               },
@@ -681,6 +647,40 @@
       "span": {
         "start": 58,
         "end": 120
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "println",
+        "params": [
+          {
+            "name": "s",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/io/io.bst",
+      "span": {
+        "start": 9,
+        "end": 11
       },
       "context_id": 1
     }

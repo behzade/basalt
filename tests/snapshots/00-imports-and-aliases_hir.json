@@ -2,6 +2,168 @@
   {
     "Fn": {
       "signature": {
+        "name": "println",
+        "params": [
+          {
+            "name": "message",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/fmt/print.bst",
+      "span": {
+        "start": 9,
+        "end": 11
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "print",
+        "params": [
+          {
+            "name": "message",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/fmt/print.bst",
+      "span": {
+        "start": 19,
+        "end": 21
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "format",
+        "params": [
+          {
+            "name": "template",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          },
+          {
+            "name": "args",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "Str"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "template"
+            ]
+          },
+          "ty": {
+            "Primitive": "Str"
+          },
+          "span": {
+            "start": 36,
+            "end": 37
+          },
+          "resolution": {
+            "Local": {
+              "name": "template",
+              "decl_span": null
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "Str"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/fmt/print.bst",
+      "span": {
+        "start": 35,
+        "end": 38
+      },
+      "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "println",
+        "params": [
+          {
+            "name": "s",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/io/io.bst",
+      "span": {
+        "start": 9,
+        "end": 11
+      },
+      "context_id": 3
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
         "name": "main",
         "params": [],
         "ret_type": {
@@ -67,7 +229,7 @@
                 },
                 "span": {
                   "start": 25,
-                  "end": 29
+                  "end": 32
                 },
                 "resolution": null
               },
@@ -133,7 +295,7 @@
                 },
                 "span": {
                   "start": 32,
-                  "end": 36
+                  "end": 39
                 },
                 "resolution": null
               },
@@ -169,168 +331,6 @@
       "span": {
         "start": 24,
         "end": 41
-      },
-      "context_id": 0
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "println",
-        "params": [
-          {
-            "name": "message",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Special": "Unit"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": null,
-        "ty": {
-          "Special": "Unit"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/fmt/print.bst",
-      "span": {
-        "start": 9,
-        "end": 11
-      },
-      "context_id": 1
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "print",
-        "params": [
-          {
-            "name": "message",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Special": "Unit"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": null,
-        "ty": {
-          "Special": "Unit"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/fmt/print.bst",
-      "span": {
-        "start": 19,
-        "end": 21
-      },
-      "context_id": 2
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "format",
-        "params": [
-          {
-            "name": "template",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "span": null
-          },
-          {
-            "name": "args",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Primitive": "Str"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": {
-          "kind": {
-            "Path": [
-              "template"
-            ]
-          },
-          "ty": {
-            "Primitive": "Str"
-          },
-          "span": {
-            "start": 36,
-            "end": 37
-          },
-          "resolution": {
-            "Local": {
-              "name": "template",
-              "decl_span": null
-            }
-          }
-        },
-        "ty": {
-          "Primitive": "Str"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/fmt/print.bst",
-      "span": {
-        "start": 35,
-        "end": 38
-      },
-      "context_id": 3
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "println",
-        "params": [
-          {
-            "name": "s",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Special": "Unit"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": null,
-        "ty": {
-          "Special": "Unit"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/io/io.bst",
-      "span": {
-        "start": 9,
-        "end": 11
       },
       "context_id": 4
     }

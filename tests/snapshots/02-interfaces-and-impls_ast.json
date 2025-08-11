@@ -275,7 +275,7 @@
                             },
                             "span": {
                               "start": 81,
-                              "end": 82
+                              "end": 84
                             }
                           }
                         },
@@ -377,7 +377,7 @@
                                     },
                                     "span": {
                                       "start": 103,
-                                      "end": 104
+                                      "end": 106
                                     }
                                   },
                                   "rhs": {
@@ -426,7 +426,7 @@
                             },
                             "span": {
                               "start": 109,
-                              "end": 110
+                              "end": 112
                             }
                           }
                         },
@@ -541,11 +541,11 @@
                         "ty": null,
                         "value": {
                           "item": {
-                            "Call": {
-                              "fun": {
+                            "MethodCall": {
+                              "receiver": {
                                 "item": {
                                   "Path": [
-                                    "get_age"
+                                    "p"
                                   ]
                                 },
                                 "span": {
@@ -553,24 +553,13 @@
                                   "end": 142
                                 }
                               },
-                              "args": [
-                                {
-                                  "item": {
-                                    "Path": [
-                                      "p"
-                                    ]
-                                  },
-                                  "span": {
-                                    "start": 141,
-                                    "end": 142
-                                  }
-                                }
-                              ]
+                              "method": "get_age",
+                              "args": []
                             }
                           },
                           "span": {
                             "start": 141,
-                            "end": 142
+                            "end": 146
                           }
                         }
                       }
@@ -588,11 +577,11 @@
                         "ty": null,
                         "value": {
                           "item": {
-                            "Call": {
-                              "fun": {
+                            "MethodCall": {
+                              "receiver": {
                                 "item": {
                                   "Path": [
-                                    "up_age_by"
+                                    "p"
                                   ]
                                 },
                                 "span": {
@@ -600,18 +589,8 @@
                                   "end": 150
                                 }
                               },
+                              "method": "up_age_by",
                               "args": [
-                                {
-                                  "item": {
-                                    "Path": [
-                                      "p"
-                                    ]
-                                  },
-                                  "span": {
-                                    "start": 149,
-                                    "end": 150
-                                  }
-                                },
                                 {
                                   "item": {
                                     "Literal": {
@@ -628,7 +607,7 @@
                           },
                           "span": {
                             "start": 149,
-                            "end": 150
+                            "end": 155
                           }
                         }
                       }
