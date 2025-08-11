@@ -1,0 +1,597 @@
+{
+  "tests/04-async-http-composition.bst": [
+    {
+      "item": {
+        "Effect": {
+          "name": "Http",
+          "operations": [
+            {
+              "name": "get",
+              "params": [
+                {
+                  "path": [
+                    "str"
+                  ],
+                  "generics": []
+                }
+              ],
+              "ret_type": {
+                "path": [
+                  "str"
+                ],
+                "generics": []
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 13
+      }
+    },
+    {
+      "item": {
+        "Effect": {
+          "name": "Async",
+          "operations": [
+            {
+              "name": "await",
+              "params": [
+                {
+                  "path": [
+                    "fn"
+                  ],
+                  "generics": []
+                }
+              ],
+              "ret_type": {
+                "path": [
+                  "T"
+                ],
+                "generics": []
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 13,
+        "end": 32
+      }
+    },
+    {
+      "item": {
+        "Handler": {
+          "name": "Scheduler",
+          "effects": [
+            "Async"
+          ],
+          "functions": [
+            {
+              "name": "await",
+              "generics": [],
+              "params": [
+                [
+                  "task",
+                  {
+                    "path": [
+                      "fn"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "T"
+                ],
+                "generics": []
+              },
+              "effects": [],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Let": {
+                            "is_mut": false,
+                            "name": "res",
+                            "ty": null,
+                            "value": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "task"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 57,
+                                      "end": 58
+                                    }
+                                  },
+                                  "args": []
+                                }
+                              },
+                              "span": {
+                                "start": 57,
+                                "end": 58
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 54,
+                          "end": 60
+                        }
+                      },
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "Path": [
+                                "res"
+                              ]
+                            },
+                            "span": {
+                              "start": 60,
+                              "end": 61
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 60,
+                          "end": 61
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 53,
+                  "end": 62
+                }
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 32,
+        "end": 63
+      }
+    },
+    {
+      "item": {
+        "Handler": {
+          "name": "HttpHandler",
+          "effects": [
+            "Http",
+            "Async"
+          ],
+          "functions": [
+            {
+              "name": "get",
+              "generics": [],
+              "params": [
+                [
+                  "url",
+                  {
+                    "path": [
+                      "str"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "str"
+                ],
+                "generics": []
+              },
+              "effects": [
+                "Async"
+              ],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "Literal": "Unit"
+                            },
+                            "span": {
+                              "start": 91,
+                              "end": 101
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 91,
+                          "end": 101
+                        }
+                      },
+                      {
+                        "item": {
+                          "Let": {
+                            "is_mut": false,
+                            "name": "content",
+                            "ty": null,
+                            "value": {
+                              "item": {
+                                "Perform": {
+                                  "path": [
+                                    "Async",
+                                    "await"
+                                  ],
+                                  "args": [
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "http_task"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 109,
+                                        "end": 110
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "span": {
+                                "start": 104,
+                                "end": 111
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 101,
+                          "end": 111
+                        }
+                      },
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "Path": [
+                                "content"
+                              ]
+                            },
+                            "span": {
+                              "start": 111,
+                              "end": 112
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 111,
+                          "end": 112
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 90,
+                  "end": 113
+                }
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 63,
+        "end": 114
+      }
+    },
+    {
+      "item": {
+        "Stmt": {
+          "item": {
+            "Let": {
+              "is_mut": false,
+              "name": "AsyncHttpHandler",
+              "ty": null,
+              "value": {
+                "item": {
+                  "Handle": {
+                    "body": {
+                      "item": {
+                        "Path": [
+                          "HttpHandler"
+                        ]
+                      },
+                      "span": {
+                        "start": 117,
+                        "end": 118
+                      }
+                    },
+                    "handler": {
+                      "Path": [
+                        "Scheduler"
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 117,
+                  "end": 118
+                }
+              }
+            }
+          },
+          "span": {
+            "start": 114,
+            "end": 122
+          }
+        }
+      },
+      "span": {
+        "start": 114,
+        "end": 122
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "fetch_content_size",
+          "generics": [],
+          "params": [
+            [
+              "url",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": []
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": []
+          },
+          "effects": [
+            "Http"
+          ],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "content",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Perform": {
+                              "path": [
+                                "Http",
+                                "get"
+                              ],
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "url"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 145,
+                                    "end": 146
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 140,
+                            "end": 147
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 137,
+                      "end": 147
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "len"
+                                ]
+                              },
+                              "span": {
+                                "start": 147,
+                                "end": 148
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Path": [
+                                    "content"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 147,
+                                  "end": 148
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 147,
+                          "end": 148
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 147,
+                      "end": 152
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 136,
+              "end": 153
+            }
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 122,
+        "end": 153
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": []
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "size",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Handle": {
+                              "body": {
+                                "item": {
+                                  "Call": {
+                                    "fun": {
+                                      "item": {
+                                        "Path": [
+                                          "fetch_content_size"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 164,
+                                        "end": 165
+                                      }
+                                    },
+                                    "args": [
+                                      {
+                                        "item": {
+                                          "Literal": {
+                                            "Str": "https://example.com"
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 166,
+                                          "end": 167
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "span": {
+                                  "start": 164,
+                                  "end": 165
+                                }
+                              },
+                              "handler": {
+                                "Path": [
+                                  "AsyncHttpHandler"
+                                ]
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 164,
+                            "end": 165
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 161,
+                      "end": 172
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "size"
+                          ]
+                        },
+                        "span": {
+                          "start": 172,
+                          "end": 173
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 172,
+                      "end": 173
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 160,
+              "end": 174
+            }
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 153,
+        "end": 174
+      }
+    }
+  ]
+}

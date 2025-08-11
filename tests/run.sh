@@ -25,7 +25,7 @@ TEMP_DIR="tests/temp"
 
 # Test type configuration (compatible with bash 3.2)
 # Format: test_type:command:display_name
-TEST_TYPES="ast:parse:AST resolve:resolve:Resolve hir:hir:HIR mir:mir:MIR build:build:Compilation build:build:Build"
+TEST_TYPES="ast:ast:AST hir:hir:HIR mir:mir:MIR build:build:Compilation build:build:Build"
 
 # Default test type
 DEFAULT_TEST_TYPE="ast"
@@ -46,7 +46,7 @@ get_snapshot_path() {
     local test_file="$1"
     local test_type="$2"
     local test_name=$(basename "$test_file" .bst)
-    echo "$SNAPSHOTS_DIR/${test_name}.${test_type}"
+    echo "$SNAPSHOTS_DIR/${test_name}_${test_type}.json"
 }
 
 # Function to get test type info

@@ -1,0 +1,159 @@
+{
+	"tests/00-imports-and-aliases.bst": [
+		{
+			"item": {
+				"ImportBlock": {
+					"imports": [
+						{
+							"path": ["std", "fmt"],
+							"alias": null
+						},
+						{
+							"path": ["std", "io"],
+							"alias": null
+						},
+						{
+							"path": ["std", "fmt"],
+							"alias": "second_fmt"
+						}
+					]
+				}
+			},
+			"span": {
+				"start": 0,
+				"end": 17
+			}
+		},
+		{
+			"item": {
+				"Fn": {
+					"name": "main",
+					"generics": [],
+					"params": [],
+					"ret_type": {
+						"path": ["i32"],
+						"generics": []
+					},
+					"effects": [],
+					"body": {
+						"item": {
+							"Block": {
+								"stmts": [
+									{
+										"item": {
+											"Expr": {
+												"item": {
+													"Call": {
+														"fun": {
+															"item": {
+																"Path": ["fmt", "println"]
+															},
+															"span": {
+																"start": 25,
+																"end": 29
+															}
+														},
+														"args": [
+															{
+																"item": {
+																	"Literal": {
+																		"Str": "hi"
+																	}
+																},
+																"span": {
+																	"start": 30,
+																	"end": 31
+																}
+															}
+														]
+													}
+												},
+												"span": {
+													"start": 25,
+													"end": 29
+												}
+											}
+										},
+										"span": {
+											"start": 25,
+											"end": 32
+										}
+									},
+									{
+										"item": {
+											"Expr": {
+												"item": {
+													"Call": {
+														"fun": {
+															"item": {
+																"Path": ["io", "println"]
+															},
+															"span": {
+																"start": 32,
+																"end": 36
+															}
+														},
+														"args": [
+															{
+																"item": {
+																	"Literal": {
+																		"Str": "hi"
+																	}
+																},
+																"span": {
+																	"start": 37,
+																	"end": 38
+																}
+															}
+														]
+													}
+												},
+												"span": {
+													"start": 32,
+													"end": 36
+												}
+											}
+										},
+										"span": {
+											"start": 32,
+											"end": 39
+										}
+									},
+									{
+										"item": {
+											"Expr": {
+												"item": {
+													"Literal": {
+														"I64": 0
+													}
+												},
+												"span": {
+													"start": 39,
+													"end": 40
+												}
+											}
+										},
+										"span": {
+											"start": 39,
+											"end": 40
+										}
+									}
+								],
+								"last_expr": null
+							}
+						},
+						"span": {
+							"start": 24,
+							"end": 41
+						}
+					},
+					"is_public": true
+				}
+			},
+			"span": {
+				"start": 17,
+				"end": 41
+			}
+		}
+	]
+}

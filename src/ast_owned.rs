@@ -2,11 +2,13 @@
 // These are used in SymbolSignature to avoid lifetime issues
 //
 use crate::{ast::*, token::SimpleSpan};
+use serde::Serialize;
 
 /// A generic wrapper that adds a source code span to any AST node.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Spanned<T> {
     pub item: T,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: SimpleSpan,
 }
 
@@ -16,14 +18,14 @@ pub type SpannedStmt = Spanned<OwnedStmt>;
 pub type SpannedPattern = Spanned<OwnedPattern>;
 
 /// Owned version of Type for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedType {
     pub path: Vec<String>,
     pub generics: Vec<OwnedType>,
 }
 
 /// Owned version of Function for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedFunction {
     pub name: String,
     pub generics: Vec<String>,
@@ -35,7 +37,7 @@ pub struct OwnedFunction {
 }
 
 /// Owned version of Method for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedMethod {
     pub type_name: String,
     pub name: String,
@@ -48,7 +50,7 @@ pub struct OwnedMethod {
 }
 
 /// Owned version of StructDef for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedStructDef {
     pub name: String,
     pub generics: Vec<String>,
@@ -57,7 +59,7 @@ pub struct OwnedStructDef {
 }
 
 /// Owned version of EnumDef for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedEnumDef {
     pub name: Option<String>,
     pub generics: Vec<String>,
@@ -66,14 +68,14 @@ pub struct OwnedEnumDef {
 }
 
 /// Owned version of TraitDef for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedTraitDef {
     pub name: String,
     pub methods: Vec<OwnedTraitMethod>,
     pub is_public: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedImplBlock {
     pub target_type: OwnedType,
     pub interface: Option<Vec<String>>, // optional interface path
@@ -81,7 +83,7 @@ pub struct OwnedImplBlock {
 }
 
 /// Owned version of TraitMethod for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedTraitMethod {
     pub name: String,
     pub params: Vec<(Option<String>, OwnedType)>,
@@ -90,7 +92,7 @@ pub struct OwnedTraitMethod {
 }
 
 /// Owned version of EffectDef for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedEffectDef {
     pub name: String,
     pub operations: Vec<OwnedEffectOp>,
@@ -98,7 +100,7 @@ pub struct OwnedEffectDef {
 }
 
 /// Owned version of EffectOp for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedEffectOp {
     pub name: String,
     pub params: Vec<OwnedType>,
@@ -107,7 +109,7 @@ pub struct OwnedEffectOp {
 }
 
 /// Owned version of HandlerDef for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedHandlerDef {
     pub name: String,
     pub effects: Vec<String>,
@@ -116,7 +118,7 @@ pub struct OwnedHandlerDef {
 }
 
 /// Owned version of Expr for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedExpr {
     Literal(OwnedLiteral),
     Array(Vec<SpannedExpr>),              // UPDATED
@@ -177,7 +179,7 @@ pub enum OwnedExpr {
 }
 
 /// Owned version of Stmt for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedStmt {
     Let {
         is_mut: bool,
@@ -192,7 +194,7 @@ pub enum OwnedStmt {
 }
 
 /// Owned version of Pattern for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedPattern {
     Literal(OwnedLiteral),
     Identifier(String),
@@ -204,7 +206,7 @@ pub enum OwnedPattern {
 }
 
 /// Owned version of Literal for symbol signatures
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum OwnedLiteral {
     Bool(bool),
     I8(i8),
@@ -222,13 +224,13 @@ pub enum OwnedLiteral {
 }
 
 /// Owned version of HandlerBody for symbol signatures
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedHandlerBody {
     Path(Vec<String>),
     Inline(Vec<OwnedFunction>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedItem {
     Stmt(SpannedStmt), // UPDATED
     ImportBlock { imports: Vec<OwnedImportPath> },
@@ -244,13 +246,13 @@ pub enum OwnedItem {
     Impl(OwnedImplBlock),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedImportPath {
     pub path: Vec<String>,
     pub alias: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedSatisfiesBlock {
     pub target_type: OwnedType,
     pub trait_names: Vec<String>,
@@ -259,7 +261,7 @@ pub struct OwnedSatisfiesBlock {
 
 pub type OwnedItemWithSpan = Spanned<OwnedItem>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct OwnedTypeAliasDef {
     pub name: String,
     pub generics: Vec<String>,
@@ -267,7 +269,7 @@ pub struct OwnedTypeAliasDef {
     pub is_public: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedTypeAliasBody {
     Type(OwnedType),
     Record(Vec<(String, OwnedType)>),

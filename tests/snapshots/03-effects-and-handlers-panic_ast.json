@@ -1,0 +1,446 @@
+{
+  "tests/03-effects-and-handlers-panic.bst": [
+    {
+      "item": {
+        "Effect": {
+          "name": "Panic",
+          "operations": [
+            {
+              "name": "panic",
+              "params": [
+                {
+                  "path": [
+                    "str"
+                  ],
+                  "generics": []
+                }
+              ],
+              "ret_type": {
+                "path": [
+                  "!"
+                ],
+                "generics": []
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 13
+      }
+    },
+    {
+      "item": {
+        "Handler": {
+          "name": "OsExitPanic",
+          "effects": [
+            "Panic"
+          ],
+          "functions": [
+            {
+              "name": "panic",
+              "generics": [],
+              "params": [
+                [
+                  "msg",
+                  {
+                    "path": [
+                      "str"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "!"
+                ],
+                "generics": []
+              },
+              "effects": [],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "Perform": {
+                                "path": [
+                                  "Panic",
+                                  "panic"
+                                ],
+                                "args": [
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "unreachable"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 36,
+                                      "end": 37
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "span": {
+                              "start": 31,
+                              "end": 38
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 31,
+                          "end": 38
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 29,
+                  "end": 39
+                }
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 13,
+        "end": 40
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "division",
+          "generics": [],
+          "params": [
+            [
+              "a",
+              {
+                "path": [
+                  "i32"
+                ],
+                "generics": []
+              }
+            ],
+            [
+              "b",
+              {
+                "path": [
+                  "i32"
+                ],
+                "generics": []
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": []
+          },
+          "effects": [
+            "Panic"
+          ],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "If": {
+                            "cond": {
+                              "item": {
+                                "Binary": {
+                                  "op": "Eq",
+                                  "lhs": {
+                                    "item": {
+                                      "Path": [
+                                        "b"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 58,
+                                      "end": 59
+                                    }
+                                  },
+                                  "rhs": {
+                                    "item": {
+                                      "Literal": {
+                                        "I64": 0
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 60,
+                                      "end": 61
+                                    }
+                                  }
+                                }
+                              },
+                              "span": {
+                                "start": 58,
+                                "end": 61
+                              }
+                            },
+                            "then_block": {
+                              "item": {
+                                "Block": {
+                                  "stmts": [
+                                    {
+                                      "item": {
+                                        "Expr": {
+                                          "item": {
+                                            "Perform": {
+                                              "path": [
+                                                "Panic",
+                                                "panic"
+                                              ],
+                                              "args": [
+                                                {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "Str": "division by zero"
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 67,
+                                                    "end": 68
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 62,
+                                            "end": 69
+                                          }
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 62,
+                                        "end": 69
+                                      }
+                                    }
+                                  ],
+                                  "last_expr": null
+                                }
+                              },
+                              "span": {
+                                "start": 61,
+                                "end": 70
+                              }
+                            },
+                            "else_block": null
+                          }
+                        },
+                        "span": {
+                          "start": 57,
+                          "end": 70
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 57,
+                      "end": 70
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Div",
+                            "lhs": {
+                              "item": {
+                                "Path": [
+                                  "a"
+                                ]
+                              },
+                              "span": {
+                                "start": 70,
+                                "end": 71
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Path": [
+                                  "b"
+                                ]
+                              },
+                              "span": {
+                                "start": 72,
+                                "end": 73
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 70,
+                          "end": 73
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 70,
+                      "end": 73
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 56,
+              "end": 74
+            }
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 40,
+        "end": 74
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": []
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "_",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Handle": {
+                              "body": {
+                                "item": {
+                                  "Call": {
+                                    "fun": {
+                                      "item": {
+                                        "Path": [
+                                          "division"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 85,
+                                        "end": 86
+                                      }
+                                    },
+                                    "args": [
+                                      {
+                                        "item": {
+                                          "Literal": {
+                                            "I64": 10
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 87,
+                                          "end": 88
+                                        }
+                                      },
+                                      {
+                                        "item": {
+                                          "Literal": {
+                                            "I64": 2
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 89,
+                                          "end": 90
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "span": {
+                                  "start": 85,
+                                  "end": 86
+                                }
+                              },
+                              "handler": {
+                                "Path": [
+                                  "OsExitPanic"
+                                ]
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 85,
+                            "end": 86
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 82,
+                      "end": 95
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I64": 0
+                          }
+                        },
+                        "span": {
+                          "start": 95,
+                          "end": 96
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 95,
+                      "end": 96
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 81,
+              "end": 97
+            }
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 74,
+        "end": 97
+      }
+    }
+  ]
+}

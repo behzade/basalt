@@ -1,0 +1,982 @@
+{
+  "tests/05-match-and-control-flow.bst": [
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Person",
+          "generics": [],
+          "aliased": {
+            "Record": [
+              [
+                "name",
+                {
+                  "path": [
+                    "str"
+                  ],
+                  "generics": []
+                }
+              ],
+              [
+                "age",
+                {
+                  "path": [
+                    "i32"
+                  ],
+                  "generics": []
+                }
+              ]
+            ]
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 12
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Company",
+          "generics": [],
+          "aliased": {
+            "Record": [
+              [
+                "company_id",
+                {
+                  "path": [
+                    "i32"
+                  ],
+                  "generics": []
+                }
+              ],
+              [
+                "name",
+                {
+                  "path": [
+                    "str"
+                  ],
+                  "generics": []
+                }
+              ]
+            ]
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 12,
+        "end": 24
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "UserType",
+          "generics": [],
+          "aliased": {
+            "Union": [
+              [
+                "B2B",
+                {
+                  "path": [
+                    "Company"
+                  ],
+                  "generics": []
+                }
+              ],
+              [
+                "B2C",
+                {
+                  "path": [
+                    "Person"
+                  ],
+                  "generics": []
+                }
+              ]
+            ]
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 24,
+        "end": 36
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": []
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "person",
+                        "ty": {
+                          "path": [
+                            "Person"
+                          ],
+                          "generics": []
+                        },
+                        "value": {
+                          "item": {
+                            "Block": {
+                              "stmts": [
+                                {
+                                  "item": {
+                                    "Expr": {
+                                      "item": {
+                                        "StructInit": {
+                                          "path": [
+                                            "Person"
+                                          ],
+                                          "generics": [],
+                                          "fields": [
+                                            [
+                                              "name",
+                                              {
+                                                "item": {
+                                                  "Literal": {
+                                                    "Str": "behzad"
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 55,
+                                                  "end": 56
+                                                }
+                                              }
+                                            ],
+                                            [
+                                              "age",
+                                              {
+                                                "item": {
+                                                  "Literal": {
+                                                    "I64": 12
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 59,
+                                                  "end": 60
+                                                }
+                                              }
+                                            ]
+                                          ]
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 51,
+                                        "end": 61
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 51,
+                                    "end": 61
+                                  }
+                                }
+                              ],
+                              "last_expr": null
+                            }
+                          },
+                          "span": {
+                            "start": 50,
+                            "end": 62
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 44,
+                      "end": 62
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "user",
+                        "ty": {
+                          "path": [
+                            "UserType"
+                          ],
+                          "generics": []
+                        },
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "B2B"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 67,
+                                  "end": 68
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Block": {
+                                      "stmts": [
+                                        {
+                                          "item": {
+                                            "Expr": {
+                                              "item": {
+                                                "StructInit": {
+                                                  "path": [
+                                                    "Company"
+                                                  ],
+                                                  "generics": [],
+                                                  "fields": [
+                                                    [
+                                                      "company_id",
+                                                      {
+                                                        "item": {
+                                                          "Literal": {
+                                                            "I64": 1
+                                                          }
+                                                        },
+                                                        "span": {
+                                                          "start": 74,
+                                                          "end": 75
+                                                        }
+                                                      }
+                                                    ],
+                                                    [
+                                                      "name",
+                                                      {
+                                                        "item": {
+                                                          "Literal": {
+                                                            "Str": "acme"
+                                                          }
+                                                        },
+                                                        "span": {
+                                                          "start": 78,
+                                                          "end": 79
+                                                        }
+                                                      }
+                                                    ]
+                                                  ]
+                                                }
+                                              },
+                                              "span": {
+                                                "start": 70,
+                                                "end": 80
+                                              }
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 70,
+                                            "end": 80
+                                          }
+                                        }
+                                      ],
+                                      "last_expr": null
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 69,
+                                    "end": 81
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 67,
+                            "end": 68
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 62,
+                      "end": 82
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "match_result",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Match": {
+                              "scrutinee": {
+                                "item": {
+                                  "Path": [
+                                    "user"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 86,
+                                  "end": 87
+                                }
+                              },
+                              "arms": [
+                                [
+                                  {
+                                    "item": {
+                                      "Path": {
+                                        "path": [
+                                          "B2B"
+                                        ],
+                                        "args": [
+                                          {
+                                            "item": {
+                                              "Identifier": "b2b"
+                                            },
+                                            "span": {
+                                              "start": 90,
+                                              "end": 91
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 88,
+                                      "end": 92
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "FieldAccess": {
+                                        "receiver": {
+                                          "item": {
+                                            "Path": [
+                                              "b2b"
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 93,
+                                            "end": 94
+                                          }
+                                        },
+                                        "field": "name"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 93,
+                                      "end": 94
+                                    }
+                                  }
+                                ],
+                                [
+                                  {
+                                    "item": {
+                                      "Path": {
+                                        "path": [
+                                          "B2C"
+                                        ],
+                                        "args": [
+                                          {
+                                            "item": {
+                                              "Identifier": "b2c"
+                                            },
+                                            "span": {
+                                              "start": 99,
+                                              "end": 100
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 97,
+                                      "end": 101
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "FieldAccess": {
+                                        "receiver": {
+                                          "item": {
+                                            "Path": [
+                                              "b2c"
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 102,
+                                            "end": 103
+                                          }
+                                        },
+                                        "field": "name"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 102,
+                                      "end": 103
+                                    }
+                                  }
+                                ],
+                                [
+                                  {
+                                    "item": "Wildcard",
+                                    "span": {
+                                      "start": 106,
+                                      "end": 107
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "unknown"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 108,
+                                      "end": 109
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 85,
+                            "end": 109
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 82,
+                      "end": 109
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "if_result",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "If": {
+                              "cond": {
+                                "item": {
+                                  "Binary": {
+                                    "op": "Gt",
+                                    "lhs": {
+                                      "item": {
+                                        "FieldAccess": {
+                                          "receiver": {
+                                            "item": {
+                                              "Path": [
+                                                "person"
+                                              ]
+                                            },
+                                            "span": {
+                                              "start": 113,
+                                              "end": 114
+                                            }
+                                          },
+                                          "field": "age"
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 113,
+                                        "end": 114
+                                      }
+                                    },
+                                    "rhs": {
+                                      "item": {
+                                        "Literal": {
+                                          "I64": 10
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 117,
+                                        "end": 118
+                                      }
+                                    }
+                                  }
+                                },
+                                "span": {
+                                  "start": 113,
+                                  "end": 118
+                                }
+                              },
+                              "then_block": {
+                                "item": {
+                                  "Block": {
+                                    "stmts": [
+                                      {
+                                        "item": {
+                                          "Expr": {
+                                            "item": {
+                                              "Literal": {
+                                                "I64": 3
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 119,
+                                              "end": 120
+                                            }
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 119,
+                                          "end": 120
+                                        }
+                                      }
+                                    ],
+                                    "last_expr": null
+                                  }
+                                },
+                                "span": {
+                                  "start": 118,
+                                  "end": 121
+                                }
+                              },
+                              "else_block": {
+                                "item": {
+                                  "Block": {
+                                    "stmts": [
+                                      {
+                                        "item": {
+                                          "Expr": {
+                                            "item": {
+                                              "Literal": {
+                                                "I64": 4
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 123,
+                                              "end": 124
+                                            }
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 123,
+                                          "end": 124
+                                        }
+                                      }
+                                    ],
+                                    "last_expr": null
+                                  }
+                                },
+                                "span": {
+                                  "start": 122,
+                                  "end": 125
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 112,
+                            "end": 125
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 109,
+                      "end": 125
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "While": {
+                            "cond": {
+                              "item": {
+                                "Binary": {
+                                  "op": "Gt",
+                                  "lhs": {
+                                    "item": {
+                                      "FieldAccess": {
+                                        "receiver": {
+                                          "item": {
+                                            "Path": [
+                                              "person"
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 126,
+                                            "end": 127
+                                          }
+                                        },
+                                        "field": "age"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 126,
+                                      "end": 127
+                                    }
+                                  },
+                                  "rhs": {
+                                    "item": {
+                                      "Literal": {
+                                        "I64": 10
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 130,
+                                      "end": 131
+                                    }
+                                  }
+                                }
+                              },
+                              "span": {
+                                "start": 126,
+                                "end": 131
+                              }
+                            },
+                            "body": {
+                              "item": {
+                                "Block": {
+                                  "stmts": [
+                                    {
+                                      "item": {
+                                        "Assign": [
+                                          {
+                                            "item": {
+                                              "FieldAccess": {
+                                                "receiver": {
+                                                  "item": {
+                                                    "Path": [
+                                                      "person"
+                                                    ]
+                                                  },
+                                                  "span": {
+                                                    "start": 132,
+                                                    "end": 133
+                                                  }
+                                                },
+                                                "field": "age"
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 132,
+                                              "end": 133
+                                            }
+                                          },
+                                          {
+                                            "item": {
+                                              "Binary": {
+                                                "op": "Sub",
+                                                "lhs": {
+                                                  "item": {
+                                                    "FieldAccess": {
+                                                      "receiver": {
+                                                        "item": {
+                                                          "Path": [
+                                                            "person"
+                                                          ]
+                                                        },
+                                                        "span": {
+                                                          "start": 136,
+                                                          "end": 137
+                                                        }
+                                                      },
+                                                      "field": "age"
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 136,
+                                                    "end": 137
+                                                  }
+                                                },
+                                                "rhs": {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "I64": 1
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 140,
+                                                    "end": 141
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 136,
+                                              "end": 141
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 132,
+                                        "end": 141
+                                      }
+                                    }
+                                  ],
+                                  "last_expr": null
+                                }
+                              },
+                              "span": {
+                                "start": 131,
+                                "end": 142
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 125,
+                          "end": 142
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 125,
+                      "end": 142
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "block_result",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": []
+                        },
+                        "value": {
+                          "item": {
+                            "Block": {
+                              "stmts": [
+                                {
+                                  "item": {
+                                    "Let": {
+                                      "is_mut": false,
+                                      "name": "a",
+                                      "ty": {
+                                        "path": [
+                                          "i32"
+                                        ],
+                                        "generics": []
+                                      },
+                                      "value": {
+                                        "item": {
+                                          "Literal": {
+                                            "I64": 1
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 152,
+                                          "end": 153
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 148,
+                                    "end": 153
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Let": {
+                                      "is_mut": false,
+                                      "name": "b",
+                                      "ty": {
+                                        "path": [
+                                          "i32"
+                                        ],
+                                        "generics": []
+                                      },
+                                      "value": {
+                                        "item": {
+                                          "Literal": {
+                                            "I64": 2
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 157,
+                                          "end": 158
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 153,
+                                    "end": 158
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Expr": {
+                                      "item": {
+                                        "Binary": {
+                                          "op": "Add",
+                                          "lhs": {
+                                            "item": {
+                                              "Path": [
+                                                "a"
+                                              ]
+                                            },
+                                            "span": {
+                                              "start": 158,
+                                              "end": 159
+                                            }
+                                          },
+                                          "rhs": {
+                                            "item": {
+                                              "Path": [
+                                                "b"
+                                              ]
+                                            },
+                                            "span": {
+                                              "start": 160,
+                                              "end": 161
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 158,
+                                        "end": 161
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 158,
+                                    "end": 161
+                                  }
+                                }
+                              ],
+                              "last_expr": null
+                            }
+                          },
+                          "span": {
+                            "start": 147,
+                            "end": 162
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 142,
+                      "end": 162
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Add",
+                            "lhs": {
+                              "item": {
+                                "Binary": {
+                                  "op": "Add",
+                                  "lhs": {
+                                    "item": {
+                                      "Path": [
+                                        "if_result"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 162,
+                                      "end": 163
+                                    }
+                                  },
+                                  "rhs": {
+                                    "item": {
+                                      "Path": [
+                                        "block_result"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 164,
+                                      "end": 165
+                                    }
+                                  }
+                                }
+                              },
+                              "span": {
+                                "start": 162,
+                                "end": 165
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "len"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 166,
+                                      "end": 167
+                                    }
+                                  },
+                                  "args": [
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "match_result"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 166,
+                                        "end": 167
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "span": {
+                                "start": 166,
+                                "end": 167
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 162,
+                          "end": 167
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 162,
+                      "end": 171
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 43,
+              "end": 172
+            }
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 36,
+        "end": 172
+      }
+    }
+  ]
+}

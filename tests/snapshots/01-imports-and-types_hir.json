@@ -1,0 +1,688 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "println",
+        "params": [
+          {
+            "name": "s",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/io/io.bst",
+      "span": {
+        "start": 9,
+        "end": 11
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "Person",
+      "aliased": {
+        "Adt": {
+          "Struct": {
+            "name": [
+              "Person"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 7,
+        "end": 20
+      }
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "Company",
+      "aliased": {
+        "Adt": {
+          "Struct": {
+            "name": [
+              "Company"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 20,
+        "end": 33
+      }
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "bbb",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "bbb"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 33,
+        "end": 39
+      }
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "UserType",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "UserType"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 39,
+        "end": 51
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "io",
+                          "println"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "Str"
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 59,
+                        "end": 63
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "Str",
+                            "Hello, world!"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "Str"
+                        },
+                        "span": {
+                          "start": 64,
+                          "end": 65
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 59,
+                  "end": 63
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 59,
+                "end": 66
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "person",
+              "value": {
+                "kind": {
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "StructInit": {
+                          "path": [
+                            "Person"
+                          ],
+                          "fields": [
+                            [
+                              "name",
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "Str",
+                                    "behzad"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 76,
+                                  "end": 77
+                                },
+                                "resolution": null
+                              }
+                            ],
+                            [
+                              "age",
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "I32",
+                                    "10"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 80,
+                                  "end": 81
+                                },
+                                "resolution": null
+                              }
+                            ]
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Person"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 72,
+                        "end": 82
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Struct": {
+                          "name": [
+                            "Person"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Person"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 66,
+                  "end": 83
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Person"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 66,
+                "end": 83
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "company",
+              "value": {
+                "kind": {
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "StructInit": {
+                          "path": [
+                            "Company"
+                          ],
+                          "fields": [
+                            [
+                              "company_id",
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "I32",
+                                    "1"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 93,
+                                  "end": 94
+                                },
+                                "resolution": null
+                              }
+                            ],
+                            [
+                              "name",
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "Str",
+                                    "acme"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 97,
+                                  "end": 98
+                                },
+                                "resolution": null
+                              }
+                            ]
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Company"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 89,
+                        "end": 99
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Struct": {
+                          "name": [
+                            "Company"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Company"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 83,
+                  "end": 100
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Company"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 83,
+                "end": 100
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "user1",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "B2B"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Company"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "UserType"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 105,
+                        "end": 106
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "company"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Company"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 107,
+                          "end": 108
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "company",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 100
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "UserType"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 100,
+                  "end": 109
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "UserType"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 100,
+                "end": 109
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "user2",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "B2C"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Person"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "UserType"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 114,
+                        "end": 115
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "person"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Person"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 116,
+                          "end": 117
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "person",
+                            "decl_span": {
+                              "start": 66,
+                              "end": 83
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "UserType"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 109,
+                  "end": 118
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "UserType"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 109,
+                "end": 118
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "0"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 118,
+            "end": 119
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 58,
+        "end": 120
+      },
+      "context_id": 1
+    }
+  }
+]

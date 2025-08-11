@@ -7,6 +7,7 @@
 //! suitable input for code generation and other analysis passes.
 
 use std::path::PathBuf;
+use serde::Serialize;
 
 //================================================================================//
 //                                Core Type Definitions
@@ -17,7 +18,7 @@ pub type OwnedPath = Vec<String>;
 
 /// The canonical, internal representation of a type within the compiler.
 /// This enum is used throughout the HIR and later compilation stages.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum Ty {
     Special(SpecialTy),
     Primitive(PrimitiveTy),
@@ -36,14 +37,14 @@ pub enum Ty {
     Generic(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum SpecialTy {
     Unit,     // The `()` type.
     Never,    // The `!` type, for functions that never return.
     SelfType, // The `Self` type.
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum PrimitiveTy {
     Bool,
     Byte,
@@ -53,7 +54,7 @@ pub enum PrimitiveTy {
     Str,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub enum AdtTy {
     Struct { name: OwnedPath, generics: Vec<Ty> },
     Enum { name: OwnedPath, generics: Vec<Ty> },
@@ -66,7 +67,7 @@ pub enum AdtTy {
 //================================================================================//
 
 /// Represents a top-level item in a module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Item {
     Fn(HirFunction),
     Struct(HirStructDef),
@@ -79,7 +80,7 @@ pub enum Item {
     // Note: Imports, externs, etc., are often resolved before HIR generation.
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirFunction {
     pub signature: HirFunctionSignature,
     pub body: HirBlock,
@@ -87,12 +88,13 @@ pub struct HirFunction {
     /// Absolute path to the file where this function is defined
     pub defined_in: PathBuf,
     /// Token-index span covering the function item (best-effort)
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
     /// Context for this function's parameters and local variables
     pub context_id: Option<ContextId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct HirFunctionSignature {
     pub name: String,
     pub params: Vec<HirParam>, // Name and resolved type
@@ -100,92 +102,102 @@ pub struct HirFunctionSignature {
     pub effects: Vec<Ty>, // List of canonical effect types this function can perform
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct HirParam {
     pub name: String,
     pub ty: Ty,
+    #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
     pub span: Option<crate::token::SimpleSpan>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirStructDef {
     pub name: String,
     pub fields: Vec<HirField>,
     pub is_public: bool,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
     /// Context for this struct's field declarations
     pub context_id: Option<ContextId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct HirField {
     pub name: String,
     pub ty: Ty,
+    #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
     pub name_span: Option<crate::token::SimpleSpan>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirEnumDef {
     pub name: String,
     pub variants: Vec<HirEnumVariant>,
     pub is_public: bool,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
     /// Context for this enum's variant declarations
     pub context_id: Option<ContextId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub struct HirEnumVariant {
     pub name: String,
     pub payload: Option<Vec<Ty>>,
+    #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
     pub name_span: Option<crate::token::SimpleSpan>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirTypeAlias {
     pub name: String,
     pub aliased: Ty,
     pub is_public: bool,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirTraitDef {
     pub name: String,
     pub methods: Vec<HirFunctionSignature>,
     pub is_public: bool,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirImplBlock {
     pub trait_path: Option<OwnedPath>, // The trait being implemented, if any.
     pub target_type: Ty,               // The type the trait is implemented for.
     pub methods: Vec<HirFunction>,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirEffectDef {
     pub name: String,
     pub operations: Vec<HirFunctionSignature>,
     pub is_public: bool,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirHandlerDef {
     pub name: String,
     pub effects: Vec<Ty>,
     pub functions: Vec<HirFunction>,
     pub is_public: bool,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
 }
 
@@ -194,25 +206,27 @@ pub struct HirHandlerDef {
 //================================================================================//
 
 /// A statement in a block.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Stmt {
     Let {
         name: String,
         value: Option<Expr>,
         ty: Ty, // Type is resolved and non-optional
         is_mut: bool,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
         span: crate::token::SimpleSpan,
         /// Span of the variable identifier token
+        #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
         name_span: Option<crate::token::SimpleSpan>,
     },
-    Return { value: Option<Expr>, span: crate::token::SimpleSpan },
-    Assign { lhs: Expr, rhs: Expr, span: crate::token::SimpleSpan }, // lhs (e.g., path or field access) and rhs
-    Expr { expr: Expr, span: crate::token::SimpleSpan },
-    Error { span: crate::token::SimpleSpan },
+    Return { value: Option<Expr>, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
+    Assign { lhs: Expr, rhs: Expr, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan }, // lhs (e.g., path or field access) and rhs
+    Expr { expr: Expr, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
+    Error { #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
 }
 
 /// A block of code, which has a list of statements and an optional final expression.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirBlock {
     pub stmts: Vec<Stmt>,
     pub last_expr: Option<Box<Expr>>,
@@ -220,16 +234,17 @@ pub struct HirBlock {
 }
 
 /// An expression, which always has a resolved type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Expr {
     pub kind: ExprKind,
     pub ty: Ty,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
     /// Optional semantic resolution for goto/hover without re-resolving
     pub resolution: Option<Resolution>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum ExprKind {
     Literal(PrimitiveTy, String), // e.g., (PrimitiveTy::I32, "123")
     Array(Vec<Expr>),
@@ -286,31 +301,31 @@ pub enum ExprKind {
 }
 
 /// Semantic resolution info attached to expressions when available
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum Resolution {
     /// Reference to a local binding (including parameters); name and declaration span
-    Local { name: String, decl_span: Option<crate::token::SimpleSpan> },
+    Local { name: String, #[serde(serialize_with = "crate::token::serialize_simple_span_opt")] decl_span: Option<crate::token::SimpleSpan> },
     /// Access to a struct field; owner type path and field name
     Field { owner: OwnedPath, field: String },
     /// Reference to a top-level function; file and item span
-    Function { defined_in: std::path::PathBuf, span: crate::token::SimpleSpan },
+    Function { defined_in: std::path::PathBuf, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
     /// Reference to a method function in an impl; file and item span
-    Method { defined_in: std::path::PathBuf, span: crate::token::SimpleSpan },
+    Method { defined_in: std::path::PathBuf, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum HirHandlerBody {
     Path(OwnedPath), // A reference to a top-level handler
     Inline(Vec<HirFunction>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum UnaryOp {
     Negate, // -
     Not,    // !
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -336,7 +351,7 @@ pub enum BinaryOp {
 //================================================================================//
 
 /// A pattern used in `match` arms and `let` bindings, with a resolved type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirPattern {
     pub kind: HirPatternKind,
     pub ty: Ty,
@@ -348,7 +363,7 @@ pub struct HirPattern {
 
 pub type ContextId = usize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum HirContextKind {
     Module,
     Function,
@@ -361,7 +376,7 @@ pub enum HirContextKind {
     Block,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum HirSymbolKind {
     Type,
     TypeAlias,
@@ -377,29 +392,32 @@ pub enum HirSymbolKind {
     EnumVariant,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirSymbolDecl {
     pub name: String,
     pub kind: HirSymbolKind,
     pub ty: Option<Ty>,
     pub is_mut: Option<bool>,
     /// Token-index span for the declaration (item/name)
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
+    #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
     pub name_span: Option<crate::token::SimpleSpan>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HirContext {
     pub id: ContextId,
     pub parent: Option<ContextId>,
     pub kind: HirContextKind,
     pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,
     pub symbols: Vec<HirSymbolDecl>,
     pub children: Vec<ContextId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub enum HirPatternKind {
     Literal(PrimitiveTy, String),
     Identifier(String),
