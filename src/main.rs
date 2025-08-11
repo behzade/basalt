@@ -12,8 +12,8 @@ mod hir;
 mod lexer;
 mod parser;
 mod token;
-mod typechecker;
 mod type_unifier;
+mod typechecker;
 
 use crate::compiler::{Compiler, CompilerStage};
 use crate::{
@@ -34,23 +34,15 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Action {
-    /// Parse a file and print the AST
-    Parse {
+    Ast {
         path: String,
     },
-    // Parse a file and collect all the imported modules
-    Resolve {
-        path: String,
-    },
-    /// Type-check and generate HIR
     Hir {
         path: String,
     },
-    /// Generate MIR from HIR
     Mir {
         path: String,
     },
-    /// Compile to WebAssembly (.wasm file)
     Build {
         path: String,
         #[arg(short, long)]
@@ -62,8 +54,7 @@ impl Action {
     /// Returns the target pipeline stage for this action.
     fn target_stage(&self) -> CompilerStage {
         match self {
-            Action::Parse { .. } => CompilerStage::Parse,
-            Action::Resolve { .. } => CompilerStage::Resolve,
+            Action::Ast { .. } => CompilerStage::Parse,
             Action::Hir { .. } => CompilerStage::Hir,
             Action::Mir { .. } => CompilerStage::Mir,
             Action::Build { .. } => CompilerStage::Build,
@@ -73,8 +64,7 @@ impl Action {
     /// Returns the input file path for this action.
     fn path(&self) -> &str {
         match self {
-            Action::Parse { path }
-            | Action::Resolve { path }
+            Action::Ast { path }
             | Action::Hir { path }
             | Action::Mir { path }
             | Action::Build { path, .. } => path,
@@ -101,11 +91,16 @@ fn main() -> io::Result<()> {
     } else {
         // print the final ast if it's parse or resolve, or the hir if it's hir
         match target_stage {
-            CompilerStage::Parse | CompilerStage::Resolve => println!("{:#?}", compiler.workspace.ast),
-            CompilerStage::Hir => println!("{:#?}", compiler.workspace.hir),
+            CompilerStage::Parse | CompilerStage::Resolve => {
+                let json_output = serde_json::to_string_pretty(&compiler.workspace.ast).unwrap();
+                println!("{}", json_output);
+            }
+            CompilerStage::Hir => {
+                let json_output = serde_json::to_string_pretty(&compiler.workspace.hir).unwrap();
+                println!("{}", json_output);
+            }
             _ => {}
         }
-        println!("\n✅ Pipeline finished successfully.");
     }
 
     Ok(())

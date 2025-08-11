@@ -3,6 +3,7 @@
 //! easier to analyze, transform, and compile. The `'src` lifetime parameter
 //! indicates that many AST nodes borrow directly from the source string for efficiency.
 use crate::token::SimpleSpan;
+use serde::Serialize;
 
 // --- Spanned Wrapper and Type Aliases ---
 
@@ -259,13 +260,13 @@ pub enum HandlerBody<'src> {
 
 // --- Expression Operators ---
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
 pub enum UnaryOp {
     Neg,
     Not,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
 pub enum BinaryOp {
     Add,
     Sub,

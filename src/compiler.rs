@@ -68,8 +68,6 @@ impl Compiler {
                 break;
             }
 
-            println!("🚀 Executing stage: {:?}", stage);
-
             match stage {
                 CompilerStage::Parse => self.run_parse(None)?,
                 CompilerStage::Resolve => self.run_resolve()?,

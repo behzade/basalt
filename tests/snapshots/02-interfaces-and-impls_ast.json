@@ -1,0 +1,678 @@
+{
+  "tests/02-interfaces-and-impls.bst": [
+    {
+      "item": {
+        "Trait": {
+          "name": "WithAge",
+          "methods": [
+            {
+              "name": "get_age",
+              "params": [
+                [
+                  "self",
+                  {
+                    "path": [
+                      "self"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "i32"
+                ],
+                "generics": []
+              },
+              "is_public": true
+            },
+            {
+              "name": "up_age_by",
+              "params": [
+                [
+                  "self",
+                  {
+                    "path": [
+                      "self"
+                    ],
+                    "generics": []
+                  }
+                ],
+                [
+                  "age",
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "i32"
+                ],
+                "generics": []
+              },
+              "is_public": true
+            }
+          ],
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 22
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Person",
+          "generics": [],
+          "aliased": {
+            "Record": [
+              [
+                "name",
+                {
+                  "path": [
+                    "str"
+                  ],
+                  "generics": []
+                }
+              ],
+              [
+                "age",
+                {
+                  "path": [
+                    "i32"
+                  ],
+                  "generics": []
+                }
+              ]
+            ]
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 22,
+        "end": 35
+      }
+    },
+    {
+      "item": {
+        "Impl": {
+          "target_type": {
+            "path": [
+              "Person"
+            ],
+            "generics": []
+          },
+          "interface": null,
+          "methods": [
+            {
+              "name": "new",
+              "generics": [],
+              "params": [
+                [
+                  "name",
+                  {
+                    "path": [
+                      "str"
+                    ],
+                    "generics": []
+                  }
+                ],
+                [
+                  "age",
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "Person"
+                ],
+                "generics": []
+              },
+              "effects": [],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "StructInit": {
+                                "path": [
+                                  "Person"
+                                ],
+                                "generics": [],
+                                "fields": [
+                                  [
+                                    "name",
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "name"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 58,
+                                        "end": 59
+                                      }
+                                    }
+                                  ],
+                                  [
+                                    "age",
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "age"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 62,
+                                        "end": 63
+                                      }
+                                    }
+                                  ]
+                                ]
+                              }
+                            },
+                            "span": {
+                              "start": 54,
+                              "end": 64
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 54,
+                          "end": 64
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 53,
+                  "end": 65
+                }
+              },
+              "is_public": true
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 35,
+        "end": 66
+      }
+    },
+    {
+      "item": {
+        "Impl": {
+          "target_type": {
+            "path": [
+              "Person"
+            ],
+            "generics": []
+          },
+          "interface": [
+            "WithAge"
+          ],
+          "methods": [
+            {
+              "name": "get_age",
+              "generics": [],
+              "params": [
+                [
+                  "self",
+                  {
+                    "path": [
+                      "self"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "i32"
+                ],
+                "generics": []
+              },
+              "effects": [],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "FieldAccess": {
+                                "receiver": {
+                                  "item": {
+                                    "Path": [
+                                      "self"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 81,
+                                    "end": 82
+                                  }
+                                },
+                                "field": "age"
+                              }
+                            },
+                            "span": {
+                              "start": 81,
+                              "end": 82
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 81,
+                          "end": 84
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 80,
+                  "end": 85
+                }
+              },
+              "is_public": true
+            },
+            {
+              "name": "up_age_by",
+              "generics": [],
+              "params": [
+                [
+                  "self",
+                  {
+                    "path": [
+                      "self"
+                    ],
+                    "generics": []
+                  }
+                ],
+                [
+                  "n",
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "i32"
+                ],
+                "generics": []
+              },
+              "effects": [],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Assign": [
+                            {
+                              "item": {
+                                "FieldAccess": {
+                                  "receiver": {
+                                    "item": {
+                                      "Path": [
+                                        "self"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 99,
+                                      "end": 100
+                                    }
+                                  },
+                                  "field": "age"
+                                }
+                              },
+                              "span": {
+                                "start": 99,
+                                "end": 100
+                              }
+                            },
+                            {
+                              "item": {
+                                "Binary": {
+                                  "op": "Add",
+                                  "lhs": {
+                                    "item": {
+                                      "FieldAccess": {
+                                        "receiver": {
+                                          "item": {
+                                            "Path": [
+                                              "self"
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 103,
+                                            "end": 104
+                                          }
+                                        },
+                                        "field": "age"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 103,
+                                      "end": 104
+                                    }
+                                  },
+                                  "rhs": {
+                                    "item": {
+                                      "Path": [
+                                        "n"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 107,
+                                      "end": 108
+                                    }
+                                  }
+                                }
+                              },
+                              "span": {
+                                "start": 103,
+                                "end": 108
+                              }
+                            }
+                          ]
+                        },
+                        "span": {
+                          "start": 99,
+                          "end": 108
+                        }
+                      },
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "FieldAccess": {
+                                "receiver": {
+                                  "item": {
+                                    "Path": [
+                                      "self"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 109,
+                                    "end": 110
+                                  }
+                                },
+                                "field": "age"
+                              }
+                            },
+                            "span": {
+                              "start": 109,
+                              "end": 110
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 109,
+                          "end": 112
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 98,
+                  "end": 113
+                }
+              },
+              "is_public": true
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 66,
+        "end": 114
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": []
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "p",
+                        "ty": {
+                          "path": [
+                            "Person"
+                          ],
+                          "generics": []
+                        },
+                        "value": {
+                          "item": {
+                            "StructInit": {
+                              "path": [
+                                "Person"
+                              ],
+                              "generics": [],
+                              "fields": [
+                                [
+                                  "name",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "behzad"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 132,
+                                      "end": 133
+                                    }
+                                  }
+                                ],
+                                [
+                                  "age",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "I64": 10
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 136,
+                                      "end": 137
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 128,
+                            "end": 138
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 122,
+                      "end": 138
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "age",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "get_age"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 141,
+                                  "end": 142
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "p"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 141,
+                                    "end": 142
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 141,
+                            "end": 142
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 138,
+                      "end": 146
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "inc",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "up_age_by"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 149,
+                                  "end": 150
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "p"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 149,
+                                    "end": 150
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I64": 2
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 153,
+                                    "end": 154
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 149,
+                            "end": 150
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 146,
+                      "end": 155
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "inc"
+                          ]
+                        },
+                        "span": {
+                          "start": 155,
+                          "end": 156
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 155,
+                      "end": 156
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 121,
+              "end": 157
+            }
+          },
+          "is_public": true
+        }
+      },
+      "span": {
+        "start": 114,
+        "end": 157
+      }
+    }
+  ]
+}

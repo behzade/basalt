@@ -1,0 +1,492 @@
+[
+  {
+    "Effect": {
+      "name": "Panic",
+      "operations": [
+        {
+          "name": "panic",
+          "params": [
+            {
+              "name": "_",
+              "ty": {
+                "Primitive": "Str"
+              },
+              "span": null
+            }
+          ],
+          "ret_type": {
+            "Generic": "!"
+          },
+          "effects": []
+        }
+      ],
+      "is_public": true,
+      "defined_in": "tests/03-effects-and-handlers-panic.bst",
+      "span": {
+        "start": 0,
+        "end": 13
+      }
+    }
+  },
+  {
+    "Handler": {
+      "name": "OsExitPanic",
+      "effects": [
+        {
+          "Adt": {
+            "Effect": {
+              "name": [
+                "Panic"
+              ],
+              "generics": []
+            }
+          }
+        }
+      ],
+      "functions": [
+        {
+          "signature": {
+            "name": "panic",
+            "params": [
+              {
+                "name": "msg",
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": null
+              }
+            ],
+            "ret_type": {
+              "Generic": "!"
+            },
+            "effects": []
+          },
+          "body": {
+            "stmts": [],
+            "last_expr": {
+              "kind": {
+                "Perform": {
+                  "path": [
+                    "Panic",
+                    "panic"
+                  ],
+                  "args": [
+                    {
+                      "kind": {
+                        "Literal": [
+                          "Str",
+                          "unreachable"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "Str"
+                      },
+                      "span": {
+                        "start": 36,
+                        "end": 37
+                      },
+                      "resolution": null
+                    }
+                  ]
+                }
+              },
+              "ty": {
+                "Generic": "!"
+              },
+              "span": {
+                "start": 31,
+                "end": 38
+              },
+              "resolution": null
+            },
+            "ty": {
+              "Generic": "!"
+            }
+          },
+          "is_public": true,
+          "defined_in": "tests/03-effects-and-handlers-panic.bst",
+          "span": {
+            "start": 29,
+            "end": 39
+          },
+          "context_id": 0
+        }
+      ],
+      "is_public": true,
+      "defined_in": "tests/03-effects-and-handlers-panic.bst",
+      "span": {
+        "start": 13,
+        "end": 40
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "division",
+        "params": [
+          {
+            "name": "a",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          },
+          {
+            "name": "b",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "If": {
+                    "cond": {
+                      "kind": {
+                        "Binary": {
+                          "op": "Eq",
+                          "lhs": {
+                            "kind": {
+                              "Path": [
+                                "b"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 58,
+                              "end": 59
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "b",
+                                "decl_span": null
+                              }
+                            }
+                          },
+                          "rhs": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "0"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 60,
+                              "end": 61
+                            },
+                            "resolution": null
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "Bool"
+                      },
+                      "span": {
+                        "start": 58,
+                        "end": 61
+                      },
+                      "resolution": null
+                    },
+                    "then_block": {
+                      "stmts": [],
+                      "last_expr": {
+                        "kind": {
+                          "Perform": {
+                            "path": [
+                              "Panic",
+                              "panic"
+                            ],
+                            "args": [
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "Str",
+                                    "division by zero"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 67,
+                                  "end": 68
+                                },
+                                "resolution": null
+                              }
+                            ]
+                          }
+                        },
+                        "ty": {
+                          "Generic": "!"
+                        },
+                        "span": {
+                          "start": 62,
+                          "end": 69
+                        },
+                        "resolution": null
+                      },
+                      "ty": {
+                        "Generic": "!"
+                      }
+                    },
+                    "else_block": null
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 57,
+                  "end": 70
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 57,
+                "end": 70
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Binary": {
+              "op": "Div",
+              "lhs": {
+                "kind": {
+                  "Path": [
+                    "a"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 70,
+                  "end": 71
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "a",
+                    "decl_span": null
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Path": [
+                    "b"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 72,
+                  "end": 73
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "b",
+                    "decl_span": null
+                  }
+                }
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 70,
+            "end": 73
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/03-effects-and-handlers-panic.bst",
+      "span": {
+        "start": 56,
+        "end": 74
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "_",
+              "value": {
+                "kind": {
+                  "Handle": {
+                    "body": {
+                      "stmts": [],
+                      "last_expr": {
+                        "kind": {
+                          "Call": {
+                            "fun": {
+                              "kind": {
+                                "Path": [
+                                  "division"
+                                ]
+                              },
+                              "ty": {
+                                "Function": {
+                                  "param_types": [
+                                    {
+                                      "Primitive": "I32"
+                                    },
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ],
+                                  "ret_type": {
+                                    "Primitive": "I32"
+                                  },
+                                  "effects": []
+                                }
+                              },
+                              "span": {
+                                "start": 85,
+                                "end": 86
+                              },
+                              "resolution": null
+                            },
+                            "args": [
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "I32",
+                                    "10"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 87,
+                                  "end": 88
+                                },
+                                "resolution": null
+                              },
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "I32",
+                                    "2"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 89,
+                                  "end": 90
+                                },
+                                "resolution": null
+                              }
+                            ]
+                          }
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 85,
+                          "end": 86
+                        },
+                        "resolution": null
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      }
+                    },
+                    "handler": {
+                      "Path": [
+                        "OsExitPanic"
+                      ]
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 85,
+                  "end": 86
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 82,
+                "end": 95
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "0"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 95,
+            "end": 96
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/03-effects-and-handlers-panic.bst",
+      "span": {
+        "start": 81,
+        "end": 97
+      },
+      "context_id": 2
+    }
+  }
+]

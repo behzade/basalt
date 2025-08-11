@@ -1,4 +1,5 @@
 use std::fmt;
+use serde::{ser::SerializeStruct, Serialize, Serializer};
 
 pub type SimpleSpan = chumsky::span::SimpleSpan;
 
@@ -251,5 +252,36 @@ impl From<Token<'_>> for OwnedToken {
             Token::Hash => OwnedToken::Hash,
             Token::Comment(c) => OwnedToken::Comment(c.to_string()),
         }
+    }
+}
+
+// --- Serde helpers for spans ---
+
+#[derive(Serialize)]
+struct SimpleSpanSer {
+    start: usize,
+    end: usize,
+}
+
+pub fn serialize_simple_span<S>(span: &SimpleSpan, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut st = serializer.serialize_struct("Span", 2)?;
+    st.serialize_field("start", &span.start)?;
+    st.serialize_field("end", &span.end)?;
+    st.end()
+}
+
+pub fn serialize_simple_span_opt<S>(span: &Option<SimpleSpan>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match span {
+        Some(s) => {
+            let ser = SimpleSpanSer { start: s.start, end: s.end };
+            serializer.serialize_some(&ser)
+        }
+        None => serializer.serialize_none(),
     }
 }
