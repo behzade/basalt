@@ -315,8 +315,15 @@ pub struct TypeAliasDef<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAliasBody<'src> {
     Type(Type<'src>),
-    Record(Vec<(&'src str, Type<'src>)>),
+    Record(Vec<RecordField<'src>>),
     Union(Vec<(&'src str, Option<Type<'src>>)>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct RecordField<'src> {
+    pub name: &'src str,
+    pub ty: Type<'src>,
+    pub is_public: bool,
 }
 
 impl std::fmt::Display for BinaryOp {

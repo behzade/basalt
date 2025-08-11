@@ -30,6 +30,8 @@ pub struct Compiler {
     output_path: Option<String>,
 
     pub workspace: Workspace,
+    // Optional in-memory source overrides (e.g., from LSP unsaved buffers)
+    source_overrides: HashMap<PathBuf, String>,
 }
 
 #[derive(Default)]
@@ -37,7 +39,7 @@ pub struct Workspace {
     tokens: Vec<OwnedTokenWithSpan>,
     // Keep import blocks along with their source file path and span
     imports: Vec<(PathBuf, Spanned<OwnedItem>)>,
-    sources: HashMap<PathBuf, String>,
+    pub sources: HashMap<PathBuf, String>,
     pub ast: HashMap<PathBuf, Vec<Spanned<OwnedItem>>>,
     pub hir: Vec<hir::Item>,
     resolved_modules: HashSet<PathBuf>, // Add this field
@@ -50,7 +52,15 @@ impl Compiler {
             path,
             output_path,
             workspace: Default::default(),
+            source_overrides: HashMap::new(),
         }
+    }
+
+    /// Provide an in-memory source override for a file path (used by LSP).
+    pub fn set_source_override(&mut self, path: PathBuf, text: String) {
+        self.source_overrides.insert(path.clone(), text.clone());
+        // Keep workspace sources consistent so later stages can read from here if desired
+        self.workspace.sources.insert(path, text);
     }
 
     /// Runs the pipeline up to and including the specified target stage.
@@ -84,11 +94,15 @@ impl Compiler {
     // if path is Some, it is the path to the file to be parsed
     fn run_parse(&mut self, path: Option<String>) -> io::Result<()> {
         let file_to_parse = path.unwrap_or_else(|| self.path.clone());
-        let source_code = fs::read_to_string(&file_to_parse)?;
+        let path_buf: PathBuf = file_to_parse.clone().into();
+        // Use override if present
+        let source_code = if let Some(override_text) = self.source_overrides.get(&path_buf) {
+            override_text.clone()
+        } else {
+            fs::read_to_string(&file_to_parse)?
+        };
 
-        self.workspace
-            .sources
-            .insert(file_to_parse.clone().into(), source_code.clone());
+        self.workspace.sources.insert(path_buf.clone(), source_code.clone());
 
         let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
 

@@ -276,9 +276,16 @@ pub struct OwnedTypeAliasDef {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct OwnedRecordField {
+    pub name: String,
+    pub ty: OwnedType,
+    pub is_public: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub enum OwnedTypeAliasBody {
     Type(OwnedType),
-    Record(Vec<(String, OwnedType)>),
+    Record(Vec<OwnedRecordField>),
     Union(Vec<(String, Option<OwnedType>)>),
 }
 
@@ -523,7 +530,11 @@ impl<'src> From<&TypeAliasDef<'src>> for OwnedTypeAliasDef {
         let aliased = match &def.aliased {
             TypeAliasBody::Type(t) => OwnedTypeAliasBody::Type(t.into()),
             TypeAliasBody::Record(fs) => {
-                OwnedTypeAliasBody::Record(fs.iter().map(|(n, t)| (n.to_string(), t.into())).collect())
+                OwnedTypeAliasBody::Record(
+                    fs.iter()
+                        .map(|f| OwnedRecordField { name: f.name.to_string(), ty: (&f.ty).into(), is_public: f.is_public })
+                        .collect(),
+                )
             }
             TypeAliasBody::Union(vs) => OwnedTypeAliasBody::Union(
                 vs.iter()

@@ -4,9 +4,9 @@ use std::path::PathBuf;
 
 use crate::ast_owned::{
     OwnedEnumDef, OwnedExpr, OwnedFunction, OwnedHandlerDef, OwnedImplBlock, OwnedImportPath,
-    OwnedItem, OwnedItemWithSpan, OwnedLiteral, OwnedMethod, OwnedPattern, OwnedSatisfiesBlock,
-    OwnedStructDef, OwnedTraitDef, OwnedTraitMethod, OwnedType, OwnedTypeAliasBody,
-    OwnedTypeAliasDef, SpannedExpr, SpannedPattern, SpannedStmt,
+    OwnedItem, OwnedItemWithSpan, OwnedLiteral, OwnedMethod, OwnedPattern, OwnedRecordField,
+    OwnedSatisfiesBlock, OwnedStructDef, OwnedTraitDef, OwnedTraitMethod, OwnedType,
+    OwnedTypeAliasBody, OwnedTypeAliasDef, SpannedExpr, SpannedPattern, SpannedStmt,
 };
 use crate::hir;
 
@@ -279,11 +279,12 @@ fn write_type_alias(buf: &mut String, ta: &OwnedTypeAliasDef, level: usize) {
         OwnedTypeAliasBody::Type(t) => buf.push_str(&format_type(t)),
         OwnedTypeAliasBody::Record(fields) => {
             buf.push_str("{ ");
-            for (i, (name, ty)) in fields.iter().enumerate() {
+            for (i, f) in fields.iter().enumerate() {
                 if i > 0 { buf.push_str(", "); }
-                buf.push_str(name);
+                if f.is_public { buf.push_str("pub "); }
+                buf.push_str(&f.name);
                 buf.push_str(": ");
-                buf.push_str(&format_type(ty));
+                buf.push_str(&format_type(&f.ty));
             }
             buf.push_str(" }");
         }
@@ -496,7 +497,7 @@ pub fn compact_ast_debug_to_string(ast: &HashMap<PathBuf, Vec<OwnedItemWithSpan>
                     OwnedTypeAliasBody::Record(fs) => format!(
                         "Record([{}])",
                         fs.iter()
-                            .map(|(n, t)| format!("(\"{}\", {})", n, format_type(t)))
+                            .map(|f| format!("(name: \"{}\", ty: {}, is_public: {})", f.name, format_type(&f.ty), f.is_public))
                             .collect::<Vec<_>>()
                             .join(", ")
                     ),

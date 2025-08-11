@@ -217,10 +217,15 @@ impl Typechecker {
                         if path.len() == 2 {
                             let alias = &path[0];
                             if let Some(alias_map) = self.import_alias_map.get(&context.path) {
-                                if let Some(mod_path) = alias_map.get(alias) {
-                                    // For now, we only support std::fmt and std::io qualified println, resolved via global registry
+                                if let Some(_mod_path) = alias_map.get(alias) {
                                     let qual = format!("{}::{}", alias, name);
-                                    if let Some(Symbol::Function { signature, .. }) = self.lookup_symbol(&qual) { signature_opt = Some(signature.clone()); }
+                                    if let Some(Symbol::Function { signature, is_public, defined_in, .. }) = self.lookup_symbol(&qual) {
+                                        if !is_public && *defined_in != context.path {
+                                            self.errors.push(TypeError { message: format!("Function `{}` is private", qual), context: context.clone() });
+                                            return Err(());
+                                        }
+                                        signature_opt = Some(signature.clone());
+                                    }
                                 }
                             }
                         }
@@ -252,10 +257,18 @@ impl Typechecker {
                                         Some(signature.clone())
                                     }
                                 }
-                                // try module-qualified name like fmt::println
+                                // try module-qualified name like fmt::x; enforce visibility
                                 None if path.len() == 2 => {
                                     let qual = format!("{}::{}", path[0], path[1]);
-                                    match self.lookup_symbol(&qual) { Some(Symbol::Function { signature, .. }) => Some(signature.clone()), _ => None }
+                                    match self.lookup_symbol(&qual) {
+                                        Some(Symbol::Function { signature, is_public, defined_in, .. }) => {
+                                            if !is_public && *defined_in != context.path {
+                                                self.errors.push(TypeError { message: format!("Function `{}` is private", qual), context: context.clone() });
+                                                None
+                                            } else { Some(signature.clone()) }
+                                        }
+                                        _ => None
+                                    }
                                 }
                                 _ => None,
                             };
