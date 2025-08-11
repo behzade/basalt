@@ -298,7 +298,7 @@
               },
               "span": {
                 "start": 81,
-                "end": 82
+                "end": 84
               },
               "resolution": {
                 "Field": {
@@ -447,7 +447,7 @@
                           },
                           "span": {
                             "start": 103,
-                            "end": 104
+                            "end": 106
                           },
                           "resolution": {
                             "Field": {
@@ -534,7 +534,7 @@
               },
               "span": {
                 "start": 109,
-                "end": 110
+                "end": 112
               },
               "resolution": {
                 "Field": {
@@ -696,7 +696,7 @@
                       },
                       "span": {
                         "start": 141,
-                        "end": 142
+                        "end": 146
                       },
                       "resolution": {
                         "Method": {
@@ -747,17 +747,9 @@
                 },
                 "span": {
                   "start": 141,
-                  "end": 142
+                  "end": 146
                 },
-                "resolution": {
-                  "Method": {
-                    "defined_in": "tests/02-interfaces-and-impls.bst",
-                    "span": {
-                      "start": 80,
-                      "end": 85
-                    }
-                  }
-                }
+                "resolution": null
               },
               "ty": {
                 "Primitive": "I32"
@@ -807,7 +799,7 @@
                       },
                       "span": {
                         "start": 149,
-                        "end": 150
+                        "end": 155
                       },
                       "resolution": {
                         "Method": {
@@ -874,17 +866,9 @@
                 },
                 "span": {
                   "start": 149,
-                  "end": 150
+                  "end": 155
                 },
-                "resolution": {
-                  "Method": {
-                    "defined_in": "tests/02-interfaces-and-impls.bst",
-                    "span": {
-                      "start": 98,
-                      "end": 113
-                    }
-                  }
-                }
+                "resolution": null
               },
               "ty": {
                 "Primitive": "I32"

@@ -128,6 +128,12 @@ pub enum OwnedExpr {
         receiver: Box<SpannedExpr>, // UPDATED
         field: String,
     },
+    /// Explicit method call syntax preserved from AST
+    MethodCall {
+        receiver: Box<SpannedExpr>,
+        method: String,
+        args: Vec<SpannedExpr>,
+    },
     Unary {
         op: UnaryOp,
         rhs: Box<SpannedExpr>, // UPDATED
@@ -612,6 +618,11 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
             ExprNode::FieldAccess { receiver, field } => OwnedExpr::FieldAccess {
                 receiver: Box::new(receiver.as_ref().into()),
                 field: field.to_string(),
+            },
+            ExprNode::MethodCall { receiver, method, args } => OwnedExpr::MethodCall {
+                receiver: Box::new(receiver.as_ref().into()),
+                method: method.to_string(),
+                args: args.iter().map(|a| a.into()).collect(),
             },
             ExprNode::Unary { op, rhs } => OwnedExpr::Unary {
                 op: *op,

@@ -1136,6 +1136,11 @@ impl Backend {
                 Self::collect_locals_in_expr(rhs, tokens, locals_out);
             }
             OE::FieldAccess { receiver, .. } => Self::collect_locals_in_expr(receiver, tokens, locals_out),
+            // Handle explicit method call expression
+            OE::MethodCall { receiver, args, .. } => {
+                Self::collect_locals_in_expr(receiver, tokens, locals_out);
+                for a in args { Self::collect_locals_in_expr(a, tokens, locals_out); }
+            }
             OE::Call { fun, args } => {
                 Self::collect_locals_in_expr(fun, tokens, locals_out);
                 for a in args { Self::collect_locals_in_expr(a, tokens, locals_out); }
@@ -1189,6 +1194,11 @@ impl Backend {
                 Self::collect_local_annotated_types_in_fn(rhs, out);
             }
             OE::FieldAccess { receiver, .. } => Self::collect_local_annotated_types_in_fn(receiver, out),
+            // Handle explicit method call expression
+            OE::MethodCall { receiver, args, .. } => {
+                Self::collect_local_annotated_types_in_fn(receiver, out);
+                for a in args { Self::collect_local_annotated_types_in_fn(a, out); }
+            }
             OE::Call { fun, args } => {
                 Self::collect_local_annotated_types_in_fn(fun, out);
                 for a in args { Self::collect_local_annotated_types_in_fn(a, out); }

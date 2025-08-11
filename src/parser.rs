@@ -89,6 +89,7 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
         choice((fn_type, record_type, never_type, path_type)).boxed()
     })
     .boxed()
+    .labelled("type")
 }
 
 fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&'src str>, Type<'src>)>, extra::Err<Rich<'src, Token<'src>>>> {
@@ -98,10 +99,10 @@ fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&
         .or_not()
         .ignore_then(ident())
         .then(just(Token::Colon).ignore_then(ty.clone()).or_not())
-        .map(|(name, ty)| {
+        .map_with(|(name, ty), e| {
             (
                 Some(name),
-                ty.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![name], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } }),
+                ty.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![name], generics: vec![] }, span: e.span() }),
             )
         });
     choice((named, self_param))
@@ -147,6 +148,7 @@ fn expression_bundle<'src>() -> (
         .then_ignore(trivia())
         .then_ignore(just(Token::RBrace))
         .map_with(|(stmts, last_expr), e| Spanned { node: ExprNode::Block { stmts, last_expr: last_expr.map(Box::new) }, span: e.span() })
+        .labelled("block")
         .boxed();
 
     let unit = just(Token::LParen)
@@ -195,18 +197,24 @@ fn expression_bundle<'src>() -> (
             acc
         });
 
-    // Struct init: Path '{' named_fields '}'
+    // Struct init: Path '{' name: expr, ... '}'
+    let struct_fields = ident()
+        .then_ignore(just(Token::Colon).labelled("colon"))
+        .then(expr.clone())
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        .labelled("struct fields");
+
     let struct_init = path()
         .map_with(|p, e| (p, e.span()))
-        .then(record_literal_expr(expr.clone()))
-        .map(|((p, p_span), rec)| {
-            let fields = match &rec.node {
-                ExprNode::RecordLiteral { fields } => fields.clone(),
-                _ => vec![],
-            };
-            let span = SimpleSpan { context: (), start: p_span.start, end: rec.span.end };
+        .then(struct_fields.map_with(|fs, e| (fs, e.span())))
+        .map(|((p, p_span), (fields, fields_span))| {
+            let span = SimpleSpan { context: (), start: p_span.start, end: fields_span.end };
             Spanned { node: ExprNode::StructInit { path: p, generics: vec![], fields }, span }
         })
+        .labelled("struct init")
         .boxed();
 
     let atom = choice((unit, lit, perform, with_block, block.clone(), struct_init, record_literal_expr(expr.clone()),
@@ -220,12 +228,14 @@ fn expression_bundle<'src>() -> (
         .ignore_then(expr.clone())
         .then(block.clone())
         .then(just(Token::Else).ignore_then(block.clone()).or_not())
-        .map_with(|((cond, then_block), else_block), e| Spanned { node: ExprNode::If { cond: Box::new(cond), then_block: Box::new(then_block), else_block: else_block.map(Box::new) }, span: e.span() });
+        .map_with(|((cond, then_block), else_block), e| Spanned { node: ExprNode::If { cond: Box::new(cond), then_block: Box::new(then_block), else_block: else_block.map(Box::new) }, span: e.span() })
+        .labelled("if expression");
 
     let while_expr = just(Token::While)
         .ignore_then(expr.clone())
         .then(block.clone())
-        .map_with(|(cond, body), e| Spanned { node: ExprNode::While { cond: Box::new(cond), body: Box::new(body) }, span: e.span() });
+        .map_with(|(cond, body), e| Spanned { node: ExprNode::While { cond: Box::new(cond), body: Box::new(body) }, span: e.span() })
+        .labelled("while expression");
 
     // pattern parser for match arms
     let mut pat_rec = Recursive::declare();
@@ -258,7 +268,8 @@ fn expression_bundle<'src>() -> (
     let match_expr = just(Token::Match)
         .ignore_then(expr.clone())
         .then(arm.repeated().at_least(1).collect::<Vec<_>>())
-        .map_with(|(scrutinee, arms), e| Spanned { node: ExprNode::Match { scrutinee: Box::new(scrutinee), arms }, span: e.span() });
+        .map_with(|(scrutinee, arms), e| Spanned { node: ExprNode::Match { scrutinee: Box::new(scrutinee), arms }, span: e.span() })
+        .labelled("match expression");
 
     let call_args = expr
         .clone()
@@ -267,33 +278,66 @@ fn expression_bundle<'src>() -> (
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
+    // Capture span for the parentheses and args
+    let call_args_with_span = call_args
+        .clone()
+        .map_with(|args, e| (args, e.span()));
+
     let expr_p = choice((if_expr, while_expr, match_expr, atom.clone()))
                 .clone()
         .pratt((
+            // Method call postfix: .ident(args)
             postfix(
                 9,
                 just(Token::Op(".".to_string()))
-                    .ignore_then(ident())
-                    .then(call_args.clone().or_not()),
-                |lhs: Expr<'src>, (name, args), _| match args {
-                    Some(args) => Spanned { node: ExprNode::Call { fun: Box::new(Spanned { node: ExprNode::Path(vec![name]), span: lhs.span }), args: { let mut v = vec![lhs.clone()]; v.extend(args); v } }, span: lhs.span },
-                    None => Spanned { node: ExprNode::FieldAccess { receiver: Box::new(lhs.clone()), field: name }, span: lhs.span },
+                    .then(ident())
+                    .then(call_args.clone())
+                    .map_with(|((_, name), args), e| (name, args, e.span())),
+                |lhs: Expr<'src>, (name, args, tail_span): (&'src str, Vec<Expr<'src>>, SimpleSpan), _| {
+                    let start = lhs.span.start;
+                    let end = tail_span.end;
+                    Spanned { node: ExprNode::MethodCall { receiver: Box::new(lhs), method: name, args }, span: SimpleSpan { context: (), start, end } }
+                },
+            ),
+            // Field access postfix: .ident not followed by '('
+            postfix(
+                9,
+                just(Token::Op(".".to_string()))
+                    .then(ident())
+                    .then(just(Token::LParen).not().ignored())
+                    .map_with(|((_, name), ()), e| (name, e.span())),
+                |lhs: Expr<'src>, (name, tail_span): (&'src str, SimpleSpan), _| {
+                    let start = lhs.span.start;
+                    let end = tail_span.end;
+                    Spanned { node: ExprNode::FieldAccess { receiver: Box::new(lhs), field: name }, span: SimpleSpan { context: (), start, end } }
                 },
             ),
             postfix(
                 8,
-                call_args.clone(),
-                |lhs: Expr<'src>, args, _| Spanned { node: ExprNode::Call { fun: Box::new(lhs.clone()), args }, span: lhs.span },
+                call_args_with_span.clone(),
+                |lhs: Expr<'src>, (args, args_span): (Vec<Expr<'src>>, SimpleSpan), _| {
+                    let start = lhs.span.start;
+                    let end = args_span.end;
+                    Spanned { node: ExprNode::Call { fun: Box::new(lhs), args }, span: SimpleSpan { context: (), start, end } }
+                },
             ),
             prefix(
                 7,
-                select! { Token::Op(op) if op == "-" => () },
-                |_op, rhs: Expr<'src>, _| Spanned { node: ExprNode::Unary { op: UnaryOp::Neg, rhs: Box::new(rhs.clone()) }, span: rhs.span },
+                select! { Token::Op(op) if op == "-" => () }.map_with(|_, e| e.span()),
+                |op_span: SimpleSpan, rhs: Expr<'src>, _| {
+                    let start = op_span.start;
+                    let end = rhs.span.end;
+                    Spanned { node: ExprNode::Unary { op: UnaryOp::Neg, rhs: Box::new(rhs) }, span: SimpleSpan { context: (), start, end } }
+                },
             ),
             prefix(
                 7,
-                select! { Token::Op(op) if op == "!" => () },
-                |_op, rhs: Expr<'src>, _| Spanned { node: ExprNode::Unary { op: UnaryOp::Not, rhs: Box::new(rhs.clone()) }, span: rhs.span },
+                select! { Token::Op(op) if op == "!" => () }.map_with(|_, e| e.span()),
+                |op_span: SimpleSpan, rhs: Expr<'src>, _| {
+                    let start = op_span.start;
+                    let end = rhs.span.end;
+                    Spanned { node: ExprNode::Unary { op: UnaryOp::Not, rhs: Box::new(rhs) }, span: SimpleSpan { context: (), start, end } }
+                },
             ),
             infix(
                 left(6),
@@ -414,19 +458,18 @@ fn expression_bundle<'src>() -> (
 
     let ret_stmt = just(Token::Return)
         .ignore_then(expr.clone().or_not())
-        .map_with(|eopt, e| Spanned { node: StmtNode::Return(eopt), span: e.span() });
+        .map_with(|eopt, e| Spanned { node: StmtNode::Return(eopt), span: e.span() })
+        .labelled("return");
 
     let expr_stmt = expr.clone().map_with(|e1, e| Spanned { node: StmtNode::Expr(e1), span: e.span() });
 
     // Allow `fn` inside blocks as a local function declaration (treated as no-op for now)
     let local_fn_stmt = just(Token::Fn)
-        .ignore_then(ident())
-        .then(params_parser())
-        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(with_types(|| type_parser()))
+        .ignore_then(fn_signature_parser())
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(block.clone())
-        .map_with(|_, e| Spanned { node: StmtNode::Expr(Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() }), span: e.span() });
+        .map_with(|_, e| Spanned { node: StmtNode::Expr(Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() }), span: e.span() })
+        .labelled("local function");
     let stmt_p = choice((local_fn_stmt, let_decl, typed_init, assign, ret_stmt, expr_stmt)).labelled("statement").boxed();
 
     expr.define(expr_p.clone());
@@ -453,13 +496,8 @@ fn import_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, e
 
 fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, _stmt, block) = expression_bundle();
-    let ty = type_parser();
-    let params = params_parser();
     just(Token::Fn)
-        .ignore_then(ident())
-        .then(params)
-        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-         .then(with_types(|| type_parser()))
+        .ignore_then(fn_signature_parser())
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(
             // Allow empty function bodies: either a normal expr, or an empty block
@@ -472,7 +510,8 @@ fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src
                 }
             }))
         )
-        .map(|((((name, params), ret_type), effects), body)| Function { name, generics: vec![], params, ret_type, effects, body, is_public: true })
+        .map(|(((name, params, ret_type, effects), body))| Function { name, generics: vec![], params, ret_type, effects, body, is_public: true })
+        .labelled("function definition")
 }
 
 fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
@@ -539,6 +578,15 @@ fn interface_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TraitDef<'
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(sig.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
         .map(|(name, methods)| TraitDef { name, methods, is_public: true })
+}
+
+fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src str, Vec<(Option<&'src str>, Type<'src>)>, Option<Type<'src>>, Vec<Type<'src>>), extra::Err<Rich<'src, Token<'src>>>> {
+    ident()
+        .then(params_parser())
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+        .then(with_types(|| type_parser()))
+        .map(|(((name, params), ret_type), effects)| (name, params, ret_type, effects))
+        .labelled("function signature")
 }
 
 fn impl_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {

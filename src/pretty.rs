@@ -78,6 +78,17 @@ fn write_expr(buf: &mut String, e: &SpannedExpr, level: usize) {
             buf.push_str(sym);
             write_expr(buf, rhs, level);
         }
+        OwnedExpr::MethodCall { receiver, method, args } => {
+            write_expr(buf, receiver, level);
+            buf.push('.');
+            buf.push_str(method);
+            buf.push('(');
+            for (i, a) in args.iter().enumerate() {
+                if i > 0 { buf.push_str(", "); }
+                write_expr(buf, a, level);
+            }
+            buf.push(')');
+        }
         OwnedExpr::Binary { op, lhs, rhs } => {
             buf.push('(');
             write_expr(buf, lhs, level);

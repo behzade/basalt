@@ -77,6 +77,12 @@ pub enum ExprNode<'src> {
         receiver: Box<Expr<'src>>,
         field: &'src str,
     },
+    /// Explicit method call syntax: `receiver.method(args)`
+    MethodCall {
+        receiver: Box<Expr<'src>>,
+        method: &'src str,
+        args: Vec<Expr<'src>>,
+    },
     Unary {
         op: UnaryOp,
         rhs: Box<Expr<'src>>,

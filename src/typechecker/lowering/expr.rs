@@ -150,6 +150,43 @@ impl Typechecker {
                 self.errors.push(TypeError { message: "Unknown field access on non-record type or missing field".to_string(), context: context.clone() });
                 Err(())
             }
+            OwnedExpr::MethodCall { receiver, method, args } => {
+                let recv_hir = self.lower_expr(*receiver, context.clone())?;
+                // Clone method signature info to avoid holding an immutable borrow of self during arg lowering
+                let method_info: Option<(hir::HirFunctionSignature, bool, std::path::PathBuf, crate::token::SimpleSpan)> = match &recv_hir.ty {
+                    hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) => {
+                        self.impl_methods.get(ty_name).and_then(|methods| methods.get(&method).cloned())
+                    }
+                    _ => None,
+                };
+                if let Some((sig, is_public, defined_in, span)) = method_info {
+                    if !is_public && defined_in != context.path {
+                        self.errors.push(TypeError { message: format!("Method `{}` is private", method), context: context.clone() });
+                        return Err(());
+                    }
+                    // Lower args according to signature (skip first param which is the receiver)
+                    let mut lowered_args = Vec::new();
+                    for (idx, arg) in args.into_iter().enumerate() {
+                        let exp = sig.params.get(idx + 1).map(|p| p.ty.clone());
+                        let lowered = if let Some(expected) = exp { self.lower_expr_with_expected(arg, expected, context.clone())? } else { self.lower_expr(arg, context.clone())? };
+                        lowered_args.push(lowered);
+                    }
+                    // Return type is signature.ret_type
+                    let ret_ty = sig.ret_type.clone();
+                    let fun_expr = hir::Expr { kind: hir::ExprKind::Path(vec![method.clone()]), ty: hir::Ty::Function { param_types: sig.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(sig.ret_type.clone()), effects: sig.effects.clone() }, span: expr.span, resolution: Some(hir::Resolution::Method { defined_in, span }) };
+                    // Prepend receiver as first arg to align with signature
+                    let call_args = {
+                        let mut v = Vec::with_capacity(1 + lowered_args.len());
+                        v.push(recv_hir);
+                        v.extend(lowered_args);
+                        v
+                    };
+                    Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: call_args }, span: expr.span, resolution: None })
+                } else {
+                    self.errors.push(TypeError { message: format!("Unknown method `{}` for receiver type {}", method, Typechecker::format_ty(&recv_hir.ty)), context: context.clone() });
+                    Err(())
+                }
+            }
             OwnedExpr::Call { fun, args } => {
                 match fun.item.clone() {
                     OwnedExpr::Path(path) => {
