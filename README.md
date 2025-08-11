@@ -1,55 +1,50 @@
-# Basalt Programming Language
+## Basalt
 
-![Status](https://img.shields.io/badge/status-work_in_progress-orange)
+An exploration of programming language and compiler design. This repo is a lab for trying different language designs and seeing how those choices ripple through the frontend (lexer/parser), the type system and inference, lowering, and backend code generation.
 
-Basalt is an experimental, statically-typed programming language designed for creating portable and performant applications. It is compiled ahead-of-time (AOT) and is primarily targeted for the WebAssembly (WASM) and WASI environments.
+- **Not a product. Do not use this to build software.** Things change frequently, features are incomplete, and stability is not a goal.
 
-Its core features include:
-* A functional-leaning, data-oriented design using structs and traits (no classes or inheritance).
-* Powerful static typing with type inference.
-* **Algebraic effects** for handling side effects in a structured and testable way.
-* Automatic memory management via a planned tracing garbage collector.
+### Iterations
 
-## 🚧 Project Status: Work in Progress
+1. **Go prototype**: first pass on syntax/type ideas to validate design quickly.
+2. **Rust + Cranelift**: IR-based backend experiments and codegen trade‑offs.
+3. **Rust → direct WebAssembly**: skipping an IR to emit WASM directly.
+4. **Rust → LLVM (current)**: exploring a more conventional pipeline and optimization surface via LLVM.
 
-This project is currently in the early stages of development. It is is not yet ready for production use.
+### What you will find here
 
-**What works:**
-* **Frontend:** A complete parser, type checker, and intermediate representation pipeline (AST → HIR → MIR).
-* **Native Compilation:** A working backend using **Cranelift** that compiles Basalt code directly to a native executable on your machine.
+- **Lexer and tokens**: `src/token.rs`
+- **Parser**: `src/parser.rs`
+- **Type system and checking**:
+  - Core checker: `src/typechecker/checker.rs`
+  - Lowering to typed IR: `src/typechecker/lowering/expr.rs`, `src/typechecker/lowering/stmt.rs`
+  - Type/definition registry: `src/typechecker/registry.rs`
+- **Design notes and experiments**: `design.bst`
+- **Small, focused test inputs**: `tests/*.bst` (e.g., `tests/00-imports-and-aliases.bst`, `tests/02-interfaces-and-impls.bst`)
 
-**What's next (Roadmap):**
-* **Garbage Collector:** Implementing a tracing GC for automatic memory management.
-* **Algebraic Effects Runtime:** Building the runtime system to fully support `perform` and `handle`.
-* **WebAssembly Backend:** Creating an LLVM-based backend to compile code to `.wasm` files.
-* **Standard Library:** Fleshing out the modules in `modules/std/`.
-* **Self Hosted Compiler:** Rewrite the compiler in bst once the language is complete enough.
+The code aims to surface trade‑offs rather than hide them behind abstractions.
 
-## 🚀 Getting Started
+### Peeking at the pipeline
 
-Currently, you can compile and run `.bst` files as native executables.
-
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/behzade/basalt
-    cd basalt
-    ```
-
-2. Process a Test File
-You can process test files using various subcommands with the following structure:
-
+Run selective stages to inspect artifacts:
 
 ```sh
-cargo run -- <parse/hir/mir/cir/build/run> ./tests/<test-file-name>.bst
+cargo run -- <parse|resolve|hir> ./tests/<file>.bst
 ```
-For example, the parse subcommand reads a .bst file and prints its corresponding Abstract Syntax Tree (AST) to standard output. This is useful for verifying the initial parsing stage of the compiler.
 
-## ⚖️ License
+- `parse`: print the AST
+- `resolve`: name resolution and scopes
+- `hir`: typed high‑level IR
 
-This project is licensed under the [Apache 2.0 License](LICENSE).
+Other subcommands (like `mir` or `build`) may be stubs during this iteration.
 
-## 💡 Development Notes
+### Scope and non-goals
 
-This compiler has been developed with significant AI assistance. AI was used as a productivity multiplier for generating boilerplate code, exploring library APIs (like `chumsky` and `cranelift`), and creating test cases.
+- **No stability guarantees** and **no standard library**
+- No promises about error messages or ergonomics
+- Backwards compatibility is not considered
+- Contributions are not solicited; issues/PRs may be ignored
 
-While this approach has accelerated development, it can lead to inconsistencies in code quality. A test-driven development (TDD) workflow is being used to mitigate these issues. A partial or full rewrite is planned once the language and standard library reach a more mature state.
+### License
+
+Apache-2.0. See `LICENSE`.
