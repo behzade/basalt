@@ -97,19 +97,28 @@ impl Typechecker {
         let (hir_pat, bound_types): (hir::HirPattern, Vec<(String, hir::Ty)>) = match pat.item {
             OwnedPattern::Wildcard => (hir::HirPattern { kind: hir::HirPatternKind::Wildcard, ty: scrutinee_ty.clone() }, vec![]),
             OwnedPattern::Identifier(name) => (hir::HirPattern { kind: hir::HirPatternKind::Identifier(name.clone()), ty: scrutinee_ty.clone() }, vec![(name, scrutinee_ty.clone())]),
-            OwnedPattern::Path { path, args } => {
-                let variant_name = path.last().cloned().unwrap_or_default();
-                let (union_path, payload) = match scrutinee_ty {
+            OwnedPattern::VariantBind { binding, variant_path } => {
+                let variant_name = variant_path.last().cloned().unwrap_or_default();
+                let payload = match scrutinee_ty {
                     hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => {
-                        let mut found: Option<(hir::OwnedPath, Option<Vec<hir::Ty>>)> = None;
-                        if let Some(vs) = self.union_variants.get(name) { for (vn, pl) in vs { if vn == &variant_name { found = Some((name.clone(), pl.clone())); break; } } }
-                        found.unwrap_or((name.clone(), None))
+                        let mut found: Option<Vec<hir::Ty>> = None;
+                        if let Some(vs) = self.union_variants.get(name) {
+                            for (vn, pl) in vs {
+                                if vn == &variant_name { found = pl.clone(); break; }
+                            }
+                        }
+                        found
                     }
-                    _ => (vec![], None),
+                    _ => None,
                 };
                 let mut bound = Vec::new();
                 let mut subpatterns = Vec::new();
-                if let Some(pl) = payload.clone() { if let Some(first) = pl.get(0) { if let Some(arg0) = args.get(0) { match &arg0.item { OwnedPattern::Identifier(n) => { bound.push((n.clone(), first.clone())); subpatterns.push(hir::HirPattern { kind: hir::HirPatternKind::Identifier(n.clone()), ty: first.clone() }); } _ => { subpatterns.push(hir::HirPattern { kind: hir::HirPatternKind::Wildcard, ty: first.clone() }); } } } } }
+                if let Some(pl) = payload.clone() {
+                    if let Some(first) = pl.get(0) {
+                        bound.push((binding.clone(), first.clone()));
+                        subpatterns.push(hir::HirPattern { kind: hir::HirPatternKind::Identifier(binding.clone()), ty: first.clone() });
+                    }
+                }
                 (hir::HirPattern { kind: hir::HirPatternKind::Path { path: vec![variant_name], args: subpatterns }, ty: scrutinee_ty.clone() }, bound)
             }
             OwnedPattern::Literal(lit) => { let (pty, s) = self.lower_literal(lit); (hir::HirPattern { kind: hir::HirPatternKind::Literal(pty.clone(), s), ty: hir::Ty::Primitive(pty) }, vec![]) }

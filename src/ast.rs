@@ -101,6 +101,11 @@ pub enum ExprNode<'src> {
         generics: Vec<Type<'src>>,
         fields: Vec<(&'src str, Expr<'src>)>,
     },
+    UnionInit {
+        path: Path<'src>,
+        variant: &'src str,
+        fields: Vec<(&'src str, Expr<'src>)>,
+    },
     Block {
         stmts: Vec<Stmt<'src>>,
         last_expr: Option<Box<Expr<'src>>>,
@@ -138,7 +143,7 @@ pub enum ExprNode<'src> {
 pub enum TypeNode<'src> {
     Path { path: Path<'src>, generics: Vec<Type<'src>> },
     Record(Vec<(&'src str, Type<'src>)>),
-    Union(Vec<(&'src str, Option<Type<'src>>)>),
+    Union(Vec<Type<'src>>),
     Function { params: Vec<Type<'src>>, ret: Box<Type<'src>>, effects: Vec<Type<'src>> },
     Handler { effect: Box<Type<'src>>, with_effects: Vec<Type<'src>> },
     Never,
@@ -167,10 +172,7 @@ pub enum Literal<'src> {
 pub enum PatternNode<'src> {
     Literal(Literal<'src>),
     Identifier(&'src str),
-    Path {
-        path: Path<'src>,
-        args: Vec<Pattern<'src>>,
-    },
+    VariantBind { binding: &'src str, variant_path: Path<'src> },
     Wildcard,
 }
 
@@ -314,9 +316,8 @@ pub struct TypeAliasDef<'src> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAliasBody<'src> {
+    Union { variants: Vec<(&'src str, Type<'src>)> },
     Type(Type<'src>),
-    Record(Vec<RecordField<'src>>),
-    Union(Vec<(&'src str, Option<Type<'src>>)>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

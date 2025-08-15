@@ -1,16 +1,16 @@
-type Person = { name: str, age: i32 }
+struct Person { name: str, age: i32 }
 
-type Company = { company_id: i32, name: str }
+struct Company { company_id: i32, name: str }
 
-type UserType = B2B(Company) | B2C(Person)
+type UserType = B2B: Company | B2C: Person
 
-fn main() -> i32 = {
+fn main() -> i32 {
     let mut person: Person = { Person { name: "behzad", age: 12 } }
-    let user: UserType = B2B({ Company { company_id: 1, name: "acme" } })
+    let user: UserType = UserType::B2B{company_id: 1, name: "acme" }
 
     let match_result = match user
-        | B2B(b2b) -> b2b.name
-        | B2C(b2c) -> b2c.name
+        | b2b: B2B -> b2b.name
+        | b2c: B2C -> b2c.name
         | _ -> "unknown"
 
     let if_result = if person.age > 10 { 3 } else { 4 }

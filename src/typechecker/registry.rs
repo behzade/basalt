@@ -4,7 +4,7 @@ use crate::hir;
 use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
 use crate::typechecker::checker::Typechecker;
-use crate::ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedRecordField, OwnedTypeAliasBody};
+use crate::ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedTypeAliasBody};
 
 impl Typechecker {
     pub(crate) fn register_top_level_item(&mut self, item: &OwnedItemWithSpan) {
@@ -35,29 +35,13 @@ impl Typechecker {
             }
             OwnedItem::TypeAlias(ta) => {
                 match &ta.aliased {
-                    OwnedTypeAliasBody::Record(fields) => {
-                        let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
-                        let mut lowered_fields: Vec<hir::HirField> = Vec::new();
-                        for f in fields {
-                            if let Ok(t) = self.resolve_type(&f.ty, ctx.clone()) {
-                                lowered_fields.push(hir::HirField { name: f.name.clone(), ty: t, name_span: None });
-                            }
-                        }
-                        let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: ctx.path.clone(), span: item.span, context_id: None };
-                        let path = vec![ta.name.clone()];
-                        self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
-                        self.type_definition_meta.insert(path, (ctx.path.clone(), ta.is_public));
-                    }
                     OwnedTypeAliasBody::Union(variants) => {
                         let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
                         let mut lowered_variants: Vec<hir::HirEnumVariant> = Vec::new();
-                        for (vname, payload) in variants {
-                            let lowered_payload = match payload {
-                                Some(t) => match self.resolve_type(t, ctx.clone()) {
-                                    Ok(h) => Some(vec![h]),
-                                    Err(_) => None,
-                                },
-                                None => None,
+                        for (vname, payload_ty) in variants {
+                            let lowered_payload = match self.resolve_type(payload_ty, ctx.clone()) {
+                                Ok(h) => Some(vec![h]),
+                                Err(_) => None,
                             };
                             lowered_variants.push(hir::HirEnumVariant { name: vname.clone(), payload: lowered_payload, name_span: None });
                         }
@@ -70,6 +54,19 @@ impl Typechecker {
                     }
                     OwnedTypeAliasBody::Type(_) => {}
                 }
+            }
+            OwnedItem::Struct(s) => {
+                let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
+                let mut lowered_fields: Vec<hir::HirField> = Vec::new();
+                for (name, ty) in &s.fields {
+                    if let Ok(t) = self.resolve_type(ty, ctx.clone()) {
+                        lowered_fields.push(hir::HirField { name: name.clone(), ty: t, name_span: None });
+                    }
+                }
+                let def = hir::HirStructDef { name: s.name.clone(), fields: lowered_fields, is_public: s.is_public, defined_in: ctx.path.clone(), span: item.span, context_id: None };
+                let path = vec![s.name.clone()];
+                self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
+                self.type_definition_meta.insert(path, (ctx.path.clone(), s.is_public));
             }
             OwnedItem::Effect(eff) => {
                 let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
@@ -127,29 +124,13 @@ impl Typechecker {
             }
             OwnedItem::TypeAlias(ta) => {
                 match &ta.aliased {
-                    OwnedTypeAliasBody::Record(fields) => {
-                        let ctx2 = ItemContext { span: item.span, path: file.clone() };
-                        let mut lowered_fields: Vec<hir::HirField> = Vec::new();
-                        for f in fields {
-                            if let Ok(t) = self.resolve_type(&f.ty, ctx2.clone()) {
-                                lowered_fields.push(hir::HirField { name: f.name.clone(), ty: t, name_span: None });
-                            }
-                        }
-                        let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: ctx2.path.clone(), span: item.span, context_id: None };
-                        let path = vec![ta.name.clone()];
-                        self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
-                        self.type_definition_meta.insert(path, (ctx2.path.clone(), ta.is_public));
-                    }
                     OwnedTypeAliasBody::Union(variants) => {
                         let ctx2 = ItemContext { span: item.span, path: file.clone() };
                         let mut lowered_variants: Vec<hir::HirEnumVariant> = Vec::new();
-                        for (vname, payload) in variants {
-                            let lowered_payload = match payload {
-                                Some(t) => match self.resolve_type(t, ctx2.clone()) {
-                                    Ok(h) => Some(vec![h]),
-                                    Err(_) => None,
-                                },
-                                None => None,
+                        for (vname, payload_ty) in variants {
+                            let lowered_payload = match self.resolve_type(payload_ty, ctx2.clone()) {
+                                Ok(h) => Some(vec![h]),
+                                Err(_) => None,
                             };
                             lowered_variants.push(hir::HirEnumVariant { name: vname.clone(), payload: lowered_payload, name_span: None });
                         }
@@ -162,6 +143,19 @@ impl Typechecker {
                     }
                     OwnedTypeAliasBody::Type(_) => {}
                 }
+            }
+            OwnedItem::Struct(s) => {
+                let ctx2 = ItemContext { span: item.span, path: file.clone() };
+                let mut lowered_fields: Vec<hir::HirField> = Vec::new();
+                for (name, ty) in &s.fields {
+                    if let Ok(t) = self.resolve_type(ty, ctx2.clone()) {
+                        lowered_fields.push(hir::HirField { name: name.clone(), ty: t, name_span: None });
+                    }
+                }
+                let def = hir::HirStructDef { name: s.name.clone(), fields: lowered_fields, is_public: s.is_public, defined_in: ctx2.path.clone(), span: item.span, context_id: None };
+                let path = vec![s.name.clone()];
+                self.type_definitions.insert(path.clone(), hir::Item::Struct(def));
+                self.type_definition_meta.insert(path, (ctx2.path.clone(), s.is_public));
             }
             OwnedItem::Effect(eff) => {
                 let ctx2 = ItemContext { span: item.span, path: file.clone() };

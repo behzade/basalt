@@ -1040,7 +1040,7 @@ impl Backend {
             EK::Map(kvs) => { for (k, v) in kvs { Self::collect_lets_in_expr(k, out); Self::collect_lets_in_expr(v, out); } }
             EK::Handle { body, .. } => Self::collect_lets_in_block(body, out),
             EK::Cast { expr: inner } => Self::collect_lets_in_expr(inner, out),
-            _ => {}
+            EK::Path(_) | EK::Literal(..) | EK::Perform { .. } | EK::Error => {}
         }
     }
 
@@ -1108,6 +1108,7 @@ impl Backend {
             }
             OE::Array(elems) => { for e in elems { Self::collect_locals_in_expr(e, tokens, locals_out); } }
             OE::Map(entries) => { for (_k, v) in entries { Self::collect_locals_in_expr(v, tokens, locals_out); } }
+            OE::UnionInit { fields, .. } => { for (_n, e) in fields { Self::collect_locals_in_expr(e, tokens, locals_out); } }
             OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
         }
     }
@@ -1166,6 +1167,7 @@ impl Backend {
             }
             OE::Array(elems) => { for e in elems { Self::collect_local_annotated_types_in_fn(e, out); } }
             OE::Map(entries) => { for (_k, v) in entries { Self::collect_local_annotated_types_in_fn(v, out); } }
+            OE::UnionInit { fields, .. } => { for (_n, e) in fields { Self::collect_local_annotated_types_in_fn(e, out); } }
             OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
         }
     }

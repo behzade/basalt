@@ -428,26 +428,11 @@ impl Typechecker {
                 let aliased = self.resolve_type(&t, context.clone())?;
                 Ok(hir::HirTypeAlias { name, aliased, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span })
             }
-            Body::Record(fields) => {
-                // Lower to struct def and also create an alias to that nominal type
-                let mut lowered_fields: Vec<hir::HirField> = Vec::new();
-                for f in fields {
-                    lowered_fields.push(hir::HirField { name: f.name, ty: self.resolve_type(&f.ty, context.clone())?, name_span: None });
-                }
-                let def = hir::HirStructDef { name: ta.name.clone(), fields: lowered_fields, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span, context_id: None };
-                // record the struct in definitions
-                self.type_definitions.insert(vec![ta.name.clone()], hir::Item::Struct(def));
-                let aliased = hir::Ty::Adt(hir::AdtTy::Struct { name: vec![ta.name.clone()], generics: vec![] });
-                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true, defined_in: context.path.clone(), span: context.span })
-            }
             Body::Union(variants) => {
                 // Lower to enum def and alias to that nominal enum
                 let mut lowered: Vec<hir::HirEnumVariant> = Vec::new();
-                for (vname, payload) in variants {
-                    let payload_tys = match payload {
-                        Some(t) => Some(vec![self.resolve_type(&t, context.clone())?]),
-                        None => None,
-                    };
+                for (vname, payload_ty) in variants {
+                    let payload_tys = Some(vec![self.resolve_type(&payload_ty, context.clone())?]);
                     lowered.push(hir::HirEnumVariant { name: vname, payload: payload_tys, name_span: None });
                 }
                 let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public, defined_in: context.path.clone(), span: context.span, context_id: None };
