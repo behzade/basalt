@@ -32,7 +32,7 @@ effect Panic {
 
 handler OsExitPanic: Panic {
     fn panic(msg: str) -> ! {
-        os.exit(1)
+        os::exit(1)
     }
 }
 
@@ -78,7 +78,7 @@ fn main() -> i32 {
     let out: i32 = division(10, 0) with {OsExitPanic} // panic with exit code 1
 
     let out2 = division(10, 2) with {OsExitPanic}
-    fmt.println(out2) // prints 5
+    fmt::println(out2) // prints 5
 }
 
 
