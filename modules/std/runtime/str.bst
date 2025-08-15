@@ -3,8 +3,6 @@ type str = {
     data: str,
 }
 
-impl str = {
-    pub fn len(self) -> i32 = {
-        self.len
-    }
+pub fn len(s: str) -> i32 {
+    s.len
 }

@@ -151,41 +151,59 @@ impl Typechecker {
                 Err(())
             }
             OwnedExpr::MethodCall { receiver, method, args } => {
+                // UFCS desugaring: m.f(x,y) => f(m,x,y) or module::f(m,x,y) when needed
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
-                // Clone method signature info to avoid holding an immutable borrow of self during arg lowering
-                let method_info: Option<(hir::HirFunctionSignature, bool, std::path::PathBuf, crate::token::SimpleSpan)> = match &recv_hir.ty {
-                    hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) => {
-                        self.impl_methods.get(ty_name).and_then(|methods| methods.get(&method).cloned())
+                // Candidate function names to try: simple `method` and alias-qualified `alias::method`
+                let mut candidate_names: Vec<String> = vec![method.clone()];
+                if let hir::Ty::Adt(hir::AdtTy::Struct { name: type_path, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: type_path, .. }) = &recv_hir.ty {
+                    if type_path.len() >= 1 {
+                        // Try to find an import alias matching the module path of the type (all but last segment)
+                        let module_path: Vec<String> = type_path.iter().cloned().take(type_path.len().saturating_sub(1)).collect();
+                        if let Some(alias_map) = self.import_alias_map.get(&context.path) {
+                            for (alias, mod_path) in alias_map.iter() {
+                                if mod_path == &module_path {
+                                    candidate_names.push(format!("{}::{}", alias, method));
+                                }
+                            }
+                        }
                     }
-                    _ => None,
-                };
-                if let Some((sig, is_public, defined_in, span)) = method_info {
-                    if !is_public && defined_in != context.path {
-                        self.errors.push(TypeError { message: format!("Method `{}` is private", method), context: context.clone() });
-                        return Err(());
-                    }
-                    // Lower args according to signature (skip first param which is the receiver)
-                    let mut lowered_args = Vec::new();
-                    for (idx, arg) in args.into_iter().enumerate() {
-                        let exp = sig.params.get(idx + 1).map(|p| p.ty.clone());
-                        let lowered = if let Some(expected) = exp { self.lower_expr_with_expected(arg, expected, context.clone())? } else { self.lower_expr(arg, context.clone())? };
-                        lowered_args.push(lowered);
-                    }
-                    // Return type is signature.ret_type
-                    let ret_ty = sig.ret_type.clone();
-                    let fun_expr = hir::Expr { kind: hir::ExprKind::Path(vec![method.clone()]), ty: hir::Ty::Function { param_types: sig.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(sig.ret_type.clone()), effects: sig.effects.clone() }, span: expr.span, resolution: Some(hir::Resolution::Method { defined_in, span }) };
-                    // Prepend receiver as first arg to align with signature
-                    let call_args = {
-                        let mut v = Vec::with_capacity(1 + lowered_args.len());
-                        v.push(recv_hir);
-                        v.extend(lowered_args);
-                        v
-                    };
-                    Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: call_args }, span: expr.span, resolution: None })
-                } else {
-                    self.errors.push(TypeError { message: format!("Unknown method `{}` for receiver type {}", method, Typechecker::format_ty(&recv_hir.ty)), context: context.clone() });
-                    Err(())
                 }
+
+                // Try to resolve a visible function with a compatible first parameter type
+                for cand in candidate_names {
+                    if let Some(Symbol::Function { signature, is_public, defined_in, decl_span }) = self.lookup_symbol(&cand).cloned() {
+                        if !is_public && defined_in != context.path { 
+                            self.errors.push(TypeError { message: format!("Function `{}` is private", cand), context: context.clone() });
+                            return Err(());
+                        }
+                        // Ensure function has at least one param and receiver type matches first param
+                        if let Some(first_param) = signature.params.get(0) {
+                            // Simple equality check; could be relaxed with unification if needed
+                            if first_param.ty == recv_hir.ty {
+                                // Lower remaining args against subsequent parameters
+                                let mut lowered_args: Vec<hir::Expr> = Vec::with_capacity(1 + args.len());
+                                lowered_args.push(recv_hir.clone());
+                                for (idx, arg) in args.into_iter().enumerate() {
+                                    let exp = signature.params.get(idx + 1).map(|p| p.ty.clone());
+                                    let lowered = if let Some(expected) = exp { self.lower_expr_with_expected(arg, expected, context.clone())? } else { self.lower_expr(arg, context.clone())? };
+                                    lowered_args.push(lowered);
+                                }
+                                // Build function expr and call
+                                let mut fun_path: Vec<String> = vec![method.clone()];
+                                if cand.contains("::") { // preserve qualified lookup spelling for resolution
+                                    let parts: Vec<String> = cand.split("::").map(|s| s.to_string()).collect();
+                                    fun_path = parts;
+                                }
+                                let mut fun_expr = hir::Expr { kind: hir::ExprKind::Path(fun_path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: expr.span, resolution: None };
+                                if let Some(sp) = decl_span { fun_expr.resolution = Some(hir::Resolution::Function { defined_in: defined_in.clone(), span: sp }); }
+                                return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: None });
+                            }
+                        }
+                    }
+                }
+
+                self.errors.push(TypeError { message: format!("Unknown method `{}` for receiver type {}", method, Typechecker::format_ty(&recv_hir.ty)), context: context.clone() });
+                Err(())
             }
             OwnedExpr::Call { fun, args } => {
                 match fun.item.clone() {
