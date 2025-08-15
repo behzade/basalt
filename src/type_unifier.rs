@@ -59,8 +59,19 @@ impl TypeUnifier {
             }
         }
         match (from, to) {
+            // Exact nominal matches
             (hir::Ty::Adt(hir::AdtTy::Struct { name: a, .. }), hir::Ty::Adt(hir::AdtTy::Struct { name: b, .. })) => a == b,
             (hir::Ty::Adt(hir::AdtTy::Enum { name: a, .. }), hir::Ty::Adt(hir::AdtTy::Enum { name: b, .. })) => a == b,
+
+            // Allow assigning a specific enum variant (struct-like `Enum::Variant`) to its parent enum type
+            (hir::Ty::Adt(hir::AdtTy::Struct { name: variant_path, .. }), hir::Ty::Adt(hir::AdtTy::Enum { name: enum_path, .. })) => {
+                if variant_path.len() == enum_path.len() + 1 {
+                    // Check prefix equality: `Enum::Variant` starts with `Enum`
+                    variant_path.iter().zip(enum_path.iter()).all(|(a, b)| a == b)
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }

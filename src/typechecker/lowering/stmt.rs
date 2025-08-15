@@ -18,8 +18,9 @@ impl Typechecker {
                             let mut lowered = self.lower_expr(Spanned { item: vexpr.clone(), span: stmt.span }, context.clone())?;
                             if lowered.ty != resolved_ty {
                                 if TypeUnifier::is_numeric(&lowered.ty) && TypeUnifier::is_numeric(&resolved_ty) {
+                                    // Insert an explicit numeric cast for widening conversions
                                     lowered = hir::Expr { ty: resolved_ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(lowered) }, span: stmt.span, resolution: None };
-                                } else {
+                                } else if !TypeUnifier::is_assignable(&lowered.ty, &resolved_ty) {
                                     self.errors.push(TypeError { message: format!(
                                         "Mismatched types for variable '{}': expected {} but found {}",
                                         name, Typechecker::format_ty(&resolved_ty), Typechecker::format_ty(&lowered.ty)
@@ -71,19 +72,30 @@ impl Typechecker {
                     }
                     _ => self.lower_expr(lhs.clone(), context.clone())?,
                 };
-                let rhs_hir = self.lower_expr(rhs, context.clone())?;
+                let mut rhs_hir = self.lower_expr(rhs, context.clone())?;
                 if lhs_hir.ty != rhs_hir.ty {
-                    self.errors.push(TypeError { message: format!("Assignment type mismatch: lhs={}, rhs={}", Typechecker::format_ty(&lhs_hir.ty), Typechecker::format_ty(&rhs_hir.ty)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                    if TypeUnifier::is_numeric(&rhs_hir.ty) && TypeUnifier::is_numeric(&lhs_hir.ty) {
+                        // Widen numeric on the RHS via cast
+                        rhs_hir = hir::Expr { ty: lhs_hir.ty.clone(), kind: hir::ExprKind::Cast { expr: Box::new(rhs_hir) }, span: stmt.span, resolution: None };
+                    } else if !TypeUnifier::is_assignable(&rhs_hir.ty, &lhs_hir.ty) {
+                        self.errors.push(TypeError { message: format!("Assignment type mismatch: lhs={}, rhs={}", Typechecker::format_ty(&lhs_hir.ty), Typechecker::format_ty(&rhs_hir.ty)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                    }
                 }
                 if let hir::ExprKind::Path(p) = &lhs_hir.kind { if let Some(var_name) = p.last() { self.mark_variable_initialized(var_name); } }
                 Ok(hir::Stmt::Assign { lhs: lhs_hir, rhs: rhs_hir, span: stmt.span })
             }
             OwnedStmt::Return(expr_opt) => {
-                let expr_hir_opt = if let Some(e) = expr_opt { Some(self.lower_expr(e, context.clone())?) } else { None };
+                let mut expr_hir_opt = if let Some(e) = expr_opt { Some(self.lower_expr(e, context.clone())?) } else { None };
                 if let Some(expected) = &self.current_fn_return_type {
                     let actual = expr_hir_opt.as_ref().map(|e| e.ty.clone()).unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
                     if &actual != expected {
-                        self.errors.push(TypeError { message: format!("Return type mismatch: expected {}, found {}", Typechecker::format_ty(expected), Typechecker::format_ty(&actual)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                        if TypeUnifier::is_numeric(&actual) && TypeUnifier::is_numeric(expected) {
+                            if let Some(inner) = expr_hir_opt.take() {
+                                expr_hir_opt = Some(hir::Expr { ty: expected.clone(), kind: hir::ExprKind::Cast { expr: Box::new(inner) }, span: stmt.span, resolution: None });
+                            }
+                        } else if !TypeUnifier::is_assignable(&actual, expected) {
+                            self.errors.push(TypeError { message: format!("Return type mismatch: expected {}, found {}", Typechecker::format_ty(expected), Typechecker::format_ty(&actual)), context: ItemContext { span: stmt.span, path: context.path.clone() } });
+                        }
                     }
                 }
                 Ok(hir::Stmt::Return { value: expr_hir_opt, span: stmt.span })
