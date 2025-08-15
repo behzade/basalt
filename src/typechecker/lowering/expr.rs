@@ -469,10 +469,6 @@ impl Typechecker {
                 for (name, expr) in fields { let e = self.lower_expr(expr, context.clone())?; lowered_fields.push((name, e)); }
                 Ok(hir::Expr { ty: adt_ty.clone(), kind: hir::ExprKind::StructInit { path, fields: lowered_fields }, span: expr.span, resolution: None })
             }
-            OwnedExpr::Array(_) | OwnedExpr::Map(_) => {
-                self.errors.push(TypeError { message: "Cannot infer type for map/record literal without annotation".to_string(), context: context.clone() });
-                Err(())
-            }
             OwnedExpr::Error => Ok(hir::Expr { kind: hir::ExprKind::Error, ty: hir::Ty::Special(hir::SpecialTy::Unit), span: expr.span, resolution: None }),
         }
     }

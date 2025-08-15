@@ -66,10 +66,7 @@ pub enum StmtNode<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprNode<'src> {
     Literal(Literal<'src>),
-    Array(Vec<Expr<'src>>),
-    Map(Vec<(Expr<'src>, Expr<'src>)>),
     Path(Path<'src>),
-    RecordLiteral { fields: Vec<(&'src str, Expr<'src>)> },
     FieldAccess {
         receiver: Box<Expr<'src>>,
         field: &'src str,
@@ -139,7 +136,6 @@ pub enum ExprNode<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeNode<'src> {
     Path { path: Path<'src>, generics: Vec<Type<'src>> },
-    Record(Vec<(&'src str, Type<'src>)>),
     Union(Vec<Type<'src>>),
     Function { params: Vec<Type<'src>>, ret: Box<Type<'src>>, effects: Vec<Type<'src>> },
     Handler { effect: Box<Type<'src>>, with_effects: Vec<Type<'src>> },
@@ -315,13 +311,6 @@ pub struct TypeAliasDef<'src> {
 pub enum TypeAliasBody<'src> {
     Union { variants: Vec<(&'src str, Type<'src>)> },
     Type(Type<'src>),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct RecordField<'src> {
-    pub name: &'src str,
-    pub ty: Type<'src>,
-    pub is_public: bool,
 }
 
 impl std::fmt::Display for BinaryOp {

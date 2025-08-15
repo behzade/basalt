@@ -974,8 +974,6 @@ impl Backend {
             OE::StructInit { fields, .. } => {
                 for (_n, e) in fields { Self::collect_locals_in_expr(e, tokens, locals_out); }
             }
-            OE::Array(elems) => { for e in elems { Self::collect_locals_in_expr(e, tokens, locals_out); } }
-            OE::Map(entries) => { for (_k, v) in entries { Self::collect_locals_in_expr(v, tokens, locals_out); } }
             OE::UnionInit { fields, .. } => { for (_n, e) in fields { Self::collect_locals_in_expr(e, tokens, locals_out); } }
             OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
         }
@@ -1033,8 +1031,6 @@ impl Backend {
             OE::StructInit { fields, .. } => {
                 for (_n, e) in fields { Self::collect_local_annotated_types_in_fn(e, out); }
             }
-            OE::Array(elems) => { for e in elems { Self::collect_local_annotated_types_in_fn(e, out); } }
-            OE::Map(entries) => { for (_k, v) in entries { Self::collect_local_annotated_types_in_fn(v, out); } }
             OE::UnionInit { fields, .. } => { for (_n, e) in fields { Self::collect_local_annotated_types_in_fn(e, out); } }
             OE::Path(_) | OE::Literal(_) | OE::Perform { .. } | OE::Error => {}
         }

@@ -56,15 +56,6 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
             .map(|(p, g)| TypeNode::Path { path: p, generics: g.unwrap_or_default() })
             .map_with(|node, e| Spanned { node, span: e.span() });
 
-        let record_field = ident().then_ignore(just(Token::Colon)).then(type_p.clone());
-        let record_type = record_field
-            .separated_by(just(Token::Comma))
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .delimited_by(just(Token::LBrace), just(Token::RBrace))
-            .map(TypeNode::Record)
-            .map_with(|node, e| Spanned { node, span: e.span() });
-
         let never_type = select! { Token::Op(op) if op == "!" => () }
             .to(TypeNode::Never)
             .map_with(|node, e| Spanned { node, span: e.span() });
@@ -86,7 +77,7 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
             .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
             .map_with(|node, e| Spanned { node, span: e.span() });
 
-        let atom = choice((fn_type, record_type, never_type, path_type)).boxed();
+        let atom = choice((fn_type, never_type, path_type)).boxed();
 
         // anonymous union types: low precedence, right-associative A | B | C
         atom.clone()
@@ -125,15 +116,6 @@ fn type_atom_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>
             .map(|(p, g)| TypeNode::Path { path: p, generics: g.unwrap_or_default() })
             .map_with(|node, e| Spanned { node, span: e.span() });
 
-        let record_field = ident().then_ignore(just(Token::Colon)).then(type_p.clone());
-        let record_type = record_field
-            .separated_by(just(Token::Comma))
-            .allow_trailing()
-            .collect::<Vec<_>>()
-            .delimited_by(just(Token::LBrace), just(Token::RBrace))
-            .map(TypeNode::Record)
-            .map_with(|node, e| Spanned { node, span: e.span() });
-
         let never_type = select! { Token::Op(op) if op == "!" => () }
             .to(TypeNode::Never)
             .map_with(|node, e| Spanned { node, span: e.span() });
@@ -155,7 +137,7 @@ fn type_atom_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>
             .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
             .map_with(|node, e| Spanned { node, span: e.span() });
 
-        choice((fn_type, record_type, never_type, path_type)).boxed()
+        choice((fn_type, never_type, path_type)).boxed()
     })
     .boxed()
     .labelled("type-atom")
@@ -179,20 +161,6 @@ fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&
             .allow_trailing()
             .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen))
-}
-
-fn record_literal_expr<'src>(
-    expr: impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> + Clone,
-) -> impl Parser<'src, &'src [Token<'src>], Expr<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    ident()
-        .then_ignore(just(Token::Colon))
-        .then(expr.clone())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .at_least(1)
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .map_with(|fields, e| Spanned { node: ExprNode::RecordLiteral { fields }, span: e.span() })
 }
 
 fn expression_bundle<'src>() -> (
@@ -305,7 +273,7 @@ fn expression_bundle<'src>() -> (
         .labelled("union init")
         .boxed();
 
-    let atom = choice((unit, lit, perform, with_block, block.clone(), union_init, struct_init, record_literal_expr(expr.clone()),
+    let atom = choice((unit, lit, perform, with_block, block.clone(), union_init, struct_init,
         path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
         expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))

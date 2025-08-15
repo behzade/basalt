@@ -121,8 +121,6 @@ pub struct OwnedHandlerDef {
 #[derive(Debug, Clone, Serialize)]
 pub enum OwnedExpr {
     Literal(OwnedLiteral),
-    Array(Vec<SpannedExpr>),              // UPDATED
-    Map(Vec<(SpannedExpr, SpannedExpr)>), // UPDATED
     Path(Vec<String>),
     FieldAccess {
         receiver: Box<SpannedExpr>, // UPDATED
@@ -558,10 +556,6 @@ impl<'src> From<&Type<'src>> for OwnedType {
                 path: path.iter().map(|s| s.to_string()).collect(),
                 generics: generics.iter().map(|g| g.into()).collect(),
             },
-            TypeNode::Record(_) => OwnedType {
-                path: vec!["record".to_string()],
-                generics: vec![],
-            },
             TypeNode::Union(_) => OwnedType {
                 path: vec!["union".to_string()],
                 generics: vec![],
@@ -586,25 +580,7 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
     fn from(spanned_expr: &Expr<'src>) -> Self {
         let owned_node = match &spanned_expr.node {
             ExprNode::Literal(lit) => OwnedExpr::Literal(lit.into()),
-            ExprNode::Array(elements) => {
-                OwnedExpr::Array(elements.iter().map(|e| e.into()).collect())
-            }
-            ExprNode::Map(entries) => {
-                OwnedExpr::Map(entries.iter().map(|(k, v)| (k.into(), v.into())).collect())
-            }
             ExprNode::Path(path) => OwnedExpr::Path(path.iter().map(|s| s.to_string()).collect()),
-            ExprNode::RecordLiteral { fields } => OwnedExpr::Map(
-                fields
-                    .iter()
-                    .map(|(name, expr)| {
-                        let key = Spanned {
-                            item: OwnedExpr::Literal(OwnedLiteral::Str(name.to_string())),
-                            span: expr.span,
-                        };
-                        (key, expr.into())
-                    })
-                    .collect(),
-            ),
             ExprNode::FieldAccess { receiver, field } => OwnedExpr::FieldAccess {
                 receiver: Box::new(receiver.as_ref().into()),
                 field: field.to_string(),
