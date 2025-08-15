@@ -557,6 +557,8 @@ impl Typechecker {
             "f64" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::F64)),
             "bool" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::Bool)),
             "str" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::Str)),
+            // Map built-in unit type name to Unit special type
+            "unit" => Ok(hir::Ty::Special(hir::SpecialTy::Unit)),
             "()" => Ok(hir::Ty::Special(hir::SpecialTy::Unit)),
             _ => {
                 // Try to resolve against registered type definitions

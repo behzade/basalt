@@ -112,6 +112,55 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
     .labelled("type")
 }
 
+// Atom-only type parser: like `type_parser` but WITHOUT the top-level anonymous union `|` parsing.
+// This is used where `|` has another meaning at the outer grammar level (e.g., separating tagged
+// union variants in a `type` alias), so we must not greedily consume it inside a payload type.
+fn type_atom_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    recursive(|type_p| {
+        let lt = select! { Token::Op(op) if op == "<" => () };
+        let gt = select! { Token::Op(op) if op == ">" => () };
+
+        let path_type = path()
+            .then(lt.ignore_then(type_p.clone().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>()).then_ignore(gt).or_not())
+            .map(|(p, g)| TypeNode::Path { path: p, generics: g.unwrap_or_default() })
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        let record_field = ident().then_ignore(just(Token::Colon)).then(type_p.clone());
+        let record_type = record_field
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LBrace), just(Token::RBrace))
+            .map(TypeNode::Record)
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        let never_type = select! { Token::Op(op) if op == "!" => () }
+            .to(TypeNode::Never)
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        let make_ty = {
+            let type_p = type_p.clone();
+            move || type_p.clone()
+        };
+
+        let fn_type = type_p
+            .clone()
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LParen), just(Token::RParen))
+            .then_ignore(just(Token::Arrow))
+            .then(type_p.clone())
+            .then(with_types(make_ty).boxed())
+            .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
+            .map_with(|node, e| Spanned { node, span: e.span() });
+
+        choice((fn_type, record_type, never_type, path_type)).boxed()
+    })
+    .boxed()
+    .labelled("type-atom")
+}
+
 fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&'src str>, Type<'src>)>, extra::Err<Rich<'src, Token<'src>>>> {
     let ty = type_parser().boxed();
     let named = ident().then_ignore(just(Token::Colon)).then(ty.clone()).map(|(n, t)| (Some(n), t));
@@ -623,7 +672,8 @@ fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAlias
         .map(|g| g.unwrap_or_default());
 
     // Tagged union: Tag: Type (| Tag: Type)*
-    let tagged_variant = ident().then_ignore(just(Token::Colon)).then(type_parser());
+    // Use `type_atom_parser` here to avoid consuming the outer '|' as an anonymous union inside the payload.
+    let tagged_variant = ident().then_ignore(just(Token::Colon)).then(type_atom_parser());
     let tagged_union_body = tagged_variant
         .separated_by(select! { Token::Op(op) if op == "|" => () })
         .at_least(1)
