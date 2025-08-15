@@ -72,11 +72,8 @@ pub enum Item {
     Struct(HirStructDef),
     Enum(HirEnumDef),
     TypeAlias(HirTypeAlias),
-    Trait(HirTraitDef),
     Effect(HirEffectDef),
-    Impl(HirImplBlock),
     Handler(HirHandlerDef),
-    // Note: Imports, externs, etc., are often resolved before HIR generation.
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -154,26 +151,6 @@ pub struct HirTypeAlias {
     pub name: String,
     pub aliased: Ty,
     pub is_public: bool,
-    pub defined_in: PathBuf,
-    #[serde(serialize_with = "crate::token::serialize_simple_span")]
-    pub span: crate::token::SimpleSpan,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct HirTraitDef {
-    pub name: String,
-    pub methods: Vec<HirFunctionSignature>,
-    pub is_public: bool,
-    pub defined_in: PathBuf,
-    #[serde(serialize_with = "crate::token::serialize_simple_span")]
-    pub span: crate::token::SimpleSpan,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct HirImplBlock {
-    pub trait_path: Option<OwnedPath>, // The trait being implemented, if any.
-    pub target_type: Ty,               // The type the trait is implemented for.
-    pub methods: Vec<HirFunction>,
     pub defined_in: PathBuf,
     #[serde(serialize_with = "crate::token::serialize_simple_span")]
     pub span: crate::token::SimpleSpan,

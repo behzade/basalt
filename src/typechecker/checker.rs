@@ -124,27 +124,6 @@ impl Typechecker {
         for (path, items) in &files {
             for item in items {
                 if let Ok(it) = self.lower_item(item.clone(), path.clone()) {
-                    // Capture impl methods for method lookup later
-                    if let hir::Item::Impl(impl_block) = &it {
-                        if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &impl_block.target_type {
-                            let mut to_insert: Vec<(String, (hir::HirFunctionSignature, bool, PathBuf, crate::token::SimpleSpan), String)> = Vec::new();
-                            for f in &impl_block.methods {
-                                let method_name = f.signature.name.clone();
-                                let sig = f.signature.clone();
-                                let mangled = Self::mangle_method_name(path, name, &method_name);
-                                to_insert.push((method_name, (sig, f.is_public, path.clone(), f.span), mangled));
-                            }
-                            // Insert impl methods
-                            {
-                                let entry = self.impl_methods.entry(name.clone()).or_default();
-                                for (method_name, (sig, is_public, def_path, span), _) in &to_insert {
-                                    entry.insert(method_name.clone(), (sig.clone(), *is_public, def_path.clone(), *span));
-                                }
-                            }
-                            // Do not register mangled method symbols in global scope; method
-                            // resolution is internal via `impl_methods` to avoid UFCS pollution.
-                        }
-                    }
                     hir_items.push(it);
                 }
             }
@@ -200,18 +179,6 @@ impl Typechecker {
                     ItemContext { span: item.span, path },
                 )
                 .map(hir::Item::Effect),
-            OwnedItem::Trait(tr) => self
-                .lower_trait(
-                    tr,
-                    ItemContext { span: item.span, path },
-                )
-                .map(hir::Item::Trait),
-            OwnedItem::Impl(imp) => self
-                .lower_impl(
-                    imp,
-                    ItemContext { span: item.span, path },
-                )
-                .map(hir::Item::Impl),
             OwnedItem::Handler(h) => self
                 .lower_handler(
                     h,
@@ -465,56 +432,6 @@ impl Typechecker {
             operations.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type, effects: vec![] });
         }
         Ok(hir::HirEffectDef { name: eff.name, operations, is_public: eff.is_public, defined_in: context.path.clone(), span: context.span })
-    }
-
-    fn lower_trait(
-        &mut self,
-        tr: OwnedTraitDef,
-        context: ItemContext,
-    ) -> Result<hir::HirTraitDef, ()> {
-        let mut methods: Vec<hir::HirFunctionSignature> = Vec::new();
-        for m in &tr.methods {
-            let mut params: Vec<hir::HirParam> = Vec::new();
-            for (name_opt, ty) in &m.params {
-                let pname = name_opt.clone().unwrap_or("_".to_string());
-                let pty = self.resolve_type(ty, context.clone())?;
-                params.push(hir::HirParam { name: pname, ty: pty, span: None });
-            }
-            let ret_type = match &m.ret_type {
-                Some(rt) => self.resolve_type(rt, context.clone())?,
-                None => hir::Ty::Special(hir::SpecialTy::Unit),
-            };
-            methods.push(hir::HirFunctionSignature { name: m.name.clone(), params, ret_type, effects: vec![] });
-        }
-        Ok(hir::HirTraitDef { name: tr.name, methods, is_public: tr.is_public, defined_in: context.path.clone(), span: context.span })
-    }
-
-    fn lower_impl(
-        &mut self,
-        imp: OwnedImplBlock,
-        context: ItemContext,
-    ) -> Result<hir::HirImplBlock, ()> {
-        let trait_path = imp.interface.clone();
-        let target_type_owned = imp.target_type.clone();
-        let target_type = self.resolve_type(&imp.target_type, context.clone())?;
-        let mut methods = Vec::new();
-        for mut f in imp.methods {
-            // If first param is self-like (named same as identifier) without explicit type, coerce to impl target
-            if let Some((name_opt, pty)) = f.params.get_mut(0) {
-                if let Some(pn) = name_opt {
-                    if pty.path.len() == 1 && pty.path[0] == *pn {
-                        *pty = target_type_owned.clone();
-                    }
-                }
-            }
-            let mut hf = self.lower_function(f, context.clone())?;
-            // Mark the function context as ImplMethod for better classification
-            if let Some(cid) = hf.context_id {
-                self.set_context_kind(cid, HirContextKind::ImplMethod);
-            }
-            methods.push(hf);
-        }
-        Ok(hir::HirImplBlock { trait_path, target_type, methods, defined_in: context.path.clone(), span: context.span })
     }
 
     fn lower_handler(

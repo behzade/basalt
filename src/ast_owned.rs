@@ -246,12 +246,9 @@ pub enum OwnedItem {
     Method(OwnedMethod),
     Struct(OwnedStructDef),
     Enum(OwnedEnumDef),
-    Trait(OwnedTraitDef),
     Effect(OwnedEffectDef),
     Handler(OwnedHandlerDef),
-    Satisfies(OwnedSatisfiesBlock),
     TypeAlias(OwnedTypeAliasDef),
-    Impl(OwnedImplBlock),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -547,12 +544,9 @@ impl<'src> From<&Item<'src>> for OwnedItem {
             ItemNode::Method(m) => OwnedItem::Method(m.into()),
             ItemNode::Struct(s) => OwnedItem::Struct(s.into()),
             ItemNode::Enum(e) => OwnedItem::Enum(e.into()),
-            ItemNode::Trait(t) => OwnedItem::Trait(t.into()),
-            ItemNode::Satisfies(s) => OwnedItem::Satisfies(s.into()),
             ItemNode::Effect(eff) => OwnedItem::Effect(eff.into()),
             ItemNode::Handler(h) => OwnedItem::Handler(h.into()),
             ItemNode::TypeAlias(ta) => OwnedItem::TypeAlias(ta.into()),
-            ItemNode::Impl(imp) => OwnedItem::Impl(imp.into()),
         }
     }
 }

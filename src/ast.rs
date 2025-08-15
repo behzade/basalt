@@ -36,12 +36,9 @@ pub enum ItemNode<'src> {
     Method(Method<'src>),
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
-    Trait(TraitDef<'src>),
-    Satisfies(SatisfiesBlock<'src>),
     Effect(EffectDef<'src>),
     Handler(HandlerDef<'src>),
     TypeAlias(TypeAliasDef<'src>),
-    Impl(ImplBlock<'src>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

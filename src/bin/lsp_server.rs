@@ -598,36 +598,6 @@ impl Backend {
                         children: if children.is_empty() { None } else { Some(children) },
                     });
                 }
-                HirItem::Trait(t) if fs::canonicalize(&t.defined_in).unwrap_or_else(|_| t.defined_in.clone()) == canon_this => {
-                    let (range, _selection_range) = Self::make_symbol_range_for(text, &token_spans, t.span);
-                    let (start_char, end_char) = Self::token_index_span_to_char_offsets(&token_spans, t.span);
-                    let sel = Self::find_name_char_offsets_in_span(text, (start_char, end_char), &t.name)
-                        .unwrap_or((start_char, start_char));
-                    let selection_range = lsp::Range { start: Self::offset_to_position(text, sel.0), end: Self::offset_to_position(text, sel.1) };
-                    let mut children: Vec<lsp::DocumentSymbol> = Vec::new();
-                    for m in &t.methods {
-                        children.push(lsp::DocumentSymbol {
-                            name: m.name.clone(),
-                            detail: Some(format!("{}", Self::hir_ty_to_string(&hir::Ty::Function { param_types: m.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(m.ret_type.clone()), effects: m.effects.clone() }))),
-                            kind: lsp::SymbolKind::METHOD,
-                            tags: None,
-                            deprecated: None,
-                            range,
-                            selection_range,
-                            children: None,
-                        });
-                    }
-                    out.push(lsp::DocumentSymbol {
-                        name: t.name.clone(),
-                        detail: None,
-                        kind: lsp::SymbolKind::INTERFACE,
-                        tags: None,
-                        deprecated: None,
-                        range,
-                        selection_range,
-                        children: if children.is_empty() { None } else { Some(children) },
-                    });
-                }
                 HirItem::Effect(eff) if fs::canonicalize(&eff.defined_in).unwrap_or_else(|_| eff.defined_in.clone()) == canon_this => {
                     let (range, _selection_range) = Self::make_symbol_range_for(text, &token_spans, eff.span);
                     let (start_char, end_char) = Self::token_index_span_to_char_offsets(&token_spans, eff.span);
@@ -704,53 +674,6 @@ impl Backend {
                         children: if children.is_empty() { None } else { Some(children) },
                     });
                 }
-                HirItem::Impl(imp) if fs::canonicalize(&imp.defined_in).unwrap_or_else(|_| imp.defined_in.clone()) == canon_this => {
-                    let (range, selection_range) = Self::make_symbol_range_for(text, &token_spans, imp.span);
-                    let target = Self::hir_ty_to_string(&imp.target_type);
-                    let name = if let Some(trait_path) = &imp.trait_path {
-                        format!("impl {} for {}", Self::join_path(trait_path), target)
-                    } else {
-                        format!("impl {}", target)
-                    };
-                    let mut children: Vec<lsp::DocumentSymbol> = Vec::new();
-                    for m in &imp.methods {
-                        let (mr, msr) = Self::make_symbol_range_for(text, &token_spans, m.span);
-                        let mut params_children: Vec<lsp::DocumentSymbol> = Vec::new();
-                        for p in &m.signature.params {
-                            let (pr, psr) = if let Some(sp) = p.span { Self::make_symbol_range_for(text, &token_spans, sp) } else { (mr, msr) };
-                            params_children.push(lsp::DocumentSymbol {
-                                name: p.name.clone(),
-                                detail: Some(Self::hir_ty_to_string(&p.ty)),
-                                kind: lsp::SymbolKind::VARIABLE,
-                                tags: None,
-                                deprecated: None,
-                                range: pr,
-                                selection_range: psr,
-                                children: None,
-                            });
-                        }
-                        children.push(lsp::DocumentSymbol {
-                            name: m.signature.name.clone(),
-                            detail: Some(format!("{}", Self::hir_ty_to_string(&hir::Ty::Function { param_types: m.signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(m.signature.ret_type.clone()), effects: m.signature.effects.clone() }))),
-                            kind: lsp::SymbolKind::METHOD,
-                            tags: None,
-                            deprecated: None,
-                            range: mr,
-                            selection_range: msr,
-                            children: if params_children.is_empty() { None } else { Some(params_children) },
-                        });
-                    }
-                    out.push(lsp::DocumentSymbol {
-                        name,
-                        detail: None,
-                        kind: lsp::SymbolKind::CLASS,
-                        tags: None,
-                        deprecated: None,
-                        range,
-                        selection_range,
-                        children: if children.is_empty() { None } else { Some(children) },
-                    });
-                }
                 _ => {}
             }
         }
@@ -763,9 +686,7 @@ impl Backend {
             HirItem::Struct(_) => lsp::SymbolKind::STRUCT,
             HirItem::Enum(_) => lsp::SymbolKind::ENUM,
             HirItem::TypeAlias(ta) => Self::symbol_kind_for_type_alias(ta),
-            HirItem::Trait(_) => lsp::SymbolKind::INTERFACE,
             HirItem::Effect(_) => lsp::SymbolKind::EVENT,
-            HirItem::Impl(_) => lsp::SymbolKind::CLASS,
             HirItem::Handler(_) => lsp::SymbolKind::NAMESPACE,
         }
     }
@@ -784,13 +705,7 @@ impl Backend {
             HirItem::Struct(s) => (s.name.clone(), &s.defined_in, s.span),
             HirItem::Enum(e) => (e.name.clone(), &e.defined_in, e.span),
             HirItem::TypeAlias(t) => (t.name.clone(), &t.defined_in, t.span),
-            HirItem::Trait(t) => (t.name.clone(), &t.defined_in, t.span),
             HirItem::Effect(e) => (e.name.clone(), &e.defined_in, e.span),
-            HirItem::Impl(i) => {
-                let target = Self::hir_ty_to_string(&i.target_type);
-                let name = if let Some(tr) = &i.trait_path { format!("impl {} for {}", Self::join_path(tr), target) } else { format!("impl {}", target) };
-                (name, &i.defined_in, i.span)
-            }
             HirItem::Handler(h) => (h.name.clone(), &h.defined_in, h.span),
         }
     }
@@ -816,38 +731,6 @@ impl Backend {
                 }
                 // Add nested symbols for better discoverability in workspace search
                 match item {
-                    HirItem::Impl(imp) => {
-                        let impl_name = if let Some(tr) = &imp.trait_path { format!("impl {} for {}", Self::join_path(tr), Self::hir_ty_to_string(&imp.target_type)) } else { format!("impl {}", Self::hir_ty_to_string(&imp.target_type)) };
-                        for m in &imp.methods {
-                            let (schar, echar) = Self::token_index_span_to_char_offsets(&token_spans, m.span);
-                            let mr = lsp::Range { start: Self::offset_to_position(text, schar), end: Self::offset_to_position(text, echar) };
-                            if let Ok(uri) = lsp::Url::from_file_path(defined_in) {
-                                out.push(lsp::SymbolInformation {
-                                    name: m.signature.name.clone(),
-                                    kind: lsp::SymbolKind::METHOD,
-                                    tags: None,
-                                    deprecated: None,
-                                    location: lsp::Location { uri: uri.clone(), range: mr },
-                                    container_name: Some(impl_name.clone()),
-                                });
-                                // Local variables within method body
-                                let mut lets: Vec<(String, SimpleSpan)> = Vec::new();
-                                Self::collect_lets_in_block(&m.body, &mut lets);
-                                for (vname, vspan) in lets {
-                                    let (schar, echar) = Self::token_index_span_to_char_offsets(&token_spans, vspan);
-                                    let vr = lsp::Range { start: Self::offset_to_position(text, schar), end: Self::offset_to_position(text, echar) };
-                                    out.push(lsp::SymbolInformation {
-                                        name: vname,
-                                        kind: lsp::SymbolKind::VARIABLE,
-                                        tags: None,
-                                        deprecated: None,
-                                        location: lsp::Location { uri: uri.clone(), range: vr },
-                                        container_name: Some(m.signature.name.clone()),
-                                    });
-                                }
-                            }
-                        }
-                    }
                     HirItem::Fn(f) => {
                         if let Ok(uri) = lsp::Url::from_file_path(defined_in) {
                             // Local variables within function body
@@ -863,20 +746,6 @@ impl Backend {
                                     deprecated: None,
                                     location: lsp::Location { uri: uri.clone(), range: vr },
                                     container_name: Some(f.signature.name.clone()),
-                                });
-                            }
-                        }
-                    }
-                    HirItem::Trait(t) => {
-                        if let Ok(uri) = lsp::Url::from_file_path(defined_in) {
-                            for m in &t.methods {
-                                out.push(lsp::SymbolInformation {
-                                    name: m.name.clone(),
-                                    kind: lsp::SymbolKind::METHOD,
-                                    tags: None,
-                                    deprecated: None,
-                                    location: lsp::Location { uri: uri.clone(), range },
-                                    container_name: Some(t.name.clone()),
                                 });
                             }
                         }
@@ -1318,9 +1187,6 @@ impl LanguageServer for Backend {
             for item in &analysis.hir {
                 match item {
                     HirItem::Fn(f) if f.defined_in == path => candidate_blocks.push(&f.body),
-                    HirItem::Impl(imp) if imp.defined_in == path => {
-                        for m in &imp.methods { candidate_blocks.push(&m.body); }
-                    }
                     _ => {}
                 }
             }
@@ -1356,9 +1222,6 @@ impl LanguageServer for Backend {
             for item in &analysis.hir {
                 match item {
                     HirItem::Fn(f) if f.defined_in == path => candidate_blocks.push(&f.body),
-                    HirItem::Impl(imp) if imp.defined_in == path => {
-                        for m in &imp.methods { candidate_blocks.push(&m.body); }
-                    }
                     _ => {}
                 }
             }
