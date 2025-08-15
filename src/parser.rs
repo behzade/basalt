@@ -58,10 +58,10 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
 
         let record_field = ident().then_ignore(just(Token::Colon)).then(type_p.clone());
         let record_type = record_field
-                            .separated_by(just(Token::Comma))
-                            .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace))
+            .separated_by(just(Token::Comma))
+            .allow_trailing()
+            .collect::<Vec<_>>()
+            .delimited_by(just(Token::LBrace), just(Token::RBrace))
             .map(TypeNode::Record)
             .map_with(|node, e| Spanned { node, span: e.span() });
 
@@ -86,7 +86,27 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
             .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
             .map_with(|node, e| Spanned { node, span: e.span() });
 
-        choice((fn_type, record_type, never_type, path_type)).boxed()
+        let atom = choice((fn_type, record_type, never_type, path_type)).boxed();
+
+        // anonymous union types: low precedence, right-associative A | B | C
+        atom.clone()
+            .then(
+                select! { Token::Op(op) if op == "|" => () }
+                    .ignore_then(type_p.clone())
+                    .repeated()
+                    .collect::<Vec<_>>()
+            )
+            .map_with(|(first, mut rest), e| {
+                if rest.is_empty() {
+                    first
+                } else {
+                    let mut types = Vec::with_capacity(1 + rest.len());
+                    types.push(first);
+                    types.append(&mut rest);
+                    Spanned { node: TypeNode::Union(types), span: e.span() }
+                }
+            })
+            .boxed()
     })
     .boxed()
     .labelled("type")
@@ -197,19 +217,24 @@ fn expression_bundle<'src>() -> (
             acc
         });
 
-    // Struct init: Path '{' name: expr, ... '}'
-    let struct_fields = ident()
-        .then_ignore(just(Token::Colon).labelled("colon"))
-        .then(expr.clone())
-        .separated_by(just(Token::Comma))
-        .allow_trailing()
-        .collect::<Vec<_>>()
-        .delimited_by(just(Token::LBrace), just(Token::RBrace))
-        .labelled("struct fields");
+    // Struct/union init fields: '{' name: expr, ... '}'
+    let make_struct_fields = {
+        let expr = expr.clone();
+        move || {
+            ident()
+                .then_ignore(just(Token::Colon).labelled("colon"))
+                .then(expr.clone())
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                .labelled("struct fields")
+        }
+    };
 
     let struct_init = path()
         .map_with(|p, e| (p, e.span()))
-        .then(struct_fields.map_with(|fs, e| (fs, e.span())))
+        .then(make_struct_fields().map_with(|fs, e| (fs, e.span())))
         .map(|((p, p_span), (fields, fields_span))| {
             let span = SimpleSpan { context: (), start: p_span.start, end: fields_span.end };
             Spanned { node: ExprNode::StructInit { path: p, generics: vec![], fields }, span }
@@ -217,7 +242,21 @@ fn expression_bundle<'src>() -> (
         .labelled("struct init")
         .boxed();
 
-    let atom = choice((unit, lit, perform, with_block, block.clone(), struct_init, record_literal_expr(expr.clone()),
+    // Union constructor: Path :: Variant { fields }
+    let double_colon = select! { Token::Colon => () }.then(select! { Token::Colon => () }).to(());
+    let union_init = path()
+        .map_with(|p, e| (p, e.span()))
+        .then_ignore(double_colon)
+        .then(ident())
+        .then(make_struct_fields().map_with(|fs, e| (fs, e.span())))
+        .map(|(((p, p_span), variant), (fields, fields_span))| {
+            let span = SimpleSpan { context: (), start: p_span.start, end: fields_span.end };
+            Spanned { node: ExprNode::UnionInit { path: p, variant, fields }, span }
+        })
+        .labelled("union init")
+        .boxed();
+
+    let atom = choice((unit, lit, perform, with_block, block.clone(), union_init, struct_init, record_literal_expr(expr.clone()),
         path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
         expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))
@@ -249,16 +288,18 @@ fn expression_bundle<'src>() -> (
     .map(|l| PatternNode::Literal(l))
     .map_with(|n, e| Spanned { node: n, span: e.span() });
 
-    let variant_pat = ident()
-        .then(pat_rec.clone().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LParen), just(Token::RParen)))
-        .map(|(name, args)| PatternNode::Path { path: vec![name], args })
+    // New variant bind pattern: name: Path
+    let variant_bind_pat = ident()
+        .then_ignore(just(Token::Colon))
+        .then(path())
+        .map(|(binding, variant_path)| PatternNode::VariantBind { binding, variant_path })
         .map_with(|n, e| Spanned { node: n, span: e.span() });
 
     let ident_pat = ident()
         .map(|n| PatternNode::Identifier(n))
         .map_with(|n, e| Spanned { node: n, span: e.span() });
 
-    pat_rec.define(choice((wildcard, lit_pat, variant_pat, ident_pat)).boxed());
+    pat_rec.define(choice((wildcard, lit_pat, variant_bind_pat, ident_pat)).boxed());
 
     let arm = select! { Token::Op(op) if op == "|" => () }
         .ignore_then(pat_rec.clone())
@@ -499,17 +540,15 @@ fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src
     let vis = just(Token::Pub).or_not().map(|m| m.is_some());
     vis.then_ignore(just(Token::Fn))
         .then(fn_signature_parser())
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(
-            // Allow empty function bodies: either a normal expr, or an empty block
-            expr.clone().or(block.map(|b| {
-                // Ensure the empty block becomes a unit literal if empty
+            // Only direct block bodies (no '=')
+            block.clone().map(|b| {
                 match &b.node {
                     ExprNode::Block { stmts, last_expr } if stmts.is_empty() && last_expr.is_none() =>
                         Spanned { node: ExprNode::Literal(Literal::Unit), span: b.span },
                     _ => b,
                 }
-            }))
+            })
         )
         .map(|(((is_public, (name, params, ret_type, effects)), body))| Function { name, generics: vec![], params, ret_type, effects, body, is_public })
         .labelled("function definition")
@@ -521,7 +560,8 @@ fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'sr
         .then(ident())
         .then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()))
-        .map(|(((is_public, name), params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public });
+        .map(|(((is_public, name), params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public })
+        .boxed();
     vis.clone()
         .then_ignore(just(Token::Effect))
         .then(
@@ -533,8 +573,7 @@ fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'sr
                     .ignored()
             ).map(|(name, _)| name)
         )
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
-        .then(op.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
+        .then(op.clone().repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
         .map(|(((is_public, name), operations))| EffectDef { name, operations, is_public })
 }
 
@@ -545,7 +584,7 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
         .then(with_types(|| type_parser()))
         .map(|(primary, mut rest)| { let mut v = vec![primary]; v.append(&mut rest); v });
     let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
-    // Handler supports either '= { ... }' or inline '{ ... }' as in tests
+    // Handler supports either '= { ... }' or inline '{ ... }'
     let make_block = ||
         just(Token::LBrace)
             .ignore_then(trivia())
@@ -556,38 +595,11 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
         .then_ignore(just(Token::Handler))
         .then(ident())
         .then(effects)
-        .then(
-            choice((
-                make_block(),
-                just(Token::Op("=".to_string())).ignore_then(make_block()),
-            )),
-        )
+        .then(make_block())
         .map(|((((is_public, name), effects), functions))| HandlerDef { name, effects, functions, is_public })
 }
 
-fn interface_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TraitDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ty = type_parser();
-    let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
-    let param = just(Token::Mut)
-        .or_not()
-        .ignore_then(ident())
-        .then(just(Token::Colon).ignore_then(type_parser()).or_not())
-        .map(|(n, t)| (Some(n), t.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![n], generics: vec![] }, span: SimpleSpan { context: (), start: 0, end: 0 } })));
-    let sig = just(Token::Pub)
-        .or_not()
-        .map(|m| m.is_some())
-        .then(ident())
-        .then(param.separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LParen), just(Token::RParen)))
-        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-         .then(with_types(|| type_parser()))
-        .map(|((((is_public, name), params), ret_type), _effects)| TraitMethod { name, params, ret_type, is_public });
-    vis
-        .then_ignore(just(Token::Interface))
-        .then(ident())
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
-        .then(sig.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
-        .map(|(((is_public, name), methods))| TraitDef { name, methods, is_public })
-}
+// interface_parser removed
 
 fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src str, Vec<(Option<&'src str>, Type<'src>)>, Option<Type<'src>>, Vec<Type<'src>>), extra::Err<Rich<'src, Token<'src>>>> {
     ident()
@@ -598,20 +610,9 @@ fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src 
         .labelled("function signature")
 }
 
-fn impl_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], ImplBlock<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ty = type_parser();
-    let iface = just(Token::Colon).ignore_then(path()).or_not();
-    let fndef = fn_def_parser();
-    just(Token::Impl)
-        .ignore_then(ty)
-        .then(iface)
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
-        .then(fndef.repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
-        .map(|((target_type, interface), methods)| ImplBlock { target_type, interface, methods })
-}
+// impl_parser removed
 
 fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAliasDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let ty = type_parser();
     let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
     let generics = ident()
         .separated_by(just(Token::Comma))
@@ -621,17 +622,43 @@ fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAlias
         .or_not()
         .map(|g| g.unwrap_or_default());
 
-    let variant = ident().then(type_parser().delimited_by(just(Token::LParen), just(Token::RParen)).or_not());
-    let union_body = ident().then(type_parser().delimited_by(just(Token::LParen), just(Token::RParen)).or_not()).separated_by(select! { Token::Op(op) if op == "|" => () }).at_least(1).collect::<Vec<_>>().map(TypeAliasBody::Union);
-    let record_field = just(Token::Pub).or_not().map(|m| m.is_some()).then(ident()).then_ignore(just(Token::Colon)).then(type_parser()).map(|(((is_public, name), ty))| RecordField { name, ty, is_public });
-    let record_body = record_field.separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)).map(TypeAliasBody::Record);
-    let body = choice((record_body, union_body, type_parser().map(TypeAliasBody::Type)));
-    let name_with_vis = vis.then(just(Token::Type).ignore_then(ident()));
-    name_with_vis
+    // Tagged union: Tag: Type (| Tag: Type)*
+    let tagged_variant = ident().then_ignore(just(Token::Colon)).then(type_parser());
+    let tagged_union_body = tagged_variant
+        .separated_by(select! { Token::Op(op) if op == "|" => () })
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .map(|vs| TypeAliasBody::Union { variants: vs });
+
+    let body = choice((tagged_union_body, type_parser().map(TypeAliasBody::Type)));
+    vis
+        .then(just(Token::Type).ignore_then(ident()))
         .then(generics)
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(body)
         .map(|(((is_public, name), generics), aliased)| TypeAliasDef { name, generics, aliased, is_public })
+}
+
+fn struct_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], StructDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let vis = just(Token::Pub).or_not().map(|m| m.is_some());
+    let field = just(Token::Pub)
+        .or_not()
+        .map(|m| m.is_some())
+        .then(ident())
+        .then_ignore(just(Token::Colon))
+        .then(type_parser())
+        .map(|(((is_public, name), ty))| (name, ty));
+    vis
+        .then_ignore(just(Token::Struct))
+        .then(ident())
+        .then(
+            field
+                .separated_by(just(Token::Comma))
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+        )
+        .map(|((is_public, name), fields)| StructDef { name, generics: vec![], fields, is_public })
 }
 
 fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
@@ -639,11 +666,11 @@ fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, ext
     choice((
         import_parser(),
         spanned(fn_def_parser().map(ItemNode::Fn)),
-        spanned(interface_parser().map(ItemNode::Trait)),
+        // interface_parser and impl_parser removed
         spanned(effect_parser().map(ItemNode::Effect)),
         spanned(handler_parser().map(ItemNode::Handler)),
         spanned(type_alias_parser().map(ItemNode::TypeAlias)),
-        spanned(impl_parser().map(ItemNode::Impl)),
+        spanned(struct_def_parser().map(ItemNode::Struct)),
         stmt.map_with(|s, e| Spanned { node: ItemNode::Stmt(s), span: e.span() }),
     ))
     .padded_by(trivia())

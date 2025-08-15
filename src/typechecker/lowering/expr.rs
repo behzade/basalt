@@ -406,6 +406,22 @@ impl Typechecker {
                 let result_ty = result_ty.unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
                 Ok(hir::Expr { ty: result_ty, kind: hir::ExprKind::Match { scrutinee: Box::new(scrutinee_hir), arms: lowered_arms }, span: expr.span, resolution: None })
             }
+            OwnedExpr::UnionInit { path, variant, fields } => {
+                // Lower as struct-like construction of enum variant: Enum::Variant { ... }
+                // Resolve the enum type from path
+                let enum_ty = if let Some(item) = self.type_definitions.get(&path) {
+                    match item {
+                        hir::Item::Enum(_) => hir::Ty::Adt(hir::AdtTy::Enum { name: path.clone(), generics: vec![] }),
+                        _ => hir::Ty::Generic("_unknown".to_string()),
+                    }
+                } else { hir::Ty::Generic("_unknown".to_string()) };
+                let mut lowered_fields = Vec::new();
+                for (n, v) in fields {
+                    let e = self.lower_expr(v, context.clone())?;
+                    lowered_fields.push((n, e));
+                }
+                Ok(hir::Expr { ty: enum_ty, kind: hir::ExprKind::StructInit { path: { let mut p = path.clone(); p.push(variant); p }, fields: lowered_fields }, span: expr.span, resolution: None })
+            }
             OwnedExpr::Perform { path, args } => {
                 let (ret_ty, _param_tys) = self.resolve_effect_op(&path).unwrap_or((hir::Ty::Special(hir::SpecialTy::Unit), vec![]));
                 let mut lowered_args = Vec::new();

@@ -1,23 +1,19 @@
-interface WithAge = {
-    get_age(self) -> i32
-    up_age_by(mut self, age: i32) -> i32
-}
-
-type Person = {
+struct Person {
     name: str,
     age: i32,
 }
 
-impl Person = {
-    fn new(name: str, age: i32) -> Person = { Person { name: name, age: age } }
+fn get_age(p: Person) -> i32 {
+    p.age
 }
 
-impl Person: WithAge = {
-    fn get_age(self) -> i32 = { self.age }
-    fn up_age_by(mut self, n: i32) -> i32 = { self.age <- self.age + n; self.age }
+fn up_age_by(mut p: Person, by: i32) -> i32 {
+    p.age <- p.age + by
+    p.age
 }
 
-fn main() -> i32 = {
+
+fn main() -> i32 {
     let mut p: Person = Person { name: "behzad", age: 10 }
     let age = p.get_age()
     let inc = p.up_age_by(2)
