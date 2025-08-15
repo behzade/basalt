@@ -13,7 +13,6 @@ pub enum Token<'src> {
     Mut,
     Type,
     Struct,
-    Trait,
     Fn,
     
     Import,
@@ -74,7 +73,6 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Let => write!(f, "let"),
             Token::Mut => write!(f, "mut"),
             Token::Struct => write!(f, "struct"),
-            Token::Trait => write!(f, "trait"),
             Token::Type => write!(f, "type"),
             Token::Fn => write!(f, "fn"),
             
@@ -135,7 +133,6 @@ pub enum OwnedToken {
     Mut,
     Type,
     Struct,
-    Trait,
     Fn,
     
     Import,
@@ -196,7 +193,6 @@ impl From<Token<'_>> for OwnedToken {
             Token::Let => OwnedToken::Let,
             Token::Mut => OwnedToken::Mut,
             Token::Struct => OwnedToken::Struct,
-            Token::Trait => OwnedToken::Trait,
             Token::Type => OwnedToken::Type,
             Token::Fn => OwnedToken::Fn,
             

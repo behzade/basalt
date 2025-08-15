@@ -79,7 +79,6 @@ pub fn lexer<'src>()
         "mut" => Token::Mut,
         "type" => Token::Type,
         "struct" => Token::Struct,
-        "trait" => Token::Trait,
         "fn" => Token::Fn,
         // removed language keywords: interface, satisfies, impl
         "import" => Token::Import,

@@ -58,7 +58,6 @@ pub enum PrimitiveTy {
 pub enum AdtTy {
     Struct { name: OwnedPath, generics: Vec<Ty> },
     Enum { name: OwnedPath, generics: Vec<Ty> },
-    Trait { name: OwnedPath, generics: Vec<Ty> },
     Effect { name: OwnedPath, generics: Vec<Ty> },
 }
 

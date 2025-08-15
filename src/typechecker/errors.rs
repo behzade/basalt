@@ -50,7 +50,6 @@ impl super::checker::Typechecker {
             Ty::Generic(name) => name.clone(),
             Ty::Adt(AdtTy::Struct { name, generics })
             | Ty::Adt(AdtTy::Enum { name, generics })
-            | Ty::Adt(AdtTy::Trait { name, generics })
             | Ty::Adt(AdtTy::Effect { name, generics }) => {
                 let path = name.join("::");
                 if generics.is_empty() {

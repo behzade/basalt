@@ -450,7 +450,6 @@ impl Backend {
             Ty::Primitive(PrimitiveTy::Str) => "str".to_string(),
             Ty::Adt(AdtTy::Struct { name, generics })
             | Ty::Adt(AdtTy::Enum { name, generics })
-            | Ty::Adt(AdtTy::Trait { name, generics })
             | Ty::Adt(AdtTy::Effect { name, generics }) => {
                 let base = name.join("::");
                 if generics.is_empty() {
