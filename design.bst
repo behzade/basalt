@@ -79,6 +79,7 @@ fn main() -> i32 {
 
     let out2 = division(10, 2) with {OsExitPanic}
     fmt::println(out2) // prints 5
+    0
 }
 
 

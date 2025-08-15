@@ -79,12 +79,9 @@ pub fn lexer<'src>()
         "mut" => Token::Mut,
         "type" => Token::Type,
         "struct" => Token::Struct,
-        "enum" => Token::Enum,
         "trait" => Token::Trait,
-        "interface" => Token::Interface,
-        "satisfies" => Token::Satisfies,
         "fn" => Token::Fn,
-        "impl" => Token::Impl,
+        // removed language keywords: interface, satisfies, impl
         "import" => Token::Import,
         "as" => Token::As,
         "while" => Token::While,

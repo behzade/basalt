@@ -553,10 +553,9 @@ fn expression_bundle<'src>() -> (
 
     let expr_stmt = expr.clone().map_with(|e1, e| Spanned { node: StmtNode::Expr(e1), span: e.span() });
 
-    // Allow `fn` inside blocks as a local function declaration (treated as no-op for now)
+    // Allow `fn` inside blocks as a local function declaration with a direct block body (no '=')
     let local_fn_stmt = just(Token::Fn)
         .ignore_then(fn_signature_parser())
-        .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(block.clone())
         .map_with(|_, e| Spanned { node: StmtNode::Expr(Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() }), span: e.span() })
         .labelled("local function");
