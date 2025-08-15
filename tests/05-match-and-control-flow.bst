@@ -5,7 +5,7 @@ struct Company { company_id: i32, name: str }
 type UserType = B2B: Company | B2C: Person
 
 fn main() -> i32 {
-    let mut person: Person = { Person { name: "behzad", age: 12 } }
+    let mut person: Person = Person{ name: "behzad", age: 12 }
     let user: UserType = UserType::B2B{company_id: 1, name: "acme" }
 
     let match_result = match user
