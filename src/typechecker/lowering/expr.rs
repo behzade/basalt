@@ -329,6 +329,29 @@ impl Typechecker {
                             return Ok(hir::Expr { ty: signature.ret_type.clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_expr), args: lowered_args }, span: expr.span, resolution: fun_resolution });
                         }
 
+                        // Fallback: calling a variable of function type (e.g., `task()`)
+                        if signature_opt.is_none() {
+                            if let Ok(fun_hir) = self.lower_expr(*fun.clone(), context.clone()) {
+                                if let hir::Ty::Function { param_types, ret_type, effects } = fun_hir.ty.clone() {
+                                    let mut lowered_args = Vec::new();
+                                    for (idx, arg) in adjusted_args.into_iter().enumerate() {
+                                        let arg_expr = if let Some(p) = param_types.get(idx) {
+                                            self.lower_expr_with_expected(arg, p.clone(), context.clone())?
+                                        } else {
+                                            self.lower_expr(arg, context.clone())?
+                                        };
+                                        lowered_args.push(arg_expr);
+                                    }
+                                    if lowered_args.len() != param_types.len() {
+                                        self.errors.push(TypeError { message: format!(
+                                            "Function value expects {} args, found {}", param_types.len(), lowered_args.len()
+                                        ), context: context.clone() });
+                                    }
+                                    return Ok(hir::Expr { ty: (*ret_type).clone(), kind: hir::ExprKind::Call { fun: Box::new(fun_hir), args: lowered_args }, span: expr.span, resolution: None });
+                                }
+                            }
+                        }
+
                         if let Some((union_path, payload_types)) = self.find_union_variant(&name) {
                             let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum { name: union_path.clone(), generics: vec![] });
                             let expected_payload_ty = payload_types.as_ref().and_then(|v| v.get(0)).cloned();
@@ -366,6 +389,20 @@ impl Typechecker {
                         Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Call { fun: Box::new(fun_hir), args: lowered_args }, span: expr.span, resolution: None })
                     }
                 }
+            }
+            OwnedExpr::FnLiteral { params, ret_type, effects, body } => {
+                // Lower a function literal into a closure-like function value with explicit type
+                let mut param_types: Vec<hir::Ty> = Vec::new();
+                for (_name_opt, ty) in params {
+                    param_types.push(self.resolve_type(&ty, context.clone())?);
+                }
+                let ret_ty = if let Some(rt) = ret_type { self.resolve_type(&rt, context.clone())? } else { hir::Ty::Special(hir::SpecialTy::Unit) };
+                let mut eff_tys: Vec<hir::Ty> = Vec::new();
+                for e in effects { eff_tys.push(self.resolve_type(&e, context.clone())?); }
+                // Lower body as a block expression; treat as value of function type
+                let body_hir = self.lower_expr(*body, context.clone())?;
+                let fn_ty = hir::Ty::Function { param_types: param_types.clone(), ret_type: Box::new(ret_ty.clone()), effects: eff_tys };
+                Ok(hir::Expr { kind: hir::ExprKind::Block(match body_hir.kind.clone() { hir::ExprKind::Block(b) => b, _ => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(body_hir.clone())), ty: body_hir.ty.clone() } }), ty: fn_ty, span: expr.span, resolution: None })
             }
             OwnedExpr::Block { stmts, last_expr } => {
                 self.enter_scope();
@@ -441,9 +478,36 @@ impl Typechecker {
                 Ok(hir::Expr { ty: enum_ty, kind: hir::ExprKind::StructInit { path: { let mut p = path.clone(); p.push(variant); p }, fields: lowered_fields }, span: expr.span, resolution: None })
             }
             OwnedExpr::Perform { path, args } => {
-                let (ret_ty, _param_tys) = self.resolve_effect_op(&path).unwrap_or((hir::Ty::Special(hir::SpecialTy::Unit), vec![]));
+                // Enforce that this perform is allowed in the current function's effect list
+                let effect_name = path.get(0).cloned().unwrap_or_default();
+                if let Some(current_allowed) = self.current_effects_stack.last() {
+                    let mut effect_allowed = false;
+                    for eff in current_allowed {
+                        match eff {
+                            hir::Ty::Adt(hir::AdtTy::Effect { name, .. }) => {
+                                if name.last().map(|s| s == &effect_name).unwrap_or(false) { effect_allowed = true; break; }
+                            }
+                            hir::Ty::Generic(n) => {
+                                if n == &effect_name { effect_allowed = true; break; }
+                            }
+                            _ => {}
+                        }
+                    }
+                    if !effect_allowed {
+                        self.errors.push(TypeError { message: format!("Effect `{}` is not allowed here; add it to the function's effect list", effect_name), context: context.clone() });
+                    }
+                }
+                let (mut ret_ty, param_tys) = self.resolve_effect_op(&path).unwrap_or((hir::Ty::Special(hir::SpecialTy::Unit), vec![]));
                 let mut lowered_args = Vec::new();
                 for a in args { match self.lower_expr(a.clone(), context.clone()) { Ok(e) => lowered_args.push(e), Err(_) => lowered_args.push(hir::Expr { kind: hir::ExprKind::Error, ty: hir::Ty::Generic("_unknown".to_string()), span: a.span, resolution: None }), } }
+                // Specialize Async.await(task: () -> T) -> T based on argument
+                if path.len() == 2 && path[0] == "Async" && path[1] == "await" {
+                    if let Some(task_expr) = lowered_args.get(0) {
+                        if let hir::Ty::Function { ret_type, .. } = &task_expr.ty {
+                            ret_ty = (*ret_type.clone()).clone();
+                        }
+                    }
+                }
                 Ok(hir::Expr { ty: ret_ty, kind: hir::ExprKind::Perform { path, args: lowered_args }, span: expr.span, resolution: None })
             }
             OwnedExpr::Handle { body, handler } => {

@@ -273,7 +273,19 @@ fn expression_bundle<'src>() -> (
         .labelled("union init")
         .boxed();
 
-    let atom = choice((unit, lit, perform, with_block, block.clone(), union_init, struct_init,
+    // Anonymous function literal expression: fn(...) -> ... with { ... } { ... }
+    // fn literal: fn(params) -> ret with {effects} { body }
+    let fn_lit_expr = just(Token::Fn)
+        .ignore_then(params_parser())
+        .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
+        .then(with_types(|| type_parser()))
+        .then(block.clone())
+        .map_with(|(((params, ret_type), effects), body), e| {
+            Spanned { node: ExprNode::FnLiteral { params, ret_type, effects, body: Box::new(body) }, span: e.span() }
+        })
+        .labelled("fn literal");
+
+    let atom = choice((unit, lit, perform, with_block, fn_lit_expr, block.clone(), union_init, struct_init,
         path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
         expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
     ))
@@ -522,6 +534,8 @@ fn expression_bundle<'src>() -> (
     let expr_stmt = expr.clone().map_with(|e1, e| Spanned { node: StmtNode::Expr(e1), span: e.span() });
 
     // Allow `fn` inside blocks as a local function declaration with a direct block body (no '=')
+    // Desugar to: let name: (params)->ret with {effects} = {body}
+    // Local function statement remains unsupported; prefer explicit let with fn-literal
     let local_fn_stmt = just(Token::Fn)
         .ignore_then(fn_signature_parser())
         .then(block.clone())

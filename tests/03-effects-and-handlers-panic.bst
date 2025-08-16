@@ -1,11 +1,15 @@
+import {
+    std::os
+}
+
+
 effect Panic {
     panic(msg: str) -> !
 }
 
 handler OsExitPanic: Panic {
     fn panic(msg: str) -> ! {
-        // imagine os.exit here
-        perform Panic.panic("unreachable")
+        os::exit(1);
     }
 }
 

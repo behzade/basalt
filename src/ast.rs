@@ -125,6 +125,13 @@ pub enum ExprNode<'src> {
         body: Box<Expr<'src>>,
         handler: HandlerBody<'src>,
     },
+    /// Anonymous function literal: fn(params) -> ret with {effects} { body }
+    FnLiteral {
+        params: Vec<(Option<&'src str>, Type<'src>)>,
+        ret_type: Option<Type<'src>>,
+        effects: Vec<Type<'src>>,
+        body: Box<Expr<'src>>,
+    },
     Cast {
         expr: Box<Expr<'src>>,
         ty: Type<'src>,

@@ -22,6 +22,10 @@ pub type SpannedPattern = Spanned<OwnedPattern>;
 pub struct OwnedType {
     pub path: Vec<String>,
     pub generics: Vec<OwnedType>,
+    // Optional function type shape when `path == ["fn"]`
+    pub fn_params: Option<Vec<OwnedType>>,
+    pub fn_ret: Option<Box<OwnedType>>,
+    pub fn_effects: Option<Vec<OwnedType>>,
 }
 
 /// Owned version of Function for symbol signatures
@@ -179,6 +183,13 @@ pub enum OwnedExpr {
     Handle {
         body: Box<SpannedExpr>, // UPDATED
         handler: OwnedHandlerBody,
+    },
+    /// Anonymous function literal: fn(params) -> ret with {effects} { body }
+    FnLiteral {
+        params: Vec<(Option<String>, OwnedType)>,
+        ret_type: Option<OwnedType>,
+        effects: Vec<OwnedType>,
+        body: Box<SpannedExpr>,
     },
     Cast {
         expr: Box<SpannedExpr>, // UPDATED
@@ -555,22 +566,37 @@ impl<'src> From<&Type<'src>> for OwnedType {
             TypeNode::Path { path, generics } => OwnedType {
                 path: path.iter().map(|s| s.to_string()).collect(),
                 generics: generics.iter().map(|g| g.into()).collect(),
+                fn_params: None,
+                fn_ret: None,
+                fn_effects: None,
             },
             TypeNode::Union(_) => OwnedType {
                 path: vec!["union".to_string()],
                 generics: vec![],
+                fn_params: None,
+                fn_ret: None,
+                fn_effects: None,
             },
-            TypeNode::Function { .. } => OwnedType {
+            TypeNode::Function { params, ret, effects } => OwnedType {
                 path: vec!["fn".to_string()],
                 generics: vec![],
+                fn_params: Some(params.iter().map(|t| t.into()).collect()),
+                fn_ret: Some(Box::new(ret.as_ref().into())),
+                fn_effects: Some(effects.iter().map(|t| t.into()).collect()),
             },
             TypeNode::Handler { .. } => OwnedType {
                 path: vec!["handler".to_string()],
                 generics: vec![],
+                fn_params: None,
+                fn_ret: None,
+                fn_effects: None,
             },
             TypeNode::Never => OwnedType {
                 path: vec!["!".to_string()],
                 generics: vec![],
+                fn_params: None,
+                fn_ret: None,
+                fn_effects: None,
             },
         }
     }
@@ -651,6 +677,12 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
             ExprNode::Handle { body, handler } => OwnedExpr::Handle {
                 body: Box::new(body.as_ref().into()),
                 handler: handler.into(), // Assumes HandlerBody has a From impl
+            },
+            ExprNode::FnLiteral { params, ret_type, effects, body } => OwnedExpr::FnLiteral {
+                params: params.iter().map(|(n, t)| (n.map(|s| s.to_string()), t.into())).collect(),
+                ret_type: ret_type.as_ref().map(|t| t.into()),
+                effects: effects.iter().map(|t| t.into()).collect(),
+                body: Box::new(body.as_ref().into()),
             },
             ExprNode::Cast { expr, ty } => OwnedExpr::Cast {
                 expr: Box::new(expr.as_ref().into()),

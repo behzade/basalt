@@ -15,7 +15,7 @@ handler Scheduler: Async<T> {
 
 handler HttpHandler: Http with Async<str> {
     fn get(url: str) -> str with {Async<str>} {
-        fn http_task() -> str { "<html>" }
+        let http_task = fn() -> str { "<html>" }
         let content = perform Async.await(http_task)
         content
     }
