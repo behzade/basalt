@@ -1,6 +1,6 @@
 // file based modules, each directory is a module, self refers to src directory, other modules are in ./modules
 import {
-    std::os
+    std::runtime
     std::fmt
     std::fmt as second_fmt // aliasing. if imports have conflicts, compiler forces you to use an alias
     std::collections::vector
@@ -32,7 +32,7 @@ effect Panic {
 
 handler OsExitPanic: Panic {
     fn panic(msg: str) -> ! {
-        os::exit(1)
+        runtime::exit(1)
     }
 }
 

@@ -80,6 +80,12 @@ impl Typechecker {
     pub(crate) fn push_context(&mut self, id: ContextId) { self.current_context_stack.push(id); }
     pub(crate) fn pop_context(&mut self) { let _ = self.current_context_stack.pop(); }
     pub(crate) fn current_context(&self) -> Option<ContextId> { self.current_context_stack.last().copied() }
+
+    fn is_magic_runtime_file(&self, path: &PathBuf) -> bool {
+        let s = path.to_string_lossy();
+        // Only treat modules under /modules/std/runtime/ as compiler-magic
+        s.contains("/modules/std/runtime/") || s.contains("\\modules\\std\\runtime\\")
+    }
     pub fn check_program(
         &mut self,
         files: HashMap<PathBuf, Vec<OwnedItemWithSpan>>,
@@ -248,50 +254,50 @@ impl Typechecker {
             self.add_symbol_to_current_scope(p.name.clone(), symbol);
         }
 
-        // 3. Lower the function body (propagate expected return type to help record literals, etc.).
-        // The AST has an `OwnedExpr` body, while the HIR expects a `HirBlock`.
-        // We lower the expression with the expected return type and ensure it's a block.
-        let body_expr = self.lower_expr_with_expected(
-            func.body,
-            signature.ret_type.clone(),
-            context.clone(),
-        )?;
-        let body_span = body_expr.span;
-        let body_block = match body_expr.kind {
-            hir::ExprKind::Block(block) => {
-                if block.ty != signature.ret_type {
-                    self.errors.push(TypeError {
-                        message: format!(
-                            "Mismatched return type for function '{}': expected {} but found {}",
-                            func.name,
-                            Typechecker::format_ty(&signature.ret_type),
-                            Typechecker::format_ty(&block.ty)
-                        ),
-                        context: context.clone(),
-                    });
+        // 3. Lower the function body...
+        // Special-case: compiler-magic std runtime files have no meaningful bodies; assume signature is correct
+        let (body_block, body_span) = if self.is_magic_runtime_file(&context.path) {
+            let block = hir::HirBlock { stmts: vec![], last_expr: None, ty: signature.ret_type.clone() };
+            (block, context.span)
+        } else {
+            let body_expr = self.lower_expr_with_expected(
+                func.body,
+                signature.ret_type.clone(),
+                context.clone(),
+            )?;
+            let body_span = body_expr.span;
+            let body_block = match body_expr.kind {
+                hir::ExprKind::Block(block) => {
+                    if block.ty != signature.ret_type {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Mismatched return type for function '{}': expected {} but found {}",
+                                func.name,
+                                Typechecker::format_ty(&signature.ret_type),
+                                Typechecker::format_ty(&block.ty)
+                            ),
+                            context: context.clone(),
+                        });
+                    }
+                    block
                 }
-                block
-            }
-            other_kind => {
-                // Allow expression bodies: wrap into a block with this expression as the value
-                let ty = body_expr.ty.clone();
-                if ty != signature.ret_type {
-                    self.errors.push(TypeError {
-                        message: format!(
-                            "Mismatched return type for function '{}': expected {} but found {}",
-                            func.name,
-                            Typechecker::format_ty(&signature.ret_type),
-                            Typechecker::format_ty(&ty)
-                        ),
-                        context: context.clone(),
-                    });
+                other_kind => {
+                    let ty = body_expr.ty.clone();
+                    if ty != signature.ret_type {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Mismatched return type for function '{}': expected {} but found {}",
+                                func.name,
+                                Typechecker::format_ty(&signature.ret_type),
+                                Typechecker::format_ty(&ty)
+                            ),
+                            context: context.clone(),
+                        });
+                    }
+                    hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone(), span: context.span, resolution: None })), ty }
                 }
-                hir::HirBlock {
-                    stmts: vec![],
-                    last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone(), span: context.span, resolution: None })),
-                    ty,
-                }
-            }
+            };
+            (body_block, body_span)
         };
 
         // 4. Clean up scope and context.

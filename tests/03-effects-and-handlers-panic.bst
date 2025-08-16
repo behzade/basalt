@@ -1,5 +1,5 @@
 import {
-    std::os
+    std::runtime
 }
 
 
@@ -9,7 +9,7 @@ effect Panic {
 
 handler OsExitPanic: Panic {
     fn panic(msg: str) -> ! {
-        os::exit(1);
+        runtime::exit(1);
     }
 }
 
