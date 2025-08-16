@@ -43,6 +43,7 @@ pub struct Workspace {
     pub ast: HashMap<PathBuf, Vec<Spanned<OwnedItem>>>,
     pub hir: Vec<hir::Item>,
     resolved_modules: HashSet<PathBuf>, // Add this field
+    pub last_run_result: Option<crate::interpreter::Value>,
 }
 
 impl Compiler {
@@ -331,6 +332,13 @@ impl Compiler {
             io::ErrorKind::Other,
             "build not implemented",
         ))
+    }
+
+    pub fn run_interpreter(&mut self) -> io::Result<()> {
+        let result = crate::interpreter::run_program(&self.workspace.hir)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.0))?;
+        self.workspace.last_run_result = Some(result);
+        Ok(())
     }
 
     // --- Error Reporting ---

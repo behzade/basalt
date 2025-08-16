@@ -14,6 +14,7 @@ mod parser;
 mod token;
 mod type_unifier;
 mod typechecker;
+mod interpreter;
 
 use crate::compiler::{Compiler, CompilerStage};
 use crate::{
@@ -48,6 +49,9 @@ enum Action {
         #[arg(short, long)]
         output: Option<String>,
     },
+    Run {
+        path: String,
+    },
 }
 
 impl Action {
@@ -58,6 +62,8 @@ impl Action {
             Action::Hir { .. } => CompilerStage::Hir,
             Action::Mir { .. } => CompilerStage::Mir,
             Action::Build { .. } => CompilerStage::Build,
+            // For run, we need HIR available; we'll invoke interpreter after run_until
+            Action::Run { .. } => CompilerStage::Hir,
         }
     }
 
@@ -67,7 +73,8 @@ impl Action {
             Action::Ast { path }
             | Action::Hir { path }
             | Action::Mir { path }
-            | Action::Build { path, .. } => path,
+            | Action::Build { path, .. }
+            | Action::Run { path } => path,
         }
     }
 }
@@ -89,17 +96,27 @@ fn main() -> io::Result<()> {
         // Use a non-zero exit code to indicate failure to shell scripts
         std::process::exit(1);
     } else {
-        // print the final ast if it's parse or resolve, or the hir if it's hir
-        match target_stage {
-            CompilerStage::Parse | CompilerStage::Resolve => {
+        // Only print for explicit actions, not for Run which shares the HIR stage
+        match &cli.action {
+            Action::Ast { .. } => {
                 let json_output = serde_json::to_string_pretty(&compiler.workspace.ast).unwrap();
                 println!("{}", json_output);
             }
-            CompilerStage::Hir => {
+            Action::Hir { .. } => {
                 let json_output = serde_json::to_string_pretty(&compiler.workspace.hir).unwrap();
                 println!("{}", json_output);
             }
             _ => {}
+        }
+
+        if matches!(cli.action, Action::Run { .. }) {
+            compiler
+                .run_interpreter()
+                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+            if let Some(val) = compiler.workspace.last_run_result.as_ref() {
+                let code = crate::interpreter::value_to_exit_code(val);
+                std::process::exit(code);
+            }
         }
     }
 

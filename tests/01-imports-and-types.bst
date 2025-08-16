@@ -17,7 +17,7 @@ type bbb = asd: unit | qwe: unit
 type UserType = B2B: Company | B2C: Person
 
 fn main() -> i32 {
-    io::println("Hello, world!")
+    io::print("Hello, world!")
     let person: Person = { Person { name: "behzad", age: 10 } }
     let company: Company = { Company { company_id: 1, name: "acme" } }
     let user1: UserType = UserType::B2B{ company_id: 1, name: "acme" }

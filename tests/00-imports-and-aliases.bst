@@ -1,11 +1,9 @@
 import {
-    std::fmt
     std::io
-    std::fmt as second_fmt
 }
 
 fn main() -> i32 {
-    fmt::println("hi")
-    io::println("hi")
+    io::print("hi\n")
+    io::print("hi2")
     0
 }

@@ -7,4 +7,5 @@ pub mod parser;
 pub mod token;
 pub mod type_unifier;
 pub mod typechecker;
+pub mod interpreter;
 
