@@ -11,8 +11,8 @@ Basalt is a statically typed, functional leaning language with a focus on simpli
 1. **Go prototype**: first pass on syntax/type ideas to validate design quickly.
 2. **Rust + Cranelift**: IR-based backend experiments and codegen trade‑offs.
 3. **Rust → direct WebAssembly**: skipping an IR to emit WASM directly.
-4. **Rust → Interpreter (current)**: exploring a more direct approach to execution. Since the language will have metaprogramming capabilities, we need an interpreter which will run the "meta" blocks of code in ``resolve`` step of the pipeline. We will use the same interpreter to execute the code before we have a proper llvm backend.
-5. **Self-Hosted -> LLVM (future)**: a self-hosted compiler that emits LLVM IR. The interpreter written in rust will be the bootstrap compiler.
+4. **Rust → Interpreter (current)**: interpreter executes meta blocks during the resolve step and is used for metaprogramming and bootstrapping.
+5. **Self-Hosted -> LLVM (future)**: long-term goal is a self-hosted compiler that emits LLVM IR for optimized native builds.
 
 ### What you will find here
 
@@ -43,6 +43,7 @@ Other subcommands (like `mir` or `build`) may be stubs during this iteration.
 
 ### Scope and non-goals
 
+- Runtime split: the compiler ships both the interpreter (for compile-time execution of meta blocks) and the LLVM backend (for optimized codegen). They coexist and serve different phases of the pipeline.
 - **No stability guarantees** and **no standard library**
 - No promises about error messages or ergonomics
 - Backwards compatibility is not considered
