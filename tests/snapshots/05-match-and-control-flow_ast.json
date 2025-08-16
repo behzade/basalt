@@ -2,72 +2,80 @@
   "tests/05-match-and-control-flow.bst": [
     {
       "item": {
-        "TypeAlias": {
+        "Struct": {
           "name": "Person",
           "generics": [],
-          "aliased": {
-            "Record": [
-              [
-                "name",
-                {
-                  "path": [
-                    "str"
-                  ],
-                  "generics": []
-                }
-              ],
-              [
-                "age",
-                {
-                  "path": [
-                    "i32"
-                  ],
-                  "generics": []
-                }
-              ]
+          "fields": [
+            [
+              "name",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "age",
+              {
+                "path": [
+                  "i32"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
             ]
-          },
-          "is_public": true
+          ],
+          "is_public": false
         }
       },
       "span": {
         "start": 0,
-        "end": 12
+        "end": 11
       }
     },
     {
       "item": {
-        "TypeAlias": {
+        "Struct": {
           "name": "Company",
           "generics": [],
-          "aliased": {
-            "Record": [
-              [
-                "company_id",
-                {
-                  "path": [
-                    "i32"
-                  ],
-                  "generics": []
-                }
-              ],
-              [
-                "name",
-                {
-                  "path": [
-                    "str"
-                  ],
-                  "generics": []
-                }
-              ]
+          "fields": [
+            [
+              "company_id",
+              {
+                "path": [
+                  "i32"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "name",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
             ]
-          },
-          "is_public": true
+          ],
+          "is_public": false
         }
       },
       "span": {
-        "start": 12,
-        "end": 24
+        "start": 11,
+        "end": 22
       }
     },
     {
@@ -83,7 +91,10 @@
                   "path": [
                     "Company"
                   ],
-                  "generics": []
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
                 }
               ],
               [
@@ -92,17 +103,20 @@
                   "path": [
                     "Person"
                   ],
-                  "generics": []
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
                 }
               ]
             ]
           },
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 24,
-        "end": 36
+        "start": 22,
+        "end": 32
       }
     },
     {
@@ -115,7 +129,10 @@
             "path": [
               "i32"
             ],
-            "generics": []
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
           },
           "effects": [],
           "body": {
@@ -131,78 +148,60 @@
                           "path": [
                             "Person"
                           ],
-                          "generics": []
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
                         },
                         "value": {
                           "item": {
-                            "Block": {
-                              "stmts": [
-                                {
-                                  "item": {
-                                    "Expr": {
-                                      "item": {
-                                        "StructInit": {
-                                          "path": [
-                                            "Person"
-                                          ],
-                                          "generics": [],
-                                          "fields": [
-                                            [
-                                              "name",
-                                              {
-                                                "item": {
-                                                  "Literal": {
-                                                    "Str": "behzad"
-                                                  }
-                                                },
-                                                "span": {
-                                                  "start": 55,
-                                                  "end": 56
-                                                }
-                                              }
-                                            ],
-                                            [
-                                              "age",
-                                              {
-                                                "item": {
-                                                  "Literal": {
-                                                    "I64": 12
-                                                  }
-                                                },
-                                                "span": {
-                                                  "start": 59,
-                                                  "end": 60
-                                                }
-                                              }
-                                            ]
-                                          ]
-                                        }
-                                      },
-                                      "span": {
-                                        "start": 51,
-                                        "end": 61
-                                      }
-                                    }
-                                  },
-                                  "span": {
-                                    "start": 51,
-                                    "end": 61
-                                  }
-                                }
+                            "StructInit": {
+                              "path": [
+                                "Person"
                               ],
-                              "last_expr": null
+                              "generics": [],
+                              "fields": [
+                                [
+                                  "name",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "behzad"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 49,
+                                      "end": 50
+                                    }
+                                  }
+                                ],
+                                [
+                                  "age",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "I64": 12
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 53,
+                                      "end": 54
+                                    }
+                                  }
+                                ]
+                              ]
                             }
                           },
                           "span": {
-                            "start": 50,
-                            "end": 62
+                            "start": 45,
+                            "end": 55
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 44,
-                      "end": 62
+                      "start": 39,
+                      "end": 55
                     }
                   },
                   {
@@ -214,101 +213,61 @@
                           "path": [
                             "UserType"
                           ],
-                          "generics": []
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
                         },
                         "value": {
                           "item": {
-                            "Call": {
-                              "fun": {
-                                "item": {
-                                  "Path": [
-                                    "B2B"
-                                  ]
-                                },
-                                "span": {
-                                  "start": 67,
-                                  "end": 68
-                                }
-                              },
-                              "args": [
-                                {
-                                  "item": {
-                                    "Block": {
-                                      "stmts": [
-                                        {
-                                          "item": {
-                                            "Expr": {
-                                              "item": {
-                                                "StructInit": {
-                                                  "path": [
-                                                    "Company"
-                                                  ],
-                                                  "generics": [],
-                                                  "fields": [
-                                                    [
-                                                      "company_id",
-                                                      {
-                                                        "item": {
-                                                          "Literal": {
-                                                            "I64": 1
-                                                          }
-                                                        },
-                                                        "span": {
-                                                          "start": 74,
-                                                          "end": 75
-                                                        }
-                                                      }
-                                                    ],
-                                                    [
-                                                      "name",
-                                                      {
-                                                        "item": {
-                                                          "Literal": {
-                                                            "Str": "acme"
-                                                          }
-                                                        },
-                                                        "span": {
-                                                          "start": 78,
-                                                          "end": 79
-                                                        }
-                                                      }
-                                                    ]
-                                                  ]
-                                                }
-                                              },
-                                              "span": {
-                                                "start": 70,
-                                                "end": 80
-                                              }
-                                            }
-                                          },
-                                          "span": {
-                                            "start": 70,
-                                            "end": 80
-                                          }
-                                        }
-                                      ],
-                                      "last_expr": null
+                            "StructInit": {
+                              "path": [
+                                "UserType",
+                                "B2B"
+                              ],
+                              "generics": [],
+                              "fields": [
+                                [
+                                  "company_id",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "I64": 1
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 67,
+                                      "end": 68
                                     }
-                                  },
-                                  "span": {
-                                    "start": 69,
-                                    "end": 81
                                   }
-                                }
+                                ],
+                                [
+                                  "name",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "acme"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 71,
+                                      "end": 72
+                                    }
+                                  }
+                                ]
                               ]
                             }
                           },
                           "span": {
-                            "start": 67,
-                            "end": 82
+                            "start": 60,
+                            "end": 73
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 62,
-                      "end": 82
+                      "start": 55,
+                      "end": 73
                     }
                   },
                   {
@@ -327,34 +286,24 @@
                                   ]
                                 },
                                 "span": {
-                                  "start": 86,
-                                  "end": 87
+                                  "start": 77,
+                                  "end": 78
                                 }
                               },
                               "arms": [
                                 [
                                   {
                                     "item": {
-                                      "Path": {
-                                        "path": [
+                                      "VariantBind": {
+                                        "binding": "b2b",
+                                        "variant_path": [
                                           "B2B"
-                                        ],
-                                        "args": [
-                                          {
-                                            "item": {
-                                              "Identifier": "b2b"
-                                            },
-                                            "span": {
-                                              "start": 90,
-                                              "end": 91
-                                            }
-                                          }
                                         ]
                                       }
                                     },
                                     "span": {
-                                      "start": 88,
-                                      "end": 92
+                                      "start": 79,
+                                      "end": 82
                                     }
                                   },
                                   {
@@ -367,42 +316,32 @@
                                             ]
                                           },
                                           "span": {
-                                            "start": 93,
-                                            "end": 94
+                                            "start": 83,
+                                            "end": 84
                                           }
                                         },
                                         "field": "name"
                                       }
                                     },
                                     "span": {
-                                      "start": 93,
-                                      "end": 96
+                                      "start": 83,
+                                      "end": 86
                                     }
                                   }
                                 ],
                                 [
                                   {
                                     "item": {
-                                      "Path": {
-                                        "path": [
+                                      "VariantBind": {
+                                        "binding": "b2c",
+                                        "variant_path": [
                                           "B2C"
-                                        ],
-                                        "args": [
-                                          {
-                                            "item": {
-                                              "Identifier": "b2c"
-                                            },
-                                            "span": {
-                                              "start": 99,
-                                              "end": 100
-                                            }
-                                          }
                                         ]
                                       }
                                     },
                                     "span": {
-                                      "start": 97,
-                                      "end": 101
+                                      "start": 87,
+                                      "end": 90
                                     }
                                   },
                                   {
@@ -415,16 +354,16 @@
                                             ]
                                           },
                                           "span": {
-                                            "start": 102,
-                                            "end": 103
+                                            "start": 91,
+                                            "end": 92
                                           }
                                         },
                                         "field": "name"
                                       }
                                     },
                                     "span": {
-                                      "start": 102,
-                                      "end": 105
+                                      "start": 91,
+                                      "end": 94
                                     }
                                   }
                                 ],
@@ -432,8 +371,8 @@
                                   {
                                     "item": "Wildcard",
                                     "span": {
-                                      "start": 106,
-                                      "end": 107
+                                      "start": 95,
+                                      "end": 96
                                     }
                                   },
                                   {
@@ -443,8 +382,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 108,
-                                      "end": 109
+                                      "start": 97,
+                                      "end": 98
                                     }
                                   }
                                 ]
@@ -452,15 +391,15 @@
                             }
                           },
                           "span": {
-                            "start": 85,
-                            "end": 109
+                            "start": 76,
+                            "end": 98
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 82,
-                      "end": 109
+                      "start": 73,
+                      "end": 98
                     }
                   },
                   {
@@ -486,16 +425,16 @@
                                               ]
                                             },
                                             "span": {
-                                              "start": 113,
-                                              "end": 114
+                                              "start": 102,
+                                              "end": 103
                                             }
                                           },
                                           "field": "age"
                                         }
                                       },
                                       "span": {
-                                        "start": 113,
-                                        "end": 116
+                                        "start": 102,
+                                        "end": 105
                                       }
                                     },
                                     "rhs": {
@@ -505,15 +444,15 @@
                                         }
                                       },
                                       "span": {
-                                        "start": 117,
-                                        "end": 118
+                                        "start": 106,
+                                        "end": 107
                                       }
                                     }
                                   }
                                 },
                                 "span": {
-                                  "start": 113,
-                                  "end": 118
+                                  "start": 102,
+                                  "end": 107
                                 }
                               },
                               "then_block": {
@@ -529,14 +468,14 @@
                                               }
                                             },
                                             "span": {
-                                              "start": 119,
-                                              "end": 120
+                                              "start": 108,
+                                              "end": 109
                                             }
                                           }
                                         },
                                         "span": {
-                                          "start": 119,
-                                          "end": 120
+                                          "start": 108,
+                                          "end": 109
                                         }
                                       }
                                     ],
@@ -544,8 +483,8 @@
                                   }
                                 },
                                 "span": {
-                                  "start": 118,
-                                  "end": 121
+                                  "start": 107,
+                                  "end": 110
                                 }
                               },
                               "else_block": {
@@ -561,14 +500,14 @@
                                               }
                                             },
                                             "span": {
-                                              "start": 123,
-                                              "end": 124
+                                              "start": 112,
+                                              "end": 113
                                             }
                                           }
                                         },
                                         "span": {
-                                          "start": 123,
-                                          "end": 124
+                                          "start": 112,
+                                          "end": 113
                                         }
                                       }
                                     ],
@@ -576,22 +515,22 @@
                                   }
                                 },
                                 "span": {
-                                  "start": 122,
-                                  "end": 125
+                                  "start": 111,
+                                  "end": 114
                                 }
                               }
                             }
                           },
                           "span": {
-                            "start": 112,
-                            "end": 125
+                            "start": 101,
+                            "end": 114
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 109,
-                      "end": 125
+                      "start": 98,
+                      "end": 114
                     }
                   },
                   {
@@ -613,16 +552,16 @@
                                             ]
                                           },
                                           "span": {
-                                            "start": 126,
-                                            "end": 127
+                                            "start": 115,
+                                            "end": 116
                                           }
                                         },
                                         "field": "age"
                                       }
                                     },
                                     "span": {
-                                      "start": 126,
-                                      "end": 129
+                                      "start": 115,
+                                      "end": 118
                                     }
                                   },
                                   "rhs": {
@@ -632,15 +571,15 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 130,
-                                      "end": 131
+                                      "start": 119,
+                                      "end": 120
                                     }
                                   }
                                 }
                               },
                               "span": {
-                                "start": 126,
-                                "end": 131
+                                "start": 115,
+                                "end": 120
                               }
                             },
                             "body": {
@@ -660,16 +599,16 @@
                                                     ]
                                                   },
                                                   "span": {
-                                                    "start": 132,
-                                                    "end": 133
+                                                    "start": 121,
+                                                    "end": 122
                                                   }
                                                 },
                                                 "field": "age"
                                               }
                                             },
                                             "span": {
-                                              "start": 132,
-                                              "end": 133
+                                              "start": 121,
+                                              "end": 122
                                             }
                                           },
                                           {
@@ -686,16 +625,16 @@
                                                           ]
                                                         },
                                                         "span": {
-                                                          "start": 136,
-                                                          "end": 137
+                                                          "start": 125,
+                                                          "end": 126
                                                         }
                                                       },
                                                       "field": "age"
                                                     }
                                                   },
                                                   "span": {
-                                                    "start": 136,
-                                                    "end": 139
+                                                    "start": 125,
+                                                    "end": 128
                                                   }
                                                 },
                                                 "rhs": {
@@ -705,22 +644,22 @@
                                                     }
                                                   },
                                                   "span": {
-                                                    "start": 140,
-                                                    "end": 141
+                                                    "start": 129,
+                                                    "end": 130
                                                   }
                                                 }
                                               }
                                             },
                                             "span": {
-                                              "start": 136,
-                                              "end": 141
+                                              "start": 125,
+                                              "end": 130
                                             }
                                           }
                                         ]
                                       },
                                       "span": {
-                                        "start": 132,
-                                        "end": 141
+                                        "start": 121,
+                                        "end": 130
                                       }
                                     }
                                   ],
@@ -728,21 +667,21 @@
                                 }
                               },
                               "span": {
-                                "start": 131,
-                                "end": 142
+                                "start": 120,
+                                "end": 131
                               }
                             }
                           }
                         },
                         "span": {
-                          "start": 125,
-                          "end": 142
+                          "start": 114,
+                          "end": 131
                         }
                       }
                     },
                     "span": {
-                      "start": 125,
-                      "end": 142
+                      "start": 114,
+                      "end": 131
                     }
                   },
                   {
@@ -754,7 +693,10 @@
                           "path": [
                             "i32"
                           ],
-                          "generics": []
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
                         },
                         "value": {
                           "item": {
@@ -769,7 +711,10 @@
                                         "path": [
                                           "i32"
                                         ],
-                                        "generics": []
+                                        "generics": [],
+                                        "fn_params": null,
+                                        "fn_ret": null,
+                                        "fn_effects": null
                                       },
                                       "value": {
                                         "item": {
@@ -778,15 +723,15 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 152,
-                                          "end": 153
+                                          "start": 141,
+                                          "end": 142
                                         }
                                       }
                                     }
                                   },
                                   "span": {
-                                    "start": 148,
-                                    "end": 153
+                                    "start": 137,
+                                    "end": 142
                                   }
                                 },
                                 {
@@ -798,7 +743,10 @@
                                         "path": [
                                           "i32"
                                         ],
-                                        "generics": []
+                                        "generics": [],
+                                        "fn_params": null,
+                                        "fn_ret": null,
+                                        "fn_effects": null
                                       },
                                       "value": {
                                         "item": {
@@ -807,15 +755,15 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 157,
-                                          "end": 158
+                                          "start": 146,
+                                          "end": 147
                                         }
                                       }
                                     }
                                   },
                                   "span": {
-                                    "start": 153,
-                                    "end": 158
+                                    "start": 142,
+                                    "end": 147
                                   }
                                 },
                                 {
@@ -831,8 +779,8 @@
                                               ]
                                             },
                                             "span": {
-                                              "start": 158,
-                                              "end": 159
+                                              "start": 147,
+                                              "end": 148
                                             }
                                           },
                                           "rhs": {
@@ -842,21 +790,21 @@
                                               ]
                                             },
                                             "span": {
-                                              "start": 160,
-                                              "end": 161
+                                              "start": 149,
+                                              "end": 150
                                             }
                                           }
                                         }
                                       },
                                       "span": {
-                                        "start": 158,
-                                        "end": 161
+                                        "start": 147,
+                                        "end": 150
                                       }
                                     }
                                   },
                                   "span": {
-                                    "start": 158,
-                                    "end": 161
+                                    "start": 147,
+                                    "end": 150
                                   }
                                 }
                               ],
@@ -864,15 +812,15 @@
                             }
                           },
                           "span": {
-                            "start": 147,
-                            "end": 162
+                            "start": 136,
+                            "end": 151
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 142,
-                      "end": 162
+                      "start": 131,
+                      "end": 151
                     }
                   },
                   {
@@ -892,8 +840,8 @@
                                       ]
                                     },
                                     "span": {
-                                      "start": 162,
-                                      "end": 163
+                                      "start": 151,
+                                      "end": 152
                                     }
                                   },
                                   "rhs": {
@@ -903,15 +851,15 @@
                                       ]
                                     },
                                     "span": {
-                                      "start": 164,
-                                      "end": 165
+                                      "start": 153,
+                                      "end": 154
                                     }
                                   }
                                 }
                               },
                               "span": {
-                                "start": 162,
-                                "end": 165
+                                "start": 151,
+                                "end": 154
                               }
                             },
                             "rhs": {
@@ -924,8 +872,8 @@
                                       ]
                                     },
                                     "span": {
-                                      "start": 166,
-                                      "end": 167
+                                      "start": 155,
+                                      "end": 156
                                     }
                                   },
                                   "method": "len",
@@ -933,21 +881,21 @@
                                 }
                               },
                               "span": {
-                                "start": 166,
-                                "end": 171
+                                "start": 155,
+                                "end": 160
                               }
                             }
                           }
                         },
                         "span": {
-                          "start": 162,
-                          "end": 171
+                          "start": 151,
+                          "end": 160
                         }
                       }
                     },
                     "span": {
-                      "start": 162,
-                      "end": 171
+                      "start": 151,
+                      "end": 160
                     }
                   }
                 ],
@@ -955,16 +903,16 @@
               }
             },
             "span": {
-              "start": 43,
-              "end": 172
+              "start": 38,
+              "end": 161
             }
           },
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 36,
-        "end": 172
+        "start": 32,
+        "end": 161
       }
     }
   ]

@@ -20,11 +20,11 @@
           "effects": []
         }
       ],
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/03-effects-and-handlers-panic.bst",
       "span": {
-        "start": 0,
-        "end": 13
+        "start": 7,
+        "end": 19
       }
     }
   },
@@ -65,25 +65,47 @@
             "stmts": [],
             "last_expr": {
               "kind": {
-                "Perform": {
-                  "path": [
-                    "Panic",
-                    "panic"
-                  ],
+                "Call": {
+                  "fun": {
+                    "kind": {
+                      "Path": [
+                        "runtime",
+                        "exit"
+                      ]
+                    },
+                    "ty": {
+                      "Function": {
+                        "param_types": [
+                          {
+                            "Primitive": "I32"
+                          }
+                        ],
+                        "ret_type": {
+                          "Generic": "!"
+                        },
+                        "effects": []
+                      }
+                    },
+                    "span": {
+                      "start": 34,
+                      "end": 38
+                    },
+                    "resolution": null
+                  },
                   "args": [
                     {
                       "kind": {
                         "Literal": [
-                          "Str",
-                          "unreachable"
+                          "I32",
+                          "1"
                         ]
                       },
                       "ty": {
-                        "Primitive": "Str"
+                        "Primitive": "I32"
                       },
                       "span": {
-                        "start": 36,
-                        "end": 37
+                        "start": 39,
+                        "end": 40
                       },
                       "resolution": null
                     }
@@ -94,8 +116,8 @@
                 "Generic": "!"
               },
               "span": {
-                "start": 31,
-                "end": 38
+                "start": 34,
+                "end": 41
               },
               "resolution": null
             },
@@ -103,20 +125,20 @@
               "Generic": "!"
             }
           },
-          "is_public": true,
+          "is_public": false,
           "defined_in": "tests/03-effects-and-handlers-panic.bst",
           "span": {
-            "start": 29,
-            "end": 39
+            "start": 33,
+            "end": 43
           },
           "context_id": 0
         }
       ],
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/03-effects-and-handlers-panic.bst",
       "span": {
-        "start": 13,
-        "end": 40
+        "start": 19,
+        "end": 44
       }
     }
   },
@@ -143,7 +165,18 @@
         "ret_type": {
           "Primitive": "I32"
         },
-        "effects": []
+        "effects": [
+          {
+            "Adt": {
+              "Effect": {
+                "name": [
+                  "Panic"
+                ],
+                "generics": []
+              }
+            }
+          }
+        ]
       },
       "body": {
         "stmts": [
@@ -166,8 +199,8 @@
                               "Primitive": "I32"
                             },
                             "span": {
-                              "start": 58,
-                              "end": 59
+                              "start": 61,
+                              "end": 62
                             },
                             "resolution": {
                               "Local": {
@@ -187,8 +220,8 @@
                               "Primitive": "I32"
                             },
                             "span": {
-                              "start": 60,
-                              "end": 61
+                              "start": 63,
+                              "end": 64
                             },
                             "resolution": null
                           }
@@ -198,8 +231,8 @@
                         "Primitive": "Bool"
                       },
                       "span": {
-                        "start": 58,
-                        "end": 61
+                        "start": 61,
+                        "end": 64
                       },
                       "resolution": null
                     },
@@ -224,8 +257,8 @@
                                   "Primitive": "Str"
                                 },
                                 "span": {
-                                  "start": 67,
-                                  "end": 68
+                                  "start": 70,
+                                  "end": 71
                                 },
                                 "resolution": null
                               }
@@ -236,8 +269,8 @@
                           "Generic": "!"
                         },
                         "span": {
-                          "start": 62,
-                          "end": 69
+                          "start": 65,
+                          "end": 72
                         },
                         "resolution": null
                       },
@@ -252,14 +285,14 @@
                   "Special": "Unit"
                 },
                 "span": {
-                  "start": 57,
-                  "end": 70
+                  "start": 60,
+                  "end": 73
                 },
                 "resolution": null
               },
               "span": {
-                "start": 57,
-                "end": 70
+                "start": 60,
+                "end": 73
               }
             }
           }
@@ -278,8 +311,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 70,
-                  "end": 71
+                  "start": 73,
+                  "end": 74
                 },
                 "resolution": {
                   "Local": {
@@ -298,8 +331,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 72,
-                  "end": 73
+                  "start": 75,
+                  "end": 76
                 },
                 "resolution": {
                   "Local": {
@@ -314,8 +347,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 70,
-            "end": 73
+            "start": 73,
+            "end": 76
           },
           "resolution": null
         },
@@ -323,11 +356,11 @@
           "Primitive": "I32"
         }
       },
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/03-effects-and-handlers-panic.bst",
       "span": {
-        "start": 56,
-        "end": 74
+        "start": 59,
+        "end": 77
       },
       "context_id": 1
     }
@@ -378,8 +411,8 @@
                                 }
                               },
                               "span": {
-                                "start": 85,
-                                "end": 86
+                                "start": 87,
+                                "end": 88
                               },
                               "resolution": null
                             },
@@ -395,8 +428,8 @@
                                   "Primitive": "I32"
                                 },
                                 "span": {
-                                  "start": 87,
-                                  "end": 88
+                                  "start": 89,
+                                  "end": 90
                                 },
                                 "resolution": null
                               },
@@ -411,8 +444,8 @@
                                   "Primitive": "I32"
                                 },
                                 "span": {
-                                  "start": 89,
-                                  "end": 90
+                                  "start": 91,
+                                  "end": 92
                                 },
                                 "resolution": null
                               }
@@ -423,8 +456,8 @@
                           "Primitive": "I32"
                         },
                         "span": {
-                          "start": 85,
-                          "end": 91
+                          "start": 87,
+                          "end": 93
                         },
                         "resolution": null
                       },
@@ -443,8 +476,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 85,
-                  "end": 91
+                  "start": 87,
+                  "end": 93
                 },
                 "resolution": null
               },
@@ -453,8 +486,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 82,
-                "end": 95
+                "start": 84,
+                "end": 97
               },
               "name_span": null
             }
@@ -471,8 +504,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 95,
-            "end": 96
+            "start": 97,
+            "end": 98
           },
           "resolution": null
         },
@@ -480,13 +513,47 @@
           "Primitive": "I32"
         }
       },
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/03-effects-and-handlers-panic.bst",
       "span": {
-        "start": 81,
-        "end": 97
+        "start": 83,
+        "end": 99
       },
       "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "exit",
+        "params": [
+          {
+            "name": "code",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Generic": "!"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Generic": "!"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/exit.bst",
+      "span": {
+        "start": 0,
+        "end": 12
+      },
+      "context_id": 3
     }
   }
 ]

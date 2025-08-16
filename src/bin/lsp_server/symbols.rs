@@ -473,6 +473,7 @@ pub fn collect_lets_in_expr(expr: &hir::Expr, out: &mut Vec<(String, SimpleSpan)
         EK::Handle { body, .. } => collect_lets_in_block(body, out),
         EK::Cast { expr: inner } => collect_lets_in_expr(inner, out),
         EK::Path(_) | EK::Literal(..) | EK::Perform { .. } | EK::Error => {}
+        EK::FnLiteral(f) => {} // is this right?
     }
 }
 

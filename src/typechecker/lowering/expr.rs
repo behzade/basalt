@@ -391,18 +391,22 @@ impl Typechecker {
                 }
             }
             OwnedExpr::FnLiteral { params, ret_type, effects, body } => {
-                // Lower a function literal into a closure-like function value with explicit type
+                // Lower a function literal into an explicit HirFnLiteral
+                let mut lowered_params: Vec<hir::HirParam> = Vec::new();
                 let mut param_types: Vec<hir::Ty> = Vec::new();
-                for (_name_opt, ty) in params {
-                    param_types.push(self.resolve_type(&ty, context.clone())?);
+                for (name_opt, ty) in params {
+                    let t = self.resolve_type(&ty, context.clone())?;
+                    param_types.push(t.clone());
+                    lowered_params.push(hir::HirParam { name: name_opt.unwrap_or("_".to_string()), ty: t, span: None });
                 }
                 let ret_ty = if let Some(rt) = ret_type { self.resolve_type(&rt, context.clone())? } else { hir::Ty::Special(hir::SpecialTy::Unit) };
                 let mut eff_tys: Vec<hir::Ty> = Vec::new();
                 for e in effects { eff_tys.push(self.resolve_type(&e, context.clone())?); }
-                // Lower body as a block expression; treat as value of function type
-                let body_hir = self.lower_expr(*body, context.clone())?;
-                let fn_ty = hir::Ty::Function { param_types: param_types.clone(), ret_type: Box::new(ret_ty.clone()), effects: eff_tys };
-                Ok(hir::Expr { kind: hir::ExprKind::Block(match body_hir.kind.clone() { hir::ExprKind::Block(b) => b, _ => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(body_hir.clone())), ty: body_hir.ty.clone() } }), ty: fn_ty, span: expr.span, resolution: None })
+                let body_hir_expr = self.lower_expr(*body, context.clone())?;
+                let body_block = match body_hir_expr.kind { hir::ExprKind::Block(b) => b, other => hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(hir::Expr { kind: other, ty: body_hir_expr.ty.clone(), span: body_hir_expr.span, resolution: None })), ty: body_hir_expr.ty.clone() } };
+                let lit = hir::HirFnLiteral { params: lowered_params, ret_type: ret_ty.clone(), effects: eff_tys.clone(), body: body_block };
+                let fn_ty = hir::Ty::Function { param_types, ret_type: Box::new(ret_ty), effects: eff_tys };
+                Ok(hir::Expr { kind: hir::ExprKind::FnLiteral(lit), ty: fn_ty, span: expr.span, resolution: None })
             }
             OwnedExpr::Block { stmts, last_expr } => {
                 self.enter_scope();

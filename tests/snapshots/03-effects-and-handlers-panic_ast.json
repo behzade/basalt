@@ -2,6 +2,25 @@
   "tests/03-effects-and-handlers-panic.bst": [
     {
       "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "runtime"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
         "Effect": {
           "name": "Panic",
           "operations": [
@@ -12,24 +31,30 @@
                   "path": [
                     "str"
                   ],
-                  "generics": []
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
                 }
               ],
               "ret_type": {
                 "path": [
                   "!"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               },
-              "is_public": true
+              "is_public": false
             }
           ],
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 0,
-        "end": 13
+        "start": 7,
+        "end": 19
       }
     },
     {
@@ -50,7 +75,10 @@
                     "path": [
                       "str"
                     ],
-                    "generics": []
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
                   }
                 ]
               ],
@@ -58,7 +86,10 @@
                 "path": [
                   "!"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               },
               "effects": [],
               "body": {
@@ -69,35 +100,43 @@
                         "item": {
                           "Expr": {
                             "item": {
-                              "Perform": {
-                                "path": [
-                                  "Panic",
-                                  "panic"
-                                ],
+                              "Call": {
+                                "fun": {
+                                  "item": {
+                                    "Path": [
+                                      "runtime",
+                                      "exit"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 34,
+                                    "end": 38
+                                  }
+                                },
                                 "args": [
                                   {
                                     "item": {
                                       "Literal": {
-                                        "Str": "unreachable"
+                                        "I64": 1
                                       }
                                     },
                                     "span": {
-                                      "start": 36,
-                                      "end": 37
+                                      "start": 39,
+                                      "end": 40
                                     }
                                   }
                                 ]
                               }
                             },
                             "span": {
-                              "start": 31,
-                              "end": 38
+                              "start": 34,
+                              "end": 41
                             }
                           }
                         },
                         "span": {
-                          "start": 31,
-                          "end": 38
+                          "start": 34,
+                          "end": 41
                         }
                       }
                     ],
@@ -105,19 +144,19 @@
                   }
                 },
                 "span": {
-                  "start": 29,
-                  "end": 39
+                  "start": 33,
+                  "end": 43
                 }
               },
-              "is_public": true
+              "is_public": false
             }
           ],
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 13,
-        "end": 40
+        "start": 19,
+        "end": 44
       }
     },
     {
@@ -132,7 +171,10 @@
                 "path": [
                   "i32"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               }
             ],
             [
@@ -141,7 +183,10 @@
                 "path": [
                   "i32"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               }
             ]
           ],
@@ -149,7 +194,10 @@
             "path": [
               "i32"
             ],
-            "generics": []
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
           },
           "effects": [
             "Panic"
@@ -174,8 +222,8 @@
                                       ]
                                     },
                                     "span": {
-                                      "start": 58,
-                                      "end": 59
+                                      "start": 61,
+                                      "end": 62
                                     }
                                   },
                                   "rhs": {
@@ -185,15 +233,15 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 60,
-                                      "end": 61
+                                      "start": 63,
+                                      "end": 64
                                     }
                                   }
                                 }
                               },
                               "span": {
-                                "start": 58,
-                                "end": 61
+                                "start": 61,
+                                "end": 64
                               }
                             },
                             "then_block": {
@@ -217,22 +265,22 @@
                                                     }
                                                   },
                                                   "span": {
-                                                    "start": 67,
-                                                    "end": 68
+                                                    "start": 70,
+                                                    "end": 71
                                                   }
                                                 }
                                               ]
                                             }
                                           },
                                           "span": {
-                                            "start": 62,
-                                            "end": 69
+                                            "start": 65,
+                                            "end": 72
                                           }
                                         }
                                       },
                                       "span": {
-                                        "start": 62,
-                                        "end": 69
+                                        "start": 65,
+                                        "end": 72
                                       }
                                     }
                                   ],
@@ -240,22 +288,22 @@
                                 }
                               },
                               "span": {
-                                "start": 61,
-                                "end": 70
+                                "start": 64,
+                                "end": 73
                               }
                             },
                             "else_block": null
                           }
                         },
                         "span": {
-                          "start": 57,
-                          "end": 70
+                          "start": 60,
+                          "end": 73
                         }
                       }
                     },
                     "span": {
-                      "start": 57,
-                      "end": 70
+                      "start": 60,
+                      "end": 73
                     }
                   },
                   {
@@ -271,8 +319,8 @@
                                 ]
                               },
                               "span": {
-                                "start": 70,
-                                "end": 71
+                                "start": 73,
+                                "end": 74
                               }
                             },
                             "rhs": {
@@ -282,21 +330,21 @@
                                 ]
                               },
                               "span": {
-                                "start": 72,
-                                "end": 73
+                                "start": 75,
+                                "end": 76
                               }
                             }
                           }
                         },
                         "span": {
-                          "start": 70,
-                          "end": 73
+                          "start": 73,
+                          "end": 76
                         }
                       }
                     },
                     "span": {
-                      "start": 70,
-                      "end": 73
+                      "start": 73,
+                      "end": 76
                     }
                   }
                 ],
@@ -304,16 +352,16 @@
               }
             },
             "span": {
-              "start": 56,
-              "end": 74
+              "start": 59,
+              "end": 77
             }
           },
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 40,
-        "end": 74
+        "start": 44,
+        "end": 77
       }
     },
     {
@@ -326,7 +374,10 @@
             "path": [
               "i32"
             ],
-            "generics": []
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
           },
           "effects": [],
           "body": {
@@ -352,8 +403,8 @@
                                         ]
                                       },
                                       "span": {
-                                        "start": 85,
-                                        "end": 86
+                                        "start": 87,
+                                        "end": 88
                                       }
                                     },
                                     "args": [
@@ -364,8 +415,8 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 87,
-                                          "end": 88
+                                          "start": 89,
+                                          "end": 90
                                         }
                                       },
                                       {
@@ -375,16 +426,16 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 89,
-                                          "end": 90
+                                          "start": 91,
+                                          "end": 92
                                         }
                                       }
                                     ]
                                   }
                                 },
                                 "span": {
-                                  "start": 85,
-                                  "end": 91
+                                  "start": 87,
+                                  "end": 93
                                 }
                               },
                               "handler": {
@@ -395,15 +446,15 @@
                             }
                           },
                           "span": {
-                            "start": 85,
-                            "end": 91
+                            "start": 87,
+                            "end": 93
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 82,
-                      "end": 95
+                      "start": 84,
+                      "end": 97
                     }
                   },
                   {
@@ -415,14 +466,14 @@
                           }
                         },
                         "span": {
-                          "start": 95,
-                          "end": 96
+                          "start": 97,
+                          "end": 98
                         }
                       }
                     },
                     "span": {
-                      "start": 95,
-                      "end": 96
+                      "start": 97,
+                      "end": 98
                     }
                   }
                 ],
@@ -430,16 +481,16 @@
               }
             },
             "span": {
-              "start": 81,
-              "end": 97
+              "start": 83,
+              "end": 99
             }
           },
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 74,
-        "end": 97
+        "start": 77,
+        "end": 99
       }
     }
   ]

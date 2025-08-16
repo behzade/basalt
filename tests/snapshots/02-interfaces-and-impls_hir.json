@@ -1,111 +1,40 @@
 [
   {
-    "Trait": {
-      "name": "WithAge",
-      "methods": [
+    "Struct": {
+      "name": "Person",
+      "fields": [
         {
-          "name": "get_age",
-          "params": [
-            {
-              "name": "self",
-              "ty": {
-                "Generic": "self"
-              },
-              "span": null
-            }
-          ],
-          "ret_type": {
-            "Primitive": "I32"
+          "name": "name",
+          "ty": {
+            "Primitive": "Str"
           },
-          "effects": []
+          "name_span": null
         },
         {
-          "name": "up_age_by",
-          "params": [
-            {
-              "name": "self",
-              "ty": {
-                "Generic": "self"
-              },
-              "span": null
-            },
-            {
-              "name": "age",
-              "ty": {
-                "Primitive": "I32"
-              },
-              "span": null
-            }
-          ],
-          "ret_type": {
+          "name": "age",
+          "ty": {
             "Primitive": "I32"
           },
-          "effects": []
+          "name_span": null
         }
       ],
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/02-interfaces-and-impls.bst",
       "span": {
         "start": 0,
-        "end": 22
-      }
+        "end": 12
+      },
+      "context_id": 0
     }
   },
   {
-    "TypeAlias": {
-      "name": "Person",
-      "aliased": {
-        "Adt": {
-          "Struct": {
-            "name": [
-              "Person"
-            ],
-            "generics": []
-          }
-        }
-      },
-      "is_public": true,
-      "defined_in": "tests/02-interfaces-and-impls.bst",
-      "span": {
-        "start": 22,
-        "end": 35
-      }
-    }
-  },
-  {
-    "Impl": {
-      "trait_path": null,
-      "target_type": {
-        "Adt": {
-          "Struct": {
-            "name": [
-              "Person"
-            ],
-            "generics": []
-          }
-        }
-      },
-      "methods": [
-        {
-          "signature": {
-            "name": "new",
-            "params": [
-              {
-                "name": "name",
-                "ty": {
-                  "Primitive": "Str"
-                },
-                "span": null
-              },
-              {
-                "name": "age",
-                "ty": {
-                  "Primitive": "I32"
-                },
-                "span": null
-              }
-            ],
-            "ret_type": {
+    "Fn": {
+      "signature": {
+        "name": "get_age",
+        "params": [
+          {
+            "name": "p",
+            "ty": {
               "Adt": {
                 "Struct": {
                   "name": [
@@ -115,454 +44,314 @@
                 }
               }
             },
-            "effects": []
-          },
-          "body": {
-            "stmts": [],
-            "last_expr": {
-              "kind": {
-                "StructInit": {
-                  "path": [
-                    "Person"
-                  ],
-                  "fields": [
-                    [
-                      "name",
-                      {
-                        "kind": {
-                          "Path": [
-                            "name"
-                          ]
-                        },
-                        "ty": {
-                          "Primitive": "Str"
-                        },
-                        "span": {
-                          "start": 58,
-                          "end": 59
-                        },
-                        "resolution": {
-                          "Local": {
-                            "name": "name",
-                            "decl_span": null
-                          }
-                        }
-                      }
-                    ],
-                    [
-                      "age",
-                      {
-                        "kind": {
-                          "Path": [
-                            "age"
-                          ]
-                        },
-                        "ty": {
-                          "Primitive": "I32"
-                        },
-                        "span": {
-                          "start": 62,
-                          "end": 63
-                        },
-                        "resolution": {
-                          "Local": {
-                            "name": "age",
-                            "decl_span": null
-                          }
-                        }
-                      }
-                    ]
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "FieldAccess": {
+              "receiver": {
+                "kind": {
+                  "Path": [
+                    "p"
                   ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Person"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 22,
+                  "end": 23
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "p",
+                    "decl_span": null
+                  }
                 }
               },
-              "ty": {
-                "Adt": {
-                  "Struct": {
-                    "name": [
+              "field": "age"
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 22,
+            "end": 25
+          },
+          "resolution": {
+            "Field": {
+              "owner": [
+                "Person"
+              ],
+              "field": "age"
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/02-interfaces-and-impls.bst",
+      "span": {
+        "start": 21,
+        "end": 26
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "up_age_by",
+        "params": [
+          {
+            "name": "p",
+            "ty": {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Person"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "span": null
+          },
+          {
+            "name": "by",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "p"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Person"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 41,
+                        "end": 42
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "p",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "age"
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 41,
+                  "end": 42
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
                       "Person"
                     ],
-                    "generics": []
+                    "field": "age"
                   }
                 }
               },
-              "span": {
-                "start": 54,
-                "end": 64
-              },
-              "resolution": null
-            },
-            "ty": {
-              "Adt": {
-                "Struct": {
-                  "name": [
-                    "Person"
-                  ],
-                  "generics": []
-                }
-              }
-            }
-          },
-          "is_public": true,
-          "defined_in": "tests/02-interfaces-and-impls.bst",
-          "span": {
-            "start": 53,
-            "end": 65
-          },
-          "context_id": 0
-        }
-      ],
-      "defined_in": "tests/02-interfaces-and-impls.bst",
-      "span": {
-        "start": 35,
-        "end": 66
-      }
-    }
-  },
-  {
-    "Impl": {
-      "trait_path": [
-        "WithAge"
-      ],
-      "target_type": {
-        "Adt": {
-          "Struct": {
-            "name": [
-              "Person"
-            ],
-            "generics": []
-          }
-        }
-      },
-      "methods": [
-        {
-          "signature": {
-            "name": "get_age",
-            "params": [
-              {
-                "name": "self",
-                "ty": {
-                  "Adt": {
-                    "Struct": {
-                      "name": [
-                        "Person"
-                      ],
-                      "generics": []
-                    }
-                  }
-                },
-                "span": null
-              }
-            ],
-            "ret_type": {
-              "Primitive": "I32"
-            },
-            "effects": []
-          },
-          "body": {
-            "stmts": [],
-            "last_expr": {
-              "kind": {
-                "FieldAccess": {
-                  "receiver": {
-                    "kind": {
-                      "Path": [
-                        "self"
-                      ]
-                    },
-                    "ty": {
-                      "Adt": {
-                        "Struct": {
-                          "name": [
-                            "Person"
-                          ],
-                          "generics": []
-                        }
-                      }
-                    },
-                    "span": {
-                      "start": 81,
-                      "end": 82
-                    },
-                    "resolution": {
-                      "Local": {
-                        "name": "self",
-                        "decl_span": null
-                      }
-                    }
-                  },
-                  "field": "age"
-                }
-              },
-              "ty": {
-                "Primitive": "I32"
-              },
-              "span": {
-                "start": 81,
-                "end": 84
-              },
-              "resolution": {
-                "Field": {
-                  "owner": [
-                    "Person"
-                  ],
-                  "field": "age"
-                }
-              }
-            },
-            "ty": {
-              "Primitive": "I32"
-            }
-          },
-          "is_public": true,
-          "defined_in": "tests/02-interfaces-and-impls.bst",
-          "span": {
-            "start": 80,
-            "end": 85
-          },
-          "context_id": 1
-        },
-        {
-          "signature": {
-            "name": "up_age_by",
-            "params": [
-              {
-                "name": "self",
-                "ty": {
-                  "Adt": {
-                    "Struct": {
-                      "name": [
-                        "Person"
-                      ],
-                      "generics": []
-                    }
-                  }
-                },
-                "span": null
-              },
-              {
-                "name": "n",
-                "ty": {
-                  "Primitive": "I32"
-                },
-                "span": null
-              }
-            ],
-            "ret_type": {
-              "Primitive": "I32"
-            },
-            "effects": []
-          },
-          "body": {
-            "stmts": [
-              {
-                "Assign": {
-                  "lhs": {
-                    "kind": {
-                      "FieldAccess": {
-                        "receiver": {
-                          "kind": {
-                            "Path": [
-                              "self"
-                            ]
-                          },
-                          "ty": {
-                            "Adt": {
-                              "Struct": {
-                                "name": [
-                                  "Person"
-                                ],
-                                "generics": []
+              "rhs": {
+                "kind": {
+                  "Binary": {
+                    "op": "Add",
+                    "lhs": {
+                      "kind": {
+                        "FieldAccess": {
+                          "receiver": {
+                            "kind": {
+                              "Path": [
+                                "p"
+                              ]
+                            },
+                            "ty": {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Person"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            "span": {
+                              "start": 45,
+                              "end": 46
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "p",
+                                "decl_span": null
                               }
                             }
                           },
-                          "span": {
-                            "start": 99,
-                            "end": 100
-                          },
-                          "resolution": {
-                            "Local": {
-                              "name": "self",
-                              "decl_span": null
-                            }
-                          }
-                        },
-                        "field": "age"
-                      }
-                    },
-                    "ty": {
-                      "Primitive": "I32"
-                    },
-                    "span": {
-                      "start": 99,
-                      "end": 100
-                    },
-                    "resolution": {
-                      "Field": {
-                        "owner": [
-                          "Person"
-                        ],
-                        "field": "age"
-                      }
-                    }
-                  },
-                  "rhs": {
-                    "kind": {
-                      "Binary": {
-                        "op": "Add",
-                        "lhs": {
-                          "kind": {
-                            "FieldAccess": {
-                              "receiver": {
-                                "kind": {
-                                  "Path": [
-                                    "self"
-                                  ]
-                                },
-                                "ty": {
-                                  "Adt": {
-                                    "Struct": {
-                                      "name": [
-                                        "Person"
-                                      ],
-                                      "generics": []
-                                    }
-                                  }
-                                },
-                                "span": {
-                                  "start": 103,
-                                  "end": 104
-                                },
-                                "resolution": {
-                                  "Local": {
-                                    "name": "self",
-                                    "decl_span": null
-                                  }
-                                }
-                              },
-                              "field": "age"
-                            }
-                          },
-                          "ty": {
-                            "Primitive": "I32"
-                          },
-                          "span": {
-                            "start": 103,
-                            "end": 106
-                          },
-                          "resolution": {
-                            "Field": {
-                              "owner": [
-                                "Person"
-                              ],
-                              "field": "age"
-                            }
-                          }
-                        },
-                        "rhs": {
-                          "kind": {
-                            "Path": [
-                              "n"
-                            ]
-                          },
-                          "ty": {
-                            "Primitive": "I32"
-                          },
-                          "span": {
-                            "start": 107,
-                            "end": 108
-                          },
-                          "resolution": {
-                            "Local": {
-                              "name": "n",
-                              "decl_span": null
-                            }
-                          }
+                          "field": "age"
                         }
-                      }
-                    },
-                    "ty": {
-                      "Primitive": "I32"
-                    },
-                    "span": {
-                      "start": 103,
-                      "end": 108
-                    },
-                    "resolution": null
-                  },
-                  "span": {
-                    "start": 99,
-                    "end": 108
-                  }
-                }
-              }
-            ],
-            "last_expr": {
-              "kind": {
-                "FieldAccess": {
-                  "receiver": {
-                    "kind": {
-                      "Path": [
-                        "self"
-                      ]
-                    },
-                    "ty": {
-                      "Adt": {
-                        "Struct": {
-                          "name": [
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 45,
+                        "end": 48
+                      },
+                      "resolution": {
+                        "Field": {
+                          "owner": [
                             "Person"
                           ],
-                          "generics": []
+                          "field": "age"
                         }
                       }
                     },
-                    "span": {
-                      "start": 109,
-                      "end": 110
-                    },
-                    "resolution": {
-                      "Local": {
-                        "name": "self",
-                        "decl_span": null
+                    "rhs": {
+                      "kind": {
+                        "Path": [
+                          "by"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 49,
+                        "end": 50
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "by",
+                          "decl_span": null
+                        }
                       }
                     }
-                  },
-                  "field": "age"
-                }
-              },
-              "ty": {
-                "Primitive": "I32"
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 45,
+                  "end": 50
+                },
+                "resolution": null
               },
               "span": {
-                "start": 109,
-                "end": 112
-              },
-              "resolution": {
-                "Field": {
-                  "owner": [
-                    "Person"
-                  ],
-                  "field": "age"
-                }
+                "start": 41,
+                "end": 50
               }
-            },
-            "ty": {
-              "Primitive": "I32"
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "FieldAccess": {
+              "receiver": {
+                "kind": {
+                  "Path": [
+                    "p"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Person"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 50,
+                  "end": 51
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "p",
+                    "decl_span": null
+                  }
+                }
+              },
+              "field": "age"
             }
           },
-          "is_public": true,
-          "defined_in": "tests/02-interfaces-and-impls.bst",
-          "span": {
-            "start": 98,
-            "end": 113
+          "ty": {
+            "Primitive": "I32"
           },
-          "context_id": 2
+          "span": {
+            "start": 50,
+            "end": 53
+          },
+          "resolution": {
+            "Field": {
+              "owner": [
+                "Person"
+              ],
+              "field": "age"
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
         }
-      ],
+      },
+      "is_public": false,
       "defined_in": "tests/02-interfaces-and-impls.bst",
       "span": {
-        "start": 66,
-        "end": 114
-      }
+        "start": 40,
+        "end": 54
+      },
+      "context_id": 2
     }
   },
   {
@@ -600,8 +389,8 @@
                             "Primitive": "Str"
                           },
                           "span": {
-                            "start": 132,
-                            "end": 133
+                            "start": 71,
+                            "end": 72
                           },
                           "resolution": null
                         }
@@ -619,8 +408,8 @@
                             "Primitive": "I32"
                           },
                           "span": {
-                            "start": 136,
-                            "end": 137
+                            "start": 75,
+                            "end": 76
                           },
                           "resolution": null
                         }
@@ -639,8 +428,8 @@
                   }
                 },
                 "span": {
-                  "start": 122,
-                  "end": 138
+                  "start": 61,
+                  "end": 77
                 },
                 "resolution": null
               },
@@ -656,8 +445,8 @@
               },
               "is_mut": true,
               "span": {
-                "start": 122,
-                "end": 138
+                "start": 61,
+                "end": 77
               },
               "name_span": null
             }
@@ -695,15 +484,15 @@
                         }
                       },
                       "span": {
-                        "start": 141,
-                        "end": 146
+                        "start": 80,
+                        "end": 85
                       },
                       "resolution": {
-                        "Method": {
+                        "Function": {
                           "defined_in": "tests/02-interfaces-and-impls.bst",
                           "span": {
-                            "start": 80,
-                            "end": 85
+                            "start": 12,
+                            "end": 26
                           }
                         }
                       }
@@ -726,15 +515,15 @@
                           }
                         },
                         "span": {
-                          "start": 141,
-                          "end": 142
+                          "start": 80,
+                          "end": 81
                         },
                         "resolution": {
                           "Local": {
                             "name": "p",
                             "decl_span": {
-                              "start": 122,
-                              "end": 138
+                              "start": 61,
+                              "end": 77
                             }
                           }
                         }
@@ -746,8 +535,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 141,
-                  "end": 146
+                  "start": 80,
+                  "end": 85
                 },
                 "resolution": null
               },
@@ -756,8 +545,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 138,
-                "end": 146
+                "start": 77,
+                "end": 85
               },
               "name_span": null
             }
@@ -798,15 +587,15 @@
                         }
                       },
                       "span": {
-                        "start": 149,
-                        "end": 155
+                        "start": 88,
+                        "end": 94
                       },
                       "resolution": {
-                        "Method": {
+                        "Function": {
                           "defined_in": "tests/02-interfaces-and-impls.bst",
                           "span": {
-                            "start": 98,
-                            "end": 113
+                            "start": 26,
+                            "end": 54
                           }
                         }
                       }
@@ -829,15 +618,15 @@
                           }
                         },
                         "span": {
-                          "start": 149,
-                          "end": 150
+                          "start": 88,
+                          "end": 89
                         },
                         "resolution": {
                           "Local": {
                             "name": "p",
                             "decl_span": {
-                              "start": 122,
-                              "end": 138
+                              "start": 61,
+                              "end": 77
                             }
                           }
                         }
@@ -853,8 +642,8 @@
                           "Primitive": "I32"
                         },
                         "span": {
-                          "start": 153,
-                          "end": 154
+                          "start": 92,
+                          "end": 93
                         },
                         "resolution": null
                       }
@@ -865,8 +654,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 149,
-                  "end": 155
+                  "start": 88,
+                  "end": 94
                 },
                 "resolution": null
               },
@@ -875,8 +664,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 146,
-                "end": 155
+                "start": 85,
+                "end": 94
               },
               "name_span": null
             }
@@ -892,15 +681,15 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 155,
-            "end": 156
+            "start": 94,
+            "end": 95
           },
           "resolution": {
             "Local": {
               "name": "inc",
               "decl_span": {
-                "start": 146,
-                "end": 155
+                "start": 85,
+                "end": 94
               }
             }
           }
@@ -909,11 +698,11 @@
           "Primitive": "I32"
         }
       },
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/02-interfaces-and-impls.bst",
       "span": {
-        "start": 121,
-        "end": 157
+        "start": 60,
+        "end": 96
       },
       "context_id": 3
     }

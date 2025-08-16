@@ -1,11 +1,1259 @@
-ERROR: [31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/05-match-and-control-flow.bst:1:37[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m1 │[0m [31m╭[0m[31m─[0m[31m▶[0m[31m [0m[38;5;249mt[0m[38;5;249my[0m[38;5;249mp[0m[38;5;249me[0m[38;5;249m [0m[38;5;249mP[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249ms[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mn[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249mr[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249mi[0m[38;5;249m3[0m[38;5;249m2[0m[38;5;249m [0m[31m}[0m
- [38;5;240m  ┆[0m [31m┆[0m   
- [38;5;246m8 │[0m [31m├[0m[31m─[0m[31m▶[0m[31m [0m[31m [0m[31m [0m[31m [0m[31m [0m[31ml[0m[31me[0m[31mt[0m[31m [0m[31mm[0m[31mu[0m[31mt[0m[31m [0m[31mp[0m[31me[0m[31mr[0m[31ms[0m[31mo[0m[31mn[0m[31m:[0m[31m [0m[31mP[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249ms[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mP[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249ms[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249m [0m[38;5;249m{[0m[38;5;249m [0m[38;5;249mn[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249mb[0m[38;5;249me[0m[38;5;249mh[0m[38;5;249mz[0m[38;5;249ma[0m[38;5;249md[0m[38;5;249m"[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249m1[0m[38;5;249m2[0m[38;5;249m [0m[38;5;249m}[0m[38;5;249m [0m[38;5;249m}[0m
- [38;5;240m  │[0m [31m│[0m                                                                         
- [38;5;240m  │[0m [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Unknown method `len` for receiver type str
-[38;5;246m───╯[0m
-
-❌ Compilation failed: error in typechecker
+[
+  {
+    "Struct": {
+      "name": "Person",
+      "fields": [
+        {
+          "name": "name",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
+        },
+        {
+          "name": "age",
+          "ty": {
+            "Primitive": "I32"
+          },
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/05-match-and-control-flow.bst",
+      "span": {
+        "start": 0,
+        "end": 11
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Struct": {
+      "name": "Company",
+      "fields": [
+        {
+          "name": "company_id",
+          "ty": {
+            "Primitive": "I32"
+          },
+          "name_span": null
+        },
+        {
+          "name": "name",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/05-match-and-control-flow.bst",
+      "span": {
+        "start": 11,
+        "end": 22
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "UserType",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "UserType"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/05-match-and-control-flow.bst",
+      "span": {
+        "start": 22,
+        "end": 32
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "person",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "Person"
+                    ],
+                    "fields": [
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "behzad"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 49,
+                            "end": 50
+                          },
+                          "resolution": null
+                        }
+                      ],
+                      [
+                        "age",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "12"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 53,
+                            "end": 54
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Person"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 39,
+                  "end": 55
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Person"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 39,
+                "end": 55
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "user",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "UserType",
+                      "B2B"
+                    ],
+                    "fields": [
+                      [
+                        "company_id",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "1"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 67,
+                            "end": 68
+                          },
+                          "resolution": null
+                        }
+                      ],
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "acme"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 71,
+                            "end": 72
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "UserType",
+                        "B2B"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 55,
+                  "end": 73
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "UserType"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 55,
+                "end": 73
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "match_result",
+              "value": {
+                "kind": {
+                  "Match": {
+                    "scrutinee": {
+                      "kind": {
+                        "Path": [
+                          "user"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Enum": {
+                            "name": [
+                              "UserType"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 77,
+                        "end": 78
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "user",
+                          "decl_span": {
+                            "start": 55,
+                            "end": 73
+                          }
+                        }
+                      }
+                    },
+                    "arms": [
+                      [
+                        {
+                          "kind": {
+                            "Path": {
+                              "path": [
+                                "B2B"
+                              ],
+                              "args": [
+                                {
+                                  "kind": {
+                                    "Identifier": "b2b"
+                                  },
+                                  "ty": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "Company"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "ty": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "UserType"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": {
+                            "FieldAccess": {
+                              "receiver": {
+                                "kind": {
+                                  "Path": [
+                                    "b2b"
+                                  ]
+                                },
+                                "ty": {
+                                  "Adt": {
+                                    "Struct": {
+                                      "name": [
+                                        "Company"
+                                      ],
+                                      "generics": []
+                                    }
+                                  }
+                                },
+                                "span": {
+                                  "start": 83,
+                                  "end": 84
+                                },
+                                "resolution": {
+                                  "Local": {
+                                    "name": "b2b",
+                                    "decl_span": null
+                                  }
+                                }
+                              },
+                              "field": "name"
+                            }
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 83,
+                            "end": 86
+                          },
+                          "resolution": {
+                            "Field": {
+                              "owner": [
+                                "Company"
+                              ],
+                              "field": "name"
+                            }
+                          }
+                        }
+                      ],
+                      [
+                        {
+                          "kind": {
+                            "Path": {
+                              "path": [
+                                "B2C"
+                              ],
+                              "args": [
+                                {
+                                  "kind": {
+                                    "Identifier": "b2c"
+                                  },
+                                  "ty": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "Person"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "ty": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "UserType"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": {
+                            "FieldAccess": {
+                              "receiver": {
+                                "kind": {
+                                  "Path": [
+                                    "b2c"
+                                  ]
+                                },
+                                "ty": {
+                                  "Adt": {
+                                    "Struct": {
+                                      "name": [
+                                        "Person"
+                                      ],
+                                      "generics": []
+                                    }
+                                  }
+                                },
+                                "span": {
+                                  "start": 91,
+                                  "end": 92
+                                },
+                                "resolution": {
+                                  "Local": {
+                                    "name": "b2c",
+                                    "decl_span": null
+                                  }
+                                }
+                              },
+                              "field": "name"
+                            }
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 91,
+                            "end": 94
+                          },
+                          "resolution": {
+                            "Field": {
+                              "owner": [
+                                "Person"
+                              ],
+                              "field": "name"
+                            }
+                          }
+                        }
+                      ],
+                      [
+                        {
+                          "kind": "Wildcard",
+                          "ty": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "UserType"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "unknown"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 97,
+                            "end": 98
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 76,
+                  "end": 98
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 73,
+                "end": 98
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "if_result",
+              "value": {
+                "kind": {
+                  "If": {
+                    "cond": {
+                      "kind": {
+                        "Binary": {
+                          "op": "Gt",
+                          "lhs": {
+                            "kind": {
+                              "FieldAccess": {
+                                "receiver": {
+                                  "kind": {
+                                    "Path": [
+                                      "person"
+                                    ]
+                                  },
+                                  "ty": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "Person"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 102,
+                                    "end": 103
+                                  },
+                                  "resolution": {
+                                    "Local": {
+                                      "name": "person",
+                                      "decl_span": {
+                                        "start": 39,
+                                        "end": 55
+                                      }
+                                    }
+                                  }
+                                },
+                                "field": "age"
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 102,
+                              "end": 105
+                            },
+                            "resolution": {
+                              "Field": {
+                                "owner": [
+                                  "Person"
+                                ],
+                                "field": "age"
+                              }
+                            }
+                          },
+                          "rhs": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "10"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 106,
+                              "end": 107
+                            },
+                            "resolution": null
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "Bool"
+                      },
+                      "span": {
+                        "start": 102,
+                        "end": 107
+                      },
+                      "resolution": null
+                    },
+                    "then_block": {
+                      "stmts": [],
+                      "last_expr": {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "3"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 108,
+                          "end": 109
+                        },
+                        "resolution": null
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      }
+                    },
+                    "else_block": {
+                      "kind": {
+                        "Block": {
+                          "stmts": [],
+                          "last_expr": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "4"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 112,
+                              "end": 113
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 111,
+                        "end": 114
+                      },
+                      "resolution": null
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 101,
+                  "end": 114
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 98,
+                "end": 114
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "While": {
+                    "cond": {
+                      "kind": {
+                        "Binary": {
+                          "op": "Gt",
+                          "lhs": {
+                            "kind": {
+                              "FieldAccess": {
+                                "receiver": {
+                                  "kind": {
+                                    "Path": [
+                                      "person"
+                                    ]
+                                  },
+                                  "ty": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "Person"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 115,
+                                    "end": 116
+                                  },
+                                  "resolution": {
+                                    "Local": {
+                                      "name": "person",
+                                      "decl_span": {
+                                        "start": 39,
+                                        "end": 55
+                                      }
+                                    }
+                                  }
+                                },
+                                "field": "age"
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 115,
+                              "end": 118
+                            },
+                            "resolution": {
+                              "Field": {
+                                "owner": [
+                                  "Person"
+                                ],
+                                "field": "age"
+                              }
+                            }
+                          },
+                          "rhs": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "10"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 119,
+                              "end": 120
+                            },
+                            "resolution": null
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "Bool"
+                      },
+                      "span": {
+                        "start": 115,
+                        "end": 120
+                      },
+                      "resolution": null
+                    },
+                    "body": {
+                      "stmts": [
+                        {
+                          "Assign": {
+                            "lhs": {
+                              "kind": {
+                                "FieldAccess": {
+                                  "receiver": {
+                                    "kind": {
+                                      "Path": [
+                                        "person"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Adt": {
+                                        "Struct": {
+                                          "name": [
+                                            "Person"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 121,
+                                      "end": 122
+                                    },
+                                    "resolution": {
+                                      "Local": {
+                                        "name": "person",
+                                        "decl_span": {
+                                          "start": 39,
+                                          "end": 55
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "field": "age"
+                                }
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 121,
+                                "end": 122
+                              },
+                              "resolution": {
+                                "Field": {
+                                  "owner": [
+                                    "Person"
+                                  ],
+                                  "field": "age"
+                                }
+                              }
+                            },
+                            "rhs": {
+                              "kind": {
+                                "Binary": {
+                                  "op": "Sub",
+                                  "lhs": {
+                                    "kind": {
+                                      "FieldAccess": {
+                                        "receiver": {
+                                          "kind": {
+                                            "Path": [
+                                              "person"
+                                            ]
+                                          },
+                                          "ty": {
+                                            "Adt": {
+                                              "Struct": {
+                                                "name": [
+                                                  "Person"
+                                                ],
+                                                "generics": []
+                                              }
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 125,
+                                            "end": 126
+                                          },
+                                          "resolution": {
+                                            "Local": {
+                                              "name": "person",
+                                              "decl_span": {
+                                                "start": 39,
+                                                "end": 55
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "field": "age"
+                                      }
+                                    },
+                                    "ty": {
+                                      "Primitive": "I32"
+                                    },
+                                    "span": {
+                                      "start": 125,
+                                      "end": 128
+                                    },
+                                    "resolution": {
+                                      "Field": {
+                                        "owner": [
+                                          "Person"
+                                        ],
+                                        "field": "age"
+                                      }
+                                    }
+                                  },
+                                  "rhs": {
+                                    "kind": {
+                                      "Literal": [
+                                        "I32",
+                                        "1"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Primitive": "I32"
+                                    },
+                                    "span": {
+                                      "start": 129,
+                                      "end": 130
+                                    },
+                                    "resolution": null
+                                  }
+                                }
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 125,
+                                "end": 130
+                              },
+                              "resolution": null
+                            },
+                            "span": {
+                              "start": 121,
+                              "end": 130
+                            }
+                          }
+                        }
+                      ],
+                      "last_expr": null,
+                      "ty": {
+                        "Special": "Unit"
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 114,
+                  "end": 131
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 114,
+                "end": 131
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "block_result",
+              "value": {
+                "kind": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "Let": {
+                          "name": "a",
+                          "value": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "1"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 137,
+                              "end": 142
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "is_mut": false,
+                          "span": {
+                            "start": 137,
+                            "end": 142
+                          },
+                          "name_span": null
+                        }
+                      },
+                      {
+                        "Let": {
+                          "name": "b",
+                          "value": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "2"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 142,
+                              "end": 147
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "is_mut": false,
+                          "span": {
+                            "start": 142,
+                            "end": 147
+                          },
+                          "name_span": null
+                        }
+                      }
+                    ],
+                    "last_expr": {
+                      "kind": {
+                        "Binary": {
+                          "op": "Add",
+                          "lhs": {
+                            "kind": {
+                              "Path": [
+                                "a"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 147,
+                              "end": 148
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "a",
+                                "decl_span": {
+                                  "start": 137,
+                                  "end": 142
+                                }
+                              }
+                            }
+                          },
+                          "rhs": {
+                            "kind": {
+                              "Path": [
+                                "b"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 149,
+                              "end": 150
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "b",
+                                "decl_span": {
+                                  "start": 142,
+                                  "end": 147
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 147,
+                        "end": 150
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 131,
+                  "end": 151
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 131,
+                "end": 151
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Binary": {
+              "op": "Add",
+              "lhs": {
+                "kind": {
+                  "Binary": {
+                    "op": "Add",
+                    "lhs": {
+                      "kind": {
+                        "Path": [
+                          "if_result"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 151,
+                        "end": 152
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "if_result",
+                          "decl_span": {
+                            "start": 98,
+                            "end": 114
+                          }
+                        }
+                      }
+                    },
+                    "rhs": {
+                      "kind": {
+                        "Path": [
+                          "block_result"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 153,
+                        "end": 154
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "block_result",
+                          "decl_span": {
+                            "start": 131,
+                            "end": 151
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 151,
+                  "end": 154
+                },
+                "resolution": null
+              },
+              "rhs": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "len"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "Str"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 155,
+                        "end": 160
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "match_result"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "Str"
+                        },
+                        "span": {
+                          "start": 155,
+                          "end": 156
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "match_result",
+                            "decl_span": {
+                              "start": 73,
+                              "end": 98
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 155,
+                  "end": 160
+                },
+                "resolution": null
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 151,
+            "end": 160
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/05-match-and-control-flow.bst",
+      "span": {
+        "start": 38,
+        "end": 161
+      },
+      "context_id": 2
+    }
+  }
+]

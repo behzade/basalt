@@ -1,46 +1,746 @@
-ERROR: [31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/04-async-http-composition.bst:2:17[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m2 │[0m [31m╭[0m[31m─[0m[31m▶[0m[31m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mg[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249m([0m[38;5;249mu[0m[38;5;249mr[0m[38;5;249ml[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249mr[0m[31m)[0m[31m [0m[31m-[0m[31m>[0m[31m [0m[31ms[0m[31mt[0m[31mr[0m
- [38;5;240m  ┆[0m [31m┆[0m   
- [38;5;246m5 │[0m [31m├[0m[31m─[0m[31m▶[0m[31m [0m[31me[0m[31mf[0m[31mf[0m[31me[0m[31mc[0m[31mt[0m[31m [0m[31mA[0m[31ms[0m[31my[0m[31mn[0m[31mc[0m[31m<[0m[31mT[0m[31m>[0m[31m [0m[31m=[0m[31m [0m[31m{[0m
- [38;5;240m  │[0m [31m│[0m                         
- [38;5;240m  │[0m [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Unknown function or constructor `task`
-[38;5;246m───╯[0m
-[31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/04-async-http-composition.bst:2:17[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m2 │[0m [31m╭[0m[31m─[0m[31m▶[0m[31m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mg[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249m([0m[38;5;249mu[0m[38;5;249mr[0m[38;5;249ml[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249mr[0m[31m)[0m[31m [0m[31m-[0m[31m>[0m[31m [0m[31ms[0m[31mt[0m[31mr[0m
- [38;5;240m  ┆[0m [31m┆[0m   
- [38;5;246m5 │[0m [31m├[0m[31m─[0m[31m▶[0m[31m [0m[31me[0m[31mf[0m[31mf[0m[31me[0m[31mc[0m[31mt[0m[31m [0m[31mA[0m[31ms[0m[31my[0m[31mn[0m[31mc[0m[31m<[0m[31mT[0m[31m>[0m[31m [0m[31m=[0m[31m [0m[31m{[0m
- [38;5;240m  │[0m [31m│[0m                         
- [38;5;240m  │[0m [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Cannot find value `res` in this scope
-[38;5;246m───╯[0m
-[31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/04-async-http-composition.bst:5:20[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m5 │[0m [31m╭[0m[31m─[0m[31m▶[0m[31m [0m[38;5;249me[0m[38;5;249mf[0m[38;5;249mf[0m[38;5;249me[0m[38;5;249mc[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mA[0m[38;5;249ms[0m[38;5;249my[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249m<[0m[38;5;249mT[0m[38;5;249m>[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m{[0m
- [38;5;240m  ┆[0m [31m┆[0m   
- [38;5;246m9 │[0m [31m├[0m[31m─[0m[31m▶[0m[31m [0m[31mh[0m[31ma[0m[31mn[0m[31md[0m[31ml[0m[31me[0m[31mr[0m[31m [0m[31mS[0m[31mc[0m[31mh[0m[31me[0m[31md[0m[31mu[0m[31ml[0m[31me[0m[31mr[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249mA[0m[38;5;249ms[0m[38;5;249my[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249m<[0m[38;5;249mT[0m[38;5;249m>[0m[38;5;249m [0m[38;5;249m{[0m
- [38;5;240m  │[0m [31m│[0m                                   
- [38;5;240m  │[0m [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Cannot find value `http_task` in this scope
-[38;5;246m───╯[0m
-[31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/04-async-http-composition.bst:5:20[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m5 │[0m [31m╭[0m[31m─[0m[31m▶[0m[31m [0m[38;5;249me[0m[38;5;249mf[0m[38;5;249mf[0m[38;5;249me[0m[38;5;249mc[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mA[0m[38;5;249ms[0m[38;5;249my[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249m<[0m[38;5;249mT[0m[38;5;249m>[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m{[0m
- [38;5;240m  ┆[0m [31m┆[0m   
- [38;5;246m9 │[0m [31m├[0m[31m─[0m[31m▶[0m[31m [0m[31mh[0m[31ma[0m[31mn[0m[31md[0m[31ml[0m[31me[0m[31mr[0m[31m [0m[31mS[0m[31mc[0m[31mh[0m[31me[0m[31md[0m[31mu[0m[31ml[0m[31me[0m[31mr[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249mA[0m[38;5;249ms[0m[38;5;249my[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249m<[0m[38;5;249mT[0m[38;5;249m>[0m[38;5;249m [0m[38;5;249m{[0m
- [38;5;240m  │[0m [31m│[0m                                   
- [38;5;240m  │[0m [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Mismatched return type for function 'get': expected str but found T
-[38;5;246m───╯[0m
-[31mError:[0m Type error
-    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/04-async-http-composition.bst:9:26[38;5;246m][0m
-    [38;5;246m│[0m
- [38;5;246m 9 │[0m [31m╭[0m[31m─[0m[31m▶[0m[31m [0m[38;5;249mh[0m[38;5;249ma[0m[38;5;249mn[0m[38;5;249md[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249m [0m[38;5;249mS[0m[38;5;249mc[0m[38;5;249mh[0m[38;5;249me[0m[38;5;249md[0m[38;5;249mu[0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249mA[0m[38;5;249ms[0m[38;5;249my[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249m<[0m[31mT[0m[31m>[0m[31m [0m[31m{[0m
- [38;5;246m10 │[0m [31m├[0m[31m─[0m[31m▶[0m[31m [0m[31m [0m[31m [0m[31m [0m[31m [0m[31mf[0m[31mn[0m[31m [0m[31ma[0m[31mw[0m[31ma[0m[31mi[0m[31mt[0m[31m([0m[31mt[0m[31ma[0m[31ms[0m[31mk[0m[31m:[0m[31m [0m[31m([0m[31m)[0m[31m [0m[31m-[0m[31m>[0m[31m [0m[31mT[0m[38;5;249m)[0m[38;5;249m [0m[38;5;249m-[0m[38;5;249m>[0m[38;5;249m [0m[38;5;249mT[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m{[0m
- [38;5;240m   │[0m [31m│[0m                                          
- [38;5;240m   │[0m [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Unknown method `len` for receiver type str
-[38;5;246m────╯[0m
-
-❌ Compilation failed: error in typechecker
+[
+  {
+    "Effect": {
+      "name": "Http",
+      "operations": [
+        {
+          "name": "get",
+          "params": [
+            {
+              "name": "_",
+              "ty": {
+                "Primitive": "Str"
+              },
+              "span": null
+            }
+          ],
+          "ret_type": {
+            "Primitive": "Str"
+          },
+          "effects": []
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/04-async-http-composition.bst",
+      "span": {
+        "start": 0,
+        "end": 12
+      }
+    }
+  },
+  {
+    "Effect": {
+      "name": "Async",
+      "operations": [
+        {
+          "name": "await",
+          "params": [
+            {
+              "name": "_",
+              "ty": {
+                "Function": {
+                  "param_types": [],
+                  "ret_type": {
+                    "Generic": "T"
+                  },
+                  "effects": []
+                }
+              },
+              "span": null
+            }
+          ],
+          "ret_type": {
+            "Generic": "T"
+          },
+          "effects": []
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/04-async-http-composition.bst",
+      "span": {
+        "start": 12,
+        "end": 30
+      }
+    }
+  },
+  {
+    "Handler": {
+      "name": "Scheduler",
+      "effects": [
+        {
+          "Adt": {
+            "Effect": {
+              "name": [
+                "Async"
+              ],
+              "generics": []
+            }
+          }
+        }
+      ],
+      "functions": [
+        {
+          "signature": {
+            "name": "await",
+            "params": [
+              {
+                "name": "task",
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Generic": "T"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": null
+              }
+            ],
+            "ret_type": {
+              "Generic": "T"
+            },
+            "effects": []
+          },
+          "body": {
+            "stmts": [
+              {
+                "Let": {
+                  "name": "res",
+                  "value": {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "task"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [],
+                              "ret_type": {
+                                "Generic": "T"
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 54,
+                            "end": 55
+                          },
+                          "resolution": {
+                            "Local": {
+                              "name": "task",
+                              "decl_span": null
+                            }
+                          }
+                        },
+                        "args": []
+                      }
+                    },
+                    "ty": {
+                      "Generic": "T"
+                    },
+                    "span": {
+                      "start": 54,
+                      "end": 57
+                    },
+                    "resolution": null
+                  },
+                  "ty": {
+                    "Generic": "T"
+                  },
+                  "is_mut": false,
+                  "span": {
+                    "start": 51,
+                    "end": 57
+                  },
+                  "name_span": null
+                }
+              }
+            ],
+            "last_expr": {
+              "kind": {
+                "Path": [
+                  "res"
+                ]
+              },
+              "ty": {
+                "Generic": "T"
+              },
+              "span": {
+                "start": 57,
+                "end": 58
+              },
+              "resolution": {
+                "Local": {
+                  "name": "res",
+                  "decl_span": {
+                    "start": 51,
+                    "end": 57
+                  }
+                }
+              }
+            },
+            "ty": {
+              "Generic": "T"
+            }
+          },
+          "is_public": false,
+          "defined_in": "tests/04-async-http-composition.bst",
+          "span": {
+            "start": 50,
+            "end": 59
+          },
+          "context_id": 0
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/04-async-http-composition.bst",
+      "span": {
+        "start": 30,
+        "end": 60
+      }
+    }
+  },
+  {
+    "Handler": {
+      "name": "HttpHandler",
+      "effects": [
+        {
+          "Adt": {
+            "Effect": {
+              "name": [
+                "Http"
+              ],
+              "generics": []
+            }
+          }
+        },
+        {
+          "Adt": {
+            "Effect": {
+              "name": [
+                "Async"
+              ],
+              "generics": []
+            }
+          }
+        }
+      ],
+      "functions": [
+        {
+          "signature": {
+            "name": "get",
+            "params": [
+              {
+                "name": "url",
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": null
+              }
+            ],
+            "ret_type": {
+              "Primitive": "Str"
+            },
+            "effects": [
+              {
+                "Adt": {
+                  "Effect": {
+                    "name": [
+                      "Async"
+                    ],
+                    "generics": []
+                  }
+                }
+              }
+            ]
+          },
+          "body": {
+            "stmts": [
+              {
+                "Let": {
+                  "name": "http_task",
+                  "value": {
+                    "kind": {
+                      "FnLiteral": {
+                        "params": [],
+                        "ret_type": {
+                          "Primitive": "Str"
+                        },
+                        "effects": [],
+                        "body": {
+                          "stmts": [],
+                          "last_expr": {
+                            "kind": {
+                              "Literal": [
+                                "Str",
+                                "<html>"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "Str"
+                            },
+                            "span": {
+                              "start": 96,
+                              "end": 97
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          }
+                        }
+                      }
+                    },
+                    "ty": {
+                      "Function": {
+                        "param_types": [],
+                        "ret_type": {
+                          "Primitive": "Str"
+                        },
+                        "effects": []
+                      }
+                    },
+                    "span": {
+                      "start": 90,
+                      "end": 98
+                    },
+                    "resolution": null
+                  },
+                  "ty": {
+                    "Function": {
+                      "param_types": [],
+                      "ret_type": {
+                        "Primitive": "Str"
+                      },
+                      "effects": []
+                    }
+                  },
+                  "is_mut": false,
+                  "span": {
+                    "start": 87,
+                    "end": 98
+                  },
+                  "name_span": null
+                }
+              },
+              {
+                "Let": {
+                  "name": "content",
+                  "value": {
+                    "kind": {
+                      "Perform": {
+                        "path": [
+                          "Async",
+                          "await"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Path": [
+                                "http_task"
+                              ]
+                            },
+                            "ty": {
+                              "Function": {
+                                "param_types": [],
+                                "ret_type": {
+                                  "Primitive": "Str"
+                                },
+                                "effects": []
+                              }
+                            },
+                            "span": {
+                              "start": 106,
+                              "end": 107
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "http_task",
+                                "decl_span": {
+                                  "start": 87,
+                                  "end": 98
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Primitive": "Str"
+                    },
+                    "span": {
+                      "start": 101,
+                      "end": 108
+                    },
+                    "resolution": null
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "is_mut": false,
+                  "span": {
+                    "start": 98,
+                    "end": 108
+                  },
+                  "name_span": null
+                }
+              }
+            ],
+            "last_expr": {
+              "kind": {
+                "Path": [
+                  "content"
+                ]
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "span": {
+                "start": 108,
+                "end": 109
+              },
+              "resolution": {
+                "Local": {
+                  "name": "content",
+                  "decl_span": {
+                    "start": 98,
+                    "end": 108
+                  }
+                }
+              }
+            },
+            "ty": {
+              "Primitive": "Str"
+            }
+          },
+          "is_public": false,
+          "defined_in": "tests/04-async-http-composition.bst",
+          "span": {
+            "start": 86,
+            "end": 110
+          },
+          "context_id": 1
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/04-async-http-composition.bst",
+      "span": {
+        "start": 60,
+        "end": 111
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "fetch_content_size",
+        "params": [
+          {
+            "name": "url",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": [
+          {
+            "Adt": {
+              "Effect": {
+                "name": [
+                  "Http"
+                ],
+                "generics": []
+              }
+            }
+          }
+        ]
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "content",
+              "value": {
+                "kind": {
+                  "Perform": {
+                    "path": [
+                      "Http",
+                      "get"
+                    ],
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "url"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "Str"
+                        },
+                        "span": {
+                          "start": 141,
+                          "end": 142
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "url",
+                            "decl_span": null
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 136,
+                  "end": 143
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 133,
+                "end": 143
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 143,
+                  "end": 148
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "content"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 143,
+                    "end": 144
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "content",
+                      "decl_span": {
+                        "start": 133,
+                        "end": 143
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 143,
+            "end": 148
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/04-async-http-composition.bst",
+      "span": {
+        "start": 132,
+        "end": 149
+      },
+      "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "size",
+              "value": {
+                "kind": {
+                  "Handle": {
+                    "body": {
+                      "stmts": [],
+                      "last_expr": {
+                        "kind": {
+                          "Call": {
+                            "fun": {
+                              "kind": {
+                                "Path": [
+                                  "fetch_content_size"
+                                ]
+                              },
+                              "ty": {
+                                "Function": {
+                                  "param_types": [
+                                    {
+                                      "Primitive": "Str"
+                                    }
+                                  ],
+                                  "ret_type": {
+                                    "Primitive": "I32"
+                                  },
+                                  "effects": []
+                                }
+                              },
+                              "span": {
+                                "start": 159,
+                                "end": 160
+                              },
+                              "resolution": null
+                            },
+                            "args": [
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "Str",
+                                    "https://example.com"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 161,
+                                  "end": 162
+                                },
+                                "resolution": null
+                              }
+                            ]
+                          }
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 159,
+                          "end": 163
+                        },
+                        "resolution": null
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      }
+                    },
+                    "handler": {
+                      "Path": [
+                        "AsyncHttpHandler"
+                      ]
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 159,
+                  "end": 163
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 156,
+                "end": 167
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "size"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 167,
+            "end": 168
+          },
+          "resolution": {
+            "Local": {
+              "name": "size",
+              "decl_span": {
+                "start": 156,
+                "end": 167
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/04-async-http-composition.bst",
+      "span": {
+        "start": 155,
+        "end": 169
+      },
+      "context_id": 3
+    }
+  }
+]

@@ -269,11 +269,21 @@ pub enum ExprKind {
         body: HirBlock,
         handler: HirHandlerBody,
     },
+    /// Function literal value capturing a function body at runtime
+    FnLiteral(HirFnLiteral),
     Cast {
         expr: Box<Expr>, // The expression being cast
                          // The target type is in the parent Expr's `ty` field
     },
     Error,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HirFnLiteral {
+    pub params: Vec<HirParam>,
+    pub ret_type: Ty,
+    pub effects: Vec<Ty>,
+    pub body: HirBlock,
 }
 
 /// Semantic resolution info attached to expressions when available

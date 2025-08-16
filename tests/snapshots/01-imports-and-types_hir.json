@@ -1,44 +1,58 @@
 [
   {
-    "TypeAlias": {
+    "Struct": {
       "name": "Person",
-      "aliased": {
-        "Adt": {
-          "Struct": {
-            "name": [
-              "Person"
-            ],
-            "generics": []
-          }
+      "fields": [
+        {
+          "name": "name",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
+        },
+        {
+          "name": "age",
+          "ty": {
+            "Primitive": "I32"
+          },
+          "name_span": null
         }
-      },
-      "is_public": true,
+      ],
+      "is_public": false,
       "defined_in": "tests/01-imports-and-types.bst",
       "span": {
         "start": 7,
-        "end": 20
-      }
+        "end": 19
+      },
+      "context_id": 0
     }
   },
   {
-    "TypeAlias": {
+    "Struct": {
       "name": "Company",
-      "aliased": {
-        "Adt": {
-          "Struct": {
-            "name": [
-              "Company"
-            ],
-            "generics": []
-          }
+      "fields": [
+        {
+          "name": "company_id",
+          "ty": {
+            "Primitive": "I32"
+          },
+          "name_span": null
+        },
+        {
+          "name": "name",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
         }
-      },
-      "is_public": true,
+      ],
+      "is_public": false,
       "defined_in": "tests/01-imports-and-types.bst",
       "span": {
-        "start": 20,
-        "end": 33
-      }
+        "start": 19,
+        "end": 31
+      },
+      "context_id": 1
     }
   },
   {
@@ -57,8 +71,8 @@
       "is_public": true,
       "defined_in": "tests/01-imports-and-types.bst",
       "span": {
-        "start": 33,
-        "end": 39
+        "start": 31,
+        "end": 41
       }
     }
   },
@@ -78,7 +92,7 @@
       "is_public": true,
       "defined_in": "tests/01-imports-and-types.bst",
       "span": {
-        "start": 39,
+        "start": 41,
         "end": 51
       }
     }
@@ -121,8 +135,8 @@
                         }
                       },
                       "span": {
-                        "start": 59,
-                        "end": 63
+                        "start": 58,
+                        "end": 62
                       },
                       "resolution": null
                     },
@@ -138,8 +152,8 @@
                           "Primitive": "Str"
                         },
                         "span": {
-                          "start": 64,
-                          "end": 65
+                          "start": 63,
+                          "end": 64
                         },
                         "resolution": null
                       }
@@ -150,14 +164,14 @@
                   "Special": "Unit"
                 },
                 "span": {
-                  "start": 59,
-                  "end": 66
+                  "start": 58,
+                  "end": 65
                 },
                 "resolution": null
               },
               "span": {
-                "start": 59,
-                "end": 66
+                "start": 58,
+                "end": 65
               }
             }
           },
@@ -188,8 +202,8 @@
                                   "Primitive": "Str"
                                 },
                                 "span": {
-                                  "start": 76,
-                                  "end": 77
+                                  "start": 75,
+                                  "end": 76
                                 },
                                 "resolution": null
                               }
@@ -207,8 +221,8 @@
                                   "Primitive": "I32"
                                 },
                                 "span": {
-                                  "start": 80,
-                                  "end": 81
+                                  "start": 79,
+                                  "end": 80
                                 },
                                 "resolution": null
                               }
@@ -227,8 +241,8 @@
                         }
                       },
                       "span": {
-                        "start": 72,
-                        "end": 82
+                        "start": 71,
+                        "end": 81
                       },
                       "resolution": null
                     },
@@ -255,8 +269,8 @@
                   }
                 },
                 "span": {
-                  "start": 66,
-                  "end": 83
+                  "start": 65,
+                  "end": 82
                 },
                 "resolution": null
               },
@@ -272,8 +286,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 66,
-                "end": 83
+                "start": 65,
+                "end": 82
               },
               "name_span": null
             }
@@ -305,8 +319,8 @@
                                   "Primitive": "I32"
                                 },
                                 "span": {
-                                  "start": 93,
-                                  "end": 94
+                                  "start": 92,
+                                  "end": 93
                                 },
                                 "resolution": null
                               }
@@ -324,8 +338,8 @@
                                   "Primitive": "Str"
                                 },
                                 "span": {
-                                  "start": 97,
-                                  "end": 98
+                                  "start": 96,
+                                  "end": 97
                                 },
                                 "resolution": null
                               }
@@ -344,8 +358,8 @@
                         }
                       },
                       "span": {
-                        "start": 89,
-                        "end": 99
+                        "start": 88,
+                        "end": 98
                       },
                       "resolution": null
                     },
@@ -372,8 +386,8 @@
                   }
                 },
                 "span": {
-                  "start": 83,
-                  "end": 100
+                  "start": 82,
+                  "end": 99
                 },
                 "resolution": null
               },
@@ -389,8 +403,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 83,
-                "end": 100
+                "start": 82,
+                "end": 99
               },
               "name_span": null
             }
@@ -400,93 +414,67 @@
               "name": "user1",
               "value": {
                 "kind": {
-                  "Call": {
-                    "fun": {
-                      "kind": {
-                        "Path": [
-                          "B2B"
-                        ]
-                      },
-                      "ty": {
-                        "Function": {
-                          "param_types": [
-                            {
-                              "Adt": {
-                                "Struct": {
-                                  "name": [
-                                    "Company"
-                                  ],
-                                  "generics": []
-                                }
-                              }
-                            }
-                          ],
-                          "ret_type": {
-                            "Adt": {
-                              "Enum": {
-                                "name": [
-                                  "UserType"
-                                ],
-                                "generics": []
-                              }
-                            }
+                  "StructInit": {
+                    "path": [
+                      "UserType",
+                      "B2B"
+                    ],
+                    "fields": [
+                      [
+                        "company_id",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "1"
+                            ]
                           },
-                          "effects": []
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 111,
+                            "end": 112
+                          },
+                          "resolution": null
                         }
-                      },
-                      "span": {
-                        "start": 105,
-                        "end": 106
-                      },
-                      "resolution": null
-                    },
-                    "args": [
-                      {
-                        "kind": {
-                          "Path": [
-                            "company"
-                          ]
-                        },
-                        "ty": {
-                          "Adt": {
-                            "Struct": {
-                              "name": [
-                                "Company"
-                              ],
-                              "generics": []
-                            }
-                          }
-                        },
-                        "span": {
-                          "start": 107,
-                          "end": 108
-                        },
-                        "resolution": {
-                          "Local": {
-                            "name": "company",
-                            "decl_span": {
-                              "start": 83,
-                              "end": 100
-                            }
-                          }
+                      ],
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "acme"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 115,
+                            "end": 116
+                          },
+                          "resolution": null
                         }
-                      }
+                      ]
                     ]
                   }
                 },
                 "ty": {
                   "Adt": {
-                    "Enum": {
+                    "Struct": {
                       "name": [
-                        "UserType"
+                        "UserType",
+                        "B2B"
                       ],
                       "generics": []
                     }
                   }
                 },
                 "span": {
-                  "start": 100,
-                  "end": 109
+                  "start": 99,
+                  "end": 117
                 },
                 "resolution": null
               },
@@ -502,8 +490,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 100,
-                "end": 109
+                "start": 99,
+                "end": 117
               },
               "name_span": null
             }
@@ -513,93 +501,67 @@
               "name": "user2",
               "value": {
                 "kind": {
-                  "Call": {
-                    "fun": {
-                      "kind": {
-                        "Path": [
-                          "B2C"
-                        ]
-                      },
-                      "ty": {
-                        "Function": {
-                          "param_types": [
-                            {
-                              "Adt": {
-                                "Struct": {
-                                  "name": [
-                                    "Person"
-                                  ],
-                                  "generics": []
-                                }
-                              }
-                            }
-                          ],
-                          "ret_type": {
-                            "Adt": {
-                              "Enum": {
-                                "name": [
-                                  "UserType"
-                                ],
-                                "generics": []
-                              }
-                            }
+                  "StructInit": {
+                    "path": [
+                      "UserType",
+                      "B2C"
+                    ],
+                    "fields": [
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "behzad"
+                            ]
                           },
-                          "effects": []
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 129,
+                            "end": 130
+                          },
+                          "resolution": null
                         }
-                      },
-                      "span": {
-                        "start": 114,
-                        "end": 115
-                      },
-                      "resolution": null
-                    },
-                    "args": [
-                      {
-                        "kind": {
-                          "Path": [
-                            "person"
-                          ]
-                        },
-                        "ty": {
-                          "Adt": {
-                            "Struct": {
-                              "name": [
-                                "Person"
-                              ],
-                              "generics": []
-                            }
-                          }
-                        },
-                        "span": {
-                          "start": 116,
-                          "end": 117
-                        },
-                        "resolution": {
-                          "Local": {
-                            "name": "person",
-                            "decl_span": {
-                              "start": 66,
-                              "end": 83
-                            }
-                          }
+                      ],
+                      [
+                        "age",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "10"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 133,
+                            "end": 134
+                          },
+                          "resolution": null
                         }
-                      }
+                      ]
                     ]
                   }
                 },
                 "ty": {
                   "Adt": {
-                    "Enum": {
+                    "Struct": {
                       "name": [
-                        "UserType"
+                        "UserType",
+                        "B2C"
                       ],
                       "generics": []
                     }
                   }
                 },
                 "span": {
-                  "start": 109,
-                  "end": 118
+                  "start": 117,
+                  "end": 135
                 },
                 "resolution": null
               },
@@ -615,8 +577,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 109,
-                "end": 118
+                "start": 117,
+                "end": 135
               },
               "name_span": null
             }
@@ -633,8 +595,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 118,
-            "end": 119
+            "start": 135,
+            "end": 136
           },
           "resolution": null
         },
@@ -642,13 +604,13 @@
           "Primitive": "I32"
         }
       },
-      "is_public": true,
+      "is_public": false,
       "defined_in": "tests/01-imports-and-types.bst",
       "span": {
-        "start": 58,
-        "end": 120
+        "start": 57,
+        "end": 137
       },
-      "context_id": 0
+      "context_id": 2
     }
   },
   {
@@ -682,7 +644,7 @@
         "start": 9,
         "end": 11
       },
-      "context_id": 1
+      "context_id": 3
     }
   }
 ]

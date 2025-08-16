@@ -12,24 +12,30 @@
                   "path": [
                     "str"
                   ],
-                  "generics": []
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
                 }
               ],
               "ret_type": {
                 "path": [
                   "str"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               },
-              "is_public": true
+              "is_public": false
             }
           ],
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
         "start": 0,
-        "end": 13
+        "end": 12
       }
     },
     {
@@ -44,24 +50,38 @@
                   "path": [
                     "fn"
                   ],
-                  "generics": []
+                  "generics": [],
+                  "fn_params": [],
+                  "fn_ret": {
+                    "path": [
+                      "T"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  },
+                  "fn_effects": []
                 }
               ],
               "ret_type": {
                 "path": [
                   "T"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               },
-              "is_public": true
+              "is_public": false
             }
           ],
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 13,
-        "end": 32
+        "start": 12,
+        "end": 30
       }
     },
     {
@@ -82,7 +102,18 @@
                     "path": [
                       "fn"
                     ],
-                    "generics": []
+                    "generics": [],
+                    "fn_params": [],
+                    "fn_ret": {
+                      "path": [
+                        "T"
+                      ],
+                      "generics": [],
+                      "fn_params": null,
+                      "fn_ret": null,
+                      "fn_effects": null
+                    },
+                    "fn_effects": []
                   }
                 ]
               ],
@@ -90,7 +121,10 @@
                 "path": [
                   "T"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               },
               "effects": [],
               "body": {
@@ -113,23 +147,23 @@
                                       ]
                                     },
                                     "span": {
-                                      "start": 57,
-                                      "end": 58
+                                      "start": 54,
+                                      "end": 55
                                     }
                                   },
                                   "args": []
                                 }
                               },
                               "span": {
-                                "start": 57,
-                                "end": 60
+                                "start": 54,
+                                "end": 57
                               }
                             }
                           }
                         },
                         "span": {
-                          "start": 54,
-                          "end": 60
+                          "start": 51,
+                          "end": 57
                         }
                       },
                       {
@@ -141,14 +175,14 @@
                               ]
                             },
                             "span": {
-                              "start": 60,
-                              "end": 61
+                              "start": 57,
+                              "end": 58
                             }
                           }
                         },
                         "span": {
-                          "start": 60,
-                          "end": 61
+                          "start": 57,
+                          "end": 58
                         }
                       }
                     ],
@@ -156,19 +190,19 @@
                   }
                 },
                 "span": {
-                  "start": 53,
-                  "end": 62
+                  "start": 50,
+                  "end": 59
                 }
               },
-              "is_public": true
+              "is_public": false
             }
           ],
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 32,
-        "end": 63
+        "start": 30,
+        "end": 60
       }
     },
     {
@@ -190,7 +224,10 @@
                     "path": [
                       "str"
                     ],
-                    "generics": []
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
                   }
                 ]
               ],
@@ -198,7 +235,10 @@
                 "path": [
                   "str"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               },
               "effects": [
                 "Async"
@@ -209,19 +249,68 @@
                     "stmts": [
                       {
                         "item": {
-                          "Expr": {
-                            "item": {
-                              "Literal": "Unit"
-                            },
-                            "span": {
-                              "start": 91,
-                              "end": 101
+                          "Let": {
+                            "is_mut": false,
+                            "name": "http_task",
+                            "ty": null,
+                            "value": {
+                              "item": {
+                                "FnLiteral": {
+                                  "params": [],
+                                  "ret_type": {
+                                    "path": [
+                                      "str"
+                                    ],
+                                    "generics": [],
+                                    "fn_params": null,
+                                    "fn_ret": null,
+                                    "fn_effects": null
+                                  },
+                                  "effects": [],
+                                  "body": {
+                                    "item": {
+                                      "Block": {
+                                        "stmts": [
+                                          {
+                                            "item": {
+                                              "Expr": {
+                                                "item": {
+                                                  "Literal": {
+                                                    "Str": "<html>"
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 96,
+                                                  "end": 97
+                                                }
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 96,
+                                              "end": 97
+                                            }
+                                          }
+                                        ],
+                                        "last_expr": null
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 95,
+                                      "end": 98
+                                    }
+                                  }
+                                }
+                              },
+                              "span": {
+                                "start": 90,
+                                "end": 98
+                              }
                             }
                           }
                         },
                         "span": {
-                          "start": 91,
-                          "end": 101
+                          "start": 87,
+                          "end": 98
                         }
                       },
                       {
@@ -245,23 +334,23 @@
                                         ]
                                       },
                                       "span": {
-                                        "start": 109,
-                                        "end": 110
+                                        "start": 106,
+                                        "end": 107
                                       }
                                     }
                                   ]
                                 }
                               },
                               "span": {
-                                "start": 104,
-                                "end": 111
+                                "start": 101,
+                                "end": 108
                               }
                             }
                           }
                         },
                         "span": {
-                          "start": 101,
-                          "end": 111
+                          "start": 98,
+                          "end": 108
                         }
                       },
                       {
@@ -273,14 +362,14 @@
                               ]
                             },
                             "span": {
-                              "start": 111,
-                              "end": 112
+                              "start": 108,
+                              "end": 109
                             }
                           }
                         },
                         "span": {
-                          "start": 111,
-                          "end": 112
+                          "start": 108,
+                          "end": 109
                         }
                       }
                     ],
@@ -288,19 +377,19 @@
                   }
                 },
                 "span": {
-                  "start": 90,
-                  "end": 113
+                  "start": 86,
+                  "end": 110
                 }
               },
-              "is_public": true
+              "is_public": false
             }
           ],
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 63,
-        "end": 114
+        "start": 60,
+        "end": 111
       }
     },
     {
@@ -321,8 +410,8 @@
                         ]
                       },
                       "span": {
-                        "start": 117,
-                        "end": 118
+                        "start": 114,
+                        "end": 115
                       }
                     },
                     "handler": {
@@ -333,21 +422,21 @@
                   }
                 },
                 "span": {
-                  "start": 117,
-                  "end": 118
+                  "start": 114,
+                  "end": 115
                 }
               }
             }
           },
           "span": {
-            "start": 114,
-            "end": 122
+            "start": 111,
+            "end": 119
           }
         }
       },
       "span": {
-        "start": 114,
-        "end": 122
+        "start": 111,
+        "end": 119
       }
     },
     {
@@ -362,7 +451,10 @@
                 "path": [
                   "str"
                 ],
-                "generics": []
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
               }
             ]
           ],
@@ -370,7 +462,10 @@
             "path": [
               "i32"
             ],
-            "generics": []
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
           },
           "effects": [
             "Http"
@@ -400,23 +495,23 @@
                                     ]
                                   },
                                   "span": {
-                                    "start": 145,
-                                    "end": 146
+                                    "start": 141,
+                                    "end": 142
                                   }
                                 }
                               ]
                             }
                           },
                           "span": {
-                            "start": 140,
-                            "end": 147
+                            "start": 136,
+                            "end": 143
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 137,
-                      "end": 147
+                      "start": 133,
+                      "end": 143
                     }
                   },
                   {
@@ -431,8 +526,8 @@
                                 ]
                               },
                               "span": {
-                                "start": 147,
-                                "end": 148
+                                "start": 143,
+                                "end": 144
                               }
                             },
                             "method": "len",
@@ -440,14 +535,14 @@
                           }
                         },
                         "span": {
-                          "start": 147,
-                          "end": 152
+                          "start": 143,
+                          "end": 148
                         }
                       }
                     },
                     "span": {
-                      "start": 147,
-                      "end": 152
+                      "start": 143,
+                      "end": 148
                     }
                   }
                 ],
@@ -455,16 +550,16 @@
               }
             },
             "span": {
-              "start": 136,
-              "end": 153
+              "start": 132,
+              "end": 149
             }
           },
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 122,
-        "end": 153
+        "start": 119,
+        "end": 149
       }
     },
     {
@@ -477,7 +572,10 @@
             "path": [
               "i32"
             ],
-            "generics": []
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
           },
           "effects": [],
           "body": {
@@ -503,8 +601,8 @@
                                         ]
                                       },
                                       "span": {
-                                        "start": 164,
-                                        "end": 165
+                                        "start": 159,
+                                        "end": 160
                                       }
                                     },
                                     "args": [
@@ -515,16 +613,16 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 166,
-                                          "end": 167
+                                          "start": 161,
+                                          "end": 162
                                         }
                                       }
                                     ]
                                   }
                                 },
                                 "span": {
-                                  "start": 164,
-                                  "end": 168
+                                  "start": 159,
+                                  "end": 163
                                 }
                               },
                               "handler": {
@@ -535,15 +633,15 @@
                             }
                           },
                           "span": {
-                            "start": 164,
-                            "end": 168
+                            "start": 159,
+                            "end": 163
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 161,
-                      "end": 172
+                      "start": 156,
+                      "end": 167
                     }
                   },
                   {
@@ -555,14 +653,14 @@
                           ]
                         },
                         "span": {
-                          "start": 172,
-                          "end": 173
+                          "start": 167,
+                          "end": 168
                         }
                       }
                     },
                     "span": {
-                      "start": 172,
-                      "end": 173
+                      "start": 167,
+                      "end": 168
                     }
                   }
                 ],
@@ -570,16 +668,16 @@
               }
             },
             "span": {
-              "start": 160,
-              "end": 174
+              "start": 155,
+              "end": 169
             }
           },
-          "is_public": true
+          "is_public": false
         }
       },
       "span": {
-        "start": 153,
-        "end": 174
+        "start": 149,
+        "end": 169
       }
     }
   ]
