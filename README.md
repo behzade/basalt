@@ -3,7 +3,6 @@
 An exploration of programming language and compiler design. This repo is a lab for trying different language designs and seeing how those choices ripple through the frontend (lexer/parser), the type system and inference, lowering, and backend code generation.
 
 Basalt is a statically typed, functional leaning language with a focus on simplicity and ergonomics.
-the language.
 
 - **Not a product. Do not use this to build software.** Things change frequently, features are incomplete, and stability is not a goal.
 
