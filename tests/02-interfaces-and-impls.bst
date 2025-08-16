@@ -1,3 +1,7 @@
+import {
+    std::io
+}
+
 struct Person {
     name: str,
     age: i32,
