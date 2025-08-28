@@ -14,7 +14,6 @@ pub fn lexer<'src>()
 -> impl Parser<'src, &'src str, Vec<(Token<'src>, SimpleSpan)>, extra::Err<Rich<'src, char>>> {
     // A parser for operators
     let op = choice((
-        just("<-").to(Token::Op("<-".to_string())),
         just("==").to(Token::Op("==".to_string())),
         just("!=").to(Token::Op("!=".to_string())),
         just(">=").to(Token::Op(">=".to_string())),

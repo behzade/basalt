@@ -515,14 +515,13 @@ fn expression_bundle<'src>() -> (
         .then(expr.clone())
         .map_with(|((name, ty), value), e| Spanned { node: StmtNode::Let { is_mut: false, name, ty: Some(ty), value: Some(value) }, span: e.span() });
 
-    // assignment: simple lhs (path with optional .field chain) <- expr
     let lhs = path()
         .map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() })
         .then(just(Token::Op(".".to_string())).ignore_then(ident()).repeated().collect::<Vec<_>>())
         .map(|(base, fields)| fields.into_iter().fold(base, |acc, f| Spanned { node: ExprNode::FieldAccess { receiver: Box::new(acc.clone()), field: f }, span: acc.span }));
 
     let assign = lhs
-        .then_ignore(select! { Token::Op(op) if op == "<-" => () })
+        .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
         .map_with(|(l, r), e| Spanned { node: StmtNode::Assign(l, r), span: e.span() });
 

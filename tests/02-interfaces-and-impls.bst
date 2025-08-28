@@ -12,7 +12,7 @@ fn get_age(p: Person) -> i32 {
 }
 
 fn up_age_by(mut p: Person, by: i32) -> i32 {
-    p.age <- p.age + by
+    p.age = p.age + by
     p.age
 }
 

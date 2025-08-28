@@ -16,7 +16,7 @@ fn main() -> i32 {
     let if_result = if person.age > 10 { 3 } else { 4 }
 
     while person.age > 10 {
-        person.age <- person.age - 1
+        person.age = person.age - 1
     }
 
     let block_result: i32 = {

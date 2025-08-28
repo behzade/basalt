@@ -102,7 +102,6 @@ impl Interpreter {
                 Ok(ControlFlow::Return(ret))
             }
             Stmt::Assign { lhs, rhs, .. } => {
-                // Variable assignment: x <- expr
                 if let ExprKind::Path(path) = &lhs.kind {
                     if let Some(var_name) = path.last() {
                         let new_val = self.eval_expr(rhs, env)?;
@@ -110,7 +109,6 @@ impl Interpreter {
                         return Ok(ControlFlow::Next);
                     }
                 }
-                // Field assignment: obj.field <- expr, where obj is a variable
                 if let ExprKind::FieldAccess { receiver, field } = &lhs.kind {
                     if let ExprKind::Path(p) = &receiver.kind {
                         if let Some(owner_name) = p.last() {

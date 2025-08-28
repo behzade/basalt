@@ -64,7 +64,7 @@ fn main() -> i32 {
     }
 
     while age > 10 {
-        age <- age - 1
+        age = age - 1
     }
 
     let block_result: i32 = {
