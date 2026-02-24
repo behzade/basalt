@@ -10,3 +10,4 @@ dist/
 tests/temp/
 tests/typecheck_temp
 tests/mir_temp
+.devbox

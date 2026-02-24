@@ -1,54 +1,102 @@
-## Basalt
+# Basalt
 
-An exploration of programming language and compiler design. This repo is a lab for trying different language designs and seeing how those choices ripple through the frontend (lexer/parser), the type system and inference, lowering, and backend code generation.
+Basalt is an experimental programming language/compiler playground in Rust.
+The focus is on quickly iterating on syntax, typechecking, lowering, and runtime behavior.
 
-Basalt is a statically typed, functional leaning language with a focus on simplicity and ergonomics.
+- Not a product. No stability guarantees.
+- Backward compatibility is not a goal.
 
-- **Not a product. Do not use this to build software.** Things change frequently, features are incomplete, and stability is not a goal.
+## Current Status
 
-### Iterations
+The active pipeline in `main` is:
 
-1. **Go prototype**: first pass on syntax/type ideas to validate design quickly.
-2. **Rust + Cranelift**: IR-based backend experiments and codegen trade‑offs.
-3. **Rust → direct WebAssembly**: skipping an IR to emit WASM directly.
-4. **Rust → Interpreter (current)**: interpreter executes meta blocks during the resolve step and is used for metaprogramming and bootstrapping.
-5. **Self-Hosted -> LLVM (future)**: long-term goal is a self-hosted compiler that emits LLVM IR for optimized native builds.
+1. Lex + parse to AST
+2. Resolve imports/modules
+3. Typecheck + lower to typed HIR
+4. Execute HIR with the interpreter (`run` command)
 
-### What you will find here
+`mir` and `build` stages currently exist in the CLI but are not implemented.
 
-- **Lexer and tokens**: `src/token.rs`
-- **Parser**: `src/parser.rs`
-- **Type system and checking**:
-  - Core checker: `src/typechecker/checker.rs`
-  - Lowering to typed IR: `src/typechecker/lowering/expr.rs`, `src/typechecker/lowering/stmt.rs`
-  - Type/definition registry: `src/typechecker/registry.rs`
-- **Design notes and experiments**: `design.bst`
-- **Small, focused test inputs**: `tests/*.bst` (e.g., `tests/00-imports-and-aliases.bst`, `tests/02-interfaces-and-impls.bst`)
-
-The code aims to surface trade‑offs rather than hide them behind abstractions.
-
-### Peeking at the pipeline
-
-Run selective stages to inspect artifacts:
+## CLI
 
 ```sh
-cargo run -- <parse|resolve|hir> ./tests/<file>.bst
+# Print parsed owned AST as JSON
+cargo run -- ast ./tests/00-imports-and-aliases.bst
+
+# Print typed HIR as JSON
+cargo run -- hir ./tests/05-match-and-control-flow.bst
+
+# Typecheck + run via interpreter (exit code comes from program result)
+cargo run -- run ./tests/00-imports-and-aliases.bst
+
+# Present in CLI, currently stubs
+cargo run -- mir ./tests/00-imports-and-aliases.bst
+cargo run -- build ./tests/00-imports-and-aliases.bst
 ```
 
-- `parse`: print the AST
-- `resolve`: name resolution and scopes
-- `hir`: typed high‑level IR
+## What Is Implemented
 
-Other subcommands (like `mir` or `build`) may be stubs during this iteration.
+- Frontend:
+  - Lexer/tokens: `src/lexer.rs`, `src/token.rs`
+  - Parser: `src/parser.rs`
+- Middle-end:
+  - Typechecker and lowering: `src/typechecker/**`
+  - Typed IR: `src/hir.rs`
+- Runtime:
+  - Tree-walking interpreter for HIR: `src/interpreter/**`
+- Editor tooling:
+  - LSP server: `src/bin/lsp_server/**`
 
-### Scope and non-goals
+## Language Coverage (Current)
 
-- Runtime split: the compiler ships both the interpreter (for compile-time execution of meta blocks) and the LLVM backend (for optimized codegen). They coexist and serve different phases of the pipeline.
-- **No stability guarantees** and **no standard library**
-- No promises about error messages or ergonomics
-- Backwards compatibility is not considered
-- Contributions are not solicited; issues/PRs may be ignored
+Works through parser/typechecker:
 
-### License
+- Imports and aliases
+- Structs and field access
+- Type aliases including tagged unions
+- Functions and function literals
+- `if` / `while` / `match`
+- Effects, handlers, and `perform` typing rules
+- UFCS-style method calls lowered to regular calls
+
+Not currently implemented in interpreter runtime:
+
+- `match` execution
+- `perform`/`handle` execution
+- Map runtime values
+
+Notes:
+
+- `interface`/`impl` parsing was intentionally removed in the current grammar pass.
+- `=` is the assignment operator (older `<-` syntax has been removed).
+
+## Modules and Imports
+
+- `import { self::... }` resolves from `./src`
+- Other imports resolve from `./modules`
+- Standard-library-like modules in this repo are minimal placeholders under `modules/std/**`
+
+## Tests
+
+Snapshot and stage test runner:
+
+```sh
+./tests/run.sh ast
+./tests/run.sh hir --compare
+./tests/run.sh ast --snapshot
+```
+
+Test inputs are in `tests/*.bst`, with snapshots in `tests/snapshots/`.
+
+## Dev Environment
+
+This repo includes a `devbox.json` with scripts for `build`, `test`, `fmt`, and `clippy`.
+
+```sh
+devbox run -- cargo build
+devbox run -- cargo test
+```
+
+## License
 
 Apache-2.0. See `LICENSE`.
