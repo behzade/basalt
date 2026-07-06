@@ -1,0 +1,2 @@
+- Always do a cutover to a new version of the codebase without leaving backwards compatibility. This codebase is not in use by anyone else.
+- Ask to commit git with a conventional commit message in a single elevated git add and commit request. Don't try to commit without elevated permissions.
