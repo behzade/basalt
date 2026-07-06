@@ -896,7 +896,26 @@ impl Typechecker {
                             });
                         }
 
-                        if let Some((union_path, payload_types)) = self.find_union_variant(&name) {
+                        let variant_matches = self.find_union_variant_matches(&name);
+                        if variant_matches.len() > 1 {
+                            let candidates = variant_matches
+                                .iter()
+                                .map(|(path, _)| path.join("::"))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            self.errors.push(TypeError {
+                                message: format!(
+                                    "Ambiguous variant constructor `{}`; add an expected enum type. Candidates: {}",
+                                    name, candidates
+                                ),
+                                context: context.clone(),
+                            });
+                            return Err(());
+                        }
+
+                        if let Some((union_path, payload_types)) =
+                            variant_matches.into_iter().next()
+                        {
                             let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
                                 name: union_path.clone(),
                                 generics: vec![],

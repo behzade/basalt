@@ -8,3 +8,4 @@
 10-generic-result-chain.bst 6
 15-function-value-shadowing.bst 2
 16-user-function-shadows-builtin.bst 42
+17-duplicate-variant-names.bst 3

@@ -1,0 +1,207 @@
+{
+  "tests/18-ambiguous-variant-constructor.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Empty",
+          "generics": [],
+          "fields": [],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 4
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "A",
+          "generics": [],
+          "aliased": {
+            "Union": [
+              [
+                "Same",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "Other",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 4,
+        "end": 14
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "B",
+          "generics": [],
+          "aliased": {
+            "Union": [
+              [
+                "Same",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "Other",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 14,
+        "end": 24
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "value",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "Same"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 34,
+                                  "end": 35
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "StructInit": {
+                                      "path": [
+                                        "Empty"
+                                      ],
+                                      "generics": [],
+                                      "fields": []
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 36,
+                                    "end": 39
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 34,
+                            "end": 40
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 31,
+                      "end": 40
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 40,
+                          "end": 41
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 40,
+                      "end": 41
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 30,
+              "end": 42
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 24,
+        "end": 42
+      }
+    }
+  ]
+}

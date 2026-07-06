@@ -71,16 +71,18 @@ impl Typechecker {
         }
     }
 
-    pub(crate) fn find_union_variant(
+    pub(crate) fn find_union_variant_matches(
         &self,
         variant: &str,
-    ) -> Option<(hir::OwnedPath, Option<Vec<hir::Ty>>)> {
+    ) -> Vec<(hir::OwnedPath, Option<Vec<hir::Ty>>)> {
+        let mut matches = Vec::new();
         for (union_path, variants) in &self.union_variants {
             if let Some((_, payload)) = variants.iter().find(|(name, _)| name == variant).cloned() {
-                return Some((union_path.clone(), payload));
+                matches.push((union_path.clone(), payload));
             }
         }
-        None
+        matches.sort_by(|(left, _), (right, _)| left.cmp(right));
+        matches
     }
 
     pub(crate) fn resolve_effect_op(

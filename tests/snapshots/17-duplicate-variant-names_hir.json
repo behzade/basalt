@@ -1,0 +1,776 @@
+[
+  {
+    "Struct": {
+      "name": "Empty",
+      "fields": [],
+      "is_public": false,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 0,
+        "end": 4
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Enum": {
+      "name": "A",
+      "variants": [
+        {
+          "name": "Same",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Empty"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "Other",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Empty"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 4,
+        "end": 14
+      },
+      "context_id": null
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "A",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "A"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 4,
+        "end": 14
+      }
+    }
+  },
+  {
+    "Enum": {
+      "name": "B",
+      "variants": [
+        {
+          "name": "Same",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Empty"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "Other",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Empty"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 14,
+        "end": 24
+      },
+      "context_id": null
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "B",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "B"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 14,
+        "end": 24
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "score_a",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "A"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "value"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "A"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 35,
+                  "end": 36
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "value",
+                    "decl_span": null
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Same"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "same"
+                            },
+                            "ty": {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Empty"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "A"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Literal": [
+                        "I32",
+                        "1"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 41,
+                      "end": 42
+                    },
+                    "resolution": null
+                  }
+                ],
+                [
+                  {
+                    "kind": "Wildcard",
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "A"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Literal": [
+                        "I32",
+                        "0"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 45,
+                      "end": 46
+                    },
+                    "resolution": null
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 34,
+            "end": 46
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 33,
+        "end": 47
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "score_b",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "B"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "value"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "B"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 58,
+                  "end": 59
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "value",
+                    "decl_span": null
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Same"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "same"
+                            },
+                            "ty": {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Empty"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "B"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Literal": [
+                        "I32",
+                        "2"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 64,
+                      "end": 65
+                    },
+                    "resolution": null
+                  }
+                ],
+                [
+                  {
+                    "kind": "Wildcard",
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "B"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Literal": [
+                        "I32",
+                        "0"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 68,
+                      "end": 69
+                    },
+                    "resolution": null
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 57,
+            "end": 69
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 56,
+        "end": 70
+      },
+      "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "a",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "A",
+                      "Same"
+                    ],
+                    "fields": []
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "A"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 77,
+                  "end": 88
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "A"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 77,
+                "end": 88
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "b",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "B",
+                      "Same"
+                    ],
+                    "fields": []
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "B"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 88,
+                  "end": 99
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "B"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 88,
+                "end": 99
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Binary": {
+              "op": "Add",
+              "lhs": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "score_a"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "A"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 99,
+                        "end": 100
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "a"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "A"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 101,
+                          "end": 102
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "a",
+                            "decl_span": {
+                              "start": 77,
+                              "end": 88
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 99,
+                  "end": 103
+                },
+                "resolution": null
+              },
+              "rhs": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "score_b"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "B"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 104,
+                        "end": 105
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "b"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "B"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 106,
+                          "end": 107
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "b",
+                            "decl_span": {
+                              "start": 88,
+                              "end": 99
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 104,
+                  "end": 108
+                },
+                "resolution": null
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 99,
+            "end": 108
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/17-duplicate-variant-names.bst",
+      "span": {
+        "start": 76,
+        "end": 109
+      },
+      "context_id": 3
+    }
+  }
+]
