@@ -1037,9 +1037,25 @@ impl Typechecker {
                 for e in effects {
                     eff_tys.push(self.resolve_type(&e, context.clone())?);
                 }
+                let old_return_type = self.current_fn_return_type.replace(ret_ty.clone());
                 self.current_effects_stack.push(eff_tys.clone());
-                let body_hir_expr_result = self.lower_expr(*body, context.clone());
+                self.enter_scope();
+                for p in &lowered_params {
+                    self.add_symbol_to_current_scope(
+                        p.name.clone(),
+                        crate::typechecker::symbols::Symbol::Variable {
+                            ty: p.ty.clone(),
+                            is_mut: false,
+                            initialized: true,
+                            decl_span: p.span,
+                        },
+                    );
+                }
+                let body_hir_expr_result =
+                    self.lower_expr_with_expected(*body, ret_ty.clone(), context.clone());
+                self.leave_scope();
                 let _ = self.current_effects_stack.pop();
+                self.current_fn_return_type = old_return_type;
                 let body_hir_expr = body_hir_expr_result?;
                 let body_block = match body_hir_expr.kind {
                     hir::ExprKind::Block(b) => b,

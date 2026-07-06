@@ -1,0 +1,545 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "apply_twice",
+        "params": [
+          {
+            "name": "f",
+            "ty": {
+              "Function": {
+                "param_types": [
+                  {
+                    "Primitive": "I32"
+                  }
+                ],
+                "ret_type": {
+                  "Primitive": "I32"
+                },
+                "effects": []
+              }
+            },
+            "span": null
+          },
+          {
+            "name": "value",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "f"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "I32"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 18,
+                  "end": 19
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "f",
+                    "decl_span": null
+                  }
+                }
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Call": {
+                      "fun": {
+                        "kind": {
+                          "Path": [
+                            "f"
+                          ]
+                        },
+                        "ty": {
+                          "Function": {
+                            "param_types": [
+                              {
+                                "Primitive": "I32"
+                              }
+                            ],
+                            "ret_type": {
+                              "Primitive": "I32"
+                            },
+                            "effects": []
+                          }
+                        },
+                        "span": {
+                          "start": 20,
+                          "end": 21
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "f",
+                            "decl_span": null
+                          }
+                        }
+                      },
+                      "args": [
+                        {
+                          "kind": {
+                            "Path": [
+                              "value"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 22,
+                            "end": 23
+                          },
+                          "resolution": {
+                            "Local": {
+                              "name": "value",
+                              "decl_span": null
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 20,
+                    "end": 24
+                  },
+                  "resolution": null
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 18,
+            "end": 25
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/08-higher-order-functions.bst",
+      "span": {
+        "start": 17,
+        "end": 26
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "make_adder",
+        "params": [
+          {
+            "name": "base",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Function": {
+            "param_types": [
+              {
+                "Primitive": "I32"
+              }
+            ],
+            "ret_type": {
+              "Primitive": "I32"
+            },
+            "effects": []
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "FnLiteral": {
+              "params": [
+                {
+                  "name": "value",
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": null
+                }
+              ],
+              "ret_type": {
+                "Primitive": "I32"
+              },
+              "effects": [],
+              "body": {
+                "stmts": [],
+                "last_expr": {
+                  "kind": {
+                    "Binary": {
+                      "op": "Add",
+                      "lhs": {
+                        "kind": {
+                          "Path": [
+                            "base"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 49,
+                          "end": 50
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "base",
+                            "decl_span": null
+                          }
+                        }
+                      },
+                      "rhs": {
+                        "kind": {
+                          "Path": [
+                            "value"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 51,
+                          "end": 52
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "value",
+                            "decl_span": null
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 49,
+                    "end": 52
+                  },
+                  "resolution": null
+                },
+                "ty": {
+                  "Primitive": "I32"
+                }
+              }
+            }
+          },
+          "ty": {
+            "Function": {
+              "param_types": [
+                {
+                  "Primitive": "I32"
+                }
+              ],
+              "ret_type": {
+                "Primitive": "I32"
+              },
+              "effects": []
+            }
+          },
+          "span": {
+            "start": 40,
+            "end": 53
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Function": {
+            "param_types": [
+              {
+                "Primitive": "I32"
+              }
+            ],
+            "ret_type": {
+              "Primitive": "I32"
+            },
+            "effects": []
+          }
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/08-higher-order-functions.bst",
+      "span": {
+        "start": 39,
+        "end": 54
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "add_three",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "make_adder"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Primitive": "I32"
+                                }
+                              ],
+                              "ret_type": {
+                                "Primitive": "I32"
+                              },
+                              "effects": []
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 64,
+                        "end": 65
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "3"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 66,
+                          "end": 67
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "I32"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 64,
+                  "end": 68
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Function": {
+                  "param_types": [
+                    {
+                      "Primitive": "I32"
+                    }
+                  ],
+                  "ret_type": {
+                    "Primitive": "I32"
+                  },
+                  "effects": []
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 61,
+                "end": 68
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "apply_twice"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      {
+                        "Primitive": "I32"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 68,
+                  "end": 69
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "add_three"
+                    ]
+                  },
+                  "ty": {
+                    "Function": {
+                      "param_types": [
+                        {
+                          "Primitive": "I32"
+                        }
+                      ],
+                      "ret_type": {
+                        "Primitive": "I32"
+                      },
+                      "effects": []
+                    }
+                  },
+                  "span": {
+                    "start": 70,
+                    "end": 71
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "add_three",
+                      "decl_span": {
+                        "start": 61,
+                        "end": 68
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": {
+                    "Literal": [
+                      "I32",
+                      "4"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 72,
+                    "end": 73
+                  },
+                  "resolution": null
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 68,
+            "end": 74
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/08-higher-order-functions.bst",
+      "span": {
+        "start": 60,
+        "end": 75
+      },
+      "context_id": 2
+    }
+  }
+]
