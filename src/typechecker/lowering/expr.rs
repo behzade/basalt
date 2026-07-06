@@ -808,7 +808,19 @@ impl Typechecker {
                                 for arg in adjusted_args.iter().cloned() {
                                     raw_args.push(self.lower_expr(arg, context.clone())?);
                                 }
-                                Self::instantiate_signature(&signature, &raw_args)
+                                match Self::instantiate_signature(&signature, &raw_args) {
+                                    Ok(signature) => signature,
+                                    Err(message) => {
+                                        self.errors.push(TypeError {
+                                            message: format!(
+                                                "Could not infer generics for function `{}`: {}",
+                                                signature.name, message
+                                            ),
+                                            context: context.clone(),
+                                        });
+                                        signature
+                                    }
+                                }
                             } else {
                                 signature
                             };
@@ -884,51 +896,6 @@ impl Typechecker {
                             });
                         }
 
-                        // Fallback: calling a variable of function type (e.g., `task()`)
-                        if signature_opt.is_none() {
-                            if let Ok(fun_hir) = self.lower_expr(*fun.clone(), context.clone()) {
-                                if let hir::Ty::Function {
-                                    param_types,
-                                    ret_type,
-                                    effects,
-                                } = fun_hir.ty.clone()
-                                {
-                                    let mut lowered_args = Vec::new();
-                                    for (idx, arg) in adjusted_args.into_iter().enumerate() {
-                                        let arg_expr = if let Some(p) = param_types.get(idx) {
-                                            self.lower_expr_with_expected(
-                                                arg,
-                                                p.clone(),
-                                                context.clone(),
-                                            )?
-                                        } else {
-                                            self.lower_expr(arg, context.clone())?
-                                        };
-                                        lowered_args.push(arg_expr);
-                                    }
-                                    if lowered_args.len() != param_types.len() {
-                                        self.errors.push(TypeError {
-                                            message: format!(
-                                                "Function value expects {} args, found {}",
-                                                param_types.len(),
-                                                lowered_args.len()
-                                            ),
-                                            context: context.clone(),
-                                        });
-                                    }
-                                    return Ok(hir::Expr {
-                                        ty: (*ret_type).clone(),
-                                        kind: hir::ExprKind::Call {
-                                            fun: Box::new(fun_hir),
-                                            args: lowered_args,
-                                        },
-                                        span: expr.span,
-                                        resolution: None,
-                                    });
-                                }
-                            }
-                        }
-
                         if let Some((union_path, payload_types)) = self.find_union_variant(&name) {
                             let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
                                 name: union_path.clone(),
@@ -973,6 +940,51 @@ impl Typechecker {
                                 span: expr.span,
                                 resolution: None,
                             });
+                        }
+
+                        // Fallback: calling a variable of function type (e.g., `task()`)
+                        if signature_opt.is_none() {
+                            if let Ok(fun_hir) = self.lower_expr(*fun.clone(), context.clone()) {
+                                if let hir::Ty::Function {
+                                    param_types,
+                                    ret_type,
+                                    effects,
+                                } = fun_hir.ty.clone()
+                                {
+                                    let mut lowered_args = Vec::new();
+                                    for (idx, arg) in adjusted_args.into_iter().enumerate() {
+                                        let arg_expr = if let Some(p) = param_types.get(idx) {
+                                            self.lower_expr_with_expected(
+                                                arg,
+                                                p.clone(),
+                                                context.clone(),
+                                            )?
+                                        } else {
+                                            self.lower_expr(arg, context.clone())?
+                                        };
+                                        lowered_args.push(arg_expr);
+                                    }
+                                    if lowered_args.len() != param_types.len() {
+                                        self.errors.push(TypeError {
+                                            message: format!(
+                                                "Function value expects {} args, found {}",
+                                                param_types.len(),
+                                                lowered_args.len()
+                                            ),
+                                            context: context.clone(),
+                                        });
+                                    }
+                                    return Ok(hir::Expr {
+                                        ty: (*ret_type).clone(),
+                                        kind: hir::ExprKind::Call {
+                                            fun: Box::new(fun_hir),
+                                            args: lowered_args,
+                                        },
+                                        span: expr.span,
+                                        resolution: None,
+                                    });
+                                }
+                            }
                         }
 
                         self.errors.push(TypeError {
@@ -1766,6 +1778,80 @@ impl Typechecker {
                     kind: hir::ExprKind::Match {
                         scrutinee: Box::new(scrutinee_hir),
                         arms: lowered_arms,
+                    },
+                    span: expr.span,
+                    resolution: None,
+                })
+            }
+            (
+                OwnedExpr::If {
+                    cond,
+                    then_block,
+                    else_block,
+                },
+                expected_ty,
+            ) => {
+                let cond_hir = self.lower_expr(*cond, context.clone())?;
+                if cond_hir.ty != hir::Ty::Primitive(hir::PrimitiveTy::Bool) {
+                    self.errors.push(TypeError {
+                        message: "If condition must be a bool".to_string(),
+                        context: context.clone(),
+                    });
+                }
+                let then_hir = self.lower_expr_with_expected(
+                    *then_block,
+                    expected_ty.clone(),
+                    context.clone(),
+                )?;
+                let else_hir_opt = if let Some(e) = else_block {
+                    Some(Box::new(self.lower_expr_with_expected(
+                        *e,
+                        expected_ty.clone(),
+                        context.clone(),
+                    )?))
+                } else {
+                    None
+                };
+                let then_block = match then_hir.kind.clone() {
+                    hir::ExprKind::Block(b) => b,
+                    _ => hir::HirBlock {
+                        stmts: vec![],
+                        last_expr: Some(Box::new(then_hir.clone())),
+                        ty: then_hir.ty.clone(),
+                    },
+                };
+                if then_hir.ty != expected_ty
+                    && !TypeUnifier::is_assignable(&then_hir.ty, &expected_ty)
+                {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "If branch type mismatch: expected {}, found {}",
+                            Typechecker::format_ty(&expected_ty),
+                            Typechecker::format_ty(&then_hir.ty)
+                        ),
+                        context: context.clone(),
+                    });
+                }
+                if let Some(else_hir) = &else_hir_opt {
+                    if else_hir.ty != expected_ty
+                        && !TypeUnifier::is_assignable(&else_hir.ty, &expected_ty)
+                    {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "If branch type mismatch: expected {}, found {}",
+                                Typechecker::format_ty(&expected_ty),
+                                Typechecker::format_ty(&else_hir.ty)
+                            ),
+                            context: context.clone(),
+                        });
+                    }
+                }
+                Ok(hir::Expr {
+                    ty: expected_ty,
+                    kind: hir::ExprKind::If {
+                        cond: Box::new(cond_hir),
+                        then_block,
+                        else_block: else_hir_opt,
                     },
                     span: expr.span,
                     resolution: None,

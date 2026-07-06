@@ -1,0 +1,177 @@
+{
+  "tests/12-generic-negative-conflicting-inference.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "same",
+          "generics": [
+            "T"
+          ],
+          "params": [
+            [
+              "left",
+              {
+                "path": [
+                  "T"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "right",
+              {
+                "path": [
+                  "T"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "T"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "span": {
+                          "start": 17,
+                          "end": 18
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 17,
+                      "end": 18
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 16,
+              "end": 19
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 19
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "same"
+                                ]
+                              },
+                              "span": {
+                                "start": 26,
+                                "end": 27
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Literal": {
+                                    "I32": 1
+                                  }
+                                },
+                                "span": {
+                                  "start": 28,
+                                  "end": 29
+                                }
+                              },
+                              {
+                                "item": {
+                                  "Literal": {
+                                    "Str": "bad"
+                                  }
+                                },
+                                "span": {
+                                  "start": 30,
+                                  "end": 31
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 26,
+                          "end": 32
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 26,
+                      "end": 32
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 25,
+              "end": 33
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 19,
+        "end": 33
+      }
+    }
+  ]
+}

@@ -11,6 +11,38 @@ pub enum UnifyError {
     IncompatibleTypes(hir::Ty, hir::Ty),
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn i32_ty() -> hir::Ty {
+        hir::Ty::Primitive(hir::PrimitiveTy::I32)
+    }
+
+    fn str_ty() -> hir::Ty {
+        hir::Ty::Primitive(hir::PrimitiveTy::Str)
+    }
+
+    fn option_ty(arg: hir::Ty) -> hir::Ty {
+        hir::Ty::Adt(hir::AdtTy::Enum {
+            name: vec!["Option".to_string()],
+            generics: vec![arg],
+        })
+    }
+
+    #[test]
+    fn generic_adt_assignability_is_invariant() {
+        assert!(TypeUnifier::is_assignable(
+            &option_ty(i32_ty()),
+            &option_ty(i32_ty())
+        ));
+        assert!(!TypeUnifier::is_assignable(
+            &option_ty(i32_ty()),
+            &option_ty(str_ty())
+        ));
+    }
+}
+
 pub struct TypeUnifier;
 
 impl TypeUnifier {
@@ -148,7 +180,7 @@ impl TypeUnifier {
     /// - exact equality
     /// - never (`!`) as bottom, assignable to any type
     /// - numeric widening (i32 -> i64, i32/i64 -> f64)
-    /// - identical nominal ADTs (same struct/enum path)
+    /// - identical nominal ADTs (same struct/enum path and generic arguments)
     pub fn is_assignable(from: &hir::Ty, to: &hir::Ty) -> bool {
         if from == to {
             return true;
@@ -160,24 +192,37 @@ impl TypeUnifier {
             return Self::is_lossless_numeric_conversion(from, to);
         }
         match (from, to) {
-            // Exact nominal matches
             (
-                hir::Ty::Adt(hir::AdtTy::Struct { name: a, .. }),
-                hir::Ty::Adt(hir::AdtTy::Struct { name: b, .. }),
-            ) => a == b,
+                hir::Ty::Adt(hir::AdtTy::Struct {
+                    name: a,
+                    generics: a_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Struct {
+                    name: b,
+                    generics: b_generics,
+                }),
+            ) => a == b && Self::same_generic_args(a_generics, b_generics),
             (
-                hir::Ty::Adt(hir::AdtTy::Enum { name: a, .. }),
-                hir::Ty::Adt(hir::AdtTy::Enum { name: b, .. }),
-            ) => a == b,
+                hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: a,
+                    generics: a_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: b,
+                    generics: b_generics,
+                }),
+            ) => a == b && Self::same_generic_args(a_generics, b_generics),
             (hir::Ty::Handler { effects: a }, hir::Ty::Handler { effects: b }) => a == b,
 
             // Allow assigning a specific enum variant (struct-like `Enum::Variant`) to its parent enum type
             (
                 hir::Ty::Adt(hir::AdtTy::Struct {
-                    name: variant_path, ..
+                    name: variant_path,
+                    generics: variant_generics,
                 }),
                 hir::Ty::Adt(hir::AdtTy::Enum {
-                    name: enum_path, ..
+                    name: enum_path,
+                    generics: enum_generics,
                 }),
             ) => {
                 if variant_path.len() == enum_path.len() + 1 {
@@ -186,9 +231,86 @@ impl TypeUnifier {
                         .iter()
                         .zip(enum_path.iter())
                         .all(|(a, b)| a == b)
+                        && Self::same_generic_args(variant_generics, enum_generics)
                 } else {
                     false
                 }
+            }
+            _ => false,
+        }
+    }
+
+    fn same_generic_args(a: &[hir::Ty], b: &[hir::Ty]) -> bool {
+        a.len() == b.len()
+            && a.iter()
+                .zip(b.iter())
+                .all(|(a, b)| Self::same_type_invariant(a, b))
+    }
+
+    fn same_type_invariant(a: &hir::Ty, b: &hir::Ty) -> bool {
+        if a == b {
+            return true;
+        }
+        match (a, b) {
+            (hir::Ty::Array(a), hir::Ty::Array(b)) => Self::same_type_invariant(a, b),
+            (
+                hir::Ty::Map {
+                    key: a_key,
+                    value: a_value,
+                },
+                hir::Ty::Map {
+                    key: b_key,
+                    value: b_value,
+                },
+            ) => a_key == b_key && Self::same_type_invariant(a_value, b_value),
+            (
+                hir::Ty::Function {
+                    param_types: a_params,
+                    ret_type: a_ret,
+                    effects: a_effects,
+                },
+                hir::Ty::Function {
+                    param_types: b_params,
+                    ret_type: b_ret,
+                    effects: b_effects,
+                },
+            ) => {
+                Self::same_generic_args(a_params, b_params)
+                    && Self::same_type_invariant(a_ret, b_ret)
+                    && Self::same_generic_args(a_effects, b_effects)
+            }
+            (
+                hir::Ty::Adt(hir::AdtTy::Struct {
+                    name: a_name,
+                    generics: a_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Struct {
+                    name: b_name,
+                    generics: b_generics,
+                }),
+            )
+            | (
+                hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: a_name,
+                    generics: a_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: b_name,
+                    generics: b_generics,
+                }),
+            )
+            | (
+                hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: a_name,
+                    generics: a_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: b_name,
+                    generics: b_generics,
+                }),
+            ) => a_name == b_name && Self::same_generic_args(a_generics, b_generics),
+            (hir::Ty::Handler { effects: a }, hir::Ty::Handler { effects: b }) => {
+                Self::same_generic_args(a, b)
             }
             _ => false,
         }

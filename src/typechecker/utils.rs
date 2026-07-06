@@ -192,18 +192,42 @@ impl Typechecker {
         pattern: &hir::Ty,
         actual: &hir::Ty,
         bindings: &mut HashMap<String, hir::Ty>,
-    ) {
+    ) -> Result<(), String> {
         match (pattern, actual) {
             (hir::Ty::Generic(name), actual) => {
-                bindings
-                    .entry(name.clone())
-                    .or_insert_with(|| actual.clone());
+                if let Some(existing) = bindings.get(name) {
+                    if existing != actual {
+                        return Err(format!(
+                            "Conflicting inference for generic `{}`: {} vs {}",
+                            name,
+                            Typechecker::format_ty(existing),
+                            Typechecker::format_ty(actual)
+                        ));
+                    }
+                } else {
+                    bindings.insert(name.clone(), actual.clone());
+                }
             }
             (hir::Ty::Array(p), hir::Ty::Array(a)) => {
-                Self::infer_generic_bindings_from_ty(p, a, bindings);
+                Self::infer_generic_bindings_from_ty(p, a, bindings)?;
             }
-            (hir::Ty::Map { value: p_value, .. }, hir::Ty::Map { value: a_value, .. }) => {
-                Self::infer_generic_bindings_from_ty(p_value, a_value, bindings);
+            (
+                hir::Ty::Map {
+                    key: p_key,
+                    value: p_value,
+                },
+                hir::Ty::Map {
+                    key: a_key,
+                    value: a_value,
+                },
+            ) => {
+                if p_key != a_key {
+                    return Err(format!(
+                        "Map key type mismatch during generic inference: expected {:?}, found {:?}",
+                        p_key, a_key
+                    ));
+                }
+                Self::infer_generic_bindings_from_ty(p_value, a_value, bindings)?;
             }
             (
                 hir::Ty::Function {
@@ -217,17 +241,38 @@ impl Typechecker {
                     effects: a_effects,
                 },
             ) => {
-                for (p, a) in p_params.iter().zip(a_params.iter()) {
-                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                if p_params.len() != a_params.len() {
+                    return Err(format!(
+                        "Function arity mismatch during generic inference: expected {}, found {}",
+                        p_params.len(),
+                        a_params.len()
+                    ));
                 }
-                Self::infer_generic_bindings_from_ty(p_ret, a_ret, bindings);
+                if p_effects.len() != a_effects.len() {
+                    return Err(format!(
+                        "Function effect arity mismatch during generic inference: expected {}, found {}",
+                        p_effects.len(),
+                        a_effects.len()
+                    ));
+                }
+                for (p, a) in p_params.iter().zip(a_params.iter()) {
+                    Self::infer_generic_bindings_from_ty(p, a, bindings)?;
+                }
+                Self::infer_generic_bindings_from_ty(p_ret, a_ret, bindings)?;
                 for (p, a) in p_effects.iter().zip(a_effects.iter()) {
-                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                    Self::infer_generic_bindings_from_ty(p, a, bindings)?;
                 }
             }
             (hir::Ty::Handler { effects: p_effects }, hir::Ty::Handler { effects: a_effects }) => {
+                if p_effects.len() != a_effects.len() {
+                    return Err(format!(
+                        "Handler effect arity mismatch during generic inference: expected {}, found {}",
+                        p_effects.len(),
+                        a_effects.len()
+                    ));
+                }
                 for (p, a) in p_effects.iter().zip(a_effects.iter()) {
-                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                    Self::infer_generic_bindings_from_ty(p, a, bindings)?;
                 }
             }
             (
@@ -259,25 +304,37 @@ impl Typechecker {
                     name: a_name,
                     generics: a_generics,
                 }),
-            ) if p_name == a_name => {
+            ) => {
+                if p_name != a_name {
+                    return Ok(());
+                }
+                if p_generics.len() != a_generics.len() {
+                    return Err(format!(
+                        "Generic arity mismatch for `{}`: expected {}, found {}",
+                        p_name.join("::"),
+                        p_generics.len(),
+                        a_generics.len()
+                    ));
+                }
                 for (p, a) in p_generics.iter().zip(a_generics.iter()) {
-                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                    Self::infer_generic_bindings_from_ty(p, a, bindings)?;
                 }
             }
             _ => {}
         }
+        Ok(())
     }
 
     pub(crate) fn instantiate_signature(
         signature: &hir::HirFunctionSignature,
         raw_args: &[hir::Expr],
-    ) -> hir::HirFunctionSignature {
+    ) -> Result<hir::HirFunctionSignature, String> {
         let mut bindings = HashMap::new();
         for (param, arg) in signature.params.iter().zip(raw_args.iter()) {
-            Self::infer_generic_bindings_from_ty(&param.ty, &arg.ty, &mut bindings);
+            Self::infer_generic_bindings_from_ty(&param.ty, &arg.ty, &mut bindings)?;
         }
         if bindings.is_empty() {
-            return signature.clone();
+            return Ok(signature.clone());
         }
         let mut instantiated = signature.clone();
         for param in &mut instantiated.params {
@@ -289,7 +346,7 @@ impl Typechecker {
             .iter()
             .map(|ty| Self::substitute_generics_in_ty(ty, &bindings))
             .collect();
-        instantiated
+        Ok(instantiated)
     }
 
     pub(crate) fn instantiated_union_payload(
@@ -332,5 +389,38 @@ impl Typechecker {
             }
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn i32_ty() -> hir::Ty {
+        hir::Ty::Primitive(hir::PrimitiveTy::I32)
+    }
+
+    fn str_ty() -> hir::Ty {
+        hir::Ty::Primitive(hir::PrimitiveTy::Str)
+    }
+
+    #[test]
+    fn generic_inference_rejects_conflicting_bindings() {
+        let mut bindings = HashMap::new();
+        Typechecker::infer_generic_bindings_from_ty(
+            &hir::Ty::Generic("T".to_string()),
+            &i32_ty(),
+            &mut bindings,
+        )
+        .unwrap();
+
+        let err = Typechecker::infer_generic_bindings_from_ty(
+            &hir::Ty::Generic("T".to_string()),
+            &str_ty(),
+            &mut bindings,
+        )
+        .unwrap_err();
+
+        assert!(err.contains("Conflicting inference for generic `T`"));
     }
 }

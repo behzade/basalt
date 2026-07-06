@@ -1,0 +1,2260 @@
+[
+  {
+    "Enum": {
+      "name": "Result",
+      "variants": [
+        {
+          "name": "Ok",
+          "payload": [
+            {
+              "Generic": "T"
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "Err",
+          "payload": [
+            {
+              "Generic": "E"
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 0,
+        "end": 15
+      },
+      "context_id": null
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "Result",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "Result"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 0,
+        "end": 15
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "map_err",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "Result"
+                  ],
+                  "generics": [
+                    {
+                      "Generic": "T"
+                    },
+                    {
+                      "Generic": "E"
+                    }
+                  ]
+                }
+              }
+            },
+            "span": null
+          },
+          {
+            "name": "f",
+            "ty": {
+              "Function": {
+                "param_types": [
+                  {
+                    "Generic": "E"
+                  }
+                ],
+                "ret_type": {
+                  "Generic": "F"
+                },
+                "effects": []
+              }
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Generic": "T"
+                },
+                {
+                  "Generic": "F"
+                }
+              ]
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "value"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Generic": "T"
+                        },
+                        {
+                          "Generic": "E"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 51,
+                  "end": 52
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "value",
+                    "decl_span": null
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Ok"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "ok"
+                            },
+                            "ty": {
+                              "Generic": "T"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "T"
+                            },
+                            {
+                              "Generic": "E"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "Ok"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Generic": "T"
+                                }
+                              ],
+                              "ret_type": {
+                                "Adt": {
+                                  "Enum": {
+                                    "name": [
+                                      "Result"
+                                    ],
+                                    "generics": [
+                                      {
+                                        "Generic": "T"
+                                      },
+                                      {
+                                        "Generic": "F"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 57,
+                            "end": 58
+                          },
+                          "resolution": null
+                        },
+                        "args": [
+                          {
+                            "kind": {
+                              "Path": [
+                                "ok"
+                              ]
+                            },
+                            "ty": {
+                              "Generic": "T"
+                            },
+                            "span": {
+                              "start": 59,
+                              "end": 60
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "ok",
+                                "decl_span": null
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "T"
+                            },
+                            {
+                              "Generic": "F"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 57,
+                      "end": 61
+                    },
+                    "resolution": null
+                  }
+                ],
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Err"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "err"
+                            },
+                            "ty": {
+                              "Generic": "E"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "T"
+                            },
+                            {
+                              "Generic": "E"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "Err"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Generic": "F"
+                                }
+                              ],
+                              "ret_type": {
+                                "Adt": {
+                                  "Enum": {
+                                    "name": [
+                                      "Result"
+                                    ],
+                                    "generics": [
+                                      {
+                                        "Generic": "T"
+                                      },
+                                      {
+                                        "Generic": "F"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 66,
+                            "end": 67
+                          },
+                          "resolution": null
+                        },
+                        "args": [
+                          {
+                            "kind": {
+                              "Call": {
+                                "fun": {
+                                  "kind": {
+                                    "Path": [
+                                      "f"
+                                    ]
+                                  },
+                                  "ty": {
+                                    "Function": {
+                                      "param_types": [
+                                        {
+                                          "Generic": "E"
+                                        }
+                                      ],
+                                      "ret_type": {
+                                        "Generic": "F"
+                                      },
+                                      "effects": []
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 68,
+                                    "end": 69
+                                  },
+                                  "resolution": {
+                                    "Local": {
+                                      "name": "f",
+                                      "decl_span": null
+                                    }
+                                  }
+                                },
+                                "args": [
+                                  {
+                                    "kind": {
+                                      "Path": [
+                                        "err"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Generic": "E"
+                                    },
+                                    "span": {
+                                      "start": 70,
+                                      "end": 71
+                                    },
+                                    "resolution": {
+                                      "Local": {
+                                        "name": "err",
+                                        "decl_span": null
+                                      }
+                                    }
+                                  }
+                                ]
+                              }
+                            },
+                            "ty": {
+                              "Generic": "F"
+                            },
+                            "span": {
+                              "start": 68,
+                              "end": 72
+                            },
+                            "resolution": null
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "T"
+                            },
+                            {
+                              "Generic": "F"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 66,
+                      "end": 73
+                    },
+                    "resolution": null
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Adt": {
+              "Enum": {
+                "name": [
+                  "Result"
+                ],
+                "generics": [
+                  {
+                    "Generic": "T"
+                  },
+                  {
+                    "Generic": "F"
+                  }
+                ]
+              }
+            }
+          },
+          "span": {
+            "start": 50,
+            "end": 73
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Generic": "T"
+                },
+                {
+                  "Generic": "F"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 49,
+        "end": 74
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "and_then",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "Result"
+                  ],
+                  "generics": [
+                    {
+                      "Generic": "T"
+                    },
+                    {
+                      "Generic": "E"
+                    }
+                  ]
+                }
+              }
+            },
+            "span": null
+          },
+          {
+            "name": "f",
+            "ty": {
+              "Function": {
+                "param_types": [
+                  {
+                    "Generic": "T"
+                  }
+                ],
+                "ret_type": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Generic": "U"
+                        },
+                        {
+                          "Generic": "E"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "effects": []
+              }
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Generic": "U"
+                },
+                {
+                  "Generic": "E"
+                }
+              ]
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "value"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Generic": "T"
+                        },
+                        {
+                          "Generic": "E"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 115,
+                  "end": 116
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "value",
+                    "decl_span": null
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Ok"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "ok"
+                            },
+                            "ty": {
+                              "Generic": "T"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "T"
+                            },
+                            {
+                              "Generic": "E"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "f"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Generic": "T"
+                                }
+                              ],
+                              "ret_type": {
+                                "Adt": {
+                                  "Enum": {
+                                    "name": [
+                                      "Result"
+                                    ],
+                                    "generics": [
+                                      {
+                                        "Generic": "U"
+                                      },
+                                      {
+                                        "Generic": "E"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 121,
+                            "end": 122
+                          },
+                          "resolution": {
+                            "Local": {
+                              "name": "f",
+                              "decl_span": null
+                            }
+                          }
+                        },
+                        "args": [
+                          {
+                            "kind": {
+                              "Path": [
+                                "ok"
+                              ]
+                            },
+                            "ty": {
+                              "Generic": "T"
+                            },
+                            "span": {
+                              "start": 123,
+                              "end": 124
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "ok",
+                                "decl_span": null
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "U"
+                            },
+                            {
+                              "Generic": "E"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 121,
+                      "end": 125
+                    },
+                    "resolution": null
+                  }
+                ],
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Err"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "err"
+                            },
+                            "ty": {
+                              "Generic": "E"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "T"
+                            },
+                            {
+                              "Generic": "E"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "Err"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Generic": "E"
+                                }
+                              ],
+                              "ret_type": {
+                                "Adt": {
+                                  "Enum": {
+                                    "name": [
+                                      "Result"
+                                    ],
+                                    "generics": [
+                                      {
+                                        "Generic": "U"
+                                      },
+                                      {
+                                        "Generic": "E"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 130,
+                            "end": 131
+                          },
+                          "resolution": null
+                        },
+                        "args": [
+                          {
+                            "kind": {
+                              "Path": [
+                                "err"
+                              ]
+                            },
+                            "ty": {
+                              "Generic": "E"
+                            },
+                            "span": {
+                              "start": 132,
+                              "end": 133
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "err",
+                                "decl_span": null
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Generic": "U"
+                            },
+                            {
+                              "Generic": "E"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 130,
+                      "end": 134
+                    },
+                    "resolution": null
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Adt": {
+              "Enum": {
+                "name": [
+                  "Result"
+                ],
+                "generics": [
+                  {
+                    "Generic": "U"
+                  },
+                  {
+                    "Generic": "E"
+                  }
+                ]
+              }
+            }
+          },
+          "span": {
+            "start": 114,
+            "end": 134
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Generic": "U"
+                },
+                {
+                  "Generic": "E"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 113,
+        "end": 135
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "parse_count",
+        "params": [
+          {
+            "name": "input",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Primitive": "I32"
+                },
+                {
+                  "Primitive": "Str"
+                }
+              ]
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "If": {
+              "cond": {
+                "kind": {
+                  "Binary": {
+                    "op": "Eq",
+                    "lhs": {
+                      "kind": {
+                        "Call": {
+                          "fun": {
+                            "kind": {
+                              "Path": [
+                                "len"
+                              ]
+                            },
+                            "ty": {
+                              "Function": {
+                                "param_types": [
+                                  {
+                                    "Primitive": "Str"
+                                  }
+                                ],
+                                "ret_type": {
+                                  "Primitive": "I32"
+                                },
+                                "effects": []
+                              }
+                            },
+                            "span": {
+                              "start": 151,
+                              "end": 156
+                            },
+                            "resolution": null
+                          },
+                          "args": [
+                            {
+                              "kind": {
+                                "Path": [
+                                  "input"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "Str"
+                              },
+                              "span": {
+                                "start": 151,
+                                "end": 152
+                              },
+                              "resolution": {
+                                "Local": {
+                                  "name": "input",
+                                  "decl_span": null
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 151,
+                        "end": 156
+                      },
+                      "resolution": null
+                    },
+                    "rhs": {
+                      "kind": {
+                        "Literal": [
+                          "I32",
+                          "5"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 157,
+                        "end": 158
+                      },
+                      "resolution": null
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 151,
+                  "end": 158
+                },
+                "resolution": null
+              },
+              "then_block": {
+                "stmts": [],
+                "last_expr": {
+                  "kind": {
+                    "Call": {
+                      "fun": {
+                        "kind": {
+                          "Path": [
+                            "Ok"
+                          ]
+                        },
+                        "ty": {
+                          "Function": {
+                            "param_types": [
+                              {
+                                "Primitive": "I32"
+                              }
+                            ],
+                            "ret_type": {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Result"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    },
+                                    {
+                                      "Primitive": "Str"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "effects": []
+                          }
+                        },
+                        "span": {
+                          "start": 159,
+                          "end": 160
+                        },
+                        "resolution": null
+                      },
+                      "args": [
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "5"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 161,
+                            "end": 162
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    }
+                  },
+                  "ty": {
+                    "Adt": {
+                      "Enum": {
+                        "name": [
+                          "Result"
+                        ],
+                        "generics": [
+                          {
+                            "Primitive": "I32"
+                          },
+                          {
+                            "Primitive": "Str"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "span": {
+                    "start": 159,
+                    "end": 163
+                  },
+                  "resolution": null
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "Str"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "else_block": {
+                "kind": {
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "Call": {
+                          "fun": {
+                            "kind": {
+                              "Path": [
+                                "Err"
+                              ]
+                            },
+                            "ty": {
+                              "Function": {
+                                "param_types": [
+                                  {
+                                    "Primitive": "Str"
+                                  }
+                                ],
+                                "ret_type": {
+                                  "Adt": {
+                                    "Enum": {
+                                      "name": [
+                                        "Result"
+                                      ],
+                                      "generics": [
+                                        {
+                                          "Primitive": "I32"
+                                        },
+                                        {
+                                          "Primitive": "Str"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "effects": []
+                              }
+                            },
+                            "span": {
+                              "start": 166,
+                              "end": 167
+                            },
+                            "resolution": null
+                          },
+                          "args": [
+                            {
+                              "kind": {
+                                "Literal": [
+                                  "Str",
+                                  "bad"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "Str"
+                              },
+                              "span": {
+                                "start": 168,
+                                "end": 169
+                              },
+                              "resolution": null
+                            }
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Enum": {
+                            "name": [
+                              "Result"
+                            ],
+                            "generics": [
+                              {
+                                "Primitive": "I32"
+                              },
+                              {
+                                "Primitive": "Str"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 166,
+                        "end": 170
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            },
+                            {
+                              "Primitive": "Str"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "Str"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 165,
+                  "end": 171
+                },
+                "resolution": null
+              }
+            }
+          },
+          "ty": {
+            "Adt": {
+              "Enum": {
+                "name": [
+                  "Result"
+                ],
+                "generics": [
+                  {
+                    "Primitive": "I32"
+                  },
+                  {
+                    "Primitive": "Str"
+                  }
+                ]
+              }
+            }
+          },
+          "span": {
+            "start": 150,
+            "end": 171
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Primitive": "I32"
+                },
+                {
+                  "Primitive": "Str"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 149,
+        "end": 172
+      },
+      "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "bump",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Primitive": "I32"
+                },
+                {
+                  "Primitive": "I32"
+                }
+              ]
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "Ok"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "I32"
+                      }
+                    ],
+                    "ret_type": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            },
+                            {
+                              "Primitive": "I32"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 187,
+                  "end": 188
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Binary": {
+                      "op": "Add",
+                      "lhs": {
+                        "kind": {
+                          "Path": [
+                            "value"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 189,
+                          "end": 190
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "value",
+                            "decl_span": null
+                          }
+                        }
+                      },
+                      "rhs": {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 191,
+                          "end": 192
+                        },
+                        "resolution": null
+                      }
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 189,
+                    "end": 192
+                  },
+                  "resolution": null
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Adt": {
+              "Enum": {
+                "name": [
+                  "Result"
+                ],
+                "generics": [
+                  {
+                    "Primitive": "I32"
+                  },
+                  {
+                    "Primitive": "I32"
+                  }
+                ]
+              }
+            }
+          },
+          "span": {
+            "start": 187,
+            "end": 193
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Adt": {
+            "Enum": {
+              "name": [
+                "Result"
+              ],
+              "generics": [
+                {
+                  "Primitive": "I32"
+                },
+                {
+                  "Primitive": "I32"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 186,
+        "end": 194
+      },
+      "context_id": 3
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "parsed",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "map_err"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Result"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    },
+                                    {
+                                      "Primitive": "Str"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "Function": {
+                                "param_types": [
+                                  {
+                                    "Primitive": "Str"
+                                  }
+                                ],
+                                "ret_type": {
+                                  "Primitive": "I32"
+                                },
+                                "effects": []
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "Result"
+                                ],
+                                "generics": [
+                                  {
+                                    "Primitive": "I32"
+                                  },
+                                  {
+                                    "Primitive": "I32"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 211,
+                        "end": 212
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Call": {
+                            "fun": {
+                              "kind": {
+                                "Path": [
+                                  "parse_count"
+                                ]
+                              },
+                              "ty": {
+                                "Function": {
+                                  "param_types": [
+                                    {
+                                      "Primitive": "Str"
+                                    }
+                                  ],
+                                  "ret_type": {
+                                    "Adt": {
+                                      "Enum": {
+                                        "name": [
+                                          "Result"
+                                        ],
+                                        "generics": [
+                                          {
+                                            "Primitive": "I32"
+                                          },
+                                          {
+                                            "Primitive": "Str"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "effects": []
+                                }
+                              },
+                              "span": {
+                                "start": 213,
+                                "end": 214
+                              },
+                              "resolution": null
+                            },
+                            "args": [
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "Str",
+                                    "score"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 215,
+                                  "end": 216
+                                },
+                                "resolution": null
+                              }
+                            ]
+                          }
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Result"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                },
+                                {
+                                  "Primitive": "Str"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 213,
+                          "end": 217
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "FnLiteral": {
+                            "params": [
+                              {
+                                "name": "message",
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": null
+                              }
+                            ],
+                            "ret_type": {
+                              "Primitive": "I32"
+                            },
+                            "effects": [],
+                            "body": {
+                              "stmts": [],
+                              "last_expr": {
+                                "kind": {
+                                  "Call": {
+                                    "fun": {
+                                      "kind": {
+                                        "Path": [
+                                          "len"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Function": {
+                                          "param_types": [
+                                            {
+                                              "Primitive": "Str"
+                                            }
+                                          ],
+                                          "ret_type": {
+                                            "Primitive": "I32"
+                                          },
+                                          "effects": []
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 227,
+                                        "end": 232
+                                      },
+                                      "resolution": null
+                                    },
+                                    "args": [
+                                      {
+                                        "kind": {
+                                          "Path": [
+                                            "message"
+                                          ]
+                                        },
+                                        "ty": {
+                                          "Primitive": "Str"
+                                        },
+                                        "span": {
+                                          "start": 227,
+                                          "end": 228
+                                        },
+                                        "resolution": {
+                                          "Local": {
+                                            "name": "message",
+                                            "decl_span": null
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 227,
+                                  "end": 232
+                                },
+                                "resolution": null
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              }
+                            }
+                          }
+                        },
+                        "ty": {
+                          "Function": {
+                            "param_types": [
+                              {
+                                "Primitive": "Str"
+                              }
+                            ],
+                            "ret_type": {
+                              "Primitive": "I32"
+                            },
+                            "effects": []
+                          }
+                        },
+                        "span": {
+                          "start": 218,
+                          "end": 233
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "I32"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 201,
+                  "end": 234
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "Result"
+                    ],
+                    "generics": [
+                      {
+                        "Primitive": "I32"
+                      },
+                      {
+                        "Primitive": "I32"
+                      }
+                    ]
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 201,
+                "end": 234
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "bumped",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "and_then"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Result"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    },
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "Function": {
+                                "param_types": [
+                                  {
+                                    "Primitive": "I32"
+                                  }
+                                ],
+                                "ret_type": {
+                                  "Adt": {
+                                    "Enum": {
+                                      "name": [
+                                        "Result"
+                                      ],
+                                      "generics": [
+                                        {
+                                          "Primitive": "I32"
+                                        },
+                                        {
+                                          "Primitive": "I32"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                },
+                                "effects": []
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "Result"
+                                ],
+                                "generics": [
+                                  {
+                                    "Primitive": "I32"
+                                  },
+                                  {
+                                    "Primitive": "I32"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 244,
+                        "end": 245
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "parsed"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Result"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                },
+                                {
+                                  "Primitive": "I32"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 246,
+                          "end": 247
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "parsed",
+                            "decl_span": {
+                              "start": 201,
+                              "end": 234
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Path": [
+                            "bump"
+                          ]
+                        },
+                        "ty": {
+                          "Function": {
+                            "param_types": [
+                              {
+                                "Primitive": "I32"
+                              }
+                            ],
+                            "ret_type": {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Result"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    },
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "effects": []
+                          }
+                        },
+                        "span": {
+                          "start": 248,
+                          "end": 249
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "I32"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 234,
+                  "end": 250
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "Result"
+                    ],
+                    "generics": [
+                      {
+                        "Primitive": "I32"
+                      },
+                      {
+                        "Primitive": "I32"
+                      }
+                    ]
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 234,
+                "end": 250
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "bumped"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "I32"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 251,
+                  "end": 252
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "bumped",
+                    "decl_span": {
+                      "start": 234,
+                      "end": 250
+                    }
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Ok"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "ok"
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            },
+                            {
+                              "Primitive": "I32"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Path": [
+                        "ok"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 257,
+                      "end": 258
+                    },
+                    "resolution": {
+                      "Local": {
+                        "name": "ok",
+                        "decl_span": null
+                      }
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Err"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "err"
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            },
+                            {
+                              "Primitive": "I32"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Path": [
+                        "err"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 263,
+                      "end": 264
+                    },
+                    "resolution": {
+                      "Local": {
+                        "name": "err",
+                        "decl_span": null
+                      }
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 250,
+            "end": 264
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/10-generic-result-chain.bst",
+      "span": {
+        "start": 200,
+        "end": 265
+      },
+      "context_id": 4
+    }
+  }
+]
