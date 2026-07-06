@@ -7,6 +7,7 @@ use crate::hir::{
     UnaryOp,
 };
 
+use super::builtins;
 use super::env::{Env, Result, RuntimeError};
 use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 
@@ -280,7 +281,11 @@ impl Interpreter {
                             return self.call_function(f, evaled);
                         }
                         // Builtins: minimal host I/O, only after user-visible bindings.
-                        if let Some(builtin) = self.try_builtin_call(name, args, env)? {
+                        if let Some(builtin) =
+                            builtins::try_builtin_call(name, args, env, |expr, env| {
+                                self.eval_expr(expr, env)
+                            })?
+                        {
                             return Ok(builtin);
                         }
                         if let hir::Ty::Function { ret_type, .. } = &fun.ty {
@@ -914,88 +919,6 @@ impl Interpreter {
             )),
         }
     }
-
-    // Minimal builtins for runtime-only host functions (std::runtime::*).
-    fn try_builtin_call(
-        &self,
-        name: &str,
-        args: &Vec<Expr>,
-        env: &mut Env,
-    ) -> Result<Option<Value>> {
-        match name {
-            "len" => {
-                if args.len() != 1 {
-                    return Err(RuntimeError("len expects 1 argument".into()));
-                }
-                let value = self.eval_expr(&args[0], env)?;
-                match value {
-                    Value::Str(s) => Ok(Some(Value::I32(s.chars().count() as i32))),
-                    Value::Array(items) => Ok(Some(Value::I32(items.len() as i32))),
-                    Value::Map(entries) => Ok(Some(Value::I32(entries.len() as i32))),
-                    other => Err(RuntimeError(format!("len unsupported for {}", other))),
-                }
-            }
-            // std::runtime::exit(code: i32) -> !
-            "exit" => {
-                if args.len() != 1 {
-                    return Err(RuntimeError("exit expects 1 argument".into()));
-                }
-                let code = self.eval_expr(&args[0], env)?;
-                let code_i32 = match code {
-                    Value::I32(i) => i,
-                    Value::I64(i) => i as i32,
-                    _ => return Err(RuntimeError("exit expects i32".into())),
-                };
-                std::process::exit(code_i32);
-            }
-            // std::runtime::write(stream: str, input: str) -> ()
-            // stream one of: "stdout", "stderr", or a file path
-            "write" => {
-                if args.len() != 2 {
-                    return Err(RuntimeError("write expects 2 arguments".into()));
-                }
-                let stream_val = self.eval_expr(&args[0], env)?;
-                let data_val = self.eval_expr(&args[1], env)?;
-                let stream = match stream_val {
-                    Value::Str(s) => s,
-                    _ => return Err(RuntimeError("write stream must be str".into())),
-                };
-                let data_raw = match data_val {
-                    Value::Str(s) => s,
-                    _ => return Err(RuntimeError("write data must be str".into())),
-                };
-                let data = unescape_runtime_string(&data_raw);
-                match stream.as_str() {
-                    "stdout" => {
-                        let mut out = std::io::stdout();
-                        use std::io::Write as _;
-                        out.write_all(data.as_bytes())
-                            .map_err(|e| RuntimeError(e.to_string()))?;
-                        out.flush().ok();
-                    }
-                    "stderr" => {
-                        let mut out = std::io::stderr();
-                        use std::io::Write as _;
-                        out.write_all(data.as_bytes())
-                            .map_err(|e| RuntimeError(e.to_string()))?;
-                        out.flush().ok();
-                    }
-                    path => {
-                        use std::io::Write as _;
-                        let mut f = std::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(path)
-                            .map_err(|e| RuntimeError(e.to_string()))?;
-                        f.write_all(data.as_bytes())
-                            .map_err(|e| RuntimeError(e.to_string()))?;
-                    }
-                }
-                Ok(Some(Value::Unit))
-            }
-            _ => Ok(None),
-        }
-    }
 }
 
 /// Convenience function to run a HIR program end-to-end.
@@ -1026,41 +949,6 @@ fn is_truthy(v: &Value) -> bool {
         Value::Function(_) => true,
         Value::Handler(_) => true,
     }
-}
-
-/// Convert common escape sequences in runtime strings (e.g., "\n") into their
-/// actual characters. This is applied in the interpreter's magic write function
-/// so source strings like "hi\n" produce a newline at runtime.
-fn unescape_runtime_string(input: &str) -> String {
-    let mut result = String::with_capacity(input.len());
-    let mut escaping = false;
-    for ch in input.chars() {
-        if escaping {
-            match ch {
-                'n' => result.push('\n'),
-                'r' => result.push('\r'),
-                't' => result.push('\t'),
-                '\\' => result.push('\\'),
-                '"' => result.push('"'),
-                '0' => result.push('\0'),
-                other => {
-                    // Unknown escape: keep the backslash and the char
-                    result.push('\\');
-                    result.push(other);
-                }
-            }
-            escaping = false;
-        } else if ch == '\\' {
-            escaping = true;
-        } else {
-            result.push(ch);
-        }
-    }
-    if escaping {
-        // Trailing backslash: keep it as-is
-        result.push('\\');
-    }
-    result
 }
 
 /// Captures a returned value from inside a block/function to unwind control flow.
