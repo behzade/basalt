@@ -171,6 +171,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Option",
                           "Some"
                         ],
                         "args": [
@@ -206,6 +207,7 @@
                         "fun": {
                           "kind": {
                             "Path": [
+                              "Option",
                               "Some"
                             ]
                           },
@@ -447,6 +449,7 @@
                     "fun": {
                       "kind": {
                         "Path": [
+                          "Option",
                           "Some"
                         ]
                       },
@@ -791,6 +794,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Option",
                           "Some"
                         ],
                         "args": [

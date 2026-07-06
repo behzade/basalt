@@ -203,6 +203,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Option",
                           "Some"
                         ],
                         "args": [
@@ -750,6 +751,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Ok"
                         ],
                         "args": [
@@ -808,6 +810,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Err"
                         ],
                         "args": [
@@ -948,6 +951,7 @@
                     "fun": {
                       "kind": {
                         "Path": [
+                          "Option",
                           "Some"
                         ]
                       },
@@ -1255,6 +1259,7 @@
                     "fun": {
                       "kind": {
                         "Path": [
+                          "Result",
                           "Ok"
                         ]
                       },

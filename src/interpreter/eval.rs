@@ -528,10 +528,7 @@ impl Interpreter {
                     return Ok(None);
                 };
 
-                let Some(expected_path) = Self::expected_variant_path(pattern, path) else {
-                    return Ok(None);
-                };
-                if &expected_path != value_path {
+                if path != value_path {
                     return Ok(None);
                 }
 
@@ -552,18 +549,6 @@ impl Interpreter {
                 }
                 Ok(Some(bindings))
             }
-        }
-    }
-
-    fn expected_variant_path(pattern: &hir::HirPattern, path: &[String]) -> Option<Vec<String>> {
-        match &pattern.ty {
-            hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => {
-                let variant = path.last()?;
-                let mut full_path = name.clone();
-                full_path.push(variant.clone());
-                Some(full_path)
-            }
-            _ => Some(path.to_vec()),
         }
     }
 
@@ -1212,7 +1197,7 @@ mod tests {
                         arms: vec![(
                             hir::HirPattern {
                                 kind: hir::HirPatternKind::Path {
-                                    path: vec!["B2B".to_string()],
+                                    path: vec!["UserType".to_string(), "B2B".to_string()],
                                     args: vec![hir::HirPattern {
                                         kind: hir::HirPatternKind::Identifier("b2b".to_string()),
                                         ty: struct_ty("Company"),
@@ -1257,7 +1242,7 @@ mod tests {
                         (
                             hir::HirPattern {
                                 kind: hir::HirPatternKind::Path {
-                                    path: vec!["Same".to_string()],
+                                    path: vec!["B".to_string(), "Same".to_string()],
                                     args: vec![],
                                 },
                                 ty: enum_ty("B"),
@@ -1267,7 +1252,7 @@ mod tests {
                         (
                             hir::HirPattern {
                                 kind: hir::HirPatternKind::Path {
-                                    path: vec!["Same".to_string()],
+                                    path: vec!["A".to_string(), "Same".to_string()],
                                     args: vec![],
                                 },
                                 ty: enum_ty("A"),

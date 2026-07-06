@@ -1357,7 +1357,58 @@ impl Validator {
                     );
                 }
             }
-            hir::HirPatternKind::Path { args, .. } => {
+            hir::HirPatternKind::Path {
+                path: variant_path,
+                args,
+            } => {
+                if !Self::is_normalized_to(&pattern.ty, scrutinee_ty) {
+                    self.error(
+                        path,
+                        span,
+                        format!(
+                            "HIR path pattern type {:?} is not compatible with scrutinee type {:?}",
+                            pattern.ty, scrutinee_ty
+                        ),
+                    );
+                }
+
+                let variant = self.enum_variants.get(variant_path).cloned();
+                if let Some((enum_path, payload)) = variant {
+                    if let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &pattern.ty {
+                        if name != &enum_path {
+                            self.error(
+                                path,
+                                span,
+                                format!(
+                                    "HIR path pattern {:?} belongs to enum {:?}, not {:?}",
+                                    variant_path, enum_path, name
+                                ),
+                            );
+                        }
+                    }
+                    if args.len() != payload.len() {
+                        self.error(
+                            path,
+                            span,
+                            format!(
+                                "HIR path pattern {:?} has {} args but variant payload has {}",
+                                variant_path,
+                                args.len(),
+                                payload.len()
+                            ),
+                        );
+                    }
+                } else {
+                    self.error(
+                        path,
+                        span,
+                        format!(
+                            "HIR path pattern references unknown variant {:?}",
+                            variant_path
+                        ),
+                    );
+                }
+
                 for arg in args {
                     self.validate_pattern(arg, &arg.ty, path, span);
                 }
@@ -1552,6 +1603,69 @@ mod tests {
         let messages =
             validation_messages(vec![test_struct(), test_enum(), function_with_expr(expr)]);
         assert!(messages.iter().any(|msg| msg.contains("unknown variant")));
+    }
+
+    #[test]
+    fn rejects_short_enum_variant_pattern_path() {
+        let enum_ty = hir::Ty::Adt(hir::AdtTy::Enum {
+            name: vec!["UserType".to_string()],
+            generics: vec![],
+        });
+        let person_ty = hir::Ty::Adt(hir::AdtTy::Struct {
+            name: vec!["Person".to_string()],
+            generics: vec![],
+        });
+        let scrutinee = hir::Expr {
+            ty: enum_ty.clone(),
+            kind: hir::ExprKind::StructInit {
+                path: vec!["UserType".to_string(), "B2B".to_string()],
+                fields: vec![(
+                    "age".to_string(),
+                    hir::Expr {
+                        ty: i32_ty(),
+                        kind: hir::ExprKind::Literal(hir::PrimitiveTy::I32, "1".to_string()),
+                        span: span(),
+                        resolution: None,
+                    },
+                )],
+            },
+            span: span(),
+            resolution: None,
+        };
+        let expr = hir::Expr {
+            ty: i32_ty(),
+            kind: hir::ExprKind::Match {
+                scrutinee: Box::new(scrutinee),
+                arms: vec![(
+                    hir::HirPattern {
+                        ty: enum_ty,
+                        kind: hir::HirPatternKind::Path {
+                            path: vec!["B2B".to_string()],
+                            args: vec![hir::HirPattern {
+                                ty: person_ty,
+                                kind: hir::HirPatternKind::Identifier("b2b".to_string()),
+                            }],
+                        },
+                    },
+                    hir::Expr {
+                        ty: i32_ty(),
+                        kind: hir::ExprKind::Literal(hir::PrimitiveTy::I32, "1".to_string()),
+                        span: span(),
+                        resolution: None,
+                    },
+                )],
+            },
+            span: span(),
+            resolution: None,
+        };
+
+        let messages =
+            validation_messages(vec![test_struct(), test_enum(), function_with_expr(expr)]);
+        assert!(
+            messages
+                .iter()
+                .any(|msg| msg.contains("path pattern references unknown variant"))
+        );
     }
 
     #[test]

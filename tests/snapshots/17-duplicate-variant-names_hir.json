@@ -209,6 +209,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "A",
                           "Same"
                         ],
                         "args": [
@@ -377,6 +378,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "B",
                           "Same"
                         ],
                         "args": [

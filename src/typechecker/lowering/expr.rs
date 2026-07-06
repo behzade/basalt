@@ -938,8 +938,10 @@ impl Typechecker {
                                     });
                                 }
                             }
+                            let mut constructor_path = union_path.clone();
+                            constructor_path.push(name);
                             let fun_expr = hir::Expr {
-                                kind: hir::ExprKind::Path(vec![name]),
+                                kind: hir::ExprKind::Path(constructor_path),
                                 ty: hir::Ty::Function {
                                     param_types: expected_payload_ty
                                         .map(|t| vec![t])
@@ -1692,8 +1694,10 @@ impl Typechecker {
                                     });
                                 }
                             }
+                            let mut constructor_path = name.clone();
+                            constructor_path.push(variant_name.clone());
                             let fun_expr = hir::Expr {
-                                kind: hir::ExprKind::Path(vec![variant_name.clone()]),
+                                kind: hir::ExprKind::Path(constructor_path),
                                 ty: hir::Ty::Function {
                                     param_types: expected_payload_ty
                                         .map(|ty| vec![ty])

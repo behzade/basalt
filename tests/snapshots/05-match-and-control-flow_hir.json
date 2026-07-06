@@ -347,6 +347,7 @@
                           "kind": {
                             "Path": {
                               "path": [
+                                "UserType",
                                 "B2B"
                               ],
                               "args": [
@@ -434,6 +435,7 @@
                           "kind": {
                             "Path": {
                               "path": [
+                                "UserType",
                                 "B2C"
                               ],
                               "args": [

@@ -160,6 +160,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Ok"
                         ],
                         "args": [
@@ -198,6 +199,7 @@
                         "fun": {
                           "kind": {
                             "Path": [
+                              "Result",
                               "Ok"
                             ]
                           },
@@ -287,6 +289,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Err"
                         ],
                         "args": [
@@ -325,6 +328,7 @@
                         "fun": {
                           "kind": {
                             "Path": [
+                              "Result",
                               "Err"
                             ]
                           },
@@ -630,6 +634,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Ok"
                         ],
                         "args": [
@@ -762,6 +767,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Err"
                         ],
                         "args": [
@@ -800,6 +806,7 @@
                         "fun": {
                           "kind": {
                             "Path": [
+                              "Result",
                               "Err"
                             ]
                           },
@@ -1074,6 +1081,7 @@
                       "fun": {
                         "kind": {
                           "Path": [
+                            "Result",
                             "Ok"
                           ]
                         },
@@ -1181,6 +1189,7 @@
                           "fun": {
                             "kind": {
                               "Path": [
+                                "Result",
                                 "Err"
                               ]
                             },
@@ -1394,6 +1403,7 @@
               "fun": {
                 "kind": {
                   "Path": [
+                    "Result",
                     "Ok"
                   ]
                 },
@@ -2121,6 +2131,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Ok"
                         ],
                         "args": [
@@ -2179,6 +2190,7 @@
                     "kind": {
                       "Path": {
                         "path": [
+                          "Result",
                           "Err"
                         ],
                         "args": [

@@ -262,11 +262,23 @@ impl Typechecker {
                 variant_path,
             } => {
                 let variant_name = variant_path.last().cloned().unwrap_or_default();
-                let payload = match scrutinee_ty {
-                    hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => self
-                        .instantiated_union_payload(name, generics, &variant_name)
-                        .flatten(),
-                    _ => None,
+                let (pattern_path, payload) = match scrutinee_ty {
+                    hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => {
+                        let mut path = name.clone();
+                        path.push(variant_name.clone());
+                        (
+                            path,
+                            self.instantiated_union_payload(name, generics, &variant_name)
+                                .flatten(),
+                        )
+                    }
+                    _ => (
+                        variant_path
+                            .into_iter()
+                            .map(|part| part.to_string())
+                            .collect(),
+                        None,
+                    ),
                 };
                 let mut bound = Vec::new();
                 let mut subpatterns = Vec::new();
@@ -282,7 +294,7 @@ impl Typechecker {
                 (
                     hir::HirPattern {
                         kind: hir::HirPatternKind::Path {
-                            path: vec![variant_name],
+                            path: pattern_path,
                             args: subpatterns,
                         },
                         ty: scrutinee_ty.clone(),
