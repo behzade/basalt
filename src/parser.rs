@@ -993,9 +993,9 @@ fn fn_def_parser<'src>()
             }),
         )
         .map(
-            |(((is_public, (name, params, ret_type, effects)), body))| Function {
+            |((is_public, (name, generics, params, ret_type, effects)), body)| Function {
                 name,
-                generics: vec![],
+                generics,
                 params,
                 ret_type,
                 effects,
@@ -1095,17 +1095,32 @@ fn fn_signature_parser<'src>() -> impl Parser<
     &'src [Token<'src>],
     (
         &'src str,
+        Vec<&'src str>,
         Vec<(Option<&'src str>, Type<'src>)>,
         Option<Type<'src>>,
         Vec<Type<'src>>,
     ),
     extra::Err<Rich<'src, Token<'src>>>,
 > {
+    let generics = ident()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
+        .delimited_by(
+            select! { Token::Op(op) if op == "<" => () },
+            select! { Token::Op(op) if op == ">" => () },
+        )
+        .or_not()
+        .map(|g| g.unwrap_or_default());
+
     ident()
+        .then(generics)
         .then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
         .then(effects_types(|| type_parser()))
-        .map(|(((name, params), ret_type), effects)| (name, params, ret_type, effects))
+        .map(|((((name, generics), params), ret_type), effects)| {
+            (name, generics, params, ret_type, effects)
+        })
         .labelled("function signature")
 }
 

@@ -164,6 +164,134 @@ impl Typechecker {
         }
     }
 
+    pub(crate) fn contains_generic_ty(ty: &hir::Ty) -> bool {
+        match ty {
+            hir::Ty::Generic(_) => true,
+            hir::Ty::Array(elem) => Self::contains_generic_ty(elem),
+            hir::Ty::Map { value, .. } => Self::contains_generic_ty(value),
+            hir::Ty::Function {
+                param_types,
+                ret_type,
+                effects,
+            } => {
+                param_types.iter().any(Self::contains_generic_ty)
+                    || Self::contains_generic_ty(ret_type)
+                    || effects.iter().any(Self::contains_generic_ty)
+            }
+            hir::Ty::Handler { effects } => effects.iter().any(Self::contains_generic_ty),
+            hir::Ty::Adt(hir::AdtTy::Struct { generics, .. })
+            | hir::Ty::Adt(hir::AdtTy::Enum { generics, .. })
+            | hir::Ty::Adt(hir::AdtTy::Effect { generics, .. }) => {
+                generics.iter().any(Self::contains_generic_ty)
+            }
+            _ => false,
+        }
+    }
+
+    pub(crate) fn infer_generic_bindings_from_ty(
+        pattern: &hir::Ty,
+        actual: &hir::Ty,
+        bindings: &mut HashMap<String, hir::Ty>,
+    ) {
+        match (pattern, actual) {
+            (hir::Ty::Generic(name), actual) => {
+                bindings
+                    .entry(name.clone())
+                    .or_insert_with(|| actual.clone());
+            }
+            (hir::Ty::Array(p), hir::Ty::Array(a)) => {
+                Self::infer_generic_bindings_from_ty(p, a, bindings);
+            }
+            (hir::Ty::Map { value: p_value, .. }, hir::Ty::Map { value: a_value, .. }) => {
+                Self::infer_generic_bindings_from_ty(p_value, a_value, bindings);
+            }
+            (
+                hir::Ty::Function {
+                    param_types: p_params,
+                    ret_type: p_ret,
+                    effects: p_effects,
+                },
+                hir::Ty::Function {
+                    param_types: a_params,
+                    ret_type: a_ret,
+                    effects: a_effects,
+                },
+            ) => {
+                for (p, a) in p_params.iter().zip(a_params.iter()) {
+                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                }
+                Self::infer_generic_bindings_from_ty(p_ret, a_ret, bindings);
+                for (p, a) in p_effects.iter().zip(a_effects.iter()) {
+                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                }
+            }
+            (hir::Ty::Handler { effects: p_effects }, hir::Ty::Handler { effects: a_effects }) => {
+                for (p, a) in p_effects.iter().zip(a_effects.iter()) {
+                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                }
+            }
+            (
+                hir::Ty::Adt(hir::AdtTy::Struct {
+                    name: p_name,
+                    generics: p_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Struct {
+                    name: a_name,
+                    generics: a_generics,
+                }),
+            )
+            | (
+                hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: p_name,
+                    generics: p_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: a_name,
+                    generics: a_generics,
+                }),
+            )
+            | (
+                hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: p_name,
+                    generics: p_generics,
+                }),
+                hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: a_name,
+                    generics: a_generics,
+                }),
+            ) if p_name == a_name => {
+                for (p, a) in p_generics.iter().zip(a_generics.iter()) {
+                    Self::infer_generic_bindings_from_ty(p, a, bindings);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn instantiate_signature(
+        signature: &hir::HirFunctionSignature,
+        raw_args: &[hir::Expr],
+    ) -> hir::HirFunctionSignature {
+        let mut bindings = HashMap::new();
+        for (param, arg) in signature.params.iter().zip(raw_args.iter()) {
+            Self::infer_generic_bindings_from_ty(&param.ty, &arg.ty, &mut bindings);
+        }
+        if bindings.is_empty() {
+            return signature.clone();
+        }
+        let mut instantiated = signature.clone();
+        for param in &mut instantiated.params {
+            param.ty = Self::substitute_generics_in_ty(&param.ty, &bindings);
+        }
+        instantiated.ret_type = Self::substitute_generics_in_ty(&instantiated.ret_type, &bindings);
+        instantiated.effects = instantiated
+            .effects
+            .iter()
+            .map(|ty| Self::substitute_generics_in_ty(ty, &bindings))
+            .collect();
+        instantiated
+    }
+
     pub(crate) fn instantiated_union_payload(
         &self,
         enum_name: &hir::OwnedPath,

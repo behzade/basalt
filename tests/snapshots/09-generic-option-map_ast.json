@@ -1,0 +1,616 @@
+{
+  "tests/09-generic-option-map.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Empty",
+          "generics": [],
+          "fields": [],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 4
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Option",
+          "generics": [
+            "T"
+          ],
+          "aliased": {
+            "Union": [
+              [
+                "Some",
+                {
+                  "path": [
+                    "T"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "None",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 4,
+        "end": 17
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "map_option",
+          "generics": [
+            "T",
+            "U"
+          ],
+          "params": [
+            [
+              "value",
+              {
+                "path": [
+                  "Option"
+                ],
+                "generics": [
+                  {
+                    "path": [
+                      "T"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  }
+                ],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "f",
+              {
+                "path": [
+                  "fn"
+                ],
+                "generics": [],
+                "fn_params": [
+                  {
+                    "path": [
+                      "T"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  }
+                ],
+                "fn_ret": {
+                  "path": [
+                    "U"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                },
+                "fn_effects": []
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "Option"
+            ],
+            "generics": [
+              {
+                "path": [
+                  "U"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Match": {
+                            "scrutinee": {
+                              "item": {
+                                "Path": [
+                                  "value"
+                                ]
+                              },
+                              "span": {
+                                "start": 47,
+                                "end": 48
+                              }
+                            },
+                            "arms": [
+                              [
+                                {
+                                  "item": {
+                                    "VariantBind": {
+                                      "binding": "some",
+                                      "variant_path": [
+                                        "Some"
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 49,
+                                    "end": 52
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Call": {
+                                      "fun": {
+                                        "item": {
+                                          "Path": [
+                                            "Some"
+                                          ]
+                                        },
+                                        "span": {
+                                          "start": 53,
+                                          "end": 54
+                                        }
+                                      },
+                                      "args": [
+                                        {
+                                          "item": {
+                                            "Call": {
+                                              "fun": {
+                                                "item": {
+                                                  "Path": [
+                                                    "f"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 55,
+                                                  "end": 56
+                                                }
+                                              },
+                                              "args": [
+                                                {
+                                                  "item": {
+                                                    "Path": [
+                                                      "some"
+                                                    ]
+                                                  },
+                                                  "span": {
+                                                    "start": 57,
+                                                    "end": 58
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 55,
+                                            "end": 59
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 53,
+                                    "end": 60
+                                  }
+                                }
+                              ],
+                              [
+                                {
+                                  "item": "Wildcard",
+                                  "span": {
+                                    "start": 61,
+                                    "end": 62
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "StructInit": {
+                                      "path": [
+                                        "Option",
+                                        "None"
+                                      ],
+                                      "generics": [],
+                                      "fields": []
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 63,
+                                    "end": 69
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 46,
+                          "end": 69
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 46,
+                      "end": 69
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 45,
+              "end": 70
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 17,
+        "end": 70
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "value",
+                        "ty": {
+                          "path": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "i32"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "Some"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 85,
+                                  "end": 86
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 8
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 87,
+                                    "end": 88
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 85,
+                            "end": 89
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 77,
+                      "end": 89
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "mapped",
+                        "ty": {
+                          "path": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "str"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "map_option"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 97,
+                                  "end": 98
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "value"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 99,
+                                    "end": 100
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "FnLiteral": {
+                                      "params": [
+                                        [
+                                          "n",
+                                          {
+                                            "path": [
+                                              "i32"
+                                            ],
+                                            "generics": [],
+                                            "fn_params": null,
+                                            "fn_ret": null,
+                                            "fn_effects": null
+                                          }
+                                        ]
+                                      ],
+                                      "ret_type": {
+                                        "path": [
+                                          "str"
+                                        ],
+                                        "generics": [],
+                                        "fn_params": null,
+                                        "fn_ret": null,
+                                        "fn_effects": null
+                                      },
+                                      "effects": [],
+                                      "body": {
+                                        "item": {
+                                          "Block": {
+                                            "stmts": [
+                                              {
+                                                "item": {
+                                                  "Expr": {
+                                                    "item": {
+                                                      "Literal": {
+                                                        "Str": "score"
+                                                      }
+                                                    },
+                                                    "span": {
+                                                      "start": 110,
+                                                      "end": 111
+                                                    }
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 110,
+                                                  "end": 111
+                                                }
+                                              }
+                                            ],
+                                            "last_expr": null
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 109,
+                                          "end": 112
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 101,
+                                    "end": 112
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 97,
+                            "end": 113
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 89,
+                      "end": 113
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Match": {
+                            "scrutinee": {
+                              "item": {
+                                "Path": [
+                                  "mapped"
+                                ]
+                              },
+                              "span": {
+                                "start": 114,
+                                "end": 115
+                              }
+                            },
+                            "arms": [
+                              [
+                                {
+                                  "item": {
+                                    "VariantBind": {
+                                      "binding": "text",
+                                      "variant_path": [
+                                        "Some"
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 116,
+                                    "end": 119
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "MethodCall": {
+                                      "receiver": {
+                                        "item": {
+                                          "Path": [
+                                            "text"
+                                          ]
+                                        },
+                                        "span": {
+                                          "start": 120,
+                                          "end": 121
+                                        }
+                                      },
+                                      "method": "len",
+                                      "args": []
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 120,
+                                    "end": 125
+                                  }
+                                }
+                              ],
+                              [
+                                {
+                                  "item": "Wildcard",
+                                  "span": {
+                                    "start": 126,
+                                    "end": 127
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 0
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 128,
+                                    "end": 129
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 113,
+                          "end": 129
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 113,
+                      "end": 129
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 76,
+              "end": 130
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 70,
+        "end": 130
+      }
+    }
+  ]
+}

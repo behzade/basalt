@@ -797,6 +797,21 @@ impl Typechecker {
                         }
 
                         if let Some(signature) = signature_opt {
+                            let has_generics = signature
+                                .params
+                                .iter()
+                                .any(|p| Self::contains_generic_ty(&p.ty))
+                                || Self::contains_generic_ty(&signature.ret_type)
+                                || signature.effects.iter().any(Self::contains_generic_ty);
+                            let signature = if has_generics {
+                                let mut raw_args = Vec::new();
+                                for arg in adjusted_args.iter().cloned() {
+                                    raw_args.push(self.lower_expr(arg, context.clone())?);
+                                }
+                                Self::instantiate_signature(&signature, &raw_args)
+                            } else {
+                                signature
+                            };
                             let mut lowered_args = Vec::new();
                             for (idx, arg) in adjusted_args.into_iter().enumerate() {
                                 let arg_expr = if let Some(p) = signature.params.get(idx) {
@@ -1218,8 +1233,13 @@ impl Typechecker {
                 let mut result_ty: Option<hir::Ty> = None;
                 for (pat, arm_expr) in arms {
                     self.enter_scope();
-                    let (hir_pat, hir_arm_expr) =
-                        self.lower_match_arm(pat, arm_expr, &scrutinee_hir.ty, context.clone())?;
+                    let (hir_pat, hir_arm_expr) = self.lower_match_arm(
+                        pat,
+                        arm_expr,
+                        &scrutinee_hir.ty,
+                        None,
+                        context.clone(),
+                    )?;
                     if let Some(ref ty) = result_ty {
                         match Self::branch_result_ty(ty, &hir_arm_expr.ty) {
                             Some(common) => result_ty = Some(common),
@@ -1712,6 +1732,44 @@ impl Typechecker {
                     },
                     context,
                 )
+            }
+            (OwnedExpr::Match { scrutinee, arms }, expected_ty) => {
+                let scrutinee_hir = self.lower_expr(*scrutinee, context.clone())?;
+                let mut lowered_arms = Vec::new();
+                for (pat, arm_expr) in arms {
+                    self.enter_scope();
+                    let result = self.lower_match_arm(
+                        pat,
+                        arm_expr,
+                        &scrutinee_hir.ty,
+                        Some(expected_ty.clone()),
+                        context.clone(),
+                    );
+                    self.leave_scope();
+                    let (hir_pat, hir_arm_expr) = result?;
+                    if hir_arm_expr.ty != expected_ty
+                        && !TypeUnifier::is_assignable(&hir_arm_expr.ty, &expected_ty)
+                    {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Match arm type mismatch: expected {}, found {}",
+                                Typechecker::format_ty(&expected_ty),
+                                Typechecker::format_ty(&hir_arm_expr.ty)
+                            ),
+                            context: context.clone(),
+                        });
+                    }
+                    lowered_arms.push((hir_pat, hir_arm_expr));
+                }
+                Ok(hir::Expr {
+                    ty: expected_ty,
+                    kind: hir::ExprKind::Match {
+                        scrutinee: Box::new(scrutinee_hir),
+                        arms: lowered_arms,
+                    },
+                    span: expr.span,
+                    resolution: None,
+                })
             }
             (
                 OwnedExpr::Block {

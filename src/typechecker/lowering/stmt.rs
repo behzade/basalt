@@ -239,6 +239,7 @@ impl Typechecker {
         pat: SpannedPattern,
         expr: SpannedExpr,
         scrutinee_ty: &hir::Ty,
+        expected_ty: Option<hir::Ty>,
         context: ItemContext,
     ) -> Result<(hir::HirPattern, hir::Expr), ()> {
         let (hir_pat, bound_types): (hir::HirPattern, Vec<(String, hir::Ty)>) = match pat.item {
@@ -311,7 +312,11 @@ impl Typechecker {
                 },
             );
         }
-        let arm_expr = self.lower_expr(expr, context)?;
+        let arm_expr = if let Some(expected) = expected_ty {
+            self.lower_expr_with_expected(expr, expected, context)?
+        } else {
+            self.lower_expr(expr, context)?
+        };
         Ok((hir_pat, arm_expr))
     }
 }
