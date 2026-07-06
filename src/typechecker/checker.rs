@@ -40,10 +40,6 @@ pub struct Typechecker {
     /// Top-level value functions by simple name. Ambiguities are not handled here yet.
     pub(crate) top_level_functions: HashMap<String, (hir::HirFunctionSignature, bool, PathBuf)>,
 
-    /// Inherent and trait methods registered via impl blocks, keyed by nominal type path.
-    /// For now we only support inherent methods on nominal types without generics.
-    pub(crate) impl_methods: HashMap<hir::OwnedPath, HashMap<String, (hir::HirFunctionSignature, bool, PathBuf, crate::token::SimpleSpan)>>,
-
     /// Persistent HIR contexts being built during lowering
     pub contexts: Vec<HirContext>,
     /// Stack of active context ids during lowering (function, block, etc.)
@@ -193,7 +189,6 @@ impl Typechecker {
                     ItemContext { span: item.span, path },
                 )
                 .map(hir::Item::Handler),
-            // Skip traits/impls/effects/handlers/methods for this milestone
             _ => Err(()),
         }
     }

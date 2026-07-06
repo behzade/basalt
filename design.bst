@@ -96,7 +96,7 @@ let a = meta {
 let configFile = meta std.io.read_file("config.json") // example syntax
 
 // -- Effect Definitions --
-// Effects are like interfaces that declare a set of operations.
+// Effects declare operations that are supplied by handlers in the active context.
 
 // The Http effect declares an operation for getting web content.
 effect Http {

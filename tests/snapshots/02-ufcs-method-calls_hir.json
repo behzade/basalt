@@ -19,7 +19,7 @@
         }
       ],
       "is_public": false,
-      "defined_in": "tests/02-interfaces-and-impls.bst",
+      "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
         "start": 0,
         "end": 12
@@ -108,7 +108,7 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/02-interfaces-and-impls.bst",
+      "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
         "start": 21,
         "end": 26
@@ -346,7 +346,7 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/02-interfaces-and-impls.bst",
+      "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
         "start": 40,
         "end": 54
@@ -489,7 +489,7 @@
                       },
                       "resolution": {
                         "Function": {
-                          "defined_in": "tests/02-interfaces-and-impls.bst",
+                              "defined_in": "tests/02-ufcs-method-calls.bst",
                           "span": {
                             "start": 12,
                             "end": 26
@@ -592,7 +592,7 @@
                       },
                       "resolution": {
                         "Function": {
-                          "defined_in": "tests/02-interfaces-and-impls.bst",
+                              "defined_in": "tests/02-ufcs-method-calls.bst",
                           "span": {
                             "start": 26,
                             "end": 54
@@ -699,7 +699,7 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/02-interfaces-and-impls.bst",
+      "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
         "start": 60,
         "end": 96

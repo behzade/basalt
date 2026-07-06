@@ -65,10 +65,7 @@ Not currently implemented in interpreter runtime:
 - `perform`/`handle` execution
 - Map runtime values
 
-Notes:
-
-- `interface`/`impl` parsing was intentionally removed in the current grammar pass.
-- `=` is the assignment operator (older `<-` syntax has been removed).
+Note: `=` is the assignment operator (older `<-` syntax has been removed).
 
 ## Modules and Imports
 

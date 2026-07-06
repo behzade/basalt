@@ -295,8 +295,6 @@ pub enum Resolution {
     Field { owner: OwnedPath, field: String },
     /// Reference to a top-level function; file and item span
     Function { defined_in: std::path::PathBuf, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
-    /// Reference to a method function in an impl; file and item span
-    Method { defined_in: std::path::PathBuf, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -353,10 +351,8 @@ pub type ContextId = usize;
 pub enum HirContextKind {
     Module,
     Function,
-    ImplMethod,
     Struct,
     Enum,
-    Trait,
     Effect,
     HandlerFunction,
     Block,
@@ -368,10 +364,8 @@ pub enum HirSymbolKind {
     TypeAlias,
     Struct,
     Enum,
-    Trait,
     Effect,
     Function,
-    Method,
     Param,
     Variable,
     Field,

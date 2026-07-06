@@ -105,7 +105,7 @@ pub async fn goto_definition(backend: &Backend, params: lsp::GotoDefinitionParam
                         basalt::hir::Resolution::Field { owner, field } => {
                             if let Some(loc) = symbols::find_struct_field_location(&analysis, owner, field) { return Ok(Some(lsp::GotoDefinitionResponse::Scalar(loc))); }
                         }
-                        basalt::hir::Resolution::Function { defined_in, span } | basalt::hir::Resolution::Method { defined_in, span } => {
+                        basalt::hir::Resolution::Function { defined_in, span } => {
                             if let Some(src_text) = analysis.sources.get(defined_in) {
                                 let tok_spans = analysis.token_spans.get(defined_in).cloned().unwrap_or_default();
                                 let range = symbols::token_index_span_to_range(src_text, &tok_spans, *span);
@@ -184,5 +184,4 @@ pub async fn reanalyze_and_publish(backend: &Backend, root_path: PathBuf, text: 
         backend.client.publish_diagnostics(uri, diags, None).await;
     }
 }
-
 

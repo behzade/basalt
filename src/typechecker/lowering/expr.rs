@@ -247,24 +247,6 @@ impl Typechecker {
                                 }
                             }
                         }
-                        if !is_module_qualified {
-                            if let Some(first) = args.get(0) {
-                                if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
-                                    if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty {
-                                        if let Some(methods) = self.impl_methods.get(&ty_name) {
-                                            if let Some((sig, is_public, defined_in, span)) = methods.get(&name) {
-                                                if !*is_public && defined_in != &context.path {
-                                                    self.errors.push(TypeError { message: format!("Method `{}` is private", name), context: context.clone() });
-                                                    return Err(());
-                                                }
-                                                signature_opt = Some(sig.clone());
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         if signature_opt.is_none() {
                             signature_opt = match self.lookup_symbol(&name) {
                                 Some(Symbol::Function { signature, is_public, defined_in, decl_span: _ }) => {
@@ -312,16 +294,6 @@ impl Typechecker {
                             if is_module_qualified {
                                 if let Some(Symbol::Function { signature: sig, is_public, defined_in, decl_span }) = self.lookup_symbol(&name).cloned() {
                                     if is_public { if let Some(sp) = decl_span { fun_resolution = Some(hir::Resolution::Function { defined_in, span: sp }); } }
-                                }
-                            } else if let Some(first) = args.get(0) {
-                                if let Ok(lhs_expr) = self.lower_expr(first.clone(), context.clone()) {
-                                    if let hir::Ty::Adt(hir::AdtTy::Struct { name: ty_name, .. }) | hir::Ty::Adt(hir::AdtTy::Enum { name: ty_name, .. }) = lhs_expr.ty {
-                                        if let Some(methods) = self.impl_methods.get(&ty_name) {
-                                            if let Some((_sig, is_public, defined_in, span)) = methods.get(&name) {
-                                                if *is_public { fun_resolution = Some(hir::Resolution::Method { defined_in: defined_in.clone(), span: *span }); }
-                                            }
-                                        }
-                                    }
                                 }
                             }
                             let mut fun_expr = hir::Expr { kind: hir::ExprKind::Path(path), ty: hir::Ty::Function { param_types: signature.params.iter().map(|p| p.ty.clone()).collect(), ret_type: Box::new(signature.ret_type.clone()), effects: signature.effects.clone() }, span: fun.span, resolution: None };
@@ -565,5 +537,4 @@ impl Typechecker {
         }
     }
 }
-
 

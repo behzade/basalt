@@ -1,16 +1,8 @@
-use std::path::PathBuf;
-
 use crate::hir;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
-    pub(crate) fn mangle_method_name(module_path: &PathBuf, type_name: &hir::OwnedPath, method: &str) -> String {
-        let module = module_path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
-        let ty = type_name.join("_");
-        format!("{}__{}__{}", module, ty, method)
-    }
-
     pub(crate) fn mark_variable_initialized(&mut self, name: &str) {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(Symbol::Variable { initialized, .. }) = scope.get_mut(name) {
@@ -88,5 +80,4 @@ impl Typechecker {
         }
     }
 }
-
 

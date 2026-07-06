@@ -33,7 +33,6 @@ pub enum ItemNode<'src> {
     Stmt(Stmt<'src>),
     ImportBlock { imports: Vec<ImportPath<'src>> },
     Fn(Function<'src>),
-    Method(Method<'src>),
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
     Effect(EffectDef<'src>),
@@ -188,18 +187,6 @@ pub struct Function<'src> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Method<'src> {
-    pub type_name: &'src str,
-    pub name: &'src str,
-    pub generics: Vec<&'src str>,
-    pub params: Vec<(Option<&'src str>, Type<'src>)>,
-    pub ret_type: Option<Type<'src>>,
-    pub effects: Vec<Type<'src>>,
-    pub body: Expr<'src>,
-    pub is_public: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub struct StructDef<'src> {
     pub name: &'src str,
     pub generics: Vec<&'src str>,
@@ -213,28 +200,6 @@ pub struct EnumDef<'src> {
     pub generics: Vec<&'src str>,
     pub variants: Vec<(&'src str, Option<Vec<Type<'src>>>)>,
     pub is_public: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct TraitDef<'src> {
-    pub name: &'src str,
-    pub methods: Vec<TraitMethod<'src>>,
-    pub is_public: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct TraitMethod<'src> {
-    pub name: &'src str,
-    pub params: Vec<(Option<&'src str>, Type<'src>)>,
-    pub ret_type: Option<Type<'src>>,
-    pub is_public: bool,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct SatisfiesBlock<'src> {
-    pub target_type: Type<'src>,
-    pub trait_names: Vec<&'src str>,
-    pub methods: Option<Vec<Function<'src>>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -295,15 +260,6 @@ pub enum BinaryOp {
     BinaryOr,
     BitShiftLeft,
     BitShiftRight,
-}
-
-// --- New Item Types ---
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ImplBlock<'src> {
-    pub target_type: Type<'src>,
-    pub interface: Option<Path<'src>>, // parsed from after ':'
-    pub methods: Vec<Function<'src>>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

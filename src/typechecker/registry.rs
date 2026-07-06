@@ -11,7 +11,7 @@ impl Typechecker {
         match &item.item {
             OwnedItem::Fn(func) => {
                 let ctx = ItemContext { span: item.span, path: PathBuf::from("<global>") };
-                // Allow duplicate function names across modules; resolution can be qualified or via impls
+                // Allow duplicate function names across modules; resolution can be qualified.
                 let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
                 for (name_opt, ty) in &func.params {
@@ -193,5 +193,4 @@ impl Typechecker {
         // Standard library functions should be provided by real modules when imports resolve modules.
     }
 }
-
 

@@ -628,8 +628,6 @@ fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'
         .map(|((((is_public, name), effects), functions))| HandlerDef { name, effects, functions, is_public })
 }
 
-// interface_parser removed
-
 fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src str, Vec<(Option<&'src str>, Type<'src>)>, Option<Type<'src>>, Vec<Type<'src>>), extra::Err<Rich<'src, Token<'src>>>> {
     ident()
         .then(params_parser())
@@ -638,8 +636,6 @@ fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src 
         .map(|(((name, params), ret_type), effects)| (name, params, ret_type, effects))
         .labelled("function signature")
 }
-
-// impl_parser removed
 
 fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAliasDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
@@ -696,7 +692,6 @@ fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, ext
     choice((
         import_parser(),
         spanned(fn_def_parser().map(ItemNode::Fn)),
-        // interface_parser and impl_parser removed
         spanned(effect_parser().map(ItemNode::Effect)),
         spanned(handler_parser().map(ItemNode::Handler)),
         spanned(type_alias_parser().map(ItemNode::TypeAlias)),
@@ -712,4 +707,3 @@ pub fn file_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'s
         .then_ignore(trivia())
         .then_ignore(end())
 }
-

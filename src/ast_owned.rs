@@ -40,19 +40,6 @@ pub struct OwnedFunction {
     pub is_public: bool,
 }
 
-/// Owned version of Method for symbol signatures
-#[derive(Debug, Clone, Serialize)]
-pub struct OwnedMethod {
-    pub type_name: String,
-    pub name: String,
-    pub generics: Vec<String>,
-    pub params: Vec<(Option<String>, OwnedType)>,
-    pub ret_type: Option<OwnedType>,
-    pub effects: Vec<String>,
-    pub body: SpannedExpr, // UPDATED
-    pub is_public: bool,
-}
-
 /// Owned version of StructDef for symbol signatures
 #[derive(Debug, Clone, Serialize)]
 pub struct OwnedStructDef {
@@ -68,30 +55,6 @@ pub struct OwnedEnumDef {
     pub name: Option<String>,
     pub generics: Vec<String>,
     pub variants: Vec<(String, Option<Vec<OwnedType>>)>,
-    pub is_public: bool,
-}
-
-/// Owned version of TraitDef for symbol signatures
-#[derive(Debug, Clone, Serialize)]
-pub struct OwnedTraitDef {
-    pub name: String,
-    pub methods: Vec<OwnedTraitMethod>,
-    pub is_public: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct OwnedImplBlock {
-    pub target_type: OwnedType,
-    pub interface: Option<Vec<String>>, // optional interface path
-    pub methods: Vec<OwnedFunction>,
-}
-
-/// Owned version of TraitMethod for symbol signatures
-#[derive(Debug, Clone, Serialize)]
-pub struct OwnedTraitMethod {
-    pub name: String,
-    pub params: Vec<(Option<String>, OwnedType)>,
-    pub ret_type: Option<OwnedType>,
     pub is_public: bool,
 }
 
@@ -252,7 +215,6 @@ pub enum OwnedItem {
     Stmt(SpannedStmt), // UPDATED
     ImportBlock { imports: Vec<OwnedImportPath> },
     Fn(OwnedFunction),
-    Method(OwnedMethod),
     Struct(OwnedStructDef),
     Enum(OwnedEnumDef),
     Effect(OwnedEffectDef),
@@ -264,13 +226,6 @@ pub enum OwnedItem {
 pub struct OwnedImportPath {
     pub path: Vec<String>,
     pub alias: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct OwnedSatisfiesBlock {
-    pub target_type: OwnedType,
-    pub trait_names: Vec<String>,
-    pub methods: Option<Vec<OwnedFunction>>,
 }
 
 pub type OwnedItemWithSpan = Spanned<OwnedItem>;
@@ -318,36 +273,6 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
     }
 }
 
-impl<'src> From<&Method<'src>> for OwnedMethod {
-    fn from(method: &Method<'src>) -> Self {
-        Self {
-            type_name: method.type_name.to_string(),
-            name: method.name.to_string(),
-            generics: method.generics.iter().map(|s| s.to_string()).collect(),
-            params: method
-                .params
-                .iter()
-                .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
-                .collect(),
-            ret_type: method.ret_type.as_ref().map(|ty| ty.into()),
-            effects: method
-                .effects
-                .iter()
-                .map(|t| match &t.node {
-                    TypeNode::Path { path, .. } => path
-                        .last()
-                        .map(|s| s.to_string())
-                        .unwrap_or_default(),
-                    TypeNode::Never => "!".to_string(),
-                    _ => "<effect>".to_string(),
-                })
-                .collect(),
-            body: (&method.body).into(),
-            is_public: method.is_public,
-        }
-    }
-}
-
 impl<'src> From<&StructDef<'src>> for OwnedStructDef {
     fn from(struct_def: &StructDef<'src>) -> Self {
         Self {
@@ -381,31 +306,6 @@ impl<'src> From<&EnumDef<'src>> for OwnedEnumDef {
                 })
                 .collect(),
             is_public: enum_def.is_public,
-        }
-    }
-}
-
-impl<'src> From<&TraitDef<'src>> for OwnedTraitDef {
-    fn from(trait_def: &TraitDef<'src>) -> Self {
-        Self {
-            name: trait_def.name.to_string(),
-            methods: trait_def.methods.iter().map(|m| m.into()).collect(),
-            is_public: trait_def.is_public,
-        }
-    }
-}
-
-impl<'src> From<&TraitMethod<'src>> for OwnedTraitMethod {
-    fn from(method: &TraitMethod<'src>) -> Self {
-        Self {
-            name: method.name.to_string(),
-            params: method
-                .params
-                .iter()
-                .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
-                .collect(),
-            ret_type: method.ret_type.as_ref().map(|t| t.into()),
-            is_public: method.is_public,
         }
     }
 }
@@ -486,41 +386,11 @@ impl<'src> From<&HandlerBody<'src>> for OwnedHandlerBody {
     }
 }
 
-impl<'src> From<&SatisfiesBlock<'src>> for OwnedSatisfiesBlock {
-    fn from(satisfies: &SatisfiesBlock<'src>) -> Self {
-        Self {
-            target_type: (&satisfies.target_type).into(),
-            trait_names: satisfies
-                .trait_names
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
-            methods: satisfies
-                .methods
-                .as_ref()
-                .map(|ms| ms.iter().map(|m| m.into()).collect::<Vec<OwnedFunction>>()),
-        }
-    }
-}
-
 impl<'src> From<&ImportPath<'src>> for OwnedImportPath {
     fn from(import_path: &ImportPath<'src>) -> Self {
         Self {
             path: import_path.path.iter().map(|s| s.to_string()).collect(),
             alias: import_path.alias.map(|s| s.to_string()),
-        }
-    }
-}
-
-impl<'src> From<&ImplBlock<'src>> for OwnedImplBlock {
-    fn from(imp: &ImplBlock<'src>) -> Self {
-        Self {
-            target_type: (&imp.target_type).into(),
-            interface: imp
-                .interface
-                .as_ref()
-                .map(|p| p.iter().map(|s| s.to_string()).collect()),
-            methods: imp.methods.iter().map(|m| m.into()).collect(),
         }
     }
 }
@@ -550,7 +420,6 @@ impl<'src> From<&Item<'src>> for OwnedItem {
                 imports: imports.iter().map(|i| i.into()).collect(),
             },
             ItemNode::Fn(f) => OwnedItem::Fn(f.into()),
-            ItemNode::Method(m) => OwnedItem::Method(m.into()),
             ItemNode::Struct(s) => OwnedItem::Struct(s.into()),
             ItemNode::Enum(e) => OwnedItem::Enum(e.into()),
             ItemNode::Effect(eff) => OwnedItem::Effect(eff.into()),

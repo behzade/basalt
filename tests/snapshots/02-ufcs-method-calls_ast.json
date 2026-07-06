@@ -1,5 +1,5 @@
 {
-  "tests/02-interfaces-and-impls.bst": [
+  "tests/02-ufcs-method-calls.bst": [
     {
       "item": {
         "Struct": {
