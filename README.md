@@ -27,7 +27,7 @@ cargo run -- ast ./tests/00-imports-and-aliases.bst
 cargo run -- hir ./tests/05-match-and-control-flow.bst
 
 # Typecheck + run via interpreter (exit code comes from program result)
-cargo run -- run ./tests/00-imports-and-aliases.bst
+cargo run -- run ./tests/05-match-and-control-flow.bst
 
 # Present in CLI, currently stubs
 cargo run -- mir ./tests/00-imports-and-aliases.bst
@@ -59,11 +59,17 @@ Works through parser/typechecker:
 - Effects, handlers, and `perform` typing rules
 - UFCS-style method calls lowered to regular calls
 
-Not currently implemented in interpreter runtime:
+Works in the interpreter runtime:
 
 - `match` execution
 - `perform`/`handle` execution
 - Map runtime values
+
+Known interpreter gaps:
+
+- Nested path match patterns
+- Map indexing/update operations
+- General compiler backend
 
 Note: `=` is the assignment operator (older `<-` syntax has been removed).
 
@@ -80,10 +86,12 @@ Snapshot and stage test runner:
 ```sh
 ./tests/run.sh ast
 ./tests/run.sh hir --compare
+./tests/run.sh run
 ./tests/run.sh ast --snapshot
 ```
 
 Test inputs are in `tests/*.bst`, with snapshots in `tests/snapshots/`.
+Runtime fixtures opt in through `tests/runtime.expected`.
 
 ## Dev Environment
 

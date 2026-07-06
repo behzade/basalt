@@ -22,10 +22,11 @@ SNAPSHOT_TESTS=0
 # Directories
 SNAPSHOTS_DIR="tests/snapshots"
 TEMP_DIR="tests/temp"
+RUNTIME_EXPECTATIONS="tests/runtime.expected"
 
 # Test type configuration (compatible with bash 3.2)
 # Format: test_type:command:display_name
-TEST_TYPES="ast:ast:AST hir:hir:HIR mir:mir:MIR build:build:Compilation build:build:Build"
+TEST_TYPES="ast:ast:AST hir:hir:HIR run:run:Runtime mir:mir:MIR build:build:Compilation build:build:Build"
 
 # Default test type
 DEFAULT_TEST_TYPE="ast"
@@ -59,6 +60,29 @@ get_snapshot_path() {
     local test_type="$2"
     local test_name=$(basename "$test_file" .bst)
     echo "$SNAPSHOTS_DIR/${test_name}_${test_type}.json"
+}
+
+# Function to get test files for a stage
+get_test_files() {
+    local test_type="$1"
+    if [ "$test_type" = "run" ]; then
+        if [ ! -f "$RUNTIME_EXPECTATIONS" ]; then
+            return
+        fi
+        awk 'NF == 2 && $1 !~ /^#/ { print "tests/" $1 }' "$RUNTIME_EXPECTATIONS" | sort
+    else
+        find tests -name "*.bst" | sort
+    fi
+}
+
+# Function to get expected runtime exit code
+get_expected_run_exit_code() {
+    local test_file="$1"
+    local test_name=$(basename "$test_file")
+    if [ ! -f "$RUNTIME_EXPECTATIONS" ]; then
+        return
+    fi
+    awk -v name="$test_name" 'NF == 2 && $1 == name { print $2; exit }' "$RUNTIME_EXPECTATIONS"
 }
 
 # Function to get test type info
@@ -96,6 +120,34 @@ run_test_command() {
         "ast"|"resolve"|"hir"|"mir")
             # For these types, we pass the file as an argument
             ./target/debug/basalt "$command" "$test_file" 2>&1
+            ;;
+        "run")
+            local expected_code=$(get_expected_run_exit_code "$test_file")
+            if [ -z "$expected_code" ]; then
+                echo "ERROR: No runtime expectation found for $test_file"
+                return 1
+            fi
+
+            mkdir -p "$TEMP_DIR"
+            local output_file=$(mktemp "$TEMP_DIR/runtime.XXXXXX")
+            ./target/debug/basalt run "$test_file" >"$output_file" 2>&1
+            local actual_code=$?
+            local output=$(cat "$output_file")
+            rm -f "$output_file"
+
+            if [ "$actual_code" -eq "$expected_code" ]; then
+                echo "PASSED: Expected exit $expected_code, got $actual_code"
+                if [ -n "$output" ]; then
+                    echo "$output"
+                fi
+                return 0
+            else
+                echo "FAILED: Expected exit $expected_code, got $actual_code"
+                if [ -n "$output" ]; then
+                    echo "$output"
+                fi
+                return 1
+            fi
             ;;
         "build")
             # For WebAssembly, we need to capture the actual WASM output
@@ -150,7 +202,7 @@ generate_snapshots() {
     setup_directories
     
     # Find all .bst files in tests directory
-    test_files=($(find tests -name "*.bst" | sort))
+    test_files=($(get_test_files "$test_type"))
     
     for test_file in "${test_files[@]}"; do
         local test_name=$(basename "$test_file" .bst)
@@ -199,7 +251,7 @@ compare_snapshots() {
     setup_directories
     
     # Find all .bst files in tests directory
-    test_files=($(find tests -name "*.bst" | sort))
+    test_files=($(get_test_files "$test_type"))
     
     for test_file in "${test_files[@]}"; do
         local test_name=$(basename "$test_file" .bst)
@@ -331,7 +383,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        ast|resolve|hir|mir|build|compile)
+        ast|resolve|hir|run|mir|build|compile)
             TEST_TYPE="$1"
             shift
             ;;
@@ -362,7 +414,7 @@ else
     echo
     
     # Find all .bst files in tests directory
-    test_files=($(find tests -name "*.bst" | sort))
+    test_files=($(get_test_files "$TEST_TYPE"))
 
     if [ ${#test_files[@]} -eq 0 ]; then
         echo -e "${RED}No .bst files found in tests directory${NC}"
