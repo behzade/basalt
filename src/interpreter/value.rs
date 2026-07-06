@@ -19,6 +19,7 @@ pub enum Value {
     F64(f64),
     Str(String),
     Array(Vec<Value>),
+    Map(Vec<(Value, Value)>),
     Struct {
         path: Vec<String>,
         fields: HashMap<String, Value>,
@@ -64,6 +65,7 @@ impl PartialEq for Value {
             (V::F64(a), V::F64(b)) => a == b,
             (V::Str(a), V::Str(b)) => a == b,
             (V::Array(a), V::Array(b)) => a == b,
+            (V::Map(a), V::Map(b)) => a == b,
             (
                 V::Struct {
                     path: p1,
@@ -108,6 +110,16 @@ impl std::fmt::Display for Value {
                     write!(f, "{}", v)?;
                 }
                 write!(f, "]")
+            }
+            Value::Map(entries) => {
+                write!(f, "{{")?;
+                for (i, (key, value)) in entries.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}: {}", key, value)?;
+                }
+                write!(f, "}}")
             }
             Value::Struct { path, fields } => {
                 let name = if path.is_empty() {
@@ -174,9 +186,10 @@ pub fn value_to_exit_code(value: &Value) -> i32 {
                 *f as i32
             }
         }
-        // Strings, arrays, and functions default to success
+        // Strings, collections, structs, and functions default to success
         Value::Str(_)
         | Value::Array(_)
+        | Value::Map(_)
         | Value::Struct { .. }
         | Value::Function(_)
         | Value::Handler(_) => 0,

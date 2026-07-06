@@ -190,7 +190,13 @@ impl Interpreter {
                 }
                 Ok(Value::Array(values))
             }
-            ExprKind::Map(_) => Err(RuntimeError("Map not yet supported".to_string())),
+            ExprKind::Map(entries) => {
+                let mut values = Vec::with_capacity(entries.len());
+                for (key, value) in entries {
+                    values.push((self.eval_expr(key, env)?, self.eval_expr(value, env)?));
+                }
+                Ok(Value::Map(values))
+            }
             ExprKind::Path(path) => {
                 // Variable lookup for simple paths
                 if let Some(name) = path.last() {
@@ -810,6 +816,7 @@ impl Interpreter {
                 match value {
                     Value::Str(s) => Ok(Some(Value::I32(s.chars().count() as i32))),
                     Value::Array(items) => Ok(Some(Value::I32(items.len() as i32))),
+                    Value::Map(entries) => Ok(Some(Value::I32(entries.len() as i32))),
                     other => Err(RuntimeError(format!("len unsupported for {}", other))),
                 }
             }
@@ -898,6 +905,7 @@ fn is_truthy(v: &Value) -> bool {
         Value::F64(f) => *f != 0.0,
         Value::Str(s) => !s.is_empty(),
         Value::Array(a) => !a.is_empty(),
+        Value::Map(m) => !m.is_empty(),
         Value::Struct { .. } => true,
         Value::Function(_) => true,
         Value::Handler(_) => true,
@@ -997,6 +1005,13 @@ mod tests {
             name: vec![name.to_string()],
             generics: vec![],
         })
+    }
+
+    fn map_ty(key: hir::PrimitiveTy, value: hir::Ty) -> hir::Ty {
+        hir::Ty::Map {
+            key: Box::new(key),
+            value: Box::new(value),
+        }
     }
 
     fn function(name: &str, body_expr: Expr) -> HirFunction {
@@ -1151,5 +1166,54 @@ mod tests {
         ))];
 
         assert_eq!(run_program(&items).unwrap(), Value::Str("acme".to_string()));
+    }
+
+    #[test]
+    fn evaluates_map_literals_and_len() {
+        let map_type = map_ty(hir::PrimitiveTy::Str, i32_ty());
+        let map_expr = Expr {
+            kind: ExprKind::Map(vec![
+                (
+                    Expr {
+                        kind: ExprKind::Literal(hir::PrimitiveTy::Str, "a".to_string()),
+                        ty: str_ty(),
+                        span: span(),
+                        resolution: None,
+                    },
+                    literal_i32("1"),
+                ),
+                (
+                    Expr {
+                        kind: ExprKind::Literal(hir::PrimitiveTy::Str, "b".to_string()),
+                        ty: str_ty(),
+                        span: span(),
+                        resolution: None,
+                    },
+                    literal_i32("2"),
+                ),
+            ]),
+            ty: map_type,
+            span: span(),
+            resolution: None,
+        };
+        let items = vec![hir::Item::Fn(function(
+            "main",
+            Expr {
+                kind: ExprKind::Call {
+                    fun: Box::new(Expr {
+                        kind: ExprKind::Path(vec!["len".to_string()]),
+                        ty: i32_ty(),
+                        span: span(),
+                        resolution: None,
+                    }),
+                    args: vec![map_expr],
+                },
+                ty: i32_ty(),
+                span: span(),
+                resolution: None,
+            },
+        ))];
+
+        assert_eq!(run_program(&items).unwrap(), Value::I32(2));
     }
 }
