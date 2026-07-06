@@ -1,0 +1,152 @@
+{
+  "tests/16-user-function-shadows-builtin.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "len",
+          "generics": [],
+          "params": [
+            [
+              "value",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 42
+                          }
+                        },
+                        "span": {
+                          "start": 10,
+                          "end": 11
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 10,
+                      "end": 11
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 9,
+              "end": 12
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 12
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "len"
+                                ]
+                              },
+                              "span": {
+                                "start": 19,
+                                "end": 20
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Literal": {
+                                    "Str": "abc"
+                                  }
+                                },
+                                "span": {
+                                  "start": 21,
+                                  "end": 22
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 19,
+                          "end": 23
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 19,
+                      "end": 23
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 18,
+              "end": 24
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 12,
+        "end": 24
+      }
+    }
+  ]
+}

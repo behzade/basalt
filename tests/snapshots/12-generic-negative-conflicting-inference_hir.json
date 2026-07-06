@@ -5,12 +5,5 @@ ERROR: [31mError:[0m Type error
  [38;5;240m  │[0m                    [31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m  
  [38;5;240m  │[0m                           [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Could not infer generics for function `same`: Conflicting inference for generic `T`: i32 vs str
 [38;5;246m───╯[0m
-[31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/12-generic-negative-conflicting-inference.bst:1:20[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m1 │[0m [38;5;249mf[0m[38;5;249mn[0m[38;5;249m [0m[38;5;249ms[0m[38;5;249ma[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249m<[0m[38;5;249mT[0m[38;5;249m>[0m[38;5;249m([0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mf[0m[38;5;249mt[0m[38;5;249m:[0m[38;5;249m [0m[38;5;249mT[0m[38;5;249m,[0m[31m [0m[31mr[0m[31mi[0m[31mg[0m[31mh[0m[31mt[0m[31m:[0m[31m [0m[31mT[0m[31m)[0m[31m [0m[31m-[0m[31m>[0m[31m [0m[38;5;249mT[0m[38;5;249m [0m[38;5;249m{[0m
- [38;5;240m  │[0m                    [31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m  
- [38;5;240m  │[0m                           [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Mismatched return type for function 'main': expected i32 but found T
-[38;5;246m───╯[0m
 
 ❌ Compilation failed: error in typechecker

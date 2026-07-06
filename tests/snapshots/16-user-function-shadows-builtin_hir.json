@@ -1,0 +1,133 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "len",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "42"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 10,
+            "end": 11
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/16-user-function-shadows-builtin.bst",
+      "span": {
+        "start": 9,
+        "end": 12
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 19,
+                  "end": 20
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Literal": [
+                      "Str",
+                      "abc"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 21,
+                    "end": 22
+                  },
+                  "resolution": null
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 19,
+            "end": 23
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/16-user-function-shadows-builtin.bst",
+      "span": {
+        "start": 18,
+        "end": 24
+      },
+      "context_id": 1
+    }
+  }
+]

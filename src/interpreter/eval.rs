@@ -239,9 +239,13 @@ impl Interpreter {
                 // Evaluate callee; support calling top-level and function values
                 if let ExprKind::Path(p) = &fun.kind {
                     if let Some(name) = p.last() {
-                        // Builtins: minimal host I/O
-                        if let Some(builtin) = self.try_builtin_call(name, args, env)? {
-                            return Ok(builtin);
+                        // Variable binding holding a function value shadows top-level functions.
+                        if let Some(Value::Function(func_val)) = env.get(name) {
+                            let mut evaled = Vec::with_capacity(args.len());
+                            for a in args {
+                                evaled.push(self.eval_expr(a, env)?);
+                            }
+                            return self.call_function_value(&func_val, evaled);
                         }
                         if let Some(f) = self.functions.get(name) {
                             let mut evaled = Vec::with_capacity(args.len());
@@ -250,13 +254,9 @@ impl Interpreter {
                             }
                             return self.call_function(f, evaled);
                         }
-                        // Variable binding holding a function value
-                        if let Some(Value::Function(func_val)) = env.get(name) {
-                            let mut evaled = Vec::with_capacity(args.len());
-                            for a in args {
-                                evaled.push(self.eval_expr(a, env)?);
-                            }
-                            return self.call_function_value(&func_val, evaled);
+                        // Builtins: minimal host I/O, only after user-visible bindings.
+                        if let Some(builtin) = self.try_builtin_call(name, args, env)? {
+                            return Ok(builtin);
                         }
                         if let hir::Ty::Function { ret_type, .. } = &fun.ty {
                             if let hir::Ty::Adt(hir::AdtTy::Enum {

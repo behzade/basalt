@@ -1,5 +1,6 @@
 pub mod checker;
 pub mod errors;
+pub mod generics;
 pub mod lowering;
 pub mod registry;
 pub mod scope;

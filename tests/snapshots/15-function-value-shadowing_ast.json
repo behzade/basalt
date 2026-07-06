@@ -1,0 +1,193 @@
+{
+  "tests/15-function-value-shadowing.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "f",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 1
+                          }
+                        },
+                        "span": {
+                          "start": 7,
+                          "end": 8
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 8
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 9
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "f",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "FnLiteral": {
+                              "params": [],
+                              "ret_type": {
+                                "path": [
+                                  "i32"
+                                ],
+                                "generics": [],
+                                "fn_params": null,
+                                "fn_ret": null,
+                                "fn_effects": null
+                              },
+                              "effects": [],
+                              "body": {
+                                "item": {
+                                  "Block": {
+                                    "stmts": [
+                                      {
+                                        "item": {
+                                          "Expr": {
+                                            "item": {
+                                              "Literal": {
+                                                "I32": 2
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 25,
+                                              "end": 26
+                                            }
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 25,
+                                          "end": 26
+                                        }
+                                      }
+                                    ],
+                                    "last_expr": null
+                                  }
+                                },
+                                "span": {
+                                  "start": 24,
+                                  "end": 27
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 19,
+                            "end": 27
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 27
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "f"
+                                ]
+                              },
+                              "span": {
+                                "start": 27,
+                                "end": 28
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 27,
+                          "end": 30
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 27,
+                      "end": 30
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 31
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 31
+      }
+    }
+  ]
+}

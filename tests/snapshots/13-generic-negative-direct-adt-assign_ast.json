@@ -1,0 +1,224 @@
+{
+  "tests/13-generic-negative-direct-adt-assign.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Empty",
+          "generics": [],
+          "fields": [],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 4
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Option",
+          "generics": [
+            "T"
+          ],
+          "aliased": {
+            "Union": [
+              [
+                "Some",
+                {
+                  "path": [
+                    "T"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "None",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 4,
+        "end": 17
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "value",
+                        "ty": {
+                          "path": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "i32"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "Some"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 32,
+                                  "end": 33
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 1
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 34,
+                                    "end": 35
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 32,
+                            "end": 36
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 24,
+                      "end": 36
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "bad",
+                        "ty": {
+                          "path": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "str"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Path": [
+                              "value"
+                            ]
+                          },
+                          "span": {
+                            "start": 44,
+                            "end": 45
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 36,
+                      "end": 45
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 45,
+                          "end": 46
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 45,
+                      "end": 46
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 23,
+              "end": 47
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 17,
+        "end": 47
+      }
+    }
+  ]
+}

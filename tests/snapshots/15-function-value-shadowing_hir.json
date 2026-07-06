@@ -1,0 +1,180 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "f",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "1"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 7,
+            "end": 8
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/15-function-value-shadowing.bst",
+      "span": {
+        "start": 6,
+        "end": 9
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "f",
+              "value": {
+                "kind": {
+                  "FnLiteral": {
+                    "params": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": [],
+                    "body": {
+                      "stmts": [],
+                      "last_expr": {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "2"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 25,
+                          "end": 26
+                        },
+                        "resolution": null
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 19,
+                  "end": 27
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Function": {
+                  "param_types": [],
+                  "ret_type": {
+                    "Primitive": "I32"
+                  },
+                  "effects": []
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 16,
+                "end": 27
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "f"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 27,
+                  "end": 28
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "f",
+                    "decl_span": {
+                      "start": 16,
+                      "end": 27
+                    }
+                  }
+                }
+              },
+              "args": []
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 27,
+            "end": 30
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/15-function-value-shadowing.bst",
+      "span": {
+        "start": 15,
+        "end": 31
+      },
+      "context_id": 1
+    }
+  }
+]

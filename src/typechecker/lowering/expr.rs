@@ -818,7 +818,7 @@ impl Typechecker {
                                             ),
                                             context: context.clone(),
                                         });
-                                        signature
+                                        return Err(());
                                     }
                                 }
                             } else {

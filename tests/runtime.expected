@@ -6,3 +6,5 @@
 08-higher-order-functions.bst 10
 09-generic-option-map.bst 5
 10-generic-result-chain.bst 6
+15-function-value-shadowing.bst 2
+16-user-function-shadows-builtin.bst 42
