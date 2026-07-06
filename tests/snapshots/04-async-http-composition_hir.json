@@ -284,8 +284,8 @@
                               "Primitive": "Str"
                             },
                             "span": {
-                              "start": 96,
-                              "end": 97
+                              "start": 98,
+                              "end": 99
                             },
                             "resolution": null
                           },
@@ -305,8 +305,8 @@
                       }
                     },
                     "span": {
-                      "start": 90,
-                      "end": 98
+                      "start": 92,
+                      "end": 100
                     },
                     "resolution": null
                   },
@@ -321,8 +321,8 @@
                   },
                   "is_mut": false,
                   "span": {
-                    "start": 87,
-                    "end": 98
+                    "start": 89,
+                    "end": 100
                   },
                   "name_span": null
                 }
@@ -354,15 +354,15 @@
                               }
                             },
                             "span": {
-                              "start": 106,
-                              "end": 107
+                              "start": 108,
+                              "end": 109
                             },
                             "resolution": {
                               "Local": {
                                 "name": "http_task",
                                 "decl_span": {
-                                  "start": 87,
-                                  "end": 98
+                                  "start": 89,
+                                  "end": 100
                                 }
                               }
                             }
@@ -374,8 +374,8 @@
                       "Primitive": "Str"
                     },
                     "span": {
-                      "start": 101,
-                      "end": 108
+                      "start": 103,
+                      "end": 110
                     },
                     "resolution": null
                   },
@@ -384,8 +384,8 @@
                   },
                   "is_mut": false,
                   "span": {
-                    "start": 98,
-                    "end": 108
+                    "start": 100,
+                    "end": 110
                   },
                   "name_span": null
                 }
@@ -401,15 +401,15 @@
                 "Primitive": "Str"
               },
               "span": {
-                "start": 108,
-                "end": 109
+                "start": 110,
+                "end": 111
               },
               "resolution": {
                 "Local": {
                   "name": "content",
                   "decl_span": {
-                    "start": 98,
-                    "end": 108
+                    "start": 100,
+                    "end": 110
                   }
                 }
               }
@@ -421,8 +421,8 @@
           "is_public": false,
           "defined_in": "tests/04-async-http-composition.bst",
           "span": {
-            "start": 86,
-            "end": 110
+            "start": 88,
+            "end": 112
           },
           "context_id": 1
         }
@@ -431,7 +431,7 @@
       "defined_in": "tests/04-async-http-composition.bst",
       "span": {
         "start": 60,
-        "end": 111
+        "end": 113
       }
     }
   },
@@ -487,8 +487,8 @@
                           "Primitive": "Str"
                         },
                         "span": {
-                          "start": 141,
-                          "end": 142
+                          "start": 143,
+                          "end": 144
                         },
                         "resolution": {
                           "Local": {
@@ -504,8 +504,8 @@
                   "Primitive": "Str"
                 },
                 "span": {
-                  "start": 136,
-                  "end": 143
+                  "start": 138,
+                  "end": 145
                 },
                 "resolution": null
               },
@@ -514,8 +514,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 133,
-                "end": 143
+                "start": 135,
+                "end": 145
               },
               "name_span": null
             }
@@ -544,8 +544,8 @@
                   }
                 },
                 "span": {
-                  "start": 143,
-                  "end": 148
+                  "start": 145,
+                  "end": 150
                 },
                 "resolution": null
               },
@@ -560,15 +560,15 @@
                     "Primitive": "Str"
                   },
                   "span": {
-                    "start": 143,
-                    "end": 144
+                    "start": 145,
+                    "end": 146
                   },
                   "resolution": {
                     "Local": {
                       "name": "content",
                       "decl_span": {
-                        "start": 133,
-                        "end": 143
+                        "start": 135,
+                        "end": 145
                       }
                     }
                   }
@@ -580,8 +580,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 143,
-            "end": 148
+            "start": 145,
+            "end": 150
           },
           "resolution": null
         },
@@ -592,8 +592,8 @@
       "is_public": false,
       "defined_in": "tests/04-async-http-composition.bst",
       "span": {
-        "start": 132,
-        "end": 149
+        "start": 134,
+        "end": 151
       },
       "context_id": 2
     }
@@ -641,8 +641,8 @@
                                 }
                               },
                               "span": {
-                                "start": 159,
-                                "end": 160
+                                "start": 161,
+                                "end": 162
                               },
                               "resolution": null
                             },
@@ -658,8 +658,8 @@
                                   "Primitive": "Str"
                                 },
                                 "span": {
-                                  "start": 161,
-                                  "end": 162
+                                  "start": 163,
+                                  "end": 164
                                 },
                                 "resolution": null
                               }
@@ -670,8 +670,8 @@
                           "Primitive": "I32"
                         },
                         "span": {
-                          "start": 159,
-                          "end": 163
+                          "start": 161,
+                          "end": 165
                         },
                         "resolution": null
                       },
@@ -690,8 +690,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 159,
-                  "end": 163
+                  "start": 161,
+                  "end": 165
                 },
                 "resolution": null
               },
@@ -700,8 +700,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 156,
-                "end": 167
+                "start": 158,
+                "end": 169
               },
               "name_span": null
             }
@@ -717,15 +717,15 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 167,
-            "end": 168
+            "start": 169,
+            "end": 170
           },
           "resolution": {
             "Local": {
               "name": "size",
               "decl_span": {
-                "start": 156,
-                "end": 167
+                "start": 158,
+                "end": 169
               }
             }
           }
@@ -737,8 +737,8 @@
       "is_public": false,
       "defined_in": "tests/04-async-http-composition.bst",
       "span": {
-        "start": 155,
-        "end": 169
+        "start": 157,
+        "end": 171
       },
       "context_id": 3
     }

@@ -14,7 +14,9 @@ pub struct Env {
 
 impl Env {
     pub fn new() -> Self {
-        Env { scopes: vec![HashMap::new()] }
+        Env {
+            scopes: vec![HashMap::new()],
+        }
     }
 
     pub fn push_scope(&mut self) {
@@ -50,5 +52,3 @@ impl Env {
         None
     }
 }
-
-

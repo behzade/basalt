@@ -2,8 +2,8 @@ use tower_lsp::{LspService, Server};
 
 mod analysis;
 mod backend;
-mod symbols;
 mod handlers;
+mod symbols;
 
 #[tokio::main]
 async fn main() {
@@ -12,5 +12,3 @@ async fn main() {
     let (service, socket) = LspService::new(|client| backend::Backend::new(client));
     Server::new(stdin, stdout, socket).serve(service).await;
 }
-
-

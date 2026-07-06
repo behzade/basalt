@@ -49,10 +49,15 @@ impl Interpreter {
             }
         }
 
-        self.eval_block(&function.body, &mut env).map(|v| v.unwrap_or(Value::Unit))
+        self.eval_block(&function.body, &mut env)
+            .map(|v| v.unwrap_or(Value::Unit))
     }
 
-    pub(crate) fn call_function_value(&self, function: &FunctionValue, args: Vec<Value>) -> Result<Value> {
+    pub(crate) fn call_function_value(
+        &self,
+        function: &FunctionValue,
+        args: Vec<Value>,
+    ) -> Result<Value> {
         if function.params.len() != args.len() {
             return Err(RuntimeError(format!(
                 "Function literal expected {} arguments, got {}",
@@ -61,12 +66,15 @@ impl Interpreter {
             )));
         }
         // Recreate environment with captured scopes and a fresh top scope for parameters
-        let mut env = Env { scopes: function.captured.clone() };
+        let mut env = Env {
+            scopes: function.captured.clone(),
+        };
         env.push_scope();
         for (idx, param) in function.params.iter().enumerate() {
             env.define(param.name.clone(), args[idx].clone());
         }
-        self.eval_block(&function.body, &mut env).map(|v| v.unwrap_or(Value::Unit))
+        self.eval_block(&function.body, &mut env)
+            .map(|v| v.unwrap_or(Value::Unit))
     }
 
     /// Evaluate a block, returning the last expression value or an explicit return value.
@@ -93,12 +101,20 @@ impl Interpreter {
     fn eval_stmt(&self, stmt: &Stmt, env: &mut Env) -> Result<ControlFlow> {
         match stmt {
             Stmt::Let { name, value, .. } => {
-                let v = if let Some(expr) = value { self.eval_expr(expr, env)? } else { Value::Unit };
+                let v = if let Some(expr) = value {
+                    self.eval_expr(expr, env)?
+                } else {
+                    Value::Unit
+                };
                 env.define(name.clone(), v);
                 Ok(ControlFlow::Next)
             }
             Stmt::Return { value, .. } => {
-                let ret = if let Some(expr) = value { self.eval_expr(expr, env)? } else { Value::Unit };
+                let ret = if let Some(expr) = value {
+                    self.eval_expr(expr, env)?
+                } else {
+                    Value::Unit
+                };
                 Ok(ControlFlow::Return(ret))
             }
             Stmt::Assign { lhs, rhs, .. } => {
@@ -112,15 +128,25 @@ impl Interpreter {
                 if let ExprKind::FieldAccess { receiver, field } = &lhs.kind {
                     if let ExprKind::Path(p) = &receiver.kind {
                         if let Some(owner_name) = p.last() {
-                            let owner_val = env.get(owner_name).ok_or_else(|| RuntimeError(format!("Undefined variable: {}", owner_name)))?;
+                            let owner_val = env.get(owner_name).ok_or_else(|| {
+                                RuntimeError(format!("Undefined variable: {}", owner_name))
+                            })?;
                             if let Value::Struct { path, fields } = owner_val {
                                 let mut new_fields = fields.clone();
                                 let new_val = self.eval_expr(rhs, env)?;
                                 new_fields.insert(field.clone(), new_val);
-                                env.assign(owner_name, Value::Struct { path, fields: new_fields })?;
+                                env.assign(
+                                    owner_name,
+                                    Value::Struct {
+                                        path,
+                                        fields: new_fields,
+                                    },
+                                )?;
                                 return Ok(ControlFlow::Next);
                             } else {
-                                return Err(RuntimeError("Field assignment on non-struct value".to_string()));
+                                return Err(RuntimeError(
+                                    "Field assignment on non-struct value".to_string(),
+                                ));
                             }
                         }
                     }
@@ -131,7 +157,9 @@ impl Interpreter {
                 let _ = self.eval_expr(expr, env)?;
                 Ok(ControlFlow::Next)
             }
-            Stmt::Error { .. } => Err(RuntimeError("Encountered error statement in HIR".to_string())),
+            Stmt::Error { .. } => Err(RuntimeError(
+                "Encountered error statement in HIR".to_string(),
+            )),
         }
     }
 
@@ -214,7 +242,9 @@ impl Interpreter {
                     }
                     return self.call_function_value(&func_val, evaled);
                 }
-                Err(RuntimeError("Attempted to call a non-function value".to_string()))
+                Err(RuntimeError(
+                    "Attempted to call a non-function value".to_string(),
+                ))
             }
             ExprKind::StructInit { path, fields } => {
                 let mut map = std::collections::HashMap::new();
@@ -222,13 +252,21 @@ impl Interpreter {
                     let v = self.eval_expr(expr, env)?;
                     map.insert(name.clone(), v);
                 }
-                Ok(Value::Struct { path: path.clone(), fields: map })
+                Ok(Value::Struct {
+                    path: path.clone(),
+                    fields: map,
+                })
             }
             ExprKind::Block(b) => self.eval_block(b, env).map(|v| v.unwrap_or(Value::Unit)),
-            ExprKind::If { cond, then_block, else_block } => {
+            ExprKind::If {
+                cond,
+                then_block,
+                else_block,
+            } => {
                 let c = self.eval_expr(cond, env)?;
                 if is_truthy(&c) {
-                    self.eval_block(then_block, env).map(|v| v.unwrap_or(Value::Unit))
+                    self.eval_block(then_block, env)
+                        .map(|v| v.unwrap_or(Value::Unit))
                 } else if let Some(else_expr) = else_block {
                     self.eval_expr(else_expr, env)
                 } else {
@@ -244,8 +282,12 @@ impl Interpreter {
                 }
                 Ok(Value::Unit)
             }
-            ExprKind::Perform { .. } => Err(RuntimeError("Effects/perform not yet supported".to_string())),
-            ExprKind::Handle { .. } => Err(RuntimeError("Handlers/handle not yet supported".to_string())),
+            ExprKind::Perform { .. } => Err(RuntimeError(
+                "Effects/perform not yet supported".to_string(),
+            )),
+            ExprKind::Handle { .. } => Err(RuntimeError(
+                "Handlers/handle not yet supported".to_string(),
+            )),
             ExprKind::FnLiteral(f) => {
                 let func_val = FunctionValue {
                     params: f.params.clone(),
@@ -255,7 +297,9 @@ impl Interpreter {
                 Ok(Value::Function(func_val))
             }
             ExprKind::Cast { expr: inner } => self.eval_expr(inner, env),
-            ExprKind::Error => Err(RuntimeError("Encountered error expression in HIR".to_string())),
+            ExprKind::Error => Err(RuntimeError(
+                "Encountered error expression in HIR".to_string(),
+            )),
         }
     }
 
@@ -267,19 +311,27 @@ impl Interpreter {
                 other => return Err(RuntimeError(format!("Invalid bool literal: {}", other))),
             })),
             hir::PrimitiveTy::Byte => {
-                let v: u8 = text.parse().map_err(|_| RuntimeError("Invalid byte literal".to_string()))?;
+                let v: u8 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid byte literal".to_string()))?;
                 Ok(Value::Byte(v))
             }
             hir::PrimitiveTy::I32 => {
-                let v: i32 = text.parse().map_err(|_| RuntimeError("Invalid i32 literal".to_string()))?;
+                let v: i32 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid i32 literal".to_string()))?;
                 Ok(Value::I32(v))
             }
             hir::PrimitiveTy::I64 => {
-                let v: i64 = text.parse().map_err(|_| RuntimeError("Invalid i64 literal".to_string()))?;
+                let v: i64 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid i64 literal".to_string()))?;
                 Ok(Value::I64(v))
             }
             hir::PrimitiveTy::F64 => {
-                let v: f64 = text.parse().map_err(|_| RuntimeError("Invalid f64 literal".to_string()))?;
+                let v: f64 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid f64 literal".to_string()))?;
                 Ok(Value::F64(v))
             }
             hir::PrimitiveTy::Str => Ok(Value::Str(text.to_string())),
@@ -329,16 +381,25 @@ impl Interpreter {
             (BinaryOp::Gte, V::F64(a), V::F64(b)) => Ok(V::Bool(a >= b)),
             (BinaryOp::And, V::Bool(a), V::Bool(b)) => Ok(V::Bool(a && b)),
             (BinaryOp::Or, V::Bool(a), V::Bool(b)) => Ok(V::Bool(a || b)),
-            _ => Err(RuntimeError("Invalid binary operation or operand types".to_string())),
+            _ => Err(RuntimeError(
+                "Invalid binary operation or operand types".to_string(),
+            )),
         }
     }
 
     // Minimal builtins for runtime-only host functions (std::runtime::*).
-    fn try_builtin_call(&self, name: &str, args: &Vec<Expr>, env: &mut Env) -> Result<Option<Value>> {
+    fn try_builtin_call(
+        &self,
+        name: &str,
+        args: &Vec<Expr>,
+        env: &mut Env,
+    ) -> Result<Option<Value>> {
         match name {
             // std::runtime::exit(code: i32) -> !
             "exit" => {
-                if args.len() != 1 { return Err(RuntimeError("exit expects 1 argument".into())); }
+                if args.len() != 1 {
+                    return Err(RuntimeError("exit expects 1 argument".into()));
+                }
                 let code = self.eval_expr(&args[0], env)?;
                 let code_i32 = match code {
                     Value::I32(i) => i,
@@ -350,30 +411,44 @@ impl Interpreter {
             // std::runtime::write(stream: str, input: str) -> ()
             // stream one of: "stdout", "stderr", or a file path
             "write" => {
-                if args.len() != 2 { return Err(RuntimeError("write expects 2 arguments".into())); }
+                if args.len() != 2 {
+                    return Err(RuntimeError("write expects 2 arguments".into()));
+                }
                 let stream_val = self.eval_expr(&args[0], env)?;
                 let data_val = self.eval_expr(&args[1], env)?;
-                let stream = match stream_val { Value::Str(s) => s, _ => return Err(RuntimeError("write stream must be str".into())) };
-                let data_raw = match data_val { Value::Str(s) => s, _ => return Err(RuntimeError("write data must be str".into())) };
+                let stream = match stream_val {
+                    Value::Str(s) => s,
+                    _ => return Err(RuntimeError("write stream must be str".into())),
+                };
+                let data_raw = match data_val {
+                    Value::Str(s) => s,
+                    _ => return Err(RuntimeError("write data must be str".into())),
+                };
                 let data = unescape_runtime_string(&data_raw);
                 match stream.as_str() {
                     "stdout" => {
                         let mut out = std::io::stdout();
                         use std::io::Write as _;
-                        out.write_all(data.as_bytes()).map_err(|e| RuntimeError(e.to_string()))?;
+                        out.write_all(data.as_bytes())
+                            .map_err(|e| RuntimeError(e.to_string()))?;
                         out.flush().ok();
                     }
                     "stderr" => {
                         let mut out = std::io::stderr();
                         use std::io::Write as _;
-                        out.write_all(data.as_bytes()).map_err(|e| RuntimeError(e.to_string()))?;
+                        out.write_all(data.as_bytes())
+                            .map_err(|e| RuntimeError(e.to_string()))?;
                         out.flush().ok();
                     }
                     path => {
                         use std::io::Write as _;
-                        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(path)
+                        let mut f = std::fs::OpenOptions::new()
+                            .create(true)
+                            .append(true)
+                            .open(path)
                             .map_err(|e| RuntimeError(e.to_string()))?;
-                        f.write_all(data.as_bytes()).map_err(|e| RuntimeError(e.to_string()))?;
+                        f.write_all(data.as_bytes())
+                            .map_err(|e| RuntimeError(e.to_string()))?;
                     }
                 }
                 Ok(Some(Value::Unit))
@@ -443,5 +518,3 @@ enum ControlFlow {
     Next,
     Return(Value),
 }
-
-

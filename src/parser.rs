@@ -7,27 +7,38 @@ use chumsky::select;
 use crate::ast::*;
 use crate::token::{SimpleSpan, Token};
 
-fn trivia<'src>() -> impl Parser<'src, &'src [Token<'src>], (), extra::Err<Rich<'src, Token<'src>>>> {
-    select! { Token::Comment(_) => (), Token::Semicolon => () }.repeated().ignored()
+fn trivia<'src>() -> impl Parser<'src, &'src [Token<'src>], (), extra::Err<Rich<'src, Token<'src>>>>
+{
+    select! { Token::Comment(_) => (), Token::Semicolon => () }
+        .repeated()
+        .ignored()
 }
 
 fn spanned<'src, T>(
     p: impl Parser<'src, &'src [Token<'src>], T, extra::Err<Rich<'src, Token<'src>>>>,
 ) -> impl Parser<'src, &'src [Token<'src>], Spanned<T>, extra::Err<Rich<'src, Token<'src>>>> {
-    p.map_with(|node, e| Spanned { node, span: e.span() })
+    p.map_with(|node, e| Spanned {
+        node,
+        span: e.span(),
+    })
 }
 
-fn ident<'src>() -> impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err<Rich<'src, Token<'src>>>> {
+fn ident<'src>()
+-> impl Parser<'src, &'src [Token<'src>], &'src str, extra::Err<Rich<'src, Token<'src>>>> {
     select! { Token::Ident(s) => s }.labelled("identifier")
 }
 
-fn path<'src>() -> impl Parser<'src, &'src [Token<'src>], Path<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn path<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Path<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let colon = select! { Token::Colon => () };
     let double_colon = colon.clone().then(colon).to(());
-    ident().separated_by(double_colon).at_least(1).collect::<Vec<_>>()
+    ident()
+        .separated_by(double_colon)
+        .at_least(1)
+        .collect::<Vec<_>>()
 }
 
-fn with_types<'src, F, P>(
+fn effects_types<'src, F, P>(
     make_ty: F,
 ) -> impl Parser<'src, &'src [Token<'src>], Vec<Type<'src>>, extra::Err<Rich<'src, Token<'src>>>>
 where
@@ -39,26 +50,45 @@ where
         .allow_trailing()
         .collect::<Vec<_>>()
         .delimited_by(just(Token::LBrace), just(Token::RBrace));
-    let single = make_ty().map(|t| vec![t]);
-    just(Token::With)
-        .ignore_then(choice((list, single)))
+    just(Token::Effects)
+        .ignore_then(list)
         .or_not()
         .map(|v| v.unwrap_or_default())
 }
 
-fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn type_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     recursive(|type_p| {
         let lt = select! { Token::Op(op) if op == "<" => () };
         let gt = select! { Token::Op(op) if op == ">" => () };
 
         let path_type = path()
-            .then(lt.ignore_then(type_p.clone().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>()).then_ignore(gt).or_not())
-            .map(|(p, g)| TypeNode::Path { path: p, generics: g.unwrap_or_default() })
-            .map_with(|node, e| Spanned { node, span: e.span() });
+            .then(
+                lt.ignore_then(
+                    type_p
+                        .clone()
+                        .separated_by(just(Token::Comma))
+                        .allow_trailing()
+                        .collect::<Vec<_>>(),
+                )
+                .then_ignore(gt)
+                .or_not(),
+            )
+            .map(|(p, g)| TypeNode::Path {
+                path: p,
+                generics: g.unwrap_or_default(),
+            })
+            .map_with(|node, e| Spanned {
+                node,
+                span: e.span(),
+            });
 
         let never_type = select! { Token::Op(op) if op == "!" => () }
             .to(TypeNode::Never)
-            .map_with(|node, e| Spanned { node, span: e.span() });
+            .map_with(|node, e| Spanned {
+                node,
+                span: e.span(),
+            });
 
         let make_ty = {
             let type_p = type_p.clone();
@@ -73,9 +103,16 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .then_ignore(just(Token::Arrow))
             .then(type_p.clone())
-            .then(with_types(make_ty).boxed())
-            .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
-            .map_with(|node, e| Spanned { node, span: e.span() });
+            .then(effects_types(make_ty).boxed())
+            .map(|((params, ret), effects)| TypeNode::Function {
+                params,
+                ret: Box::new(ret),
+                effects,
+            })
+            .map_with(|node, e| Spanned {
+                node,
+                span: e.span(),
+            });
 
         let atom = choice((fn_type, never_type, path_type)).boxed();
 
@@ -85,7 +122,7 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
                 select! { Token::Op(op) if op == "|" => () }
                     .ignore_then(type_p.clone())
                     .repeated()
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>(),
             )
             .map_with(|(first, mut rest), e| {
                 if rest.is_empty() {
@@ -94,7 +131,10 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
                     let mut types = Vec::with_capacity(1 + rest.len());
                     types.push(first);
                     types.append(&mut rest);
-                    Spanned { node: TypeNode::Union(types), span: e.span() }
+                    Spanned {
+                        node: TypeNode::Union(types),
+                        span: e.span(),
+                    }
                 }
             })
             .boxed()
@@ -106,19 +146,39 @@ fn type_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, ext
 // Atom-only type parser: like `type_parser` but WITHOUT the top-level anonymous union `|` parsing.
 // This is used where `|` has another meaning at the outer grammar level (e.g., separating tagged
 // union variants in a `type` alias), so we must not greedily consume it inside a payload type.
-fn type_atom_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn type_atom_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Type<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     recursive(|type_p| {
         let lt = select! { Token::Op(op) if op == "<" => () };
         let gt = select! { Token::Op(op) if op == ">" => () };
 
         let path_type = path()
-            .then(lt.ignore_then(type_p.clone().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>()).then_ignore(gt).or_not())
-            .map(|(p, g)| TypeNode::Path { path: p, generics: g.unwrap_or_default() })
-            .map_with(|node, e| Spanned { node, span: e.span() });
+            .then(
+                lt.ignore_then(
+                    type_p
+                        .clone()
+                        .separated_by(just(Token::Comma))
+                        .allow_trailing()
+                        .collect::<Vec<_>>(),
+                )
+                .then_ignore(gt)
+                .or_not(),
+            )
+            .map(|(p, g)| TypeNode::Path {
+                path: p,
+                generics: g.unwrap_or_default(),
+            })
+            .map_with(|node, e| Spanned {
+                node,
+                span: e.span(),
+            });
 
         let never_type = select! { Token::Op(op) if op == "!" => () }
             .to(TypeNode::Never)
-            .map_with(|node, e| Spanned { node, span: e.span() });
+            .map_with(|node, e| Spanned {
+                node,
+                span: e.span(),
+            });
 
         let make_ty = {
             let type_p = type_p.clone();
@@ -133,9 +193,16 @@ fn type_atom_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>
             .delimited_by(just(Token::LParen), just(Token::RParen))
             .then_ignore(just(Token::Arrow))
             .then(type_p.clone())
-            .then(with_types(make_ty).boxed())
-            .map(|((params, ret), effects)| TypeNode::Function { params, ret: Box::new(ret), effects })
-            .map_with(|node, e| Spanned { node, span: e.span() });
+            .then(effects_types(make_ty).boxed())
+            .map(|((params, ret), effects)| TypeNode::Function {
+                params,
+                ret: Box::new(ret),
+                effects,
+            })
+            .map_with(|node, e| Spanned {
+                node,
+                span: e.span(),
+            });
 
         choice((fn_type, never_type, path_type)).boxed()
     })
@@ -143,9 +210,17 @@ fn type_atom_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Type<'src>
     .labelled("type-atom")
 }
 
-fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&'src str>, Type<'src>)>, extra::Err<Rich<'src, Token<'src>>>> {
+fn params_parser<'src>() -> impl Parser<
+    'src,
+    &'src [Token<'src>],
+    Vec<(Option<&'src str>, Type<'src>)>,
+    extra::Err<Rich<'src, Token<'src>>>,
+> {
     let ty = type_parser().boxed();
-    let named = ident().then_ignore(just(Token::Colon)).then(ty.clone()).map(|(n, t)| (Some(n), t));
+    let named = ident()
+        .then_ignore(just(Token::Colon))
+        .then(ty.clone())
+        .map(|(n, t)| (Some(n), t));
     let self_param = just(Token::Mut)
         .or_not()
         .ignore_then(ident())
@@ -153,13 +228,19 @@ fn params_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<(Option<&
         .map_with(|(name, ty), e| {
             (
                 Some(name),
-                ty.unwrap_or_else(|| Spanned { node: TypeNode::Path { path: vec![name], generics: vec![] }, span: e.span() }),
+                ty.unwrap_or_else(|| Spanned {
+                    node: TypeNode::Path {
+                        path: vec![name],
+                        generics: vec![],
+                    },
+                    span: e.span(),
+                }),
             )
         });
     choice((named, self_param))
-            .separated_by(just(Token::Comma))
-            .allow_trailing()
-            .collect::<Vec<_>>()
+        .separated_by(just(Token::Comma))
+        .allow_trailing()
+        .collect::<Vec<_>>()
         .delimited_by(just(Token::LParen), just(Token::RParen))
 }
 
@@ -174,23 +255,31 @@ fn expression_bundle<'src>() -> (
     let block = just(Token::LBrace)
         .ignore_then(trivia())
         .ignore_then(
-            stmt
-                .clone()
+            stmt.clone()
                 .padded_by(trivia())
                 .repeated()
-                .collect::<Vec<_>>()
+                .collect::<Vec<_>>(),
         )
         .then_ignore(trivia())
         .then(expr.clone().padded_by(trivia()).or_not())
         .then_ignore(trivia())
         .then_ignore(just(Token::RBrace))
-        .map_with(|(stmts, last_expr), e| Spanned { node: ExprNode::Block { stmts, last_expr: last_expr.map(Box::new) }, span: e.span() })
+        .map_with(|(stmts, last_expr), e| Spanned {
+            node: ExprNode::Block {
+                stmts,
+                last_expr: last_expr.map(Box::new),
+            },
+            span: e.span(),
+        })
         .labelled("block")
         .boxed();
 
     let unit = just(Token::LParen)
         .then_ignore(just(Token::RParen))
-        .map_with(|_, e| Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() });
+        .map_with(|_, e| Spanned {
+            node: ExprNode::Literal(Literal::Unit),
+            span: e.span(),
+        });
 
     let lit = choice((
         select! { Token::I64(n) => Literal::I64(n) },
@@ -198,21 +287,29 @@ fn expression_bundle<'src>() -> (
         select! { Token::Bool(b) => Literal::Bool(b) },
         select! { Token::Str(s) => Literal::Str(s) },
     ))
-    .map_with(|l, e| Spanned { node: ExprNode::Literal(l), span: e.span() });
+    .map_with(|l, e| Spanned {
+        node: ExprNode::Literal(l),
+        span: e.span(),
+    });
 
     let perform = just(Token::Perform)
         .ignore_then(ident())
         .then_ignore(just(Token::Op(".".to_string())))
         .then(ident())
         .then(
-            expr
-                .clone()
+            expr.clone()
                 .separated_by(just(Token::Comma))
                 .allow_trailing()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LParen), just(Token::RParen)),
         )
-        .map_with(|(((e1, e2), args)), e| Spanned { node: ExprNode::Perform { path: vec![e1, e2], args }, span: e.span() });
+        .map_with(|(((e1, e2), args)), e| Spanned {
+            node: ExprNode::Perform {
+                path: vec![e1, e2],
+                args,
+            },
+            span: e.span(),
+        });
 
     // Prefix-style with-block: with { Handler1, Handler2 } { ... }
     let handler_list = path()
@@ -229,7 +326,13 @@ fn expression_bundle<'src>() -> (
             // Desugar multiple handlers into nested Handle nodes: leftmost is outermost
             let mut acc = body;
             for h in handlers.into_iter().rev() {
-                acc = Spanned { node: ExprNode::Handle { body: Box::new(acc), handler: HandlerBody::Path(h) }, span: e.span() };
+                acc = Spanned {
+                    node: ExprNode::Handle {
+                        body: Box::new(acc),
+                        handler: HandlerBody::Path(h),
+                    },
+                    span: e.span(),
+                };
             }
             acc
         });
@@ -253,41 +356,83 @@ fn expression_bundle<'src>() -> (
         .map_with(|p, e| (p, e.span()))
         .then(make_struct_fields().map_with(|fs, e| (fs, e.span())))
         .map(|((p, p_span), (fields, fields_span))| {
-            let span = SimpleSpan { context: (), start: p_span.start, end: fields_span.end };
-            Spanned { node: ExprNode::StructInit { path: p, generics: vec![], fields }, span }
+            let span = SimpleSpan {
+                context: (),
+                start: p_span.start,
+                end: fields_span.end,
+            };
+            Spanned {
+                node: ExprNode::StructInit {
+                    path: p,
+                    generics: vec![],
+                    fields,
+                },
+                span,
+            }
         })
         .labelled("struct init")
         .boxed();
 
     // Union constructor: Path :: Variant { fields }
-    let double_colon = select! { Token::Colon => () }.then(select! { Token::Colon => () }).to(());
+    let double_colon = select! { Token::Colon => () }
+        .then(select! { Token::Colon => () })
+        .to(());
     let union_init = path()
         .map_with(|p, e| (p, e.span()))
         .then_ignore(double_colon)
         .then(ident())
         .then(make_struct_fields().map_with(|fs, e| (fs, e.span())))
         .map(|(((p, p_span), variant), (fields, fields_span))| {
-            let span = SimpleSpan { context: (), start: p_span.start, end: fields_span.end };
-            Spanned { node: ExprNode::UnionInit { path: p, variant, fields }, span }
+            let span = SimpleSpan {
+                context: (),
+                start: p_span.start,
+                end: fields_span.end,
+            };
+            Spanned {
+                node: ExprNode::UnionInit {
+                    path: p,
+                    variant,
+                    fields,
+                },
+                span,
+            }
         })
         .labelled("union init")
         .boxed();
 
-    // Anonymous function literal expression: fn(...) -> ... with { ... } { ... }
-    // fn literal: fn(params) -> ret with {effects} { body }
+    // Anonymous function literal expression: fn(...) -> ... effects { ... } { ... }
+    // fn literal: fn(params) -> ret effects { effects } { body }
     let fn_lit_expr = just(Token::Fn)
         .ignore_then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(with_types(|| type_parser()))
+        .then(effects_types(|| type_parser()))
         .then(block.clone())
-        .map_with(|(((params, ret_type), effects), body), e| {
-            Spanned { node: ExprNode::FnLiteral { params, ret_type, effects, body: Box::new(body) }, span: e.span() }
+        .map_with(|(((params, ret_type), effects), body), e| Spanned {
+            node: ExprNode::FnLiteral {
+                params,
+                ret_type,
+                effects,
+                body: Box::new(body),
+            },
+            span: e.span(),
         })
         .labelled("fn literal");
 
-    let atom = choice((unit, lit, perform, with_block, fn_lit_expr, block.clone(), union_init, struct_init,
-        path().map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() }),
-        expr.clone().delimited_by(just(Token::LParen), just(Token::RParen))
+    let atom = choice((
+        unit,
+        lit,
+        perform,
+        with_block,
+        fn_lit_expr,
+        block.clone(),
+        union_init,
+        struct_init,
+        path().map_with(|p, e| Spanned {
+            node: ExprNode::Path(p),
+            span: e.span(),
+        }),
+        expr.clone()
+            .delimited_by(just(Token::LParen), just(Token::RParen)),
     ))
     .boxed();
 
@@ -296,18 +441,36 @@ fn expression_bundle<'src>() -> (
         .ignore_then(expr.clone())
         .then(block.clone())
         .then(just(Token::Else).ignore_then(block.clone()).or_not())
-        .map_with(|((cond, then_block), else_block), e| Spanned { node: ExprNode::If { cond: Box::new(cond), then_block: Box::new(then_block), else_block: else_block.map(Box::new) }, span: e.span() })
+        .map_with(|((cond, then_block), else_block), e| Spanned {
+            node: ExprNode::If {
+                cond: Box::new(cond),
+                then_block: Box::new(then_block),
+                else_block: else_block.map(Box::new),
+            },
+            span: e.span(),
+        })
         .labelled("if expression");
 
     let while_expr = just(Token::While)
         .ignore_then(expr.clone())
         .then(block.clone())
-        .map_with(|(cond, body), e| Spanned { node: ExprNode::While { cond: Box::new(cond), body: Box::new(body) }, span: e.span() })
+        .map_with(|(cond, body), e| Spanned {
+            node: ExprNode::While {
+                cond: Box::new(cond),
+                body: Box::new(body),
+            },
+            span: e.span(),
+        })
         .labelled("while expression");
 
     // pattern parser for match arms
     let mut pat_rec = Recursive::declare();
-    let wildcard = select! { Token::Ident(s) if s == "_" => () }.to(PatternNode::Wildcard).map_with(|n, e| Spanned { node: n, span: e.span() });
+    let wildcard = select! { Token::Ident(s) if s == "_" => () }
+        .to(PatternNode::Wildcard)
+        .map_with(|n, e| Spanned {
+            node: n,
+            span: e.span(),
+        });
     let lit_pat = choice((
         select! { Token::I64(n) => Literal::I64(n) },
         select! { Token::F64(n) => Literal::F64(n) },
@@ -315,18 +478,30 @@ fn expression_bundle<'src>() -> (
         select! { Token::Str(s) => Literal::Str(s) },
     ))
     .map(|l| PatternNode::Literal(l))
-    .map_with(|n, e| Spanned { node: n, span: e.span() });
+    .map_with(|n, e| Spanned {
+        node: n,
+        span: e.span(),
+    });
 
     // New variant bind pattern: name: Path
     let variant_bind_pat = ident()
         .then_ignore(just(Token::Colon))
         .then(path())
-        .map(|(binding, variant_path)| PatternNode::VariantBind { binding, variant_path })
-        .map_with(|n, e| Spanned { node: n, span: e.span() });
+        .map(|(binding, variant_path)| PatternNode::VariantBind {
+            binding,
+            variant_path,
+        })
+        .map_with(|n, e| Spanned {
+            node: n,
+            span: e.span(),
+        });
 
     let ident_pat = ident()
         .map(|n| PatternNode::Identifier(n))
-        .map_with(|n, e| Spanned { node: n, span: e.span() });
+        .map_with(|n, e| Spanned {
+            node: n,
+            span: e.span(),
+        });
 
     pat_rec.define(choice((wildcard, lit_pat, variant_bind_pat, ident_pat)).boxed());
 
@@ -338,7 +513,13 @@ fn expression_bundle<'src>() -> (
     let match_expr = just(Token::Match)
         .ignore_then(expr.clone())
         .then(arm.repeated().at_least(1).collect::<Vec<_>>())
-        .map_with(|(scrutinee, arms), e| Spanned { node: ExprNode::Match { scrutinee: Box::new(scrutinee), arms }, span: e.span() })
+        .map_with(|(scrutinee, arms), e| Spanned {
+            node: ExprNode::Match {
+                scrutinee: Box::new(scrutinee),
+                arms,
+            },
+            span: e.span(),
+        })
         .labelled("match expression");
 
     let call_args = expr
@@ -349,12 +530,10 @@ fn expression_bundle<'src>() -> (
         .delimited_by(just(Token::LParen), just(Token::RParen));
 
     // Capture span for the parentheses and args
-    let call_args_with_span = call_args
-        .clone()
-        .map_with(|args, e| (args, e.span()));
+    let call_args_with_span = call_args.clone().map_with(|args, e| (args, e.span()));
 
     let expr_p = choice((if_expr, while_expr, match_expr, atom.clone()))
-                .clone()
+        .clone()
         .pratt((
             // Method call postfix: .ident(args)
             postfix(
@@ -363,10 +542,23 @@ fn expression_bundle<'src>() -> (
                     .then(ident())
                     .then(call_args.clone())
                     .map_with(|((_, name), args), e| (name, args, e.span())),
-                |lhs: Expr<'src>, (name, args, tail_span): (&'src str, Vec<Expr<'src>>, SimpleSpan), _| {
+                |lhs: Expr<'src>,
+                 (name, args, tail_span): (&'src str, Vec<Expr<'src>>, SimpleSpan),
+                 _| {
                     let start = lhs.span.start;
                     let end = tail_span.end;
-                    Spanned { node: ExprNode::MethodCall { receiver: Box::new(lhs), method: name, args }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::MethodCall {
+                            receiver: Box::new(lhs),
+                            method: name,
+                            args,
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             // Field access postfix: .ident not followed by '('
@@ -379,7 +571,17 @@ fn expression_bundle<'src>() -> (
                 |lhs: Expr<'src>, (name, tail_span): (&'src str, SimpleSpan), _| {
                     let start = lhs.span.start;
                     let end = tail_span.end;
-                    Spanned { node: ExprNode::FieldAccess { receiver: Box::new(lhs), field: name }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::FieldAccess {
+                            receiver: Box::new(lhs),
+                            field: name,
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             postfix(
@@ -388,7 +590,17 @@ fn expression_bundle<'src>() -> (
                 |lhs: Expr<'src>, (args, args_span): (Vec<Expr<'src>>, SimpleSpan), _| {
                     let start = lhs.span.start;
                     let end = args_span.end;
-                    Spanned { node: ExprNode::Call { fun: Box::new(lhs), args }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Call {
+                            fun: Box::new(lhs),
+                            args,
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             prefix(
@@ -397,7 +609,17 @@ fn expression_bundle<'src>() -> (
                 |op_span: SimpleSpan, rhs: Expr<'src>, _| {
                     let start = op_span.start;
                     let end = rhs.span.end;
-                    Spanned { node: ExprNode::Unary { op: UnaryOp::Neg, rhs: Box::new(rhs) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Unary {
+                            op: UnaryOp::Neg,
+                            rhs: Box::new(rhs),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             prefix(
@@ -406,7 +628,17 @@ fn expression_bundle<'src>() -> (
                 |op_span: SimpleSpan, rhs: Expr<'src>, _| {
                     let start = op_span.start;
                     let end = rhs.span.end;
-                    Spanned { node: ExprNode::Unary { op: UnaryOp::Not, rhs: Box::new(rhs) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Unary {
+                            op: UnaryOp::Not,
+                            rhs: Box::new(rhs),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -415,7 +647,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Mul, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Mul,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -424,7 +667,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Div, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Div,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -433,7 +687,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Add, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Add,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -442,7 +707,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Sub, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Sub,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -451,7 +727,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Lt, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Lt,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -460,7 +747,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Gt, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Gt,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -469,7 +767,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Eq, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Eq,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
             infix(
@@ -478,7 +787,18 @@ fn expression_bundle<'src>() -> (
                 |l: Expr<'src>, _op, r: Expr<'src>, _| {
                     let start = l.span.start;
                     let end = r.span.end;
-                    Spanned { node: ExprNode::Binary { op: BinaryOp::Ne, lhs: Box::new(l.clone()), rhs: Box::new(r.clone()) }, span: SimpleSpan { context: (), start, end } }
+                    Spanned {
+                        node: ExprNode::Binary {
+                            op: BinaryOp::Ne,
+                            lhs: Box::new(l.clone()),
+                            rhs: Box::new(r.clone()),
+                        },
+                        span: SimpleSpan {
+                            context: (),
+                            start,
+                            end,
+                        },
+                    }
                 },
             ),
         ))
@@ -490,7 +810,13 @@ fn expression_bundle<'src>() -> (
                 .or_not(),
         )
         .map(|(body, maybe)| match maybe {
-            Some(handler_path) => Spanned { node: ExprNode::Handle { body: Box::new(body.clone()), handler: HandlerBody::Path(handler_path) }, span: body.span },
+            Some(handler_path) => Spanned {
+                node: ExprNode::Handle {
+                    body: Box::new(body.clone()),
+                    handler: HandlerBody::Path(handler_path),
+                },
+                span: body.span,
+            },
             None => body,
         })
         .labelled("expression")
@@ -506,150 +832,286 @@ fn expression_bundle<'src>() -> (
                 .ignore_then(expr.clone())
                 .or_not(),
         )
-        .map_with(|(((is_mut, name), ty), value_opt), e| Spanned { node: StmtNode::Let { is_mut: is_mut.is_some(), name, ty, value: value_opt }, span: e.span() });
+        .map_with(|(((is_mut, name), ty), value_opt), e| Spanned {
+            node: StmtNode::Let {
+                is_mut: is_mut.is_some(),
+                name,
+                ty,
+                value: value_opt,
+            },
+            span: e.span(),
+        });
 
     // shorthand typed init: name: Type = expr
     let typed_init = ident()
         .then(just(Token::Colon).ignore_then(type_parser()))
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
-        .map_with(|((name, ty), value), e| Spanned { node: StmtNode::Let { is_mut: false, name, ty: Some(ty), value: Some(value) }, span: e.span() });
+        .map_with(|((name, ty), value), e| Spanned {
+            node: StmtNode::Let {
+                is_mut: false,
+                name,
+                ty: Some(ty),
+                value: Some(value),
+            },
+            span: e.span(),
+        });
 
     let lhs = path()
-        .map_with(|p, e| Spanned { node: ExprNode::Path(p), span: e.span() })
-        .then(just(Token::Op(".".to_string())).ignore_then(ident()).repeated().collect::<Vec<_>>())
-        .map(|(base, fields)| fields.into_iter().fold(base, |acc, f| Spanned { node: ExprNode::FieldAccess { receiver: Box::new(acc.clone()), field: f }, span: acc.span }));
+        .map_with(|p, e| Spanned {
+            node: ExprNode::Path(p),
+            span: e.span(),
+        })
+        .then(
+            just(Token::Op(".".to_string()))
+                .ignore_then(ident())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
+        .map(|(base, fields)| {
+            fields.into_iter().fold(base, |acc, f| Spanned {
+                node: ExprNode::FieldAccess {
+                    receiver: Box::new(acc.clone()),
+                    field: f,
+                },
+                span: acc.span,
+            })
+        });
 
     let assign = lhs
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(expr.clone())
-        .map_with(|(l, r), e| Spanned { node: StmtNode::Assign(l, r), span: e.span() });
+        .map_with(|(l, r), e| Spanned {
+            node: StmtNode::Assign(l, r),
+            span: e.span(),
+        });
 
     let ret_stmt = just(Token::Return)
         .ignore_then(expr.clone().or_not())
-        .map_with(|eopt, e| Spanned { node: StmtNode::Return(eopt), span: e.span() })
+        .map_with(|eopt, e| Spanned {
+            node: StmtNode::Return(eopt),
+            span: e.span(),
+        })
         .labelled("return");
 
-    let expr_stmt = expr.clone().map_with(|e1, e| Spanned { node: StmtNode::Expr(e1), span: e.span() });
+    let expr_stmt = expr.clone().map_with(|e1, e| Spanned {
+        node: StmtNode::Expr(e1),
+        span: e.span(),
+    });
 
     // Allow `fn` inside blocks as a local function declaration with a direct block body (no '=')
-    // Desugar to: let name: (params)->ret with {effects} = {body}
+    // Desugar to: let name: (params)->ret effects { effects } = { body }
     // Local function statement remains unsupported; prefer explicit let with fn-literal
     let local_fn_stmt = just(Token::Fn)
         .ignore_then(fn_signature_parser())
         .then(block.clone())
-        .map_with(|_, e| Spanned { node: StmtNode::Expr(Spanned { node: ExprNode::Literal(Literal::Unit), span: e.span() }), span: e.span() })
+        .map_with(|_, e| Spanned {
+            node: StmtNode::Expr(Spanned {
+                node: ExprNode::Literal(Literal::Unit),
+                span: e.span(),
+            }),
+            span: e.span(),
+        })
         .labelled("local function");
-    let stmt_p = choice((local_fn_stmt, let_decl, typed_init, assign, ret_stmt, expr_stmt)).labelled("statement").boxed();
+    let stmt_p = choice((
+        local_fn_stmt,
+        let_decl,
+        typed_init,
+        assign,
+        ret_stmt,
+        expr_stmt,
+    ))
+    .labelled("statement")
+    .boxed();
 
     expr.define(expr_p.clone());
     stmt.define(stmt_p);
     (expr, stmt, block)
 }
 
-fn import_item<'src>() -> impl Parser<'src, &'src [Token<'src>], ImportPath<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn import_item<'src>()
+-> impl Parser<'src, &'src [Token<'src>], ImportPath<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let alias = just(Token::As).ignore_then(ident()).or_not();
-    path().then(alias).map(|(path, alias)| ImportPath { path, alias })
+    path()
+        .then(alias)
+        .map(|(path, alias)| ImportPath { path, alias })
 }
 
-fn import_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn import_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     just(Token::Import)
         .ignore_then(
             just(Token::LBrace)
                 .ignore_then(trivia())
-                .ignore_then(import_item().padded_by(trivia()).repeated().collect::<Vec<_>>())
+                .ignore_then(
+                    import_item()
+                        .padded_by(trivia())
+                        .repeated()
+                        .collect::<Vec<_>>(),
+                )
                 .then_ignore(trivia())
                 .then_ignore(just(Token::RBrace)),
         )
-        .map_with(|imports, e| Spanned { node: ItemNode::ImportBlock { imports }, span: e.span() })
+        .map_with(|imports, e| Spanned {
+            node: ItemNode::ImportBlock { imports },
+            span: e.span(),
+        })
 }
 
-fn fn_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn fn_def_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, _stmt, block) = expression_bundle();
     let vis = just(Token::Pub).or_not().map(|m| m.is_some());
     vis.then_ignore(just(Token::Fn))
         .then(fn_signature_parser())
         .then(
             // Only direct block bodies (no '=')
-            block.clone().map(|b| {
-                match &b.node {
-                    ExprNode::Block { stmts, last_expr } if stmts.is_empty() && last_expr.is_none() =>
-                        Spanned { node: ExprNode::Literal(Literal::Unit), span: b.span },
-                    _ => b,
+            block.clone().map(|b| match &b.node {
+                ExprNode::Block { stmts, last_expr } if stmts.is_empty() && last_expr.is_none() => {
+                    Spanned {
+                        node: ExprNode::Literal(Literal::Unit),
+                        span: b.span,
+                    }
                 }
-            })
+                _ => b,
+            }),
         )
-        .map(|(((is_public, (name, params, ret_type, effects)), body))| Function { name, generics: vec![], params, ret_type, effects, body, is_public })
+        .map(
+            |(((is_public, (name, params, ret_type, effects)), body))| Function {
+                name,
+                generics: vec![],
+                params,
+                ret_type,
+                effects,
+                body,
+                is_public,
+            },
+        )
         .labelled("function definition")
 }
 
-fn effect_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn effect_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], EffectDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
-    let op = vis.clone()
+    let op = vis
+        .clone()
         .then(ident())
         .then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()))
-        .map(|(((is_public, name), params), ret_type)| EffectOp { name, params: params.into_iter().map(|(_, t)| t).collect(), ret_type, is_public })
+        .map(|(((is_public, name), params), ret_type)| EffectOp {
+            name,
+            params: params.into_iter().map(|(_, t)| t).collect(),
+            ret_type,
+            is_public,
+        })
         .boxed();
     vis.clone()
         .then_ignore(just(Token::Effect))
         .then(
-            ident().then(
-                select! { Token::Op(op) if op == "<" => () }
-                    .ignore_then(ident().separated_by(just(Token::Comma)).allow_trailing().collect::<Vec<_>>())
-                    .then_ignore(select! { Token::Op(op) if op == ">" => () })
-                    .or_not()
-                    .ignored()
-            ).map(|(name, _)| name)
+            ident()
+                .then(
+                    select! { Token::Op(op) if op == "<" => () }
+                        .ignore_then(
+                            ident()
+                                .separated_by(just(Token::Comma))
+                                .allow_trailing()
+                                .collect::<Vec<_>>(),
+                        )
+                        .then_ignore(select! { Token::Op(op) if op == ">" => () })
+                        .or_not()
+                        .ignored(),
+                )
+                .map(|(name, _)| name),
         )
-        .then(op.clone().repeated().collect::<Vec<_>>().delimited_by(just(Token::LBrace), just(Token::RBrace)))
-        .map(|(((is_public, name), operations))| EffectDef { name, operations, is_public })
+        .then(
+            op.clone()
+                .repeated()
+                .collect::<Vec<_>>()
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
+        )
+        .map(|(((is_public, name), operations))| EffectDef {
+            name,
+            operations,
+            is_public,
+        })
 }
 
-fn handler_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn handler_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let fndef = fn_def_parser();
     let effects = just(Token::Colon)
         .ignore_then(type_parser())
-        .then(with_types(|| type_parser()))
-        .map(|(primary, mut rest)| { let mut v = vec![primary]; v.append(&mut rest); v });
+        .then(effects_types(|| type_parser()))
+        .map(|(primary, mut rest)| {
+            let mut v = vec![primary];
+            v.append(&mut rest);
+            v
+        });
     let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
     // Handler supports either '= { ... }' or inline '{ ... }'
-    let make_block = ||
+    let make_block = || {
         just(Token::LBrace)
             .ignore_then(trivia())
-            .ignore_then(fn_def_parser().padded_by(trivia()).repeated().collect::<Vec<_>>())
+            .ignore_then(
+                fn_def_parser()
+                    .padded_by(trivia())
+                    .repeated()
+                    .collect::<Vec<_>>(),
+            )
             .then_ignore(trivia())
-            .then_ignore(just(Token::RBrace));
+            .then_ignore(just(Token::RBrace))
+    };
     vis.clone()
         .then_ignore(just(Token::Handler))
         .then(ident())
         .then(effects)
         .then(make_block())
-        .map(|((((is_public, name), effects), functions))| HandlerDef { name, effects, functions, is_public })
+        .map(|((((is_public, name), effects), functions))| HandlerDef {
+            name,
+            effects,
+            functions,
+            is_public,
+        })
 }
 
-fn fn_signature_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], (&'src str, Vec<(Option<&'src str>, Type<'src>)>, Option<Type<'src>>, Vec<Type<'src>>), extra::Err<Rich<'src, Token<'src>>>> {
+fn fn_signature_parser<'src>() -> impl Parser<
+    'src,
+    &'src [Token<'src>],
+    (
+        &'src str,
+        Vec<(Option<&'src str>, Type<'src>)>,
+        Option<Type<'src>>,
+        Vec<Type<'src>>,
+    ),
+    extra::Err<Rich<'src, Token<'src>>>,
+> {
     ident()
         .then(params_parser())
         .then(just(Token::Arrow).ignore_then(type_parser()).or_not())
-        .then(with_types(|| type_parser()))
+        .then(effects_types(|| type_parser()))
         .map(|(((name, params), ret_type), effects)| (name, params, ret_type, effects))
         .labelled("function signature")
 }
 
-fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAliasDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn type_alias_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], TypeAliasDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let vis = just(Token::Pub).or_not().map(|m| m.is_some()).boxed();
     let generics = ident()
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
-        .delimited_by(select! { Token::Op(op) if op == "<" => () }, select! { Token::Op(op) if op == ">" => () })
+        .delimited_by(
+            select! { Token::Op(op) if op == "<" => () },
+            select! { Token::Op(op) if op == ">" => () },
+        )
         .or_not()
         .map(|g| g.unwrap_or_default());
 
     // Tagged union: Tag: Type (| Tag: Type)*
     // Use `type_atom_parser` here to avoid consuming the outer '|' as an anonymous union inside the payload.
-    let tagged_variant = ident().then_ignore(just(Token::Colon)).then(type_atom_parser());
+    let tagged_variant = ident()
+        .then_ignore(just(Token::Colon))
+        .then(type_atom_parser());
     let tagged_union_body = tagged_variant
         .separated_by(select! { Token::Op(op) if op == "|" => () })
         .at_least(1)
@@ -657,15 +1119,20 @@ fn type_alias_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], TypeAlias
         .map(|vs| TypeAliasBody::Union { variants: vs });
 
     let body = choice((tagged_union_body, type_parser().map(TypeAliasBody::Type)));
-    vis
-        .then(just(Token::Type).ignore_then(ident()))
+    vis.then(just(Token::Type).ignore_then(ident()))
         .then(generics)
         .then_ignore(select! { Token::Op(op) if op == "=" => () })
         .then(body)
-        .map(|(((is_public, name), generics), aliased)| TypeAliasDef { name, generics, aliased, is_public })
+        .map(|(((is_public, name), generics), aliased)| TypeAliasDef {
+            name,
+            generics,
+            aliased,
+            is_public,
+        })
 }
 
-fn struct_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], StructDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn struct_def_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], StructDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let vis = just(Token::Pub).or_not().map(|m| m.is_some());
     let field = just(Token::Pub)
         .or_not()
@@ -674,20 +1141,25 @@ fn struct_def_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], StructDef
         .then_ignore(just(Token::Colon))
         .then(type_parser())
         .map(|(((is_public, name), ty))| (name, ty));
-    vis
-        .then_ignore(just(Token::Struct))
+    vis.then_ignore(just(Token::Struct))
         .then(ident())
         .then(
             field
                 .separated_by(just(Token::Comma))
                 .allow_trailing()
                 .collect::<Vec<_>>()
-                .delimited_by(just(Token::LBrace), just(Token::RBrace))
+                .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
-        .map(|((is_public, name), fields)| StructDef { name, generics: vec![], fields, is_public })
+        .map(|((is_public, name), fields)| StructDef {
+            name,
+            generics: vec![],
+            fields,
+            is_public,
+        })
 }
 
-fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+fn item_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (expr, stmt, _block) = expression_bundle();
     choice((
         import_parser(),
@@ -696,14 +1168,23 @@ fn item_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Item<'src>, ext
         spanned(handler_parser().map(ItemNode::Handler)),
         spanned(type_alias_parser().map(ItemNode::TypeAlias)),
         spanned(struct_def_parser().map(ItemNode::Struct)),
-        stmt.map_with(|s, e| Spanned { node: ItemNode::Stmt(s), span: e.span() }),
+        stmt.map_with(|s, e| Spanned {
+            node: ItemNode::Stmt(s),
+            span: e.span(),
+        }),
     ))
     .padded_by(trivia())
 }
 
-pub fn file_parser<'src>() -> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
+pub fn file_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], Vec<Item<'src>>, extra::Err<Rich<'src, Token<'src>>>> {
     trivia()
-        .ignore_then(item_parser().padded_by(trivia()).repeated().collect::<Vec<_>>())
+        .ignore_then(
+            item_parser()
+                .padded_by(trivia())
+                .repeated()
+                .collect::<Vec<_>>(),
+        )
         .then_ignore(trivia())
         .then_ignore(end())
 }

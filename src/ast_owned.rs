@@ -147,7 +147,7 @@ pub enum OwnedExpr {
         body: Box<SpannedExpr>, // UPDATED
         handler: OwnedHandlerBody,
     },
-    /// Anonymous function literal: fn(params) -> ret with {effects} { body }
+    /// Anonymous function literal: fn(params) -> ret effects { effects } { body }
     FnLiteral {
         params: Vec<(Option<String>, OwnedType)>,
         ret_type: Option<OwnedType>,
@@ -181,7 +181,10 @@ pub enum OwnedStmt {
 pub enum OwnedPattern {
     Literal(OwnedLiteral),
     Identifier(String),
-    VariantBind { binding: String, variant_path: Vec<String> },
+    VariantBind {
+        binding: String,
+        variant_path: Vec<String>,
+    },
     Wildcard,
 }
 
@@ -259,10 +262,9 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
                 .effects
                 .iter()
                 .map(|t| match &t.node {
-                    TypeNode::Path { path, .. } => path
-                        .last()
-                        .map(|s| s.to_string())
-                        .unwrap_or_default(),
+                    TypeNode::Path { path, .. } => {
+                        path.last().map(|s| s.to_string()).unwrap_or_default()
+                    }
                     TypeNode::Never => "!".to_string(),
                     _ => "<effect>".to_string(),
                 })
@@ -339,10 +341,9 @@ impl<'src> From<&HandlerDef<'src>> for OwnedHandlerDef {
                 .effects
                 .iter()
                 .map(|t| match &t.node {
-                    TypeNode::Path { path, .. } => path
-                        .last()
-                        .map(|s| s.to_string())
-                        .unwrap_or_default(),
+                    TypeNode::Path { path, .. } => {
+                        path.last().map(|s| s.to_string()).unwrap_or_default()
+                    }
                     TypeNode::Never => "!".to_string(),
                     _ => "<effect>".to_string(),
                 })
@@ -400,7 +401,10 @@ impl<'src> From<&TypeAliasDef<'src>> for OwnedTypeAliasDef {
         let aliased = match &def.aliased {
             TypeAliasBody::Type(t) => OwnedTypeAliasBody::Type(t.into()),
             TypeAliasBody::Union { variants } => OwnedTypeAliasBody::Union(
-                variants.iter().map(|(n, t)| (n.to_string(), t.into())).collect(),
+                variants
+                    .iter()
+                    .map(|(n, t)| (n.to_string(), t.into()))
+                    .collect(),
             ),
         };
         Self {
@@ -446,7 +450,11 @@ impl<'src> From<&Type<'src>> for OwnedType {
                 fn_ret: None,
                 fn_effects: None,
             },
-            TypeNode::Function { params, ret, effects } => OwnedType {
+            TypeNode::Function {
+                params,
+                ret,
+                effects,
+            } => OwnedType {
                 path: vec!["fn".to_string()],
                 generics: vec![],
                 fn_params: Some(params.iter().map(|t| t.into()).collect()),
@@ -480,7 +488,11 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
                 receiver: Box::new(receiver.as_ref().into()),
                 field: field.to_string(),
             },
-            ExprNode::MethodCall { receiver, method, args } => OwnedExpr::MethodCall {
+            ExprNode::MethodCall {
+                receiver,
+                method,
+                args,
+            } => OwnedExpr::MethodCall {
                 receiver: Box::new(receiver.as_ref().into()),
                 method: method.to_string(),
                 args: args.iter().map(|a| a.into()).collect(),
@@ -510,10 +522,17 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
                     .map(|(name, expr)| (name.to_string(), expr.into()))
                     .collect(),
             },
-            ExprNode::UnionInit { path, variant, fields } => OwnedExpr::UnionInit {
+            ExprNode::UnionInit {
+                path,
+                variant,
+                fields,
+            } => OwnedExpr::UnionInit {
                 path: path.iter().map(|s| s.to_string()).collect(),
                 variant: variant.to_string(),
-                fields: fields.iter().map(|(n, e)| (n.to_string(), e.into())).collect(),
+                fields: fields
+                    .iter()
+                    .map(|(n, e)| (n.to_string(), e.into()))
+                    .collect(),
             },
             ExprNode::Block { stmts, last_expr } => OwnedExpr::Block {
                 stmts: stmts.iter().map(|s| s.into()).collect(),
@@ -547,8 +566,16 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
                 body: Box::new(body.as_ref().into()),
                 handler: handler.into(), // Assumes HandlerBody has a From impl
             },
-            ExprNode::FnLiteral { params, ret_type, effects, body } => OwnedExpr::FnLiteral {
-                params: params.iter().map(|(n, t)| (n.map(|s| s.to_string()), t.into())).collect(),
+            ExprNode::FnLiteral {
+                params,
+                ret_type,
+                effects,
+                body,
+            } => OwnedExpr::FnLiteral {
+                params: params
+                    .iter()
+                    .map(|(n, t)| (n.map(|s| s.to_string()), t.into()))
+                    .collect(),
                 ret_type: ret_type.as_ref().map(|t| t.into()),
                 effects: effects.iter().map(|t| t.into()).collect(),
                 body: Box::new(body.as_ref().into()),
@@ -599,8 +626,13 @@ impl<'src> From<&Pattern<'src>> for SpannedPattern {
         let owned_node = match &spanned_pat.node {
             PatternNode::Literal(lit) => OwnedPattern::Literal(lit.into()),
             PatternNode::Identifier(name) => OwnedPattern::Identifier(name.to_string()),
-            PatternNode::VariantBind { binding, variant_path } =>
-                OwnedPattern::VariantBind { binding: binding.to_string(), variant_path: variant_path.iter().map(|s| s.to_string()).collect() },
+            PatternNode::VariantBind {
+                binding,
+                variant_path,
+            } => OwnedPattern::VariantBind {
+                binding: binding.to_string(),
+                variant_path: variant_path.iter().map(|s| s.to_string()).collect(),
+            },
             PatternNode::Wildcard => OwnedPattern::Wildcard,
         };
 

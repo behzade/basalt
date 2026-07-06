@@ -13,7 +13,7 @@ handler OsExitPanic: Panic {
     }
 }
 
-fn division(a: i32, b: i32) -> i32 with Panic {
+fn division(a: i32, b: i32) -> i32 effects { Panic } {
     if b == 0 {
         perform Panic.panic("division by zero")
     }

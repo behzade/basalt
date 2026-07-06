@@ -12,7 +12,10 @@ pub enum Value {
     F64(f64),
     Str(String),
     Array(Vec<Value>),
-    Struct { path: Vec<String>, fields: HashMap<String, Value> },
+    Struct {
+        path: Vec<String>,
+        fields: HashMap<String, Value>,
+    },
     Function(FunctionValue),
 }
 
@@ -35,7 +38,16 @@ impl PartialEq for Value {
             (V::F64(a), V::F64(b)) => a == b,
             (V::Str(a), V::Str(b)) => a == b,
             (V::Array(a), V::Array(b)) => a == b,
-            (V::Struct { path: p1, fields: f1 }, V::Struct { path: p2, fields: f2 }) => p1 == p2 && f1 == f2,
+            (
+                V::Struct {
+                    path: p1,
+                    fields: f1,
+                },
+                V::Struct {
+                    path: p2,
+                    fields: f2,
+                },
+            ) => p1 == p2 && f1 == f2,
             // Functions are not comparable for equality in this simple runtime
             (V::Function(_), V::Function(_)) => false,
             _ => false,
@@ -56,13 +68,19 @@ impl std::fmt::Display for Value {
             Value::Array(items) => {
                 write!(f, "[")?;
                 for (i, v) in items.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", v)?;
                 }
                 write!(f, "]")
             }
             Value::Struct { path, fields } => {
-                let name = if path.is_empty() { "<anon>".to_string() } else { path.join("::") };
+                let name = if path.is_empty() {
+                    "<anon>".to_string()
+                } else {
+                    path.join("::")
+                };
                 write!(f, "{} {{", name)?;
                 let mut iter = fields.iter();
                 if let Some((k, v)) = iter.next() {
@@ -83,18 +101,32 @@ impl std::fmt::Display for Value {
 pub fn value_to_exit_code(value: &Value) -> i32 {
     match value {
         Value::Unit => 0,
-        Value::Bool(b) => if *b { 0 } else { 1 },
+        Value::Bool(b) => {
+            if *b {
+                0
+            } else {
+                1
+            }
+        }
         Value::Byte(b) => *b as i32,
         Value::I32(i) => *i,
         Value::I64(i) => {
-            if *i > i32::MAX as i64 { i32::MAX } else if *i < i32::MIN as i64 { i32::MIN } else { *i as i32 }
+            if *i > i32::MAX as i64 {
+                i32::MAX
+            } else if *i < i32::MIN as i64 {
+                i32::MIN
+            } else {
+                *i as i32
+            }
         }
         Value::F64(f) => {
-            if f.is_nan() { 1 } else { *f as i32 }
+            if f.is_nan() {
+                1
+            } else {
+                *f as i32
+            }
         }
         // Strings, arrays, and functions default to success
         Value::Str(_) | Value::Array(_) | Value::Struct { .. } | Value::Function(_) => 0,
     }
 }
-
-

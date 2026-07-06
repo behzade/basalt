@@ -6,8 +6,8 @@
 //! expressions, carries resolved type information. This makes the HIR a more
 //! suitable input for code generation and other analysis passes.
 
-use std::path::PathBuf;
 use serde::Serialize;
+use std::path::PathBuf;
 
 //================================================================================//
 //                                Core Type Definitions
@@ -195,10 +195,26 @@ pub enum Stmt {
         #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
         name_span: Option<crate::token::SimpleSpan>,
     },
-    Return { value: Option<Expr>, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
-    Assign { lhs: Expr, rhs: Expr, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan }, // lhs (e.g., path or field access) and rhs
-    Expr { expr: Expr, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
-    Error { #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
+    Return {
+        value: Option<Expr>,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    },
+    Assign {
+        lhs: Expr,
+        rhs: Expr,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    }, // lhs (e.g., path or field access) and rhs
+    Expr {
+        expr: Expr,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    },
+    Error {
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    },
 }
 
 /// A block of code, which has a list of statements and an optional final expression.
@@ -290,11 +306,19 @@ pub struct HirFnLiteral {
 #[derive(Debug, Clone, Serialize)]
 pub enum Resolution {
     /// Reference to a local binding (including parameters); name and declaration span
-    Local { name: String, #[serde(serialize_with = "crate::token::serialize_simple_span_opt")] decl_span: Option<crate::token::SimpleSpan> },
+    Local {
+        name: String,
+        #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
+        decl_span: Option<crate::token::SimpleSpan>,
+    },
     /// Access to a struct field; owner type path and field name
     Field { owner: OwnedPath, field: String },
     /// Reference to a top-level function; file and item span
-    Function { defined_in: std::path::PathBuf, #[serde(serialize_with = "crate::token::serialize_simple_span")] span: crate::token::SimpleSpan },
+    Function {
+        defined_in: std::path::PathBuf,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    },
 }
 
 #[derive(Debug, Clone, Serialize)]

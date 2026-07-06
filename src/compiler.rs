@@ -103,7 +103,9 @@ impl Compiler {
             fs::read_to_string(&file_to_parse)?
         };
 
-        self.workspace.sources.insert(path_buf.clone(), source_code.clone());
+        self.workspace
+            .sources
+            .insert(path_buf.clone(), source_code.clone());
 
         let (tokens, lex_errs) = lexer().parse(&source_code).into_output_errors();
 

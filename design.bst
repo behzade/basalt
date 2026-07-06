@@ -36,7 +36,7 @@ handler OsExitPanic: Panic {
     }
 }
 
-fn division(a: i32, b: i32) -> i32 with Panic {
+fn division(a: i32, b: i32) -> i32 effects { Panic } {
     if b == 0 {
         perform Panic.panic("division by zero")
     }
@@ -111,11 +111,11 @@ effect Async<T> {
 
 
 // HttpHandler implements the 'Http' effect.
-// It is declared 'with {Async}', meaning its implementation can, in turn,
+// It is declared 'effects {Async}', meaning its implementation can, in turn,
 // perform 'Async' effects.
-handler HttpHandler: Http with Async<str> {
+handler HttpHandler: Http effects {Async<str>} {
     // This provides the implementation for the 'get' operation.
-    fn get(url: str) -> str with {Async<str>} {
+    fn get(url: str) -> str effects {Async<str>} {
         // We define the actual work as a lambda function.
         // This function captures the 'url' from its environment.
         fn http_task() -> str {
@@ -163,7 +163,7 @@ let AsyncHttpHandler = HttpHandler with {Scheduler}
 
 // -- Main Program Logic --
 // This function uses the 'Http' effect but is unaware of the async implementation.
-fn fetch_content_size(url: str) -> i32 with {Http} {
+fn fetch_content_size(url: str) -> i32 effects {Http} {
     // 'perform' invokes an effect operation. Control is transferred to the
     // currently active handler for the 'Http' effect.
     let content = perform Http.get(url)

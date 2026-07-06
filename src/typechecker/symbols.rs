@@ -4,9 +4,22 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub(crate) enum Symbol {
-    Variable { ty: hir::Ty, is_mut: bool, initialized: bool, decl_span: Option<crate::token::SimpleSpan> },
-    Function { signature: hir::HirFunctionSignature, is_public: bool, defined_in: PathBuf, decl_span: Option<crate::token::SimpleSpan> },
-    Type { canonical_path: hir::OwnedPath, ty: hir::Ty },
+    Variable {
+        ty: hir::Ty,
+        is_mut: bool,
+        initialized: bool,
+        decl_span: Option<crate::token::SimpleSpan>,
+    },
+    Function {
+        signature: hir::HirFunctionSignature,
+        is_public: bool,
+        defined_in: PathBuf,
+        decl_span: Option<crate::token::SimpleSpan>,
+    },
+    Type {
+        canonical_path: hir::OwnedPath,
+        ty: hir::Ty,
+    },
 }
 
 impl super::checker::Typechecker {
@@ -27,10 +40,10 @@ impl super::checker::Typechecker {
 impl super::checker::Typechecker {
     pub(crate) fn lookup_symbol(&self, name: &str) -> Option<&Symbol> {
         for scope in self.scopes.iter().rev() {
-            if let Some(symbol) = scope.get(name) { return Some(symbol); }
+            if let Some(symbol) = scope.get(name) {
+                return Some(symbol);
+            }
         }
         None
     }
 }
-
-

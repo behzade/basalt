@@ -88,6 +88,7 @@ pub fn lexer<'src>()
         "perform" => Token::Perform,
         "handle" => Token::Handle,
         "with" => Token::With,
+        "effects" => Token::Effects,
         "match" => Token::Match,
         "if" => Token::If,
         "else" => Token::Else,

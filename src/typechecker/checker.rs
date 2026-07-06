@@ -5,8 +5,8 @@ use crate::typechecker::errors::{ItemContext, TypeError};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+use crate::hir::{ContextId, HirContext, HirContextKind, HirSymbolDecl, HirSymbolKind};
 use crate::typechecker::symbols::Symbol;
-use crate::hir::{HirContext, HirContextKind, HirSymbolDecl, HirSymbolKind, ContextId};
 
 #[derive(Default)]
 pub struct Typechecker {
@@ -51,31 +51,57 @@ pub struct Typechecker {
 // ItemContext is re-exported from errors.rs
 
 impl Typechecker {
-    
     // format_ty moved to errors.rs (impl on Typechecker)
-    fn new_context(&mut self, kind: HirContextKind, path: &PathBuf, span: crate::token::SimpleSpan) -> ContextId {
+    fn new_context(
+        &mut self,
+        kind: HirContextKind,
+        path: &PathBuf,
+        span: crate::token::SimpleSpan,
+    ) -> ContextId {
         let id = self.contexts.len();
-        let ctx = HirContext { id, parent: None, kind, defined_in: path.clone(), span, symbols: Vec::new(), children: Vec::new() };
+        let ctx = HirContext {
+            id,
+            parent: None,
+            kind,
+            defined_in: path.clone(),
+            span,
+            symbols: Vec::new(),
+            children: Vec::new(),
+        };
         self.contexts.push(ctx);
         id
     }
 
     fn add_child_context(&mut self, parent: ContextId, child: ContextId) {
-        if let Some(p) = self.contexts.get_mut(parent) { p.children.push(child); }
-        if let Some(c) = self.contexts.get_mut(child) { c.parent = Some(parent); }
+        if let Some(p) = self.contexts.get_mut(parent) {
+            p.children.push(child);
+        }
+        if let Some(c) = self.contexts.get_mut(child) {
+            c.parent = Some(parent);
+        }
     }
 
     fn set_context_kind(&mut self, id: ContextId, kind: HirContextKind) {
-        if let Some(c) = self.contexts.get_mut(id) { c.kind = kind; }
+        if let Some(c) = self.contexts.get_mut(id) {
+            c.kind = kind;
+        }
     }
 
     pub(crate) fn add_symbol_to_context(&mut self, id: ContextId, sym: HirSymbolDecl) {
-        if let Some(c) = self.contexts.get_mut(id) { c.symbols.push(sym); }
+        if let Some(c) = self.contexts.get_mut(id) {
+            c.symbols.push(sym);
+        }
     }
 
-    pub(crate) fn push_context(&mut self, id: ContextId) { self.current_context_stack.push(id); }
-    pub(crate) fn pop_context(&mut self) { let _ = self.current_context_stack.pop(); }
-    pub(crate) fn current_context(&self) -> Option<ContextId> { self.current_context_stack.last().copied() }
+    pub(crate) fn push_context(&mut self, id: ContextId) {
+        self.current_context_stack.push(id);
+    }
+    pub(crate) fn pop_context(&mut self) {
+        let _ = self.current_context_stack.pop();
+    }
+    pub(crate) fn current_context(&self) -> Option<ContextId> {
+        self.current_context_stack.last().copied()
+    }
 
     fn is_magic_runtime_file(&self, path: &PathBuf) -> bool {
         let s = path.to_string_lossy();
@@ -168,25 +194,37 @@ impl Typechecker {
             OwnedItem::TypeAlias(ta) => self
                 .lower_type_alias(
                     ta,
-                    ItemContext { span: item.span, path },
+                    ItemContext {
+                        span: item.span,
+                        path,
+                    },
                 )
                 .map(hir::Item::TypeAlias),
             OwnedItem::Enum(e) => self
                 .lower_enum(
                     e,
-                    ItemContext { span: item.span, path },
+                    ItemContext {
+                        span: item.span,
+                        path,
+                    },
                 )
                 .map(hir::Item::Enum),
             OwnedItem::Effect(eff) => self
                 .lower_effect(
                     eff,
-                    ItemContext { span: item.span, path },
+                    ItemContext {
+                        span: item.span,
+                        path,
+                    },
                 )
                 .map(hir::Item::Effect),
             OwnedItem::Handler(h) => self
                 .lower_handler(
                     h,
-                    ItemContext { span: item.span, path },
+                    ItemContext {
+                        span: item.span,
+                        path,
+                    },
                 )
                 .map(hir::Item::Handler),
             _ => Err(()),
@@ -205,7 +243,11 @@ impl Typechecker {
             .iter()
             .map(|(name, ty)| {
                 let resolved_ty = self.resolve_type(ty, context.clone())?;
-                Ok(hir::HirParam { name: name.clone().unwrap_or_else(|| "_".to_string()), ty: resolved_ty, span: None })
+                Ok(hir::HirParam {
+                    name: name.clone().unwrap_or_else(|| "_".to_string()),
+                    ty: resolved_ty,
+                    span: None,
+                })
             })
             .collect::<Result<Vec<_>, ()>>()?;
 
@@ -219,7 +261,10 @@ impl Typechecker {
         for eff_name in &func.effects {
             let path = vec![eff_name.clone()];
             if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
-                effects_vec.push(hir::Ty::Adt(hir::AdtTy::Effect { name: path, generics: vec![] }));
+                effects_vec.push(hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: path,
+                    generics: vec![],
+                }));
             } else {
                 effects_vec.push(hir::Ty::Generic(eff_name.clone()));
             }
@@ -252,7 +297,11 @@ impl Typechecker {
         // 3. Lower the function body...
         // Special-case: compiler-magic std runtime files have no meaningful bodies; assume signature is correct
         let (body_block, body_span) = if self.is_magic_runtime_file(&context.path) {
-            let block = hir::HirBlock { stmts: vec![], last_expr: None, ty: signature.ret_type.clone() };
+            let block = hir::HirBlock {
+                stmts: vec![],
+                last_expr: None,
+                ty: signature.ret_type.clone(),
+            };
             (block, context.span)
         } else {
             let body_expr = self.lower_expr_with_expected(
@@ -289,7 +338,16 @@ impl Typechecker {
                             context: context.clone(),
                         });
                     }
-                    hir::HirBlock { stmts: vec![], last_expr: Some(Box::new(hir::Expr { kind: other_kind, ty: ty.clone(), span: context.span, resolution: None })), ty }
+                    hir::HirBlock {
+                        stmts: vec![],
+                        last_expr: Some(Box::new(hir::Expr {
+                            kind: other_kind,
+                            ty: ty.clone(),
+                            span: context.span,
+                            resolution: None,
+                        })),
+                        ty,
+                    }
                 }
             };
             (body_block, body_span)
@@ -305,14 +363,17 @@ impl Typechecker {
         self.push_context(ctx_id);
         // record params in context symbols
         for p in &params {
-            self.add_symbol_to_context(ctx_id, HirSymbolDecl {
-                name: p.name.clone(),
-                kind: HirSymbolKind::Param,
-                ty: Some(p.ty.clone()),
-                is_mut: Some(false),
-                span: body_span,
-                name_span: p.span,
-            });
+            self.add_symbol_to_context(
+                ctx_id,
+                HirSymbolDecl {
+                    name: p.name.clone(),
+                    kind: HirSymbolKind::Param,
+                    ty: Some(p.ty.clone()),
+                    is_mut: Some(false),
+                    span: body_span,
+                    name_span: p.span,
+                },
+            );
         }
 
         let result = hir::HirFunction {
@@ -338,20 +399,30 @@ impl Typechecker {
         let fields = s
             .fields
             .into_iter()
-            .map(|(name, ty)| self.resolve_type(&ty, context.clone()).map(|t| hir::HirField { name, ty: t, name_span: None }))
+            .map(|(name, ty)| {
+                self.resolve_type(&ty, context.clone())
+                    .map(|t| hir::HirField {
+                        name,
+                        ty: t,
+                        name_span: None,
+                    })
+            })
             .collect::<Result<Vec<_>, _>>()?;
 
         let ctx_id = self.new_context(HirContextKind::Struct, &context.path, context.span);
         // Record fields as symbols in the struct context
         for f in &fields {
-            self.add_symbol_to_context(ctx_id, HirSymbolDecl {
-                name: f.name.clone(),
-                kind: HirSymbolKind::Field,
-                ty: Some(f.ty.clone()),
-                is_mut: Some(false),
-                span: context.span,
-                name_span: f.name_span,
-            });
+            self.add_symbol_to_context(
+                ctx_id,
+                HirSymbolDecl {
+                    name: f.name.clone(),
+                    kind: HirSymbolKind::Field,
+                    ty: Some(f.ty.clone()),
+                    is_mut: Some(false),
+                    span: context.span,
+                    name_span: f.name_span,
+                },
+            );
         }
         Ok(hir::HirStructDef {
             name: s.name,
@@ -363,11 +434,7 @@ impl Typechecker {
         })
     }
 
-    fn lower_enum(
-        &mut self,
-        e: OwnedEnumDef,
-        context: ItemContext,
-    ) -> Result<hir::HirEnumDef, ()> {
+    fn lower_enum(&mut self, e: OwnedEnumDef, context: ItemContext) -> Result<hir::HirEnumDef, ()> {
         let name = e.name.unwrap_or_default();
         let mut variants: Vec<hir::HirEnumVariant> = Vec::new();
         for (vname, payload_opt) in e.variants {
@@ -381,20 +448,34 @@ impl Typechecker {
                 }
                 None => None,
             };
-            variants.push(hir::HirEnumVariant { name: vname, payload: lowered_payload, name_span: None });
+            variants.push(hir::HirEnumVariant {
+                name: vname,
+                payload: lowered_payload,
+                name_span: None,
+            });
         }
         let ctx_id = self.new_context(HirContextKind::Enum, &context.path, context.span);
         for v in &variants {
-            self.add_symbol_to_context(ctx_id, HirSymbolDecl {
-                name: v.name.clone(),
-                kind: HirSymbolKind::EnumVariant,
-                ty: None,
-                is_mut: None,
-                span: context.span,
-                name_span: v.name_span,
-            });
+            self.add_symbol_to_context(
+                ctx_id,
+                HirSymbolDecl {
+                    name: v.name.clone(),
+                    kind: HirSymbolKind::EnumVariant,
+                    ty: None,
+                    is_mut: None,
+                    span: context.span,
+                    name_span: v.name_span,
+                },
+            );
         }
-        Ok(hir::HirEnumDef { name, variants, is_public: e.is_public, defined_in: context.path.clone(), span: context.span, context_id: Some(ctx_id) })
+        Ok(hir::HirEnumDef {
+            name,
+            variants,
+            is_public: e.is_public,
+            defined_in: context.path.clone(),
+            span: context.span,
+            context_id: Some(ctx_id),
+        })
     }
 
     fn lower_type_alias(
@@ -407,26 +488,53 @@ impl Typechecker {
         match ta.aliased {
             Body::Type(t) => {
                 let aliased = self.resolve_type(&t, context.clone())?;
-                Ok(hir::HirTypeAlias { name, aliased, is_public: ta.is_public, defined_in: context.path.clone(), span: context.span })
+                Ok(hir::HirTypeAlias {
+                    name,
+                    aliased,
+                    is_public: ta.is_public,
+                    defined_in: context.path.clone(),
+                    span: context.span,
+                })
             }
             Body::Union(variants) => {
                 // Lower to enum def and alias to that nominal enum
                 let mut lowered: Vec<hir::HirEnumVariant> = Vec::new();
                 for (vname, payload_ty) in variants {
                     let payload_tys = Some(vec![self.resolve_type(&payload_ty, context.clone())?]);
-                    lowered.push(hir::HirEnumVariant { name: vname, payload: payload_tys, name_span: None });
+                    lowered.push(hir::HirEnumVariant {
+                        name: vname,
+                        payload: payload_tys,
+                        name_span: None,
+                    });
                 }
-                let def = hir::HirEnumDef { name: ta.name.clone(), variants: lowered.clone(), is_public: ta.is_public, defined_in: context.path.clone(), span: context.span, context_id: None };
+                let def = hir::HirEnumDef {
+                    name: ta.name.clone(),
+                    variants: lowered.clone(),
+                    is_public: ta.is_public,
+                    defined_in: context.path.clone(),
+                    span: context.span,
+                    context_id: None,
+                };
                 let path = vec![ta.name.clone()];
-                self.type_definitions.insert(path.clone(), hir::Item::Enum(def));
+                self.type_definitions
+                    .insert(path.clone(), hir::Item::Enum(def));
                 // Keep internal union_variants as tuple vec
                 let uv: Vec<(String, Option<Vec<hir::Ty>>)> = lowered
                     .iter()
                     .map(|v| (v.name.clone(), v.payload.clone()))
                     .collect();
                 self.union_variants.insert(path.clone(), uv);
-                let aliased = hir::Ty::Adt(hir::AdtTy::Enum { name: path, generics: vec![] });
-                Ok(hir::HirTypeAlias { name: ta.name, aliased, is_public: true, defined_in: context.path.clone(), span: context.span })
+                let aliased = hir::Ty::Adt(hir::AdtTy::Enum {
+                    name: path,
+                    generics: vec![],
+                });
+                Ok(hir::HirTypeAlias {
+                    name: ta.name,
+                    aliased,
+                    is_public: true,
+                    defined_in: context.path.clone(),
+                    span: context.span,
+                })
             }
         }
     }
@@ -440,12 +548,27 @@ impl Typechecker {
         for op in &eff.operations {
             let mut params: Vec<hir::HirParam> = Vec::new();
             for p in &op.params {
-                params.push(hir::HirParam { name: "_".to_string(), ty: self.resolve_type(p, context.clone())?, span: None });
+                params.push(hir::HirParam {
+                    name: "_".to_string(),
+                    ty: self.resolve_type(p, context.clone())?,
+                    span: None,
+                });
             }
             let ret_type = self.resolve_type(&op.ret_type, context.clone())?;
-            operations.push(hir::HirFunctionSignature { name: op.name.clone(), params, ret_type, effects: vec![] });
+            operations.push(hir::HirFunctionSignature {
+                name: op.name.clone(),
+                params,
+                ret_type,
+                effects: vec![],
+            });
         }
-        Ok(hir::HirEffectDef { name: eff.name, operations, is_public: eff.is_public, defined_in: context.path.clone(), span: context.span })
+        Ok(hir::HirEffectDef {
+            name: eff.name,
+            operations,
+            is_public: eff.is_public,
+            defined_in: context.path.clone(),
+            span: context.span,
+        })
     }
 
     fn lower_handler(
@@ -458,7 +581,10 @@ impl Typechecker {
         for eff_name in &h.effects {
             let path = vec![eff_name.clone()];
             if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
-                effects.push(hir::Ty::Adt(hir::AdtTy::Effect { name: path, generics: vec![] }));
+                effects.push(hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: path,
+                    generics: vec![],
+                }));
             } else {
                 effects.push(hir::Ty::Generic(eff_name.clone()));
             }
@@ -467,11 +593,21 @@ impl Typechecker {
         // Handler must implement operations for its primary effect (first in list)
         let mut functions = Vec::new();
         let primary_effect_path: Option<hir::OwnedPath> = effects.iter().find_map(|t| {
-            if let hir::Ty::Adt(hir::AdtTy::Effect { name, .. }) = t { Some(name.clone()) } else { None }
+            if let hir::Ty::Adt(hir::AdtTy::Effect { name, .. }) = t {
+                Some(name.clone())
+            } else {
+                None
+            }
         });
-        let all_effect_ops: Vec<hir::HirFunctionSignature> = primary_effect_path.as_ref().and_then(|p| {
-            self.type_definitions.get(p).and_then(|it| match it { hir::Item::Effect(def) => Some(def.operations.clone()), _ => None })
-        }).unwrap_or_default();
+        let all_effect_ops: Vec<hir::HirFunctionSignature> = primary_effect_path
+            .as_ref()
+            .and_then(|p| {
+                self.type_definitions.get(p).and_then(|it| match it {
+                    hir::Item::Effect(def) => Some(def.operations.clone()),
+                    _ => None,
+                })
+            })
+            .unwrap_or_default();
 
         // Lower functions with allowed effects = handler's declared effects
         for f in h.functions {
@@ -490,7 +626,9 @@ impl Typechecker {
                     if hf.signature.name == op.name {
                         found = true;
                         // Compare params count and return type (simple check)
-                        if hf.signature.params.len() != op.params.len() || hf.signature.ret_type != op.ret_type {
+                        if hf.signature.params.len() != op.params.len()
+                            || hf.signature.ret_type != op.ret_type
+                        {
                             self.errors.push(TypeError { message: format!(
                                 "Handler method `{}` must match effect op signature: expected fn({}) -> {}",
                                 op.name,
@@ -501,17 +639,26 @@ impl Typechecker {
                     }
                 }
                 if !found {
-                    self.errors.push(TypeError { message: format!("Handler is missing implementation for effect op `{}`", op.name), context: context.clone() });
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Handler is missing implementation for effect op `{}`",
+                            op.name
+                        ),
+                        context: context.clone(),
+                    });
                 }
             }
         }
 
-        // Validate that each handler method only declares/uses effects that are allowed by the handler's with-list
-        let allowed_effect_names: Vec<String> = effects.iter().filter_map(|t| match t {
-            hir::Ty::Adt(hir::AdtTy::Effect { name, .. }) => name.last().cloned(),
-            hir::Ty::Generic(n) => Some(n.clone()),
-            _ => None,
-        }).collect();
+        // Validate that each handler method only declares/uses effects allowed by the handler's effect list.
+        let allowed_effect_names: Vec<String> = effects
+            .iter()
+            .filter_map(|t| match t {
+                hir::Ty::Adt(hir::AdtTy::Effect { name, .. }) => name.last().cloned(),
+                hir::Ty::Generic(n) => Some(n.clone()),
+                _ => None,
+            })
+            .collect();
         for hf in &functions {
             for e in &hf.signature.effects {
                 let ename_opt = match e {
@@ -522,7 +669,7 @@ impl Typechecker {
                 if let Some(ename) = ename_opt {
                     if !allowed_effect_names.iter().any(|n| n == &ename) {
                         self.errors.push(TypeError { message: format!(
-                            "Handler method `{}` declares effect `{}` which is not in handler's with-list",
+                            "Handler method `{}` declares effect `{}` which is not in handler's effect list",
                             hf.signature.name, ename
                         ), context: context.clone() });
                     }
@@ -530,7 +677,14 @@ impl Typechecker {
             }
         }
 
-        Ok(hir::HirHandlerDef { name: h.name, effects, functions, is_public: h.is_public, defined_in: context.path.clone(), span: context.span })
+        Ok(hir::HirHandlerDef {
+            name: h.name,
+            effects,
+            functions,
+            is_public: h.is_public,
+            defined_in: context.path.clone(),
+            span: context.span,
+        })
     }
 
     //================================================================================//
@@ -538,7 +692,11 @@ impl Typechecker {
     //================================================================================//
 
     /// **Crucial**: Resolves an AST type representation into a canonical HIR type.
-    pub(crate) fn resolve_type(&mut self, owned_ty: &OwnedType, context: ItemContext) -> Result<hir::Ty, ()> {
+    pub(crate) fn resolve_type(
+        &mut self,
+        owned_ty: &OwnedType,
+        context: ItemContext,
+    ) -> Result<hir::Ty, ()> {
         // This is a placeholder for a complex process. A real implementation must:
         // 1. Handle primitive types ("i32", "bool", etc.).
         // 2. Look up custom types (structs, enums) in `type_definitions`.
@@ -556,13 +714,25 @@ impl Typechecker {
             "()" => Ok(hir::Ty::Special(hir::SpecialTy::Unit)),
             // Function type lowering if we have structured metadata
             "fn" => {
-                if let (Some(params), Some(ret)) = (owned_ty.fn_params.as_ref(), owned_ty.fn_ret.as_ref()) {
+                if let (Some(params), Some(ret)) =
+                    (owned_ty.fn_params.as_ref(), owned_ty.fn_ret.as_ref())
+                {
                     let mut lowered_params: Vec<hir::Ty> = Vec::new();
-                    for p in params { lowered_params.push(self.resolve_type(p, context.clone())?); }
+                    for p in params {
+                        lowered_params.push(self.resolve_type(p, context.clone())?);
+                    }
                     let lowered_ret = self.resolve_type(ret, context.clone())?;
                     let mut lowered_effects: Vec<hir::Ty> = Vec::new();
-                    if let Some(effs) = &owned_ty.fn_effects { for e in effs { lowered_effects.push(self.resolve_type(e, context.clone())?); } }
-                    Ok(hir::Ty::Function { param_types: lowered_params, ret_type: Box::new(lowered_ret), effects: lowered_effects })
+                    if let Some(effs) = &owned_ty.fn_effects {
+                        for e in effs {
+                            lowered_effects.push(self.resolve_type(e, context.clone())?);
+                        }
+                    }
+                    Ok(hir::Ty::Function {
+                        param_types: lowered_params,
+                        ret_type: Box::new(lowered_ret),
+                        effects: lowered_effects,
+                    })
                 } else {
                     // Fallback: treat as generic if structure is missing
                     Ok(hir::Ty::Generic("fn".to_string()))
@@ -573,7 +743,8 @@ impl Typechecker {
                 let path_vec = owned_ty.path.clone();
                 if let Some(item) = self.type_definitions.get(&path_vec) {
                     // Enforce visibility at module boundaries for types
-                    if let Some((defined_in, is_public)) = self.type_definition_meta.get(&path_vec) {
+                    if let Some((defined_in, is_public)) = self.type_definition_meta.get(&path_vec)
+                    {
                         if !*is_public && defined_in != &context.path {
                             self.errors.push(TypeError {
                                 message: format!("Type `{}` is private", type_name),
@@ -607,14 +778,13 @@ impl Typechecker {
                     // Treat single-segment unknown types as generics, e.g., T
                     Ok(hir::Ty::Generic(owned_ty.path[0].clone()))
                 } else {
-                self.errors.push(TypeError {
-                    message: format!("Unknown type: {}", type_name),
-                    context: context.clone(),
-                });
-                Err(())
+                    self.errors.push(TypeError {
+                        message: format!("Unknown type: {}", type_name),
+                        context: context.clone(),
+                    });
+                    Err(())
                 }
             }
         }
     }
-
 }

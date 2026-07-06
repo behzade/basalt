@@ -1,5 +1,5 @@
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 use std::fmt;
-use serde::{ser::SerializeStruct, Serialize, Serializer};
 
 pub type SimpleSpan = chumsky::span::SimpleSpan;
 
@@ -14,7 +14,7 @@ pub enum Token<'src> {
     Type,
     Struct,
     Fn,
-    
+
     Import,
     As,
     While,
@@ -24,6 +24,7 @@ pub enum Token<'src> {
     Perform,
     Handle,
     With,
+    Effects,
     Match,
     If,
     Else,
@@ -47,18 +48,18 @@ pub enum Token<'src> {
     Ident(&'src str),
 
     // Operators and Punctuation
-    Op(String),  // For operators like +, -, *, /, <, >, ==, =
-    Colon,       // :
-    Comma,       // ,
-    Arrow,       // ->
-    LParen,      // (
-    RParen,      // )
-    LBrace,      // {
-    RBrace,      // }
-    LBracket,    // [
-    RBracket,    // ]
-    Semicolon,   // ;
-    Hash,        // #
+    Op(String), // For operators like +, -, *, /, <, >, ==, =
+    Colon,      // :
+    Comma,      // ,
+    Arrow,      // ->
+    LParen,     // (
+    RParen,     // )
+    LBrace,     // {
+    RBrace,     // }
+    LBracket,   // [
+    RBracket,   // ]
+    Semicolon,  // ;
+    Hash,       // #
 
     // Ignored token
     Comment(&'src str),
@@ -75,7 +76,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "type"),
             Token::Fn => write!(f, "fn"),
-            
+
             Token::Import => write!(f, "import"),
             Token::As => write!(f, "as"),
             Token::While => write!(f, "while"),
@@ -85,6 +86,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Perform => write!(f, "perform"),
             Token::Handle => write!(f, "handle"),
             Token::With => write!(f, "with"),
+            Token::Effects => write!(f, "effects"),
             Token::Match => write!(f, "match"),
             Token::If => write!(f, "if"),
             Token::Else => write!(f, "else"),
@@ -134,7 +136,7 @@ pub enum OwnedToken {
     Type,
     Struct,
     Fn,
-    
+
     Import,
     As,
     While,
@@ -144,6 +146,7 @@ pub enum OwnedToken {
     Perform,
     Handle,
     With,
+    Effects,
     Match,
     If,
     Else,
@@ -167,18 +170,18 @@ pub enum OwnedToken {
     Ident(String),
 
     // Operators and Punctuation
-    Op(String),  // For operators like +, -, *, /, <, >, ==, =
-    Colon,       // :
-    Comma,       // ,
-    Arrow,       // ->
-    LParen,      // (
-    RParen,      // )
-    LBrace,      // {
-    RBrace,      // }
-    LBracket,    // [
-    RBracket,    // ]
-    Semicolon,   // ;
-    Hash,        // #
+    Op(String), // For operators like +, -, *, /, <, >, ==, =
+    Colon,      // :
+    Comma,      // ,
+    Arrow,      // ->
+    LParen,     // (
+    RParen,     // )
+    LBrace,     // {
+    RBrace,     // }
+    LBracket,   // [
+    RBracket,   // ]
+    Semicolon,  // ;
+    Hash,       // #
 
     // Ignored token
     Comment(String),
@@ -195,7 +198,7 @@ impl From<Token<'_>> for OwnedToken {
             Token::Struct => OwnedToken::Struct,
             Token::Type => OwnedToken::Type,
             Token::Fn => OwnedToken::Fn,
-            
+
             Token::Import => OwnedToken::Import,
             Token::As => OwnedToken::As,
             Token::While => OwnedToken::While,
@@ -205,6 +208,7 @@ impl From<Token<'_>> for OwnedToken {
             Token::Perform => OwnedToken::Perform,
             Token::Handle => OwnedToken::Handle,
             Token::With => OwnedToken::With,
+            Token::Effects => OwnedToken::Effects,
             Token::Match => OwnedToken::Match,
             Token::If => OwnedToken::If,
             Token::Else => OwnedToken::Else,
@@ -257,13 +261,19 @@ where
     st.end()
 }
 
-pub fn serialize_simple_span_opt<S>(span: &Option<SimpleSpan>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize_simple_span_opt<S>(
+    span: &Option<SimpleSpan>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     match span {
         Some(s) => {
-            let ser = SimpleSpanSer { start: s.start, end: s.end };
+            let ser = SimpleSpanSer {
+                start: s.start,
+                end: s.end,
+            };
             serializer.serialize_some(&ser)
         }
         None => serializer.serialize_none(),

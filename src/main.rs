@@ -9,12 +9,12 @@ mod ast;
 mod ast_owned;
 mod compiler;
 mod hir;
+mod interpreter;
 mod lexer;
 mod parser;
 mod token;
 mod type_unifier;
 mod typechecker;
-mod interpreter;
 
 use crate::compiler::{Compiler, CompilerStage};
 use crate::{

@@ -12,7 +12,10 @@ impl Typechecker {
         }
     }
 
-    pub(crate) fn lower_literal(&self, lit: crate::ast_owned::OwnedLiteral) -> (hir::PrimitiveTy, String) {
+    pub(crate) fn lower_literal(
+        &self,
+        lit: crate::ast_owned::OwnedLiteral,
+    ) -> (hir::PrimitiveTy, String) {
         match lit {
             crate::ast_owned::OwnedLiteral::Bool(b) => (hir::PrimitiveTy::Bool, b.to_string()),
             crate::ast_owned::OwnedLiteral::I32(i) => (hir::PrimitiveTy::I32, i.to_string()),
@@ -49,14 +52,23 @@ impl Typechecker {
         }
     }
 
-    pub(crate) fn lookup_struct_field_type(&self, path: &hir::OwnedPath, field: &str) -> Option<&hir::Ty> {
+    pub(crate) fn lookup_struct_field_type(
+        &self,
+        path: &hir::OwnedPath,
+        field: &str,
+    ) -> Option<&hir::Ty> {
         match self.type_definitions.get(path) {
-            Some(hir::Item::Struct(def)) => def.fields.iter().find(|f| f.name == field).map(|f| &f.ty),
+            Some(hir::Item::Struct(def)) => {
+                def.fields.iter().find(|f| f.name == field).map(|f| &f.ty)
+            }
             _ => None,
         }
     }
 
-    pub(crate) fn find_union_variant(&self, variant: &str) -> Option<(hir::OwnedPath, Option<Vec<hir::Ty>>)> {
+    pub(crate) fn find_union_variant(
+        &self,
+        variant: &str,
+    ) -> Option<(hir::OwnedPath, Option<Vec<hir::Ty>>)> {
         for (union_path, variants) in &self.union_variants {
             if let Some((_, payload)) = variants.iter().find(|(name, _)| name == variant).cloned() {
                 return Some((union_path.clone(), payload));
@@ -65,14 +77,24 @@ impl Typechecker {
         None
     }
 
-    pub(crate) fn resolve_effect_op(&self, path: &hir::OwnedPath) -> Option<(hir::Ty, Vec<hir::Ty>)> {
-        if path.len() != 2 { return None; }
+    pub(crate) fn resolve_effect_op(
+        &self,
+        path: &hir::OwnedPath,
+    ) -> Option<(hir::Ty, Vec<hir::Ty>)> {
+        if path.len() != 2 {
+            return None;
+        }
         let effect_name = vec![path[0].clone()];
         let op_name = &path[1];
         match self.type_definitions.get(&effect_name) {
             Some(hir::Item::Effect(def)) => {
                 for sig in &def.operations {
-                    if &sig.name == op_name { return Some((sig.ret_type.clone(), sig.params.iter().map(|p| p.ty.clone()).collect())); }
+                    if &sig.name == op_name {
+                        return Some((
+                            sig.ret_type.clone(),
+                            sig.params.iter().map(|p| p.ty.clone()).collect(),
+                        ));
+                    }
                 }
                 None
             }
@@ -80,4 +102,3 @@ impl Typechecker {
         }
     }
 }
-

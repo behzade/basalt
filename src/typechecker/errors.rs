@@ -39,11 +39,25 @@ impl super::checker::Typechecker {
                 };
                 format!("Map<{}, {}>", key_str, Self::format_ty(value))
             }
-            Ty::Function { param_types, ret_type, effects } => {
-                let params = param_types.iter().map(Self::format_ty).collect::<Vec<_>>().join(", ");
-                let eff = if effects.is_empty() { String::new() } else {
-                    let e = effects.iter().map(Self::format_ty).collect::<Vec<_>>().join(", ");
-                    format!(" with {{ {} }}", e)
+            Ty::Function {
+                param_types,
+                ret_type,
+                effects,
+            } => {
+                let params = param_types
+                    .iter()
+                    .map(Self::format_ty)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let eff = if effects.is_empty() {
+                    String::new()
+                } else {
+                    let e = effects
+                        .iter()
+                        .map(Self::format_ty)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!(" effects {{ {} }}", e)
                 };
                 format!("fn({}) -> {}{}", params, Self::format_ty(ret_type), eff)
             }
@@ -55,12 +69,14 @@ impl super::checker::Typechecker {
                 if generics.is_empty() {
                     path
                 } else {
-                    let gs = generics.iter().map(Self::format_ty).collect::<Vec<_>>().join(", ");
+                    let gs = generics
+                        .iter()
+                        .map(Self::format_ty)
+                        .collect::<Vec<_>>()
+                        .join(", ");
                     format!("{}<{}>", path, gs)
                 }
             }
         }
     }
 }
-
-

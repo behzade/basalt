@@ -13,8 +13,8 @@ handler Scheduler: Async<T> {
     }
 }
 
-handler HttpHandler: Http with Async<str> {
-    fn get(url: str) -> str with {Async<str>} {
+handler HttpHandler: Http effects { Async<str> } {
+    fn get(url: str) -> str effects { Async<str> } {
         let http_task = fn() -> str { "<html>" }
         let content = perform Async.await(http_task)
         content
@@ -23,7 +23,7 @@ handler HttpHandler: Http with Async<str> {
 
 let AsyncHttpHandler = HttpHandler with {Scheduler}
 
-fn fetch_content_size(url: str) -> i32 with {Http} {
+fn fetch_content_size(url: str) -> i32 effects { Http } {
     let content = perform Http.get(url)
     content.len()
 }

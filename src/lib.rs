@@ -2,10 +2,9 @@ pub mod ast;
 pub mod ast_owned;
 pub mod compiler;
 pub mod hir;
+pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 pub mod token;
 pub mod type_unifier;
 pub mod typechecker;
-pub mod interpreter;
-

@@ -124,7 +124,7 @@ pub enum ExprNode<'src> {
         body: Box<Expr<'src>>,
         handler: HandlerBody<'src>,
     },
-    /// Anonymous function literal: fn(params) -> ret with {effects} { body }
+    /// Anonymous function literal: fn(params) -> ret effects { effects } { body }
     FnLiteral {
         params: Vec<(Option<&'src str>, Type<'src>)>,
         ret_type: Option<Type<'src>>,
@@ -141,10 +141,20 @@ pub enum ExprNode<'src> {
 /// A type annotation.
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeNode<'src> {
-    Path { path: Path<'src>, generics: Vec<Type<'src>> },
+    Path {
+        path: Path<'src>,
+        generics: Vec<Type<'src>>,
+    },
     Union(Vec<Type<'src>>),
-    Function { params: Vec<Type<'src>>, ret: Box<Type<'src>>, effects: Vec<Type<'src>> },
-    Handler { effect: Box<Type<'src>>, with_effects: Vec<Type<'src>> },
+    Function {
+        params: Vec<Type<'src>>,
+        ret: Box<Type<'src>>,
+        effects: Vec<Type<'src>>,
+    },
+    Handler {
+        effect: Box<Type<'src>>,
+        with_effects: Vec<Type<'src>>,
+    },
     Never,
 }
 
@@ -171,7 +181,10 @@ pub enum Literal<'src> {
 pub enum PatternNode<'src> {
     Literal(Literal<'src>),
     Identifier(&'src str),
-    VariantBind { binding: &'src str, variant_path: Path<'src> },
+    VariantBind {
+        binding: &'src str,
+        variant_path: Path<'src>,
+    },
     Wildcard,
 }
 
@@ -220,7 +233,7 @@ pub struct EffectOp<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct HandlerDef<'src> {
     pub name: &'src str,
-    pub effects: Vec<Type<'src>>, // primary effect first; with_effects folded in
+    pub effects: Vec<Type<'src>>, // primary effect first; dependency effects follow
     pub functions: Vec<Function<'src>>,
     pub is_public: bool,
 }
@@ -272,7 +285,9 @@ pub struct TypeAliasDef<'src> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeAliasBody<'src> {
-    Union { variants: Vec<(&'src str, Type<'src>)> },
+    Union {
+        variants: Vec<(&'src str, Type<'src>)>,
+    },
     Type(Type<'src>),
 }
 
