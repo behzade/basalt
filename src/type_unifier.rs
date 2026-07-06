@@ -146,10 +146,14 @@ impl TypeUnifier {
     /// Returns true if a value of type `from` can be assigned to a variable of type `to`.
     /// Currently supports:
     /// - exact equality
+    /// - never (`!`) as bottom, assignable to any type
     /// - numeric widening (i32 -> i64, i32/i64 -> f64)
     /// - identical nominal ADTs (same struct/enum path)
     pub fn is_assignable(from: &hir::Ty, to: &hir::Ty) -> bool {
         if from == to {
+            return true;
+        }
+        if matches!(from, hir::Ty::Special(hir::SpecialTy::Never)) {
             return true;
         }
         if let (hir::Ty::Primitive(from), hir::Ty::Primitive(to)) = (from, to) {

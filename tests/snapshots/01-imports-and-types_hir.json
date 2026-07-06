@@ -127,7 +127,7 @@
           }
         ],
         "ret_type": {
-          "Generic": "!"
+          "Special": "Never"
         },
         "effects": []
       },
@@ -135,7 +135,7 @@
         "stmts": [],
         "last_expr": null,
         "ty": {
-          "Generic": "!"
+          "Special": "Never"
         }
       },
       "is_public": true,
@@ -245,6 +245,38 @@
     }
   },
   {
+    "Enum": {
+      "name": "bbb",
+      "variants": [
+        {
+          "name": "asd",
+          "payload": [
+            {
+              "Special": "Unit"
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "qwe",
+          "payload": [
+            {
+              "Special": "Unit"
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 31,
+        "end": 41
+      },
+      "context_id": null
+    }
+  },
+  {
     "TypeAlias": {
       "name": "bbb",
       "aliased": {
@@ -263,6 +295,52 @@
         "start": 31,
         "end": 41
       }
+    }
+  },
+  {
+    "Enum": {
+      "name": "UserType",
+      "variants": [
+        {
+          "name": "B2B",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Company"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "B2C",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Person"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/01-imports-and-types.bst",
+      "span": {
+        "start": 41,
+        "end": 51
+      },
+      "context_id": null
     }
   },
   {
@@ -603,73 +681,51 @@
               "name": "user1",
               "value": {
                 "kind": {
-                  "Cast": {
-                    "expr": {
-                      "kind": {
-                        "StructInit": {
-                          "path": [
-                            "UserType",
-                            "B2B"
-                          ],
-                          "fields": [
-                            [
-                              "company_id",
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "1"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "I32"
-                                },
-                                "span": {
-                                  "start": 111,
-                                  "end": 112
-                                },
-                                "resolution": null
-                              }
-                            ],
-                            [
-                              "name",
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "Str",
-                                    "acme"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "Str"
-                                },
-                                "span": {
-                                  "start": 115,
-                                  "end": 116
-                                },
-                                "resolution": null
-                              }
+                  "StructInit": {
+                    "path": [
+                      "UserType",
+                      "B2B"
+                    ],
+                    "fields": [
+                      [
+                        "company_id",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "1"
                             ]
-                          ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 111,
+                            "end": 112
+                          },
+                          "resolution": null
                         }
-                      },
-                      "ty": {
-                        "Adt": {
-                          "Struct": {
-                            "name": [
-                              "UserType",
-                              "B2B"
-                            ],
-                            "generics": []
-                          }
+                      ],
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "acme"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 115,
+                            "end": 116
+                          },
+                          "resolution": null
                         }
-                      },
-                      "span": {
-                        "start": 99,
-                        "end": 117
-                      },
-                      "resolution": null
-                    }
+                      ]
+                    ]
                   }
                 },
                 "ty": {
@@ -711,73 +767,51 @@
               "name": "user2",
               "value": {
                 "kind": {
-                  "Cast": {
-                    "expr": {
-                      "kind": {
-                        "StructInit": {
-                          "path": [
-                            "UserType",
-                            "B2C"
-                          ],
-                          "fields": [
-                            [
-                              "name",
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "Str",
-                                    "behzad"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "Str"
-                                },
-                                "span": {
-                                  "start": 129,
-                                  "end": 130
-                                },
-                                "resolution": null
-                              }
-                            ],
-                            [
-                              "age",
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "10"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "I32"
-                                },
-                                "span": {
-                                  "start": 133,
-                                  "end": 134
-                                },
-                                "resolution": null
-                              }
+                  "StructInit": {
+                    "path": [
+                      "UserType",
+                      "B2C"
+                    ],
+                    "fields": [
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "behzad"
                             ]
-                          ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 129,
+                            "end": 130
+                          },
+                          "resolution": null
                         }
-                      },
-                      "ty": {
-                        "Adt": {
-                          "Struct": {
-                            "name": [
-                              "UserType",
-                              "B2C"
-                            ],
-                            "generics": []
-                          }
+                      ],
+                      [
+                        "age",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "10"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 133,
+                            "end": 134
+                          },
+                          "resolution": null
                         }
-                      },
-                      "span": {
-                        "start": 117,
-                        "end": 135
-                      },
-                      "resolution": null
-                    }
+                      ]
+                    ]
                   }
                 },
                 "ty": {

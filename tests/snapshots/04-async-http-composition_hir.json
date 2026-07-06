@@ -637,7 +637,18 @@
                                   "ret_type": {
                                     "Primitive": "I32"
                                   },
-                                  "effects": []
+                                  "effects": [
+                                    {
+                                      "Adt": {
+                                        "Effect": {
+                                          "name": [
+                                            "Http"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
+                                    }
+                                  ]
                                 }
                               },
                               "span": {

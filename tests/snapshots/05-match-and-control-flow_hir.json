@@ -56,6 +56,52 @@
     }
   },
   {
+    "Enum": {
+      "name": "UserType",
+      "variants": [
+        {
+          "name": "B2B",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Company"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "B2C",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Person"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/05-match-and-control-flow.bst",
+      "span": {
+        "start": 22,
+        "end": 32
+      },
+      "context_id": null
+    }
+  },
+  {
     "TypeAlias": {
       "name": "UserType",
       "aliased": {
@@ -178,73 +224,51 @@
               "name": "user",
               "value": {
                 "kind": {
-                  "Cast": {
-                    "expr": {
-                      "kind": {
-                        "StructInit": {
-                          "path": [
-                            "UserType",
-                            "B2B"
-                          ],
-                          "fields": [
-                            [
-                              "company_id",
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "1"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "I32"
-                                },
-                                "span": {
-                                  "start": 67,
-                                  "end": 68
-                                },
-                                "resolution": null
-                              }
-                            ],
-                            [
-                              "name",
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "Str",
-                                    "acme"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "Str"
-                                },
-                                "span": {
-                                  "start": 71,
-                                  "end": 72
-                                },
-                                "resolution": null
-                              }
+                  "StructInit": {
+                    "path": [
+                      "UserType",
+                      "B2B"
+                    ],
+                    "fields": [
+                      [
+                        "company_id",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "1"
                             ]
-                          ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 67,
+                            "end": 68
+                          },
+                          "resolution": null
                         }
-                      },
-                      "ty": {
-                        "Adt": {
-                          "Struct": {
-                            "name": [
-                              "UserType",
-                              "B2B"
-                            ],
-                            "generics": []
-                          }
+                      ],
+                      [
+                        "name",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "acme"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 71,
+                            "end": 72
+                          },
+                          "resolution": null
                         }
-                      },
-                      "span": {
-                        "start": 55,
-                        "end": 73
-                      },
-                      "resolution": null
-                    }
+                      ]
+                    ]
                   }
                 },
                 "ty": {

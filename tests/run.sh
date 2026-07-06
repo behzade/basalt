@@ -33,7 +33,19 @@ DEFAULT_TEST_TYPE="ast"
 echo -e "${BLUE}=== Basalt Unified Test Suite ===${NC}"
 echo
 
-devbox run -- cargo build
+DEVBOX_BUILD_LOG=$(mktemp)
+if ! devbox run -- cargo build 2>"$DEVBOX_BUILD_LOG"; then
+    if grep -Eq "cache\\.nixos\\.org|operation not permitted|lookup .* failed|Could not resolve|network" "$DEVBOX_BUILD_LOG"; then
+        cat "$DEVBOX_BUILD_LOG"
+        echo -e "${YELLOW}Devbox build failed due to sandbox/network access; falling back to local cargo build.${NC}"
+        cargo build || exit 1
+    else
+        cat "$DEVBOX_BUILD_LOG"
+        rm -f "$DEVBOX_BUILD_LOG"
+        exit 1
+    fi
+fi
+rm -f "$DEVBOX_BUILD_LOG"
 
 # Function to create directories if they don't exist
 setup_directories() {
@@ -157,10 +169,15 @@ generate_snapshots() {
             echo -e "${GREEN}✓${NC}"
             ((SNAPSHOT_TESTS++))
         else
-            # Error case - save the error output
-            echo "ERROR: $output" > "$snapshot_file"
-            echo -e "${YELLOW}⚠ (error)${NC}"
-            ((SNAPSHOT_TESTS++))
+            # Only refresh expected-error snapshots that already opt into ERROR.
+            if [ -f "$snapshot_file" ] && head -n 1 "$snapshot_file" | grep -q '^ERROR:'; then
+                echo "ERROR: $output" > "$snapshot_file"
+                echo -e "${YELLOW}⚠ (expected error)${NC}"
+                ((SNAPSHOT_TESTS++))
+            else
+                echo -e "${RED}✗ (unexpected error; snapshot not written)${NC}"
+                ((FAILED_TESTS++))
+            fi
         fi
         
         ((TOTAL_TESTS++))

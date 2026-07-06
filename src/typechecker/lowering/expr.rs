@@ -22,6 +22,18 @@ impl Typechecker {
         }
     }
 
+    fn branch_result_ty(a: &hir::Ty, b: &hir::Ty) -> Option<hir::Ty> {
+        if a == b {
+            Some(a.clone())
+        } else if matches!(a, hir::Ty::Special(hir::SpecialTy::Never)) {
+            Some(b.clone())
+        } else if matches!(b, hir::Ty::Special(hir::SpecialTy::Never)) {
+            Some(a.clone())
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn lower_expr(
         &mut self,
         expr: SpannedExpr,
@@ -827,7 +839,10 @@ impl Typechecker {
                 for e in effects {
                     eff_tys.push(self.resolve_type(&e, context.clone())?);
                 }
-                let body_hir_expr = self.lower_expr(*body, context.clone())?;
+                self.current_effects_stack.push(eff_tys.clone());
+                let body_hir_expr_result = self.lower_expr(*body, context.clone());
+                let _ = self.current_effects_stack.pop();
+                let body_hir_expr = body_hir_expr_result?;
                 let body_block = match body_hir_expr.kind {
                     hir::ExprKind::Block(b) => b,
                     other => hir::HirBlock {
@@ -928,17 +943,20 @@ impl Typechecker {
                     },
                 };
                 let result_ty = if let Some(ref else_hir) = else_hir_opt {
-                    if then_hir.ty != else_hir.ty {
-                        self.errors.push(TypeError {
-                            message: format!(
-                                "If branches must have same type: then={}, else={}",
-                                Typechecker::format_ty(&then_hir.ty),
-                                Typechecker::format_ty(&else_hir.ty)
-                            ),
-                            context: context.clone(),
-                        });
+                    match Self::branch_result_ty(&then_hir.ty, &else_hir.ty) {
+                        Some(ty) => ty,
+                        None => {
+                            self.errors.push(TypeError {
+                                message: format!(
+                                    "If branches must have same type: then={}, else={}",
+                                    Typechecker::format_ty(&then_hir.ty),
+                                    Typechecker::format_ty(&else_hir.ty)
+                                ),
+                                context: context.clone(),
+                            });
+                            else_hir.ty.clone()
+                        }
                     }
-                    else_hir.ty.clone()
                 } else {
                     hir::Ty::Special(hir::SpecialTy::Unit)
                 };
@@ -989,15 +1007,18 @@ impl Typechecker {
                     let (hir_pat, hir_arm_expr) =
                         self.lower_match_arm(pat, arm_expr, &scrutinee_hir.ty, context.clone())?;
                     if let Some(ref ty) = result_ty {
-                        if *ty != hir_arm_expr.ty {
-                            self.errors.push(TypeError {
-                                message: format!(
-                                    "Match arms must have the same type: expected {}, found {}",
-                                    Typechecker::format_ty(ty),
-                                    Typechecker::format_ty(&hir_arm_expr.ty)
-                                ),
-                                context: context.clone(),
-                            });
+                        match Self::branch_result_ty(ty, &hir_arm_expr.ty) {
+                            Some(common) => result_ty = Some(common),
+                            None => {
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Match arms must have the same type: expected {}, found {}",
+                                        Typechecker::format_ty(ty),
+                                        Typechecker::format_ty(&hir_arm_expr.ty)
+                                    ),
+                                    context: context.clone(),
+                                });
+                            }
                         }
                     } else {
                         result_ty = Some(hir_arm_expr.ty.clone());
@@ -1021,37 +1042,19 @@ impl Typechecker {
                 variant,
                 fields,
             } => {
-                // Lower as struct-like construction of enum variant: Enum::Variant { ... }
-                // Resolve the enum type from path
-                let enum_ty = if let Some(item) = self.type_definitions.get(&path) {
-                    match item {
-                        hir::Item::Enum(_) => hir::Ty::Adt(hir::AdtTy::Enum {
-                            name: path.clone(),
+                let mut init_path = path;
+                init_path.push(variant);
+                self.lower_expr(
+                    Spanned {
+                        item: OwnedExpr::StructInit {
+                            path: init_path,
                             generics: vec![],
-                        }),
-                        _ => hir::Ty::Generic("_unknown".to_string()),
-                    }
-                } else {
-                    hir::Ty::Generic("_unknown".to_string())
-                };
-                let mut lowered_fields = Vec::new();
-                for (n, v) in fields {
-                    let e = self.lower_expr(v, context.clone())?;
-                    lowered_fields.push((n, e));
-                }
-                Ok(hir::Expr {
-                    ty: enum_ty,
-                    kind: hir::ExprKind::StructInit {
-                        path: {
-                            let mut p = path.clone();
-                            p.push(variant);
-                            p
+                            fields,
                         },
-                        fields: lowered_fields,
+                        span: expr.span,
                     },
-                    span: expr.span,
-                    resolution: None,
-                })
+                    context,
+                )
             }
             OwnedExpr::Perform { path, args } => {
                 // Enforce that this perform is allowed in the current function's effect list
@@ -1079,12 +1082,21 @@ impl Typechecker {
                         self.errors.push(TypeError { message: format!("Effect `{}` is not allowed here; add it to the function's effect list", effect_name), context: context.clone() });
                     }
                 }
-                let (mut ret_ty, param_tys) = self
-                    .resolve_effect_op(&path)
-                    .unwrap_or((hir::Ty::Special(hir::SpecialTy::Unit), vec![]));
+                let Some((mut ret_ty, param_tys)) = self.resolve_effect_op(&path) else {
+                    self.errors.push(TypeError {
+                        message: format!("Unknown effect operation `{}`", path.join(".")),
+                        context: context.clone(),
+                    });
+                    return Err(());
+                };
                 let mut lowered_args = Vec::new();
-                for a in args {
-                    match self.lower_expr(a.clone(), context.clone()) {
+                for (idx, a) in args.into_iter().enumerate() {
+                    let lowered = if let Some(param_ty) = param_tys.get(idx) {
+                        self.lower_expr_with_expected(a.clone(), param_ty.clone(), context.clone())
+                    } else {
+                        self.lower_expr(a.clone(), context.clone())
+                    };
+                    match lowered {
                         Ok(e) => lowered_args.push(e),
                         Err(_) => lowered_args.push(hir::Expr {
                             kind: hir::ExprKind::Error,
@@ -1093,6 +1105,17 @@ impl Typechecker {
                             resolution: None,
                         }),
                     }
+                }
+                if lowered_args.len() != param_tys.len() {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Effect operation `{}` expects {} args, found {}",
+                            path.join("."),
+                            param_tys.len(),
+                            lowered_args.len()
+                        ),
+                        context: context.clone(),
+                    });
                 }
                 // Specialize Async.await(task: () -> T) -> T based on argument
                 if path.len() == 2 && path[0] == "Async" && path[1] == "await" {
@@ -1162,14 +1185,144 @@ impl Typechecker {
                 })
             }
             OwnedExpr::StructInit { path, fields, .. } => {
+                if let Some((enum_path, variant, variants)) =
+                    path.split_last().and_then(|(variant, rest)| {
+                        if rest.is_empty() {
+                            None
+                        } else {
+                            let enum_path = rest.to_vec();
+                            self.union_variants
+                                .get(&enum_path)
+                                .map(|variants| (enum_path, variant.clone(), variants.clone()))
+                        }
+                    })
+                {
+                    let Some((_, payload)) = variants.iter().find(|(name, _)| name == &variant)
+                    else {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Unknown variant `{}` for enum `{}`",
+                                variant,
+                                enum_path.join("::")
+                            ),
+                            context: context.clone(),
+                        });
+                        return Err(());
+                    };
+                    let payload = payload.clone().unwrap_or_default();
+                    let field_defs = if let [
+                        hir::Ty::Adt(hir::AdtTy::Struct {
+                            name: payload_struct,
+                            ..
+                        }),
+                    ] = payload.as_slice()
+                    {
+                        match self.type_definitions.get(payload_struct) {
+                            Some(hir::Item::Struct(struct_def)) => struct_def.fields.clone(),
+                            _ => vec![],
+                        }
+                    } else {
+                        vec![]
+                    };
+
+                    let mut lowered_fields = Vec::new();
+                    for (name, expr) in fields {
+                        let e = if let Some(field_def) =
+                            field_defs.iter().find(|field| field.name == name)
+                        {
+                            self.lower_expr_with_expected(
+                                expr,
+                                field_def.ty.clone(),
+                                context.clone(),
+                            )?
+                        } else {
+                            self.errors.push(TypeError {
+                                message: format!(
+                                    "Unknown field `{}` for variant `{}`",
+                                    name,
+                                    path.join("::")
+                                ),
+                                context: context.clone(),
+                            });
+                            self.lower_expr(expr, context.clone())?
+                        };
+                        lowered_fields.push((name, e));
+                    }
+                    for field_def in &field_defs {
+                        if !lowered_fields
+                            .iter()
+                            .any(|(field_name, _)| field_name == &field_def.name)
+                        {
+                            self.errors.push(TypeError {
+                                message: format!(
+                                    "Missing field `{}` for variant `{}`",
+                                    field_def.name,
+                                    path.join("::")
+                                ),
+                                context: context.clone(),
+                            });
+                        }
+                    }
+
+                    return Ok(hir::Expr {
+                        ty: hir::Ty::Adt(hir::AdtTy::Enum {
+                            name: enum_path,
+                            generics: vec![],
+                        }),
+                        kind: hir::ExprKind::StructInit {
+                            path,
+                            fields: lowered_fields,
+                        },
+                        span: expr.span,
+                        resolution: None,
+                    });
+                }
+
+                let Some(hir::Item::Struct(struct_def)) = self.type_definitions.get(&path).cloned()
+                else {
+                    self.errors.push(TypeError {
+                        message: format!("Unknown struct `{}`", path.join("::")),
+                        context: context.clone(),
+                    });
+                    return Err(());
+                };
                 let adt_ty = hir::Ty::Adt(hir::AdtTy::Struct {
                     name: path.clone(),
                     generics: vec![],
                 });
                 let mut lowered_fields = Vec::new();
                 for (name, expr) in fields {
-                    let e = self.lower_expr(expr, context.clone())?;
+                    let e = if let Some(field_def) =
+                        struct_def.fields.iter().find(|field| field.name == name)
+                    {
+                        self.lower_expr_with_expected(expr, field_def.ty.clone(), context.clone())?
+                    } else {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Unknown field `{}` for struct `{}`",
+                                name,
+                                path.join("::")
+                            ),
+                            context: context.clone(),
+                        });
+                        self.lower_expr(expr, context.clone())?
+                    };
                     lowered_fields.push((name, e));
+                }
+                for field_def in &struct_def.fields {
+                    if !lowered_fields
+                        .iter()
+                        .any(|(field_name, _)| field_name == &field_def.name)
+                    {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Missing field `{}` for struct `{}`",
+                                field_def.name,
+                                path.join("::")
+                            ),
+                            context: context.clone(),
+                        });
+                    }
                 }
                 Ok(hir::Expr {
                     ty: adt_ty.clone(),
@@ -1260,7 +1413,18 @@ impl Typechecker {
                     resolution: None,
                 })
             }
-            _ => self.lower_expr(expr, context),
+            _ => {
+                let lowered = self.lower_expr(expr, context.clone())?;
+                if lowered.ty == expected
+                    || matches!(lowered.ty, hir::Ty::Special(hir::SpecialTy::Never))
+                {
+                    Ok(lowered)
+                } else if TypeUnifier::is_assignable(&lowered.ty, &expected) {
+                    Ok(Self::cast_numeric_expr(lowered, expected))
+                } else {
+                    Ok(lowered)
+                }
+            }
         }
     }
 }

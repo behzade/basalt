@@ -127,7 +127,7 @@
           }
         ],
         "ret_type": {
-          "Generic": "!"
+          "Special": "Never"
         },
         "effects": []
       },
@@ -135,7 +135,7 @@
         "stmts": [],
         "last_expr": null,
         "ty": {
-          "Generic": "!"
+          "Special": "Never"
         }
       },
       "is_public": true,

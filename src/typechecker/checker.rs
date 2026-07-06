@@ -1,5 +1,7 @@
 use crate::ast_owned::*; // Your Owned AST definitions
 use crate::hir; // Your HIR definitions
+use crate::hir_validation;
+use crate::type_unifier::TypeUnifier;
 use crate::typechecker::errors::{ItemContext, TypeError};
 // removed unused imports
 use std::collections::{HashMap, HashSet};
@@ -155,8 +157,22 @@ impl Typechecker {
         self.contexts.clear();
         for (path, items) in &file_entries {
             for item in items {
-                if let Ok(it) = self.lower_item(item.clone(), path.clone()) {
-                    hir_items.push(it);
+                if let Ok(items) = self.lower_item(item.clone(), path.clone()) {
+                    hir_items.extend(items);
+                }
+            }
+        }
+
+        if self.errors.is_empty() {
+            if let Err(validation_errors) = hir_validation::validate_program(&hir_items) {
+                for error in validation_errors {
+                    self.errors.push(TypeError {
+                        message: format!("HIR validation failed: {}", error.message),
+                        context: ItemContext {
+                            span: error.span,
+                            path: error.path,
+                        },
+                    });
                 }
             }
         }
@@ -173,7 +189,7 @@ impl Typechecker {
     //================================================================================//
 
     /// Lowers a single `OwnedItem` from AST to HIR. This is the dispatcher.
-    fn lower_item(&mut self, item: OwnedItemWithSpan, path: PathBuf) -> Result<hir::Item, ()> {
+    fn lower_item(&mut self, item: OwnedItemWithSpan, path: PathBuf) -> Result<Vec<hir::Item>, ()> {
         match item.item {
             OwnedItem::Fn(func) => self
                 .lower_function(
@@ -183,7 +199,7 @@ impl Typechecker {
                         path,
                     },
                 )
-                .map(hir::Item::Fn),
+                .map(|item| vec![hir::Item::Fn(item)]),
             OwnedItem::Struct(s) => self
                 .lower_struct(
                     s,
@@ -192,7 +208,7 @@ impl Typechecker {
                         path,
                     },
                 )
-                .map(hir::Item::Struct),
+                .map(|item| vec![hir::Item::Struct(item)]),
             OwnedItem::TypeAlias(ta) => self
                 .lower_type_alias(
                     ta,
@@ -201,7 +217,14 @@ impl Typechecker {
                         path,
                     },
                 )
-                .map(hir::Item::TypeAlias),
+                .map(|(enum_def, alias)| {
+                    let mut items = Vec::new();
+                    if let Some(enum_def) = enum_def {
+                        items.push(hir::Item::Enum(enum_def));
+                    }
+                    items.push(hir::Item::TypeAlias(alias));
+                    items
+                }),
             OwnedItem::Enum(e) => self
                 .lower_enum(
                     e,
@@ -210,7 +233,7 @@ impl Typechecker {
                         path,
                     },
                 )
-                .map(hir::Item::Enum),
+                .map(|item| vec![hir::Item::Enum(item)]),
             OwnedItem::Effect(eff) => self
                 .lower_effect(
                     eff,
@@ -219,7 +242,7 @@ impl Typechecker {
                         path,
                     },
                 )
-                .map(hir::Item::Effect),
+                .map(|item| vec![hir::Item::Effect(item)]),
             OwnedItem::Handler(h) => self
                 .lower_handler(
                     h,
@@ -228,7 +251,7 @@ impl Typechecker {
                         path,
                     },
                 )
-                .map(hir::Item::Handler),
+                .map(|item| vec![hir::Item::Handler(item)]),
             _ => Err(()),
         }
     }
@@ -268,7 +291,10 @@ impl Typechecker {
                     generics: vec![],
                 }));
             } else {
-                effects_vec.push(hir::Ty::Generic(eff_name.clone()));
+                self.errors.push(TypeError {
+                    message: format!("Unknown effect `{}`", eff_name),
+                    context: context.clone(),
+                });
             }
         }
 
@@ -314,7 +340,7 @@ impl Typechecker {
             let body_span = body_expr.span;
             let body_block = match body_expr.kind {
                 hir::ExprKind::Block(block) => {
-                    if block.ty != signature.ret_type {
+                    if !TypeUnifier::is_assignable(&block.ty, &signature.ret_type) {
                         self.errors.push(TypeError {
                             message: format!(
                                 "Mismatched return type for function '{}': expected {} but found {}",
@@ -329,7 +355,7 @@ impl Typechecker {
                 }
                 other_kind => {
                     let ty = body_expr.ty.clone();
-                    if ty != signature.ret_type {
+                    if !TypeUnifier::is_assignable(&ty, &signature.ret_type) {
                         self.errors.push(TypeError {
                             message: format!(
                                 "Mismatched return type for function '{}': expected {} but found {}",
@@ -484,19 +510,22 @@ impl Typechecker {
         &mut self,
         ta: OwnedTypeAliasDef,
         context: ItemContext,
-    ) -> Result<hir::HirTypeAlias, ()> {
+    ) -> Result<(Option<hir::HirEnumDef>, hir::HirTypeAlias), ()> {
         use crate::ast_owned::OwnedTypeAliasBody as Body;
         let name = ta.name.clone();
         match ta.aliased {
             Body::Type(t) => {
                 let aliased = self.resolve_type(&t, context.clone())?;
-                Ok(hir::HirTypeAlias {
-                    name,
-                    aliased,
-                    is_public: ta.is_public,
-                    defined_in: context.path.clone(),
-                    span: context.span,
-                })
+                Ok((
+                    None,
+                    hir::HirTypeAlias {
+                        name,
+                        aliased,
+                        is_public: ta.is_public,
+                        defined_in: context.path.clone(),
+                        span: context.span,
+                    },
+                ))
             }
             Body::Union(variants) => {
                 // Lower to enum def and alias to that nominal enum
@@ -519,7 +548,7 @@ impl Typechecker {
                 };
                 let path = vec![ta.name.clone()];
                 self.type_definitions
-                    .insert(path.clone(), hir::Item::Enum(def));
+                    .insert(path.clone(), hir::Item::Enum(def.clone()));
                 // Keep internal union_variants as tuple vec
                 let uv: Vec<(String, Option<Vec<hir::Ty>>)> = lowered
                     .iter()
@@ -530,13 +559,16 @@ impl Typechecker {
                     name: path,
                     generics: vec![],
                 });
-                Ok(hir::HirTypeAlias {
-                    name: ta.name,
-                    aliased,
-                    is_public: true,
-                    defined_in: context.path.clone(),
-                    span: context.span,
-                })
+                Ok((
+                    Some(def),
+                    hir::HirTypeAlias {
+                        name: ta.name,
+                        aliased,
+                        is_public: true,
+                        defined_in: context.path.clone(),
+                        span: context.span,
+                    },
+                ))
             }
         }
     }
@@ -588,7 +620,10 @@ impl Typechecker {
                     generics: vec![],
                 }));
             } else {
-                effects.push(hir::Ty::Generic(eff_name.clone()));
+                self.errors.push(TypeError {
+                    message: format!("Unknown effect `{}`", eff_name),
+                    context: context.clone(),
+                });
             }
         }
 
@@ -629,7 +664,7 @@ impl Typechecker {
                         found = true;
                         // Compare params count and return type (simple check)
                         if hf.signature.params.len() != op.params.len()
-                            || hf.signature.ret_type != op.ret_type
+                            || !TypeUnifier::is_assignable(&hf.signature.ret_type, &op.ret_type)
                         {
                             self.errors.push(TypeError { message: format!(
                                 "Handler method `{}` must match effect op signature: expected fn({}) -> {}",
@@ -722,6 +757,7 @@ impl Typechecker {
             // Map built-in unit type name to Unit special type
             "unit" => Ok(hir::Ty::Special(hir::SpecialTy::Unit)),
             "()" => Ok(hir::Ty::Special(hir::SpecialTy::Unit)),
+            "!" => Ok(hir::Ty::Special(hir::SpecialTy::Never)),
             // Function type lowering if we have structured metadata
             "fn" => {
                 if let (Some(params), Some(ret)) =

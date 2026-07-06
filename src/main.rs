@@ -9,6 +9,7 @@ mod ast;
 mod ast_owned;
 mod compiler;
 mod hir;
+mod hir_validation;
 mod interpreter;
 mod lexer;
 mod parser;

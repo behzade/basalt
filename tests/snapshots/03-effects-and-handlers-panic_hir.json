@@ -13,7 +13,7 @@
           }
         ],
         "ret_type": {
-          "Generic": "!"
+          "Special": "Never"
         },
         "effects": []
       },
@@ -21,7 +21,7 @@
         "stmts": [],
         "last_expr": null,
         "ty": {
-          "Generic": "!"
+          "Special": "Never"
         }
       },
       "is_public": true,
@@ -90,7 +90,7 @@
             }
           ],
           "ret_type": {
-            "Generic": "!"
+            "Special": "Never"
           },
           "effects": []
         }
@@ -132,7 +132,7 @@
               }
             ],
             "ret_type": {
-              "Generic": "!"
+              "Special": "Never"
             },
             "effects": []
           },
@@ -156,7 +156,7 @@
                           }
                         ],
                         "ret_type": {
-                          "Generic": "!"
+                          "Special": "Never"
                         },
                         "effects": []
                       }
@@ -188,7 +188,7 @@
                 }
               },
               "ty": {
-                "Generic": "!"
+                "Special": "Never"
               },
               "span": {
                 "start": 34,
@@ -197,7 +197,7 @@
               "resolution": null
             },
             "ty": {
-              "Generic": "!"
+              "Special": "Never"
             }
           },
           "is_public": false,
@@ -341,7 +341,7 @@
                           }
                         },
                         "ty": {
-                          "Generic": "!"
+                          "Special": "Never"
                         },
                         "span": {
                           "start": 67,
@@ -350,7 +350,7 @@
                         "resolution": null
                       },
                       "ty": {
-                        "Generic": "!"
+                        "Special": "Never"
                       }
                     },
                     "else_block": null
@@ -482,7 +482,18 @@
                                   "ret_type": {
                                     "Primitive": "I32"
                                   },
-                                  "effects": []
+                                  "effects": [
+                                    {
+                                      "Adt": {
+                                        "Effect": {
+                                          "name": [
+                                            "Panic"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
+                                    }
+                                  ]
                                 }
                               },
                               "span": {

@@ -7,6 +7,30 @@ use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
+    fn resolve_effect_names(
+        &mut self,
+        effect_names: &[String],
+        context: ItemContext,
+    ) -> Option<Vec<hir::Ty>> {
+        let mut effects = Vec::new();
+        for eff_name in effect_names {
+            let path = vec![eff_name.clone()];
+            if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
+                effects.push(hir::Ty::Adt(hir::AdtTy::Effect {
+                    name: path,
+                    generics: vec![],
+                }));
+            } else {
+                self.errors.push(TypeError {
+                    message: format!("Unknown effect `{}`", eff_name),
+                    context: context.clone(),
+                });
+                return None;
+            }
+        }
+        Some(effects)
+    }
+
     pub(crate) fn register_top_level_item(&mut self, item: &OwnedItemWithSpan) {
         match &item.item {
             OwnedItem::Fn(func) => {
@@ -33,12 +57,15 @@ impl Typechecker {
                         .unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit)),
                     None => hir::Ty::Special(hir::SpecialTy::Unit),
                 };
+                let Some(effects) = self.resolve_effect_names(&func.effects, ctx.clone()) else {
+                    return;
+                };
                 if !has_error {
                     let signature = hir::HirFunctionSignature {
                         name: func.name.clone(),
                         params,
                         ret_type: ret_ty,
-                        effects: vec![],
+                        effects,
                     };
                     self.top_level_functions.insert(
                         func.name.clone(),
@@ -207,12 +234,15 @@ impl Typechecker {
                         .unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit)),
                     None => hir::Ty::Special(hir::SpecialTy::Unit),
                 };
+                let Some(effects) = self.resolve_effect_names(&func.effects, ctx.clone()) else {
+                    return;
+                };
                 if !has_error {
                     let signature = hir::HirFunctionSignature {
                         name: func.name.clone(),
                         params,
                         ret_type: ret_ty,
-                        effects: vec![],
+                        effects,
                     };
                     self.top_level_functions.insert(
                         func.name.clone(),

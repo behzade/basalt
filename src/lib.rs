@@ -2,6 +2,7 @@ pub mod ast;
 pub mod ast_owned;
 pub mod compiler;
 pub mod hir;
+pub mod hir_validation;
 pub mod interpreter;
 pub mod lexer;
 pub mod parser;
