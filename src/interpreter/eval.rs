@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use crate::hir::{
     self, BinaryOp, Expr, ExprKind, HirBlock, HirFunction, HirHandlerBody, HirHandlerDef, Stmt,
@@ -12,28 +13,46 @@ use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 /// A very small tree-walking interpreter over the HIR.
 pub struct Interpreter {
     functions: HashMap<String, HirFunction>,
+    resolved_functions: HashMap<(PathBuf, String), HirFunction>,
     handlers: HashMap<String, HirHandlerDef>,
+    enum_payloads: HashMap<Vec<String>, Option<Vec<hir::Ty>>>,
     active_handlers: RefCell<Vec<HandlerValue>>,
 }
 
 impl Interpreter {
     pub fn new(items: &[hir::Item]) -> Self {
         let mut functions = HashMap::new();
+        let mut resolved_functions = HashMap::new();
         let mut handlers = HashMap::new();
+        let mut enum_payloads = HashMap::new();
         for item in items {
             match item {
                 hir::Item::Fn(func) => {
+                    resolved_functions.insert(
+                        (func.defined_in.clone(), func.signature.name.clone()),
+                        func.clone(),
+                    );
                     functions.insert(func.signature.name.clone(), func.clone());
                 }
                 hir::Item::Handler(handler) => {
                     handlers.insert(handler.name.clone(), handler.clone());
+                }
+                hir::Item::Enum(enum_def) => {
+                    for variant in &enum_def.variants {
+                        enum_payloads.insert(
+                            vec![enum_def.name.clone(), variant.name.clone()],
+                            variant.payload.clone(),
+                        );
+                    }
                 }
                 _ => {}
             }
         }
         Interpreter {
             functions,
+            resolved_functions,
             handlers,
+            enum_payloads,
             active_handlers: RefCell::new(vec![]),
         }
     }
@@ -203,12 +222,11 @@ impl Interpreter {
                     if let Some(val) = env.get(name) {
                         return Ok(val);
                     }
+                    if let Some(function) = self.resolved_function(expr, name) {
+                        return Ok(Self::function_value(function));
+                    }
                     if let Some(function) = self.functions.get(name) {
-                        return Ok(Value::Function(FunctionValue {
-                            params: function.signature.params.clone(),
-                            body: function.body.clone(),
-                            captured: vec![],
-                        }));
+                        return Ok(Self::function_value(function));
                     }
                 }
                 Err(RuntimeError(format!("Unknown path: {:?}", path)))
@@ -247,6 +265,13 @@ impl Interpreter {
                             }
                             return self.call_function_value(&func_val, evaled);
                         }
+                        if let Some(f) = self.resolved_function(fun, name) {
+                            let mut evaled = Vec::with_capacity(args.len());
+                            for a in args {
+                                evaled.push(self.eval_expr(a, env)?);
+                            }
+                            return self.call_function(f, evaled);
+                        }
                         if let Some(f) = self.functions.get(name) {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
@@ -270,7 +295,7 @@ impl Interpreter {
                                     }
                                     let mut path = enum_name.clone();
                                     path.push(name.clone());
-                                    return Ok(Value::Struct { path, fields });
+                                    return Ok(Value::EnumVariant { path, fields });
                                 }
                             }
                         }
@@ -293,6 +318,13 @@ impl Interpreter {
                 for (name, expr) in fields {
                     let v = self.eval_expr(expr, env)?;
                     map.insert(name.clone(), v);
+                }
+                if let hir::Ty::Adt(hir::AdtTy::Enum { .. }) = &expr.ty {
+                    let map = self.canonical_enum_fields(path, map);
+                    return Ok(Value::EnumVariant {
+                        path: path.clone(),
+                        fields: map,
+                    });
                 }
                 Ok(Value::Struct {
                     path: path.clone(),
@@ -483,16 +515,18 @@ impl Interpreter {
                 }
             }
             hir::HirPatternKind::Path { path, args } => {
-                let Value::Struct {
-                    path: value_path, ..
+                let Value::EnumVariant {
+                    path: value_path,
+                    fields,
                 } = value
                 else {
                     return Ok(None);
                 };
 
-                let pattern_name = path.last();
-                let value_name = value_path.last();
-                if pattern_name.is_none() || pattern_name != value_name {
+                let Some(expected_path) = Self::expected_variant_path(pattern, path) else {
+                    return Ok(None);
+                };
+                if &expected_path != value_path {
                     return Ok(None);
                 }
 
@@ -500,12 +534,7 @@ impl Interpreter {
                 for arg in args {
                     match &arg.kind {
                         hir::HirPatternKind::Identifier(name) => {
-                            let bound = match value {
-                                Value::Struct { fields, .. } => {
-                                    fields.get("0").cloned().unwrap_or_else(|| value.clone())
-                                }
-                                _ => value.clone(),
-                            };
+                            let bound = fields.get("0").cloned().unwrap_or_else(|| value.clone());
                             bindings.insert(name.clone(), bound);
                         }
                         hir::HirPatternKind::Wildcard => {}
@@ -519,6 +548,67 @@ impl Interpreter {
                 Ok(Some(bindings))
             }
         }
+    }
+
+    fn expected_variant_path(pattern: &hir::HirPattern, path: &[String]) -> Option<Vec<String>> {
+        match &pattern.ty {
+            hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => {
+                let variant = path.last()?;
+                let mut full_path = name.clone();
+                full_path.push(variant.clone());
+                Some(full_path)
+            }
+            _ => Some(path.to_vec()),
+        }
+    }
+
+    fn resolved_function<'a>(&'a self, fun: &hir::Expr, name: &str) -> Option<&'a HirFunction> {
+        let Some(hir::Resolution::Function { defined_in, .. }) = &fun.resolution else {
+            return None;
+        };
+        self.resolved_functions
+            .get(&(defined_in.clone(), name.to_string()))
+    }
+
+    fn function_value(function: &HirFunction) -> Value {
+        Value::Function(FunctionValue {
+            params: function.signature.params.clone(),
+            body: function.body.clone(),
+            captured: vec![],
+        })
+    }
+
+    fn canonical_enum_fields(
+        &self,
+        path: &[String],
+        fields: HashMap<String, Value>,
+    ) -> HashMap<String, Value> {
+        if fields.contains_key("0") {
+            return fields;
+        }
+
+        let Some(Some(payload)) = self.enum_payloads.get(path) else {
+            return fields;
+        };
+        let [
+            hir::Ty::Adt(hir::AdtTy::Struct {
+                name: payload_struct,
+                ..
+            }),
+        ] = payload.as_slice()
+        else {
+            return fields;
+        };
+
+        let mut wrapped = HashMap::new();
+        wrapped.insert(
+            "0".to_string(),
+            Value::Struct {
+                path: payload_struct.clone(),
+                fields,
+            },
+        );
+        wrapped
     }
 
     fn eval_literal(&self, pty: &hir::PrimitiveTy, text: &str) -> Result<Value> {
@@ -932,6 +1022,7 @@ fn is_truthy(v: &Value) -> bool {
         Value::Array(a) => !a.is_empty(),
         Value::Map(m) => !m.is_empty(),
         Value::Struct { .. } => true,
+        Value::EnumVariant { .. } => true,
         Value::Function(_) => true,
         Value::Handler(_) => true,
     }
@@ -1032,6 +1123,38 @@ mod tests {
         })
     }
 
+    fn enum_variant_expr(enum_name: &str, variant_name: &str) -> Expr {
+        Expr {
+            kind: ExprKind::StructInit {
+                path: vec![enum_name.to_string(), variant_name.to_string()],
+                fields: vec![],
+            },
+            ty: enum_ty(enum_name),
+            span: span(),
+            resolution: None,
+        }
+    }
+
+    fn function_ty(ret_type: hir::Ty) -> hir::Ty {
+        hir::Ty::Function {
+            param_types: vec![],
+            ret_type: Box::new(ret_type),
+            effects: vec![],
+        }
+    }
+
+    fn resolved_function_path(name: &str, defined_in: &str, ret_type: hir::Ty) -> Expr {
+        Expr {
+            kind: ExprKind::Path(vec![name.to_string()]),
+            ty: function_ty(ret_type),
+            span: span(),
+            resolution: Some(hir::Resolution::Function {
+                defined_in: defined_in.into(),
+                span: span(),
+            }),
+        }
+    }
+
     fn map_ty(key: hir::PrimitiveTy, value: hir::Ty) -> hir::Ty {
         hir::Ty::Map {
             key: Box::new(key),
@@ -1040,6 +1163,10 @@ mod tests {
     }
 
     fn function(name: &str, body_expr: Expr) -> HirFunction {
+        function_in(name, "test.bst", body_expr)
+    }
+
+    fn function_in(name: &str, defined_in: &str, body_expr: Expr) -> HirFunction {
         HirFunction {
             signature: hir::HirFunctionSignature {
                 name: name.to_string(),
@@ -1053,10 +1180,45 @@ mod tests {
                 ty: i32_ty(),
             },
             is_public: false,
+            defined_in: defined_in.into(),
+            span: span(),
+            context_id: None,
+        }
+    }
+
+    fn main_with_body(stmts: Vec<Stmt>, body_expr: Expr) -> HirFunction {
+        HirFunction {
+            signature: hir::HirFunctionSignature {
+                name: "main".to_string(),
+                params: vec![],
+                ret_type: body_expr.ty.clone(),
+                effects: vec![],
+            },
+            body: HirBlock {
+                stmts,
+                last_expr: Some(Box::new(body_expr.clone())),
+                ty: body_expr.ty,
+            },
+            is_public: false,
             defined_in: "test.bst".into(),
             span: span(),
             context_id: None,
         }
+    }
+
+    fn enum_item(enum_name: &str, variant_name: &str, payload: Option<Vec<hir::Ty>>) -> hir::Item {
+        hir::Item::Enum(hir::HirEnumDef {
+            name: enum_name.to_string(),
+            variants: vec![hir::HirEnumVariant {
+                name: variant_name.to_string(),
+                payload,
+                name_span: Some(span()),
+            }],
+            is_public: false,
+            defined_in: "test.bst".into(),
+            span: span(),
+            context_id: None,
+        })
     }
 
     fn effect_ty(name: &str) -> hir::Ty {
@@ -1133,64 +1295,175 @@ mod tests {
 
     #[test]
     fn matches_enum_variant_and_binds_payload() {
+        let items = vec![
+            enum_item("UserType", "B2B", Some(vec![struct_ty("Company")])),
+            hir::Item::Fn(function(
+                "main",
+                Expr {
+                    kind: ExprKind::Match {
+                        scrutinee: Box::new(Expr {
+                            kind: ExprKind::StructInit {
+                                path: vec!["UserType".to_string(), "B2B".to_string()],
+                                fields: vec![(
+                                    "name".to_string(),
+                                    Expr {
+                                        kind: ExprKind::Literal(
+                                            hir::PrimitiveTy::Str,
+                                            "acme".to_string(),
+                                        ),
+                                        ty: str_ty(),
+                                        span: span(),
+                                        resolution: None,
+                                    },
+                                )],
+                            },
+                            ty: enum_ty("UserType"),
+                            span: span(),
+                            resolution: None,
+                        }),
+                        arms: vec![(
+                            hir::HirPattern {
+                                kind: hir::HirPatternKind::Path {
+                                    path: vec!["B2B".to_string()],
+                                    args: vec![hir::HirPattern {
+                                        kind: hir::HirPatternKind::Identifier("b2b".to_string()),
+                                        ty: struct_ty("Company"),
+                                    }],
+                                },
+                                ty: enum_ty("UserType"),
+                            },
+                            Expr {
+                                kind: ExprKind::FieldAccess {
+                                    receiver: Box::new(Expr {
+                                        kind: ExprKind::Path(vec!["b2b".to_string()]),
+                                        ty: struct_ty("Company"),
+                                        span: span(),
+                                        resolution: None,
+                                    }),
+                                    field: "name".to_string(),
+                                },
+                                ty: str_ty(),
+                                span: span(),
+                                resolution: None,
+                            },
+                        )],
+                    },
+                    ty: str_ty(),
+                    span: span(),
+                    resolution: None,
+                },
+            )),
+        ];
+
+        assert_eq!(run_program(&items).unwrap(), Value::Str("acme".to_string()));
+    }
+
+    #[test]
+    fn enum_variant_matching_uses_full_constructor_identity() {
         let items = vec![hir::Item::Fn(function(
             "main",
             Expr {
                 kind: ExprKind::Match {
-                    scrutinee: Box::new(Expr {
-                        kind: ExprKind::StructInit {
-                            path: vec!["UserType".to_string(), "B2B".to_string()],
-                            fields: vec![(
-                                "name".to_string(),
-                                Expr {
-                                    kind: ExprKind::Literal(
-                                        hir::PrimitiveTy::Str,
-                                        "acme".to_string(),
-                                    ),
-                                    ty: str_ty(),
-                                    span: span(),
-                                    resolution: None,
+                    scrutinee: Box::new(enum_variant_expr("A", "Same")),
+                    arms: vec![
+                        (
+                            hir::HirPattern {
+                                kind: hir::HirPatternKind::Path {
+                                    path: vec!["Same".to_string()],
+                                    args: vec![],
                                 },
-                            )],
-                        },
-                        ty: enum_ty("UserType"),
-                        span: span(),
-                        resolution: None,
-                    }),
-                    arms: vec![(
-                        hir::HirPattern {
-                            kind: hir::HirPatternKind::Path {
-                                path: vec!["B2B".to_string()],
-                                args: vec![hir::HirPattern {
-                                    kind: hir::HirPatternKind::Identifier("b2b".to_string()),
-                                    ty: struct_ty("Company"),
-                                }],
+                                ty: enum_ty("B"),
                             },
-                            ty: enum_ty("UserType"),
-                        },
-                        Expr {
-                            kind: ExprKind::FieldAccess {
-                                receiver: Box::new(Expr {
-                                    kind: ExprKind::Path(vec!["b2b".to_string()]),
-                                    ty: struct_ty("Company"),
-                                    span: span(),
-                                    resolution: None,
-                                }),
-                                field: "name".to_string(),
+                            literal_i32("1"),
+                        ),
+                        (
+                            hir::HirPattern {
+                                kind: hir::HirPatternKind::Path {
+                                    path: vec!["Same".to_string()],
+                                    args: vec![],
+                                },
+                                ty: enum_ty("A"),
                             },
-                            ty: str_ty(),
-                            span: span(),
-                            resolution: None,
-                        },
-                    )],
+                            literal_i32("2"),
+                        ),
+                    ],
                 },
-                ty: str_ty(),
+                ty: i32_ty(),
                 span: span(),
                 resolution: None,
             },
         ))];
 
-        assert_eq!(run_program(&items).unwrap(), Value::Str("acme".to_string()));
+        assert_eq!(run_program(&items).unwrap(), Value::I32(2));
+    }
+
+    #[test]
+    fn calls_function_selected_by_hir_resolution() {
+        let items = vec![
+            hir::Item::Fn(function_in("value", "a.bst", literal_i32("1"))),
+            hir::Item::Fn(function_in("value", "b.bst", literal_i32("2"))),
+            hir::Item::Fn(function(
+                "main",
+                Expr {
+                    kind: ExprKind::Call {
+                        fun: Box::new(Expr {
+                            kind: ExprKind::Path(vec!["value".to_string()]),
+                            ty: hir::Ty::Function {
+                                param_types: vec![],
+                                ret_type: Box::new(i32_ty()),
+                                effects: vec![],
+                            },
+                            span: span(),
+                            resolution: Some(hir::Resolution::Function {
+                                defined_in: "a.bst".into(),
+                                span: span(),
+                            }),
+                        }),
+                        args: vec![],
+                    },
+                    ty: i32_ty(),
+                    span: span(),
+                    resolution: None,
+                },
+            )),
+        ];
+
+        assert_eq!(run_program(&items).unwrap(), Value::I32(1));
+    }
+
+    #[test]
+    fn resolved_function_path_value_uses_selected_definition() {
+        let selected_ty = function_ty(i32_ty());
+        let items = vec![
+            hir::Item::Fn(function_in("value", "a.bst", literal_i32("1"))),
+            hir::Item::Fn(function_in("value", "b.bst", literal_i32("2"))),
+            hir::Item::Fn(main_with_body(
+                vec![Stmt::Let {
+                    name: "selected".to_string(),
+                    value: Some(resolved_function_path("value", "a.bst", i32_ty())),
+                    ty: selected_ty.clone(),
+                    is_mut: false,
+                    span: span(),
+                    name_span: Some(span()),
+                }],
+                Expr {
+                    kind: ExprKind::Call {
+                        fun: Box::new(Expr {
+                            kind: ExprKind::Path(vec!["selected".to_string()]),
+                            ty: selected_ty,
+                            span: span(),
+                            resolution: None,
+                        }),
+                        args: vec![],
+                    },
+                    ty: i32_ty(),
+                    span: span(),
+                    resolution: None,
+                },
+            )),
+        ];
+
+        assert_eq!(run_program(&items).unwrap(), Value::I32(1));
     }
 
     #[test]

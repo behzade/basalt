@@ -24,6 +24,10 @@ pub enum Value {
         path: Vec<String>,
         fields: HashMap<String, Value>,
     },
+    EnumVariant {
+        path: Vec<String>,
+        fields: HashMap<String, Value>,
+    },
     Function(FunctionValue),
     Handler(HandlerValue),
 }
@@ -72,6 +76,16 @@ impl PartialEq for Value {
                     fields: f1,
                 },
                 V::Struct {
+                    path: p2,
+                    fields: f2,
+                },
+            ) => p1 == p2 && f1 == f2,
+            (
+                V::EnumVariant {
+                    path: p1,
+                    fields: f1,
+                },
+                V::EnumVariant {
                     path: p2,
                     fields: f2,
                 },
@@ -137,6 +151,26 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
+            Value::EnumVariant { path, fields } => {
+                let name = if path.is_empty() {
+                    "<variant>".to_string()
+                } else {
+                    path.join("::")
+                };
+                if fields.is_empty() {
+                    write!(f, "{}", name)
+                } else {
+                    write!(f, "{}(", name)?;
+                    let mut iter = fields.iter();
+                    if let Some((_, v)) = iter.next() {
+                        write!(f, "{}", v)?;
+                        for (_, v) in iter {
+                            write!(f, ", {}", v)?;
+                        }
+                    }
+                    write!(f, ")")
+                }
+            }
             Value::Function(_) => write!(f, "<fn>"),
             Value::Handler(_) => write!(f, "<handler>"),
         }
@@ -191,6 +225,7 @@ pub fn value_to_exit_code(value: &Value) -> i32 {
         | Value::Array(_)
         | Value::Map(_)
         | Value::Struct { .. }
+        | Value::EnumVariant { .. }
         | Value::Function(_)
         | Value::Handler(_) => 0,
     }
