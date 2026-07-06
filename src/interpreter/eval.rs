@@ -290,7 +290,22 @@ impl Interpreter {
                     Ok(Value::Unit)
                 }
             }
-            ExprKind::Match { .. } => Err(RuntimeError("Match not yet supported".to_string())),
+            ExprKind::Match { scrutinee, arms } => {
+                let value = self.eval_expr(scrutinee, env)?;
+                for (pattern, arm_expr) in arms {
+                    if let Some(bindings) = self.match_pattern(pattern, &value)? {
+                        let mut arm_env = env.clone();
+                        arm_env.push_scope();
+                        for (name, value) in bindings {
+                            arm_env.define(name, value);
+                        }
+                        let result = self.eval_expr(arm_expr, &mut arm_env);
+                        arm_env.pop_scope();
+                        return result;
+                    }
+                }
+                Err(RuntimeError("Non-exhaustive match at runtime".to_string()))
+            }
             ExprKind::While { cond, body } => {
                 while is_truthy(&self.eval_expr(cond, env)?) {
                     if let Some(v) = self.eval_block(body, env)? {
@@ -419,6 +434,59 @@ impl Interpreter {
                     functions: functions.clone(),
                 }],
             })),
+        }
+    }
+
+    fn match_pattern(
+        &self,
+        pattern: &hir::HirPattern,
+        value: &Value,
+    ) -> Result<Option<HashMap<String, Value>>> {
+        match &pattern.kind {
+            hir::HirPatternKind::Wildcard => Ok(Some(HashMap::new())),
+            hir::HirPatternKind::Identifier(name) => {
+                let mut bindings = HashMap::new();
+                bindings.insert(name.clone(), value.clone());
+                Ok(Some(bindings))
+            }
+            hir::HirPatternKind::Literal(pty, text) => {
+                let literal = self.eval_literal(pty, text)?;
+                if &literal == value {
+                    Ok(Some(HashMap::new()))
+                } else {
+                    Ok(None)
+                }
+            }
+            hir::HirPatternKind::Path { path, args } => {
+                let Value::Struct {
+                    path: value_path, ..
+                } = value
+                else {
+                    return Ok(None);
+                };
+
+                let pattern_name = path.last();
+                let value_name = value_path.last();
+                if pattern_name.is_none() || pattern_name != value_name {
+                    return Ok(None);
+                }
+
+                let mut bindings = HashMap::new();
+                for arg in args {
+                    match &arg.kind {
+                        hir::HirPatternKind::Identifier(name) => {
+                            bindings.insert(name.clone(), value.clone());
+                        }
+                        hir::HirPatternKind::Wildcard => {}
+                        _ => {
+                            return Err(RuntimeError(
+                                "Nested path match patterns are not yet supported".to_string(),
+                            ));
+                        }
+                    }
+                }
+                Ok(Some(bindings))
+            }
         }
     }
 
@@ -913,6 +981,24 @@ mod tests {
         }
     }
 
+    fn str_ty() -> hir::Ty {
+        hir::Ty::Primitive(hir::PrimitiveTy::Str)
+    }
+
+    fn struct_ty(name: &str) -> hir::Ty {
+        hir::Ty::Adt(hir::AdtTy::Struct {
+            name: vec![name.to_string()],
+            generics: vec![],
+        })
+    }
+
+    fn enum_ty(name: &str) -> hir::Ty {
+        hir::Ty::Adt(hir::AdtTy::Enum {
+            name: vec![name.to_string()],
+            generics: vec![],
+        })
+    }
+
     fn function(name: &str, body_expr: Expr) -> HirFunction {
         HirFunction {
             signature: hir::HirFunctionSignature {
@@ -1003,5 +1089,67 @@ mod tests {
         ];
 
         assert_eq!(run_program(&items).unwrap(), Value::I32(9));
+    }
+
+    #[test]
+    fn matches_enum_variant_and_binds_payload() {
+        let items = vec![hir::Item::Fn(function(
+            "main",
+            Expr {
+                kind: ExprKind::Match {
+                    scrutinee: Box::new(Expr {
+                        kind: ExprKind::StructInit {
+                            path: vec!["UserType".to_string(), "B2B".to_string()],
+                            fields: vec![(
+                                "name".to_string(),
+                                Expr {
+                                    kind: ExprKind::Literal(
+                                        hir::PrimitiveTy::Str,
+                                        "acme".to_string(),
+                                    ),
+                                    ty: str_ty(),
+                                    span: span(),
+                                    resolution: None,
+                                },
+                            )],
+                        },
+                        ty: enum_ty("UserType"),
+                        span: span(),
+                        resolution: None,
+                    }),
+                    arms: vec![(
+                        hir::HirPattern {
+                            kind: hir::HirPatternKind::Path {
+                                path: vec!["B2B".to_string()],
+                                args: vec![hir::HirPattern {
+                                    kind: hir::HirPatternKind::Identifier("b2b".to_string()),
+                                    ty: struct_ty("Company"),
+                                }],
+                            },
+                            ty: enum_ty("UserType"),
+                        },
+                        Expr {
+                            kind: ExprKind::FieldAccess {
+                                receiver: Box::new(Expr {
+                                    kind: ExprKind::Path(vec!["b2b".to_string()]),
+                                    ty: struct_ty("Company"),
+                                    span: span(),
+                                    resolution: None,
+                                }),
+                                field: "name".to_string(),
+                            },
+                            ty: str_ty(),
+                            span: span(),
+                            resolution: None,
+                        },
+                    )],
+                },
+                ty: str_ty(),
+                span: span(),
+                resolution: None,
+            },
+        ))];
+
+        assert_eq!(run_program(&items).unwrap(), Value::Str("acme".to_string()));
     }
 }
