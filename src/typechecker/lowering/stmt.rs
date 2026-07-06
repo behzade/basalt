@@ -262,15 +262,26 @@ impl Typechecker {
                 variant_path,
             } => {
                 let variant_name = variant_path.last().cloned().unwrap_or_default();
-                let (pattern_path, payload) = match scrutinee_ty {
+                let (pattern_path, payload, variant_exists) = match scrutinee_ty {
                     hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => {
                         let mut path = name.clone();
                         path.push(variant_name.clone());
-                        (
-                            path,
-                            self.instantiated_union_payload(name, generics, &variant_name)
-                                .flatten(),
-                        )
+                        let (payload, variant_exists) =
+                            match self.instantiated_union_payload(name, generics, &variant_name) {
+                                Some(payload) => (payload, true),
+                                None => {
+                                    self.errors.push(TypeError {
+                                        message: format!(
+                                            "Unknown variant `{}` for enum `{}`",
+                                            variant_name,
+                                            name.join("::")
+                                        ),
+                                        context: context.clone(),
+                                    });
+                                    (None, false)
+                                }
+                            };
+                        (path, payload, variant_exists)
                     }
                     _ => (
                         variant_path
@@ -278,6 +289,7 @@ impl Typechecker {
                             .map(|part| part.to_string())
                             .collect(),
                         None,
+                        false,
                     ),
                 };
                 let mut bound = Vec::new();
@@ -290,6 +302,14 @@ impl Typechecker {
                             ty: first.clone(),
                         });
                     }
+                } else if variant_exists {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Variant `{}` has no payload to bind as `{}`",
+                            variant_name, binding
+                        ),
+                        context: context.clone(),
+                    });
                 }
                 (
                     hir::HirPattern {

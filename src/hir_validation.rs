@@ -734,6 +734,7 @@ impl Validator {
                         );
                     }
                 }
+                self.validate_match_exhaustiveness(scrutinee, arms, path, expr.span);
             }
             hir::ExprKind::While { cond, body } => {
                 self.validate_expr(cond, path);
@@ -1416,6 +1417,54 @@ impl Validator {
         }
     }
 
+    fn validate_match_exhaustiveness(
+        &mut self,
+        scrutinee: &hir::Expr,
+        arms: &[(hir::HirPattern, hir::Expr)],
+        path: &PathBuf,
+        span: SimpleSpan,
+    ) {
+        let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &scrutinee.ty else {
+            return;
+        };
+        let Some(enum_def) = self.enums.get(name) else {
+            return;
+        };
+        if arms.iter().any(|(pattern, _)| {
+            matches!(
+                pattern.kind,
+                hir::HirPatternKind::Identifier(_) | hir::HirPatternKind::Wildcard
+            )
+        }) {
+            return;
+        }
+
+        let missing = enum_def
+            .variants
+            .iter()
+            .filter_map(|variant| {
+                let mut variant_path = name.clone();
+                variant_path.push(variant.name.clone());
+                let covered = arms.iter().any(|(pattern, _)| match &pattern.kind {
+                    hir::HirPatternKind::Path { path, .. } => path == &variant_path,
+                    _ => false,
+                });
+                (!covered).then(|| variant.name.clone())
+            })
+            .collect::<Vec<_>>();
+
+        if !missing.is_empty() {
+            self.error(
+                path,
+                span,
+                format!(
+                    "HIR enum match on {:?} is non-exhaustive; missing {:?}",
+                    name, missing
+                ),
+            );
+        }
+    }
+
     fn validate_ty(&mut self, ty: &hir::Ty, path: &PathBuf, span: SimpleSpan) {
         match ty {
             hir::Ty::Special(_) | hir::Ty::Primitive(_) => {}
@@ -1666,6 +1715,78 @@ mod tests {
                 .iter()
                 .any(|msg| msg.contains("path pattern references unknown variant"))
         );
+    }
+
+    #[test]
+    fn rejects_non_exhaustive_enum_match() {
+        let enum_item = hir::Item::Enum(hir::HirEnumDef {
+            name: "Choice".to_string(),
+            variants: vec![
+                hir::HirEnumVariant {
+                    name: "First".to_string(),
+                    payload: Some(vec![hir::Ty::Adt(hir::AdtTy::Struct {
+                        name: vec!["Person".to_string()],
+                        generics: vec![],
+                    })]),
+                    name_span: None,
+                },
+                hir::HirEnumVariant {
+                    name: "Second".to_string(),
+                    payload: Some(vec![hir::Ty::Adt(hir::AdtTy::Struct {
+                        name: vec!["Person".to_string()],
+                        generics: vec![],
+                    })]),
+                    name_span: None,
+                },
+            ],
+            is_public: false,
+            defined_in: path(),
+            span: span(),
+            context_id: None,
+        });
+        let enum_ty = hir::Ty::Adt(hir::AdtTy::Enum {
+            name: vec!["Choice".to_string()],
+            generics: vec![],
+        });
+        let person_ty = hir::Ty::Adt(hir::AdtTy::Struct {
+            name: vec!["Person".to_string()],
+            generics: vec![],
+        });
+        let expr = hir::Expr {
+            ty: i32_ty(),
+            kind: hir::ExprKind::Match {
+                scrutinee: Box::new(hir::Expr {
+                    ty: enum_ty.clone(),
+                    kind: hir::ExprKind::Path(vec!["value".to_string()]),
+                    span: span(),
+                    resolution: None,
+                }),
+                arms: vec![(
+                    hir::HirPattern {
+                        ty: enum_ty,
+                        kind: hir::HirPatternKind::Path {
+                            path: vec!["Choice".to_string(), "First".to_string()],
+                            args: vec![hir::HirPattern {
+                                ty: person_ty,
+                                kind: hir::HirPatternKind::Identifier("first".to_string()),
+                            }],
+                        },
+                    },
+                    hir::Expr {
+                        ty: i32_ty(),
+                        kind: hir::ExprKind::Literal(hir::PrimitiveTy::I32, "1".to_string()),
+                        span: span(),
+                        resolution: None,
+                    },
+                )],
+            },
+            span: span(),
+            resolution: None,
+        };
+
+        let messages =
+            validation_messages(vec![test_struct(), enum_item, function_with_expr(expr)]);
+        assert!(messages.iter().any(|msg| msg.contains("non-exhaustive")));
     }
 
     #[test]

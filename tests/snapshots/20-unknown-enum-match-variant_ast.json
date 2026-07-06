@@ -1,0 +1,211 @@
+{
+  "tests/20-unknown-enum-match-variant.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Empty",
+          "generics": [],
+          "fields": [],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 4
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Choice",
+          "generics": [],
+          "aliased": {
+            "Union": [
+              [
+                "First",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "Second",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 4,
+        "end": 14
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "value",
+                        "ty": {
+                          "path": [
+                            "Choice"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "StructInit": {
+                              "path": [
+                                "Choice",
+                                "First"
+                              ],
+                              "generics": [],
+                              "fields": []
+                            }
+                          },
+                          "span": {
+                            "start": 26,
+                            "end": 32
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 21,
+                      "end": 32
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Match": {
+                            "scrutinee": {
+                              "item": {
+                                "Path": [
+                                  "value"
+                                ]
+                              },
+                              "span": {
+                                "start": 33,
+                                "end": 34
+                              }
+                            },
+                            "arms": [
+                              [
+                                {
+                                  "item": {
+                                    "VariantBind": {
+                                      "binding": "typo",
+                                      "variant_path": [
+                                        "Third"
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 35,
+                                    "end": 38
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 1
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 39,
+                                    "end": 40
+                                  }
+                                }
+                              ],
+                              [
+                                {
+                                  "item": "Wildcard",
+                                  "span": {
+                                    "start": 41,
+                                    "end": 42
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 0
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 43,
+                                    "end": 44
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 32,
+                          "end": 44
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 32,
+                      "end": 44
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 20,
+              "end": 45
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 14,
+        "end": 45
+      }
+    }
+  ]
+}

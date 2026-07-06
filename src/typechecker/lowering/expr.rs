@@ -46,6 +46,39 @@ impl Typechecker {
         base
     }
 
+    fn missing_enum_match_variants(
+        &self,
+        scrutinee_ty: &hir::Ty,
+        arms: &[(hir::HirPattern, hir::Expr)],
+    ) -> Option<Vec<String>> {
+        let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = scrutinee_ty else {
+            return None;
+        };
+        let variants = self.union_variants.get(name)?;
+        if arms.iter().any(|(pattern, _)| {
+            matches!(
+                pattern.kind,
+                hir::HirPatternKind::Identifier(_) | hir::HirPatternKind::Wildcard
+            )
+        }) {
+            return Some(vec![]);
+        }
+
+        let mut missing = Vec::new();
+        for (variant, _) in variants {
+            let mut variant_path = name.clone();
+            variant_path.push(variant.clone());
+            let covered = arms.iter().any(|(pattern, _)| match &pattern.kind {
+                hir::HirPatternKind::Path { path, .. } => path == &variant_path,
+                _ => false,
+            });
+            if !covered {
+                missing.push(variant.clone());
+            }
+        }
+        Some(missing)
+    }
+
     fn effect_from_perform_path(&self, path: &[String]) -> Option<hir::Ty> {
         let effect_name = path.first()?;
         let effect_path = vec![effect_name.clone()];
@@ -1293,6 +1326,20 @@ impl Typechecker {
                     lowered_arms.push((hir_pat, hir_arm_expr));
                     self.leave_scope();
                 }
+                if let Some(missing) =
+                    self.missing_enum_match_variants(&scrutinee_hir.ty, &lowered_arms)
+                {
+                    if !missing.is_empty() {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Non-exhaustive match on {}: missing {}",
+                                Typechecker::format_ty(&scrutinee_hir.ty),
+                                missing.join(", ")
+                            ),
+                            context: context.clone(),
+                        });
+                    }
+                }
                 let result_ty = result_ty.unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
                 Ok(hir::Expr {
                     ty: result_ty,
@@ -1795,6 +1842,20 @@ impl Typechecker {
                         });
                     }
                     lowered_arms.push((hir_pat, hir_arm_expr));
+                }
+                if let Some(missing) =
+                    self.missing_enum_match_variants(&scrutinee_hir.ty, &lowered_arms)
+                {
+                    if !missing.is_empty() {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Non-exhaustive match on {}: missing {}",
+                                Typechecker::format_ty(&scrutinee_hir.ty),
+                                missing.join(", ")
+                            ),
+                            context: context.clone(),
+                        });
+                    }
                 }
                 Ok(hir::Expr {
                     ty: expected_ty,
