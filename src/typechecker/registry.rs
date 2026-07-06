@@ -87,12 +87,27 @@ impl Typechecker {
         let Some(body_effects) = self.handler_values.get(body_name).cloned() else {
             return;
         };
-        let handler_effects = match handler {
-            crate::ast_owned::OwnedHandlerBody::Path(path) => path
-                .last()
-                .and_then(|handler_name| self.handler_values.get(handler_name))
-                .cloned(),
-            crate::ast_owned::OwnedHandlerBody::Inline(_) => Some(vec![]),
+        let handler_names = match handler {
+            crate::ast_owned::OwnedHandlerBody::Path(path) => {
+                vec![path.last().cloned().unwrap_or_default()]
+            }
+            crate::ast_owned::OwnedHandlerBody::Inline(_) => vec![],
+        };
+        let handler_effects = if handler_names.is_empty() {
+            Some(vec![])
+        } else {
+            let mut effects = vec![];
+            for handler_name in &handler_names {
+                let Some(handler_effects) = self.handler_values.get(handler_name) else {
+                    self.errors.push(TypeError {
+                        message: format!("Unknown handler `{}`", handler_name),
+                        context,
+                    });
+                    return;
+                };
+                effects.extend(handler_effects.clone());
+            }
+            Some(effects)
         };
         let Some(handler_effects) = handler_effects else {
             self.errors.push(TypeError {
@@ -101,6 +116,8 @@ impl Typechecker {
             });
             return;
         };
+        self.handler_aliases
+            .insert(name.clone(), (body_name.clone(), handler_names));
         self.handler_values.insert(
             name.clone(),
             Self::effect_set_difference(&body_effects, &handler_effects),

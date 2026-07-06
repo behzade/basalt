@@ -769,6 +769,12 @@ impl Validator {
                             self.error(path, expr.span, "HIR handler path is empty".to_string());
                         }
                     }
+                    hir::HirHandlerBody::Composed { base, handlers } => {
+                        self.validate_handler_body(base, path, expr.span);
+                        for handler in handlers {
+                            self.validate_handler_body(handler, path, expr.span);
+                        }
+                    }
                     hir::HirHandlerBody::Inline(functions) => {
                         for f in functions {
                             self.validate_function(f);
@@ -1145,6 +1151,32 @@ impl Validator {
                     expr.ty, op.ret_type
                 ),
             );
+        }
+    }
+
+    fn validate_handler_body(
+        &mut self,
+        handler: &hir::HirHandlerBody,
+        path: &PathBuf,
+        span: SimpleSpan,
+    ) {
+        match handler {
+            hir::HirHandlerBody::Path(handler_path) => {
+                if handler_path.last().is_none() {
+                    self.error(path, span, "HIR handler path is empty".to_string());
+                }
+            }
+            hir::HirHandlerBody::Composed { base, handlers } => {
+                self.validate_handler_body(base, path, span);
+                for handler in handlers {
+                    self.validate_handler_body(handler, path, span);
+                }
+            }
+            hir::HirHandlerBody::Inline(functions) => {
+                for f in functions {
+                    self.validate_function(f);
+                }
+            }
         }
     }
 

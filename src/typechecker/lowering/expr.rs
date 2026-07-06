@@ -165,8 +165,21 @@ impl Typechecker {
                     });
                     return Err(());
                 };
+                let body = if let Some((base, handlers)) = self.handler_aliases.get(&name).cloned()
+                {
+                    hir::HirHandlerBody::Composed {
+                        base: Box::new(hir::HirHandlerBody::Path(vec![base])),
+                        handlers: handlers
+                            .into_iter()
+                            .filter(|name| !name.is_empty())
+                            .map(|name| hir::HirHandlerBody::Path(vec![name]))
+                            .collect(),
+                    }
+                } else {
+                    hir::HirHandlerBody::Path(path)
+                };
                 Ok(hir::Expr {
-                    kind: hir::ExprKind::Handler(hir::HirHandlerBody::Path(path)),
+                    kind: hir::ExprKind::Handler(body),
                     ty: hir::Ty::Handler { effects },
                     span,
                     resolution: None,
@@ -194,8 +207,20 @@ impl Typechecker {
     ) -> Option<hir::Expr> {
         let name = path.last()?.clone();
         let effects = self.handler_values.get(&name).cloned()?;
+        let body = if let Some((base, handlers)) = self.handler_aliases.get(&name).cloned() {
+            hir::HirHandlerBody::Composed {
+                base: Box::new(hir::HirHandlerBody::Path(vec![base])),
+                handlers: handlers
+                    .into_iter()
+                    .filter(|name| !name.is_empty())
+                    .map(|name| hir::HirHandlerBody::Path(vec![name]))
+                    .collect(),
+            }
+        } else {
+            hir::HirHandlerBody::Path(path)
+        };
         Some(hir::Expr {
-            kind: hir::ExprKind::Handler(hir::HirHandlerBody::Path(path)),
+            kind: hir::ExprKind::Handler(body),
             ty: hir::Ty::Handler { effects },
             span,
             resolution: None,

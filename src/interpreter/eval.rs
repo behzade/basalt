@@ -1,24 +1,41 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 
-use crate::hir::{self, BinaryOp, Expr, ExprKind, HirBlock, HirFunction, Stmt, UnaryOp};
+use crate::hir::{
+    self, BinaryOp, Expr, ExprKind, HirBlock, HirFunction, HirHandlerBody, HirHandlerDef, Stmt,
+    UnaryOp,
+};
 
 use super::env::{Env, Result, RuntimeError};
-use super::value::{FunctionValue, Value};
+use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 
 /// A very small tree-walking interpreter over the HIR.
 pub struct Interpreter {
     functions: HashMap<String, HirFunction>,
+    handlers: HashMap<String, HirHandlerDef>,
+    active_handlers: RefCell<Vec<HandlerValue>>,
 }
 
 impl Interpreter {
     pub fn new(items: &[hir::Item]) -> Self {
         let mut functions = HashMap::new();
+        let mut handlers = HashMap::new();
         for item in items {
-            if let hir::Item::Fn(func) = item {
-                functions.insert(func.signature.name.clone(), func.clone());
+            match item {
+                hir::Item::Fn(func) => {
+                    functions.insert(func.signature.name.clone(), func.clone());
+                }
+                hir::Item::Handler(handler) => {
+                    handlers.insert(handler.name.clone(), handler.clone());
+                }
+                _ => {}
             }
         }
-        Interpreter { functions }
+        Interpreter {
+            functions,
+            handlers,
+            active_handlers: RefCell::new(vec![]),
+        }
     }
 
     /// Runs the program by looking for a top-level function named `main`.
@@ -282,15 +299,24 @@ impl Interpreter {
                 }
                 Ok(Value::Unit)
             }
-            ExprKind::Perform { .. } => Err(RuntimeError(
-                "Effects/perform not yet supported".to_string(),
-            )),
-            ExprKind::Handler(_) => Err(RuntimeError(
-                "Handler values not yet supported at runtime".to_string(),
-            )),
-            ExprKind::Handle { .. } => Err(RuntimeError(
-                "Handlers/handle not yet supported".to_string(),
-            )),
+            ExprKind::Perform { path, args } => {
+                let mut evaled = Vec::with_capacity(args.len());
+                for arg in args {
+                    evaled.push(self.eval_expr(arg, env)?);
+                }
+                self.perform(path, evaled)
+            }
+            ExprKind::Handler(handler) => self.eval_handler_body(handler, env),
+            ExprKind::Handle { body, handler } => {
+                let handler = self.eval_expr(handler, env)?;
+                let Value::Handler(handler) = handler else {
+                    return Err(RuntimeError("handle expected handler value".to_string()));
+                };
+                self.active_handlers.borrow_mut().push(handler);
+                let result = self.eval_block(body, env).map(|v| v.unwrap_or(Value::Unit));
+                let _ = self.active_handlers.borrow_mut().pop();
+                result
+            }
             ExprKind::FnLiteral(f) => {
                 let func_val = FunctionValue {
                     params: f.params.clone(),
@@ -306,6 +332,93 @@ impl Interpreter {
             ExprKind::Error => Err(RuntimeError(
                 "Encountered error expression in HIR".to_string(),
             )),
+        }
+    }
+
+    fn perform(&self, path: &[String], args: Vec<Value>) -> Result<Value> {
+        if path.len() != 2 {
+            return Err(RuntimeError(format!(
+                "perform path must be effect-qualified: {:?}",
+                path
+            )));
+        }
+        let op_name = &path[1];
+        let effect_name = &path[0];
+        let function = {
+            let active_handlers = self.active_handlers.borrow();
+            let mut function = None;
+            'search: for handler in active_handlers.iter().rev() {
+                for entry in &handler.entries {
+                    if !entry.effects.iter().any(|effect| {
+                        matches!(
+                            effect,
+                            hir::Ty::Adt(hir::AdtTy::Effect { name, .. })
+                                if name.last().map(|name| name == effect_name).unwrap_or(false)
+                        )
+                    }) {
+                        continue;
+                    }
+                    if let Some(found) = entry
+                        .functions
+                        .iter()
+                        .find(|function| &function.signature.name == op_name)
+                    {
+                        function = Some(found.clone());
+                        break 'search;
+                    }
+                }
+            }
+            function
+        };
+        if let Some(function) = function {
+            return self.call_function(&function, args);
+        }
+        Err(RuntimeError(format!(
+            "Unhandled effect operation {}",
+            path.join(".")
+        )))
+    }
+
+    fn eval_handler_body(&self, handler: &HirHandlerBody, env: &mut Env) -> Result<Value> {
+        match handler {
+            HirHandlerBody::Path(path) => {
+                let Some(name) = path.last() else {
+                    return Err(RuntimeError("Empty handler path".to_string()));
+                };
+                if let Some(Value::Handler(value)) = env.get(name) {
+                    return Ok(Value::Handler(value));
+                }
+                let Some(handler) = self.handlers.get(name) else {
+                    return Err(RuntimeError(format!("Unknown handler: {}", name)));
+                };
+                Ok(Value::Handler(HandlerValue {
+                    entries: vec![HandlerEntry {
+                        effects: handler.effects.clone(),
+                        functions: handler.functions.clone(),
+                    }],
+                }))
+            }
+            HirHandlerBody::Composed { base, handlers } => {
+                let mut base = match self.eval_handler_body(base, env)? {
+                    Value::Handler(handler) => handler,
+                    _ => return Err(RuntimeError("Composed base is not a handler".to_string())),
+                };
+                for handler in handlers {
+                    let Value::Handler(handler) = self.eval_handler_body(handler, env)? else {
+                        return Err(RuntimeError(
+                            "Composed dependency is not a handler".to_string(),
+                        ));
+                    };
+                    base.entries.extend(handler.entries);
+                }
+                Ok(Value::Handler(base))
+            }
+            HirHandlerBody::Inline(functions) => Ok(Value::Handler(HandlerValue {
+                entries: vec![HandlerEntry {
+                    effects: vec![],
+                    functions: functions.clone(),
+                }],
+            })),
         }
     }
 
@@ -621,6 +734,17 @@ impl Interpreter {
         env: &mut Env,
     ) -> Result<Option<Value>> {
         match name {
+            "len" => {
+                if args.len() != 1 {
+                    return Err(RuntimeError("len expects 1 argument".into()));
+                }
+                let value = self.eval_expr(&args[0], env)?;
+                match value {
+                    Value::Str(s) => Ok(Some(Value::I32(s.chars().count() as i32))),
+                    Value::Array(items) => Ok(Some(Value::I32(items.len() as i32))),
+                    other => Err(RuntimeError(format!("len unsupported for {}", other))),
+                }
+            }
             // std::runtime::exit(code: i32) -> !
             "exit" => {
                 if args.len() != 1 {
@@ -708,6 +832,7 @@ fn is_truthy(v: &Value) -> bool {
         Value::Array(a) => !a.is_empty(),
         Value::Struct { .. } => true,
         Value::Function(_) => true,
+        Value::Handler(_) => true,
     }
 }
 
@@ -750,4 +875,133 @@ fn unescape_runtime_string(input: &str) -> String {
 enum ControlFlow {
     Next,
     Return(Value),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chumsky::span::Span;
+
+    use crate::token::SimpleSpan;
+
+    fn span() -> SimpleSpan {
+        SimpleSpan::new((), 0..0)
+    }
+
+    fn i32_ty() -> hir::Ty {
+        hir::Ty::Primitive(hir::PrimitiveTy::I32)
+    }
+
+    fn literal_i32(value: &str) -> Expr {
+        Expr {
+            kind: ExprKind::Literal(hir::PrimitiveTy::I32, value.to_string()),
+            ty: i32_ty(),
+            span: span(),
+            resolution: None,
+        }
+    }
+
+    fn perform_value(effect: &str) -> Expr {
+        Expr {
+            kind: ExprKind::Perform {
+                path: vec![effect.to_string(), "value".to_string()],
+                args: vec![],
+            },
+            ty: i32_ty(),
+            span: span(),
+            resolution: None,
+        }
+    }
+
+    fn function(name: &str, body_expr: Expr) -> HirFunction {
+        HirFunction {
+            signature: hir::HirFunctionSignature {
+                name: name.to_string(),
+                params: vec![],
+                ret_type: i32_ty(),
+                effects: vec![],
+            },
+            body: HirBlock {
+                stmts: vec![],
+                last_expr: Some(Box::new(body_expr)),
+                ty: i32_ty(),
+            },
+            is_public: false,
+            defined_in: "test.bst".into(),
+            span: span(),
+            context_id: None,
+        }
+    }
+
+    fn effect_ty(name: &str) -> hir::Ty {
+        hir::Ty::Adt(hir::AdtTy::Effect {
+            name: vec![name.to_string()],
+            generics: vec![],
+        })
+    }
+
+    fn handler(name: &str, effect: &str, method_value: i32) -> hir::Item {
+        hir::Item::Handler(hir::HirHandlerDef {
+            name: name.to_string(),
+            effects: vec![effect_ty(effect)],
+            functions: vec![function("value", literal_i32(&method_value.to_string()))],
+            is_public: false,
+            defined_in: "test.bst".into(),
+            span: span(),
+        })
+    }
+
+    fn main_with_handler(handler_body: HirHandlerBody, body_expr: Expr) -> hir::Item {
+        hir::Item::Fn(function(
+            "main",
+            Expr {
+                kind: ExprKind::Handle {
+                    body: HirBlock {
+                        stmts: vec![],
+                        last_expr: Some(Box::new(body_expr)),
+                        ty: i32_ty(),
+                    },
+                    handler: Box::new(Expr {
+                        kind: ExprKind::Handler(handler_body),
+                        ty: hir::Ty::Handler { effects: vec![] },
+                        span: span(),
+                        resolution: None,
+                    }),
+                },
+                ty: i32_ty(),
+                span: span(),
+                resolution: None,
+            },
+        ))
+    }
+
+    #[test]
+    fn handles_perform_with_path_handler() {
+        let items = vec![
+            handler("AskHandler", "Ask", 7),
+            main_with_handler(
+                HirHandlerBody::Path(vec!["AskHandler".to_string()]),
+                perform_value("Ask"),
+            ),
+        ];
+
+        assert_eq!(run_program(&items).unwrap(), Value::I32(7));
+    }
+
+    #[test]
+    fn handles_perform_with_composed_handler() {
+        let items = vec![
+            handler("BaseHandler", "Base", 1),
+            handler("DependencyHandler", "Dependency", 9),
+            main_with_handler(
+                HirHandlerBody::Composed {
+                    base: Box::new(HirHandlerBody::Path(vec!["BaseHandler".to_string()])),
+                    handlers: vec![HirHandlerBody::Path(vec!["DependencyHandler".to_string()])],
+                },
+                perform_value("Dependency"),
+            ),
+        ];
+
+        assert_eq!(run_program(&items).unwrap(), Value::I32(9));
+    }
 }

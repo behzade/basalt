@@ -46,6 +46,9 @@ pub struct Typechecker {
     /// handler value can discharge after any static handler composition.
     pub(crate) handler_values: HashMap<String, Vec<hir::Ty>>,
 
+    /// Simple top-level handler aliases of the form `let X = Base with {A, B}`.
+    pub(crate) handler_aliases: HashMap<String, (String, Vec<String>)>,
+
     /// Persistent HIR contexts being built during lowering
     pub contexts: Vec<HirContext>,
     /// Stack of active context ids during lowering (function, block, etc.)

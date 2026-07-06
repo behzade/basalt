@@ -335,6 +335,10 @@ pub enum Resolution {
 #[derive(Debug, Clone, Serialize)]
 pub enum HirHandlerBody {
     Path(OwnedPath), // A reference to a top-level handler
+    Composed {
+        base: Box<HirHandlerBody>,
+        handlers: Vec<HirHandlerBody>,
+    },
     Inline(Vec<HirFunction>),
 }
 

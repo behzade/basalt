@@ -24,6 +24,7 @@ pub enum Value {
         fields: HashMap<String, Value>,
     },
     Function(FunctionValue),
+    Handler(HandlerValue),
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +32,17 @@ pub struct FunctionValue {
     pub params: Vec<hir::HirParam>,
     pub body: HirBlock,
     pub captured: Vec<HashMap<String, Value>>, // captured lexical scopes
+}
+
+#[derive(Debug, Clone)]
+pub struct HandlerValue {
+    pub entries: Vec<HandlerEntry>,
+}
+
+#[derive(Debug, Clone)]
+pub struct HandlerEntry {
+    pub effects: Vec<hir::Ty>,
+    pub functions: Vec<hir::HirFunction>,
 }
 
 impl PartialEq for Value {
@@ -64,6 +76,7 @@ impl PartialEq for Value {
             ) => p1 == p2 && f1 == f2,
             // Functions are not comparable for equality in this simple runtime
             (V::Function(_), V::Function(_)) => false,
+            (V::Handler(_), V::Handler(_)) => false,
             _ => false,
         }
     }
@@ -113,6 +126,7 @@ impl std::fmt::Display for Value {
                 write!(f, "}}")
             }
             Value::Function(_) => write!(f, "<fn>"),
+            Value::Handler(_) => write!(f, "<handler>"),
         }
     }
 }
@@ -161,6 +175,10 @@ pub fn value_to_exit_code(value: &Value) -> i32 {
             }
         }
         // Strings, arrays, and functions default to success
-        Value::Str(_) | Value::Array(_) | Value::Struct { .. } | Value::Function(_) => 0,
+        Value::Str(_)
+        | Value::Array(_)
+        | Value::Struct { .. }
+        | Value::Function(_)
+        | Value::Handler(_) => 0,
     }
 }

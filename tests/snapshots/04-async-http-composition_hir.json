@@ -693,9 +693,20 @@
                     "handler": {
                       "kind": {
                         "Handler": {
-                          "Path": [
-                            "AsyncHttpHandler"
-                          ]
+                          "Composed": {
+                            "base": {
+                              "Path": [
+                                "HttpHandler"
+                              ]
+                            },
+                            "handlers": [
+                              {
+                                "Path": [
+                                  "Scheduler"
+                                ]
+                              }
+                            ]
+                          }
                         }
                       },
                       "ty": {
