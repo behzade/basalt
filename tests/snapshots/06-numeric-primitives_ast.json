@@ -1,0 +1,488 @@
+{
+  "tests/06-numeric-primitives.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "i8_value",
+                        "ty": {
+                          "path": [
+                            "i8"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I8": 1
+                            }
+                          },
+                          "span": {
+                            "start": 12,
+                            "end": 13
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 13
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "i16_value",
+                        "ty": {
+                          "path": [
+                            "i16"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I16": 2
+                            }
+                          },
+                          "span": {
+                            "start": 18,
+                            "end": 19
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 13,
+                      "end": 19
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "i32_value",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 3
+                            }
+                          },
+                          "span": {
+                            "start": 24,
+                            "end": 25
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 19,
+                      "end": 25
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "i64_value",
+                        "ty": {
+                          "path": [
+                            "i64"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I64": 4
+                            }
+                          },
+                          "span": {
+                            "start": 30,
+                            "end": 31
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 25,
+                      "end": 31
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "u8_value",
+                        "ty": {
+                          "path": [
+                            "u8"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "U8": 5
+                            }
+                          },
+                          "span": {
+                            "start": 36,
+                            "end": 37
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 31,
+                      "end": 37
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "u16_value",
+                        "ty": {
+                          "path": [
+                            "u16"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "U16": 6
+                            }
+                          },
+                          "span": {
+                            "start": 42,
+                            "end": 43
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 37,
+                      "end": 43
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "u32_value",
+                        "ty": {
+                          "path": [
+                            "u32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "U32": 7
+                            }
+                          },
+                          "span": {
+                            "start": 48,
+                            "end": 49
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 43,
+                      "end": 49
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "u64_value",
+                        "ty": {
+                          "path": [
+                            "u64"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "U64": 8
+                            }
+                          },
+                          "span": {
+                            "start": 54,
+                            "end": 55
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 49,
+                      "end": 55
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "f32_value",
+                        "ty": {
+                          "path": [
+                            "f32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "F32": 1.5
+                            }
+                          },
+                          "span": {
+                            "start": 60,
+                            "end": 61
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 55,
+                      "end": 61
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "f64_value",
+                        "ty": {
+                          "path": [
+                            "f64"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "F64": 2.5
+                            }
+                          },
+                          "span": {
+                            "start": 66,
+                            "end": 67
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 61,
+                      "end": 67
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "widened_signed",
+                        "ty": {
+                          "path": [
+                            "i64"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Binary": {
+                              "op": "Add",
+                              "lhs": {
+                                "item": {
+                                  "Path": [
+                                    "i8_value"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 72,
+                                  "end": 73
+                                }
+                              },
+                              "rhs": {
+                                "item": {
+                                  "Path": [
+                                    "i64_value"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 74,
+                                  "end": 75
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 72,
+                            "end": 75
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 67,
+                      "end": 75
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "widened_float",
+                        "ty": {
+                          "path": [
+                            "f64"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Binary": {
+                              "op": "Add",
+                              "lhs": {
+                                "item": {
+                                  "Path": [
+                                    "f32_value"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 80,
+                                  "end": 81
+                                }
+                              },
+                              "rhs": {
+                                "item": {
+                                  "Path": [
+                                    "f64_value"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 82,
+                                  "end": 83
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 80,
+                            "end": 83
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 75,
+                      "end": 83
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "i32_value"
+                          ]
+                        },
+                        "span": {
+                          "start": 83,
+                          "end": 84
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 83,
+                      "end": 84
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 85
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 85
+      }
+    }
+  ]
+}

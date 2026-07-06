@@ -282,7 +282,15 @@ fn expression_bundle<'src>() -> (
         });
 
     let lit = choice((
+        select! { Token::I8(n) => Literal::I8(n) },
+        select! { Token::I16(n) => Literal::I16(n) },
+        select! { Token::I32(n) => Literal::I32(n) },
         select! { Token::I64(n) => Literal::I64(n) },
+        select! { Token::U8(n) => Literal::U8(n) },
+        select! { Token::U16(n) => Literal::U16(n) },
+        select! { Token::U32(n) => Literal::U32(n) },
+        select! { Token::U64(n) => Literal::U64(n) },
+        select! { Token::F32(n) => Literal::F32(n) },
         select! { Token::F64(n) => Literal::F64(n) },
         select! { Token::Bool(b) => Literal::Bool(b) },
         select! { Token::Str(s) => Literal::Str(s) },
@@ -472,7 +480,15 @@ fn expression_bundle<'src>() -> (
             span: e.span(),
         });
     let lit_pat = choice((
+        select! { Token::I8(n) => Literal::I8(n) },
+        select! { Token::I16(n) => Literal::I16(n) },
+        select! { Token::I32(n) => Literal::I32(n) },
         select! { Token::I64(n) => Literal::I64(n) },
+        select! { Token::U8(n) => Literal::U8(n) },
+        select! { Token::U16(n) => Literal::U16(n) },
+        select! { Token::U32(n) => Literal::U32(n) },
+        select! { Token::U64(n) => Literal::U64(n) },
+        select! { Token::F32(n) => Literal::F32(n) },
         select! { Token::F64(n) => Literal::F64(n) },
         select! { Token::Bool(b) => Literal::Bool(b) },
         select! { Token::Str(s) => Literal::Str(s) },

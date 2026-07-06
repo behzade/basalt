@@ -1,5 +1,194 @@
 [
   {
+    "Fn": {
+      "signature": {
+        "name": "print",
+        "params": [
+          {
+            "name": "data",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "runtime",
+                    "write"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      },
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Special": "Unit"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 17,
+                  "end": 21
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Literal": [
+                      "Str",
+                      "stdout"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 22,
+                    "end": 23
+                  },
+                  "resolution": null
+                },
+                {
+                  "kind": {
+                    "Path": [
+                      "data"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 24,
+                    "end": 25
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "data",
+                      "decl_span": null
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Special": "Unit"
+          },
+          "span": {
+            "start": 17,
+            "end": 26
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/io/print.bst",
+      "span": {
+        "start": 16,
+        "end": 27
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "exit",
+        "params": [
+          {
+            "name": "code",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Generic": "!"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Generic": "!"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/exit.bst",
+      "span": {
+        "start": 0,
+        "end": 12
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "write",
+        "params": [
+          {
+            "name": "stream",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          },
+          {
+            "name": "input",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/write.bst",
+      "span": {
+        "start": 0,
+        "end": 14
+      },
+      "context_id": 2
+    }
+  },
+  {
     "Struct": {
       "name": "Person",
       "fields": [
@@ -21,10 +210,10 @@
       "is_public": false,
       "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
-        "start": 0,
-        "end": 12
+        "start": 7,
+        "end": 19
       },
-      "context_id": 0
+      "context_id": 3
     }
   },
   {
@@ -74,8 +263,8 @@
                   }
                 },
                 "span": {
-                  "start": 22,
-                  "end": 23
+                  "start": 29,
+                  "end": 30
                 },
                 "resolution": {
                   "Local": {
@@ -91,8 +280,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 22,
-            "end": 25
+            "start": 29,
+            "end": 32
           },
           "resolution": {
             "Field": {
@@ -110,10 +299,10 @@
       "is_public": false,
       "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
-        "start": 21,
-        "end": 26
+        "start": 28,
+        "end": 33
       },
-      "context_id": 1
+      "context_id": 4
     }
   },
   {
@@ -172,8 +361,8 @@
                         }
                       },
                       "span": {
-                        "start": 41,
-                        "end": 42
+                        "start": 48,
+                        "end": 49
                       },
                       "resolution": {
                         "Local": {
@@ -189,8 +378,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 41,
-                  "end": 42
+                  "start": 48,
+                  "end": 49
                 },
                 "resolution": {
                   "Field": {
@@ -225,8 +414,8 @@
                               }
                             },
                             "span": {
-                              "start": 45,
-                              "end": 46
+                              "start": 52,
+                              "end": 53
                             },
                             "resolution": {
                               "Local": {
@@ -242,8 +431,8 @@
                         "Primitive": "I32"
                       },
                       "span": {
-                        "start": 45,
-                        "end": 48
+                        "start": 52,
+                        "end": 55
                       },
                       "resolution": {
                         "Field": {
@@ -264,8 +453,8 @@
                         "Primitive": "I32"
                       },
                       "span": {
-                        "start": 49,
-                        "end": 50
+                        "start": 56,
+                        "end": 57
                       },
                       "resolution": {
                         "Local": {
@@ -280,14 +469,14 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 45,
-                  "end": 50
+                  "start": 52,
+                  "end": 57
                 },
                 "resolution": null
               },
               "span": {
-                "start": 41,
-                "end": 50
+                "start": 48,
+                "end": 57
               }
             }
           }
@@ -312,8 +501,8 @@
                   }
                 },
                 "span": {
-                  "start": 50,
-                  "end": 51
+                  "start": 57,
+                  "end": 58
                 },
                 "resolution": {
                   "Local": {
@@ -329,8 +518,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 50,
-            "end": 53
+            "start": 57,
+            "end": 60
           },
           "resolution": {
             "Field": {
@@ -348,10 +537,10 @@
       "is_public": false,
       "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
-        "start": 40,
-        "end": 54
+        "start": 47,
+        "end": 61
       },
-      "context_id": 2
+      "context_id": 5
     }
   },
   {
@@ -389,8 +578,8 @@
                             "Primitive": "Str"
                           },
                           "span": {
-                            "start": 71,
-                            "end": 72
+                            "start": 78,
+                            "end": 79
                           },
                           "resolution": null
                         }
@@ -408,8 +597,8 @@
                             "Primitive": "I32"
                           },
                           "span": {
-                            "start": 75,
-                            "end": 76
+                            "start": 82,
+                            "end": 83
                           },
                           "resolution": null
                         }
@@ -428,8 +617,8 @@
                   }
                 },
                 "span": {
-                  "start": 61,
-                  "end": 77
+                  "start": 68,
+                  "end": 84
                 },
                 "resolution": null
               },
@@ -445,8 +634,8 @@
               },
               "is_mut": true,
               "span": {
-                "start": 61,
-                "end": 77
+                "start": 68,
+                "end": 84
               },
               "name_span": null
             }
@@ -484,15 +673,15 @@
                         }
                       },
                       "span": {
-                        "start": 80,
-                        "end": 85
+                        "start": 87,
+                        "end": 92
                       },
                       "resolution": {
                         "Function": {
-                              "defined_in": "tests/02-ufcs-method-calls.bst",
+                          "defined_in": "tests/02-ufcs-method-calls.bst",
                           "span": {
-                            "start": 12,
-                            "end": 26
+                            "start": 19,
+                            "end": 33
                           }
                         }
                       }
@@ -515,15 +704,15 @@
                           }
                         },
                         "span": {
-                          "start": 80,
-                          "end": 81
+                          "start": 87,
+                          "end": 88
                         },
                         "resolution": {
                           "Local": {
                             "name": "p",
                             "decl_span": {
-                              "start": 61,
-                              "end": 77
+                              "start": 68,
+                              "end": 84
                             }
                           }
                         }
@@ -535,8 +724,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 80,
-                  "end": 85
+                  "start": 87,
+                  "end": 92
                 },
                 "resolution": null
               },
@@ -545,8 +734,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 77,
-                "end": 85
+                "start": 84,
+                "end": 92
               },
               "name_span": null
             }
@@ -587,15 +776,15 @@
                         }
                       },
                       "span": {
-                        "start": 88,
-                        "end": 94
+                        "start": 95,
+                        "end": 101
                       },
                       "resolution": {
                         "Function": {
-                              "defined_in": "tests/02-ufcs-method-calls.bst",
+                          "defined_in": "tests/02-ufcs-method-calls.bst",
                           "span": {
-                            "start": 26,
-                            "end": 54
+                            "start": 33,
+                            "end": 61
                           }
                         }
                       }
@@ -618,15 +807,15 @@
                           }
                         },
                         "span": {
-                          "start": 88,
-                          "end": 89
+                          "start": 95,
+                          "end": 96
                         },
                         "resolution": {
                           "Local": {
                             "name": "p",
                             "decl_span": {
-                              "start": 61,
-                              "end": 77
+                              "start": 68,
+                              "end": 84
                             }
                           }
                         }
@@ -642,8 +831,8 @@
                           "Primitive": "I32"
                         },
                         "span": {
-                          "start": 92,
-                          "end": 93
+                          "start": 99,
+                          "end": 100
                         },
                         "resolution": null
                       }
@@ -654,8 +843,8 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 88,
-                  "end": 94
+                  "start": 95,
+                  "end": 101
                 },
                 "resolution": null
               },
@@ -664,8 +853,8 @@
               },
               "is_mut": false,
               "span": {
-                "start": 85,
-                "end": 94
+                "start": 92,
+                "end": 101
               },
               "name_span": null
             }
@@ -681,15 +870,15 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 94,
-            "end": 95
+            "start": 101,
+            "end": 102
           },
           "resolution": {
             "Local": {
               "name": "inc",
               "decl_span": {
-                "start": 85,
-                "end": 94
+                "start": 92,
+                "end": 101
               }
             }
           }
@@ -701,10 +890,10 @@
       "is_public": false,
       "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
-        "start": 60,
-        "end": 96
+        "start": 67,
+        "end": 103
       },
-      "context_id": 3
+      "context_id": 6
     }
   }
 ]

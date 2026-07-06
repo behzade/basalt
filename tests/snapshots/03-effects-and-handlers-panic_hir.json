@@ -2,6 +2,40 @@
   {
     "Fn": {
       "signature": {
+        "name": "exit",
+        "params": [
+          {
+            "name": "code",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Generic": "!"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Generic": "!"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/exit.bst",
+      "span": {
+        "start": 0,
+        "end": 12
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
         "name": "write",
         "params": [
           {
@@ -37,7 +71,7 @@
         "start": 0,
         "end": 14
       },
-      "context_id": 0
+      "context_id": 1
     }
   },
   {
@@ -172,7 +206,7 @@
             "start": 33,
             "end": 43
           },
-          "context_id": 1
+          "context_id": 2
         }
       ],
       "is_public": false,
@@ -403,7 +437,7 @@
         "start": 61,
         "end": 79
       },
-      "context_id": 2
+      "context_id": 3
     }
   },
   {
@@ -559,40 +593,6 @@
       "span": {
         "start": 85,
         "end": 101
-      },
-      "context_id": 3
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "exit",
-        "params": [
-          {
-            "name": "code",
-            "ty": {
-              "Primitive": "I32"
-            },
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Generic": "!"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": null,
-        "ty": {
-          "Generic": "!"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/runtime/exit.bst",
-      "span": {
-        "start": 0,
-        "end": 12
       },
       "context_id": 4
     }

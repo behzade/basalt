@@ -47,15 +47,63 @@ pub fn lexer<'src>()
     let literal = {
         // Parser for fractional numbers, e.g., 3.14
         let frac = just('.').then(text::digits(10));
+        let numeric_suffix = choice((
+            just("i8"),
+            just("i16"),
+            just("i32"),
+            just("i64"),
+            just("u8"),
+            just("u16"),
+            just("u32"),
+            just("u64"),
+            just("f32"),
+            just("f64"),
+        ));
 
         // Parser for numbers, handling both integers and floats
-        let number = text::int(10).then(frac.or_not()).to_slice().map(|s: &str| {
-            if s.contains('.') {
-                Token::F64(s.parse().unwrap())
-            } else {
-                Token::I64(s.parse().unwrap())
-            }
-        });
+        let number = text::int(10)
+            .then(frac.or_not())
+            .then(numeric_suffix.or_not())
+            .to_slice()
+            .map(|s: &str| {
+                if let Some(raw) = s.strip_suffix("i8") {
+                    return Token::I8(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("i16") {
+                    return Token::I16(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("i32") {
+                    return Token::I32(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("i64") {
+                    return Token::I64(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("u8") {
+                    return Token::U8(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("u16") {
+                    return Token::U16(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("u32") {
+                    return Token::U32(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("u64") {
+                    return Token::U64(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("f32") {
+                    return Token::F32(raw.parse().unwrap());
+                }
+                if let Some(raw) = s.strip_suffix("f64") {
+                    return Token::F64(raw.parse().unwrap());
+                }
+                if s.contains('.') {
+                    Token::F64(s.parse().unwrap())
+                } else if let Ok(value) = s.parse::<i32>() {
+                    Token::I32(value)
+                } else {
+                    Token::I64(s.parse().unwrap())
+                }
+            });
 
         // Parser for strings, correctly handling escaped characters
         let string = just('"')

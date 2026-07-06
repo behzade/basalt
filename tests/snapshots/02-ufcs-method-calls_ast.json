@@ -2,6 +2,25 @@
   "tests/02-ufcs-method-calls.bst": [
     {
       "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "io"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
         "Struct": {
           "name": "Person",
           "generics": [],
@@ -35,8 +54,8 @@
         }
       },
       "span": {
-        "start": 0,
-        "end": 12
+        "start": 7,
+        "end": 19
       }
     },
     {
@@ -84,22 +103,22 @@
                                 ]
                               },
                               "span": {
-                                "start": 22,
-                                "end": 23
+                                "start": 29,
+                                "end": 30
                               }
                             },
                             "field": "age"
                           }
                         },
                         "span": {
-                          "start": 22,
-                          "end": 25
+                          "start": 29,
+                          "end": 32
                         }
                       }
                     },
                     "span": {
-                      "start": 22,
-                      "end": 25
+                      "start": 29,
+                      "end": 32
                     }
                   }
                 ],
@@ -107,16 +126,16 @@
               }
             },
             "span": {
-              "start": 21,
-              "end": 26
+              "start": 28,
+              "end": 33
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 12,
-        "end": 26
+        "start": 19,
+        "end": 33
       }
     },
     {
@@ -177,16 +196,16 @@
                                   ]
                                 },
                                 "span": {
-                                  "start": 41,
-                                  "end": 42
+                                  "start": 48,
+                                  "end": 49
                                 }
                               },
                               "field": "age"
                             }
                           },
                           "span": {
-                            "start": 41,
-                            "end": 42
+                            "start": 48,
+                            "end": 49
                           }
                         },
                         {
@@ -203,16 +222,16 @@
                                         ]
                                       },
                                       "span": {
-                                        "start": 45,
-                                        "end": 46
+                                        "start": 52,
+                                        "end": 53
                                       }
                                     },
                                     "field": "age"
                                   }
                                 },
                                 "span": {
-                                  "start": 45,
-                                  "end": 48
+                                  "start": 52,
+                                  "end": 55
                                 }
                               },
                               "rhs": {
@@ -222,22 +241,22 @@
                                   ]
                                 },
                                 "span": {
-                                  "start": 49,
-                                  "end": 50
+                                  "start": 56,
+                                  "end": 57
                                 }
                               }
                             }
                           },
                           "span": {
-                            "start": 45,
-                            "end": 50
+                            "start": 52,
+                            "end": 57
                           }
                         }
                       ]
                     },
                     "span": {
-                      "start": 41,
-                      "end": 50
+                      "start": 48,
+                      "end": 57
                     }
                   },
                   {
@@ -252,22 +271,22 @@
                                 ]
                               },
                               "span": {
-                                "start": 50,
-                                "end": 51
+                                "start": 57,
+                                "end": 58
                               }
                             },
                             "field": "age"
                           }
                         },
                         "span": {
-                          "start": 50,
-                          "end": 53
+                          "start": 57,
+                          "end": 60
                         }
                       }
                     },
                     "span": {
-                      "start": 50,
-                      "end": 53
+                      "start": 57,
+                      "end": 60
                     }
                   }
                 ],
@@ -275,16 +294,16 @@
               }
             },
             "span": {
-              "start": 40,
-              "end": 54
+              "start": 47,
+              "end": 61
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 26,
-        "end": 54
+        "start": 33,
+        "end": 61
       }
     },
     {
@@ -338,8 +357,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 71,
-                                      "end": 72
+                                      "start": 78,
+                                      "end": 79
                                     }
                                   }
                                 ],
@@ -348,12 +367,12 @@
                                   {
                                     "item": {
                                       "Literal": {
-                                        "I64": 10
+                                        "I32": 10
                                       }
                                     },
                                     "span": {
-                                      "start": 75,
-                                      "end": 76
+                                      "start": 82,
+                                      "end": 83
                                     }
                                   }
                                 ]
@@ -361,15 +380,15 @@
                             }
                           },
                           "span": {
-                            "start": 67,
-                            "end": 77
+                            "start": 74,
+                            "end": 84
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 61,
-                      "end": 77
+                      "start": 68,
+                      "end": 84
                     }
                   },
                   {
@@ -388,8 +407,8 @@
                                   ]
                                 },
                                 "span": {
-                                  "start": 80,
-                                  "end": 81
+                                  "start": 87,
+                                  "end": 88
                                 }
                               },
                               "method": "get_age",
@@ -397,15 +416,15 @@
                             }
                           },
                           "span": {
-                            "start": 80,
-                            "end": 85
+                            "start": 87,
+                            "end": 92
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 77,
-                      "end": 85
+                      "start": 84,
+                      "end": 92
                     }
                   },
                   {
@@ -424,8 +443,8 @@
                                   ]
                                 },
                                 "span": {
-                                  "start": 88,
-                                  "end": 89
+                                  "start": 95,
+                                  "end": 96
                                 }
                               },
                               "method": "up_age_by",
@@ -433,27 +452,27 @@
                                 {
                                   "item": {
                                     "Literal": {
-                                      "I64": 2
+                                      "I32": 2
                                     }
                                   },
                                   "span": {
-                                    "start": 92,
-                                    "end": 93
+                                    "start": 99,
+                                    "end": 100
                                   }
                                 }
                               ]
                             }
                           },
                           "span": {
-                            "start": 88,
-                            "end": 94
+                            "start": 95,
+                            "end": 101
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 85,
-                      "end": 94
+                      "start": 92,
+                      "end": 101
                     }
                   },
                   {
@@ -465,14 +484,14 @@
                           ]
                         },
                         "span": {
-                          "start": 94,
-                          "end": 95
+                          "start": 101,
+                          "end": 102
                         }
                       }
                     },
                     "span": {
-                      "start": 94,
-                      "end": 95
+                      "start": 101,
+                      "end": 102
                     }
                   }
                 ],
@@ -480,16 +499,16 @@
               }
             },
             "span": {
-              "start": 60,
-              "end": 96
+              "start": 67,
+              "end": 103
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 54,
-        "end": 96
+        "start": 61,
+        "end": 103
       }
     }
   ]

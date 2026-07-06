@@ -296,7 +296,10 @@ impl Interpreter {
                 };
                 Ok(Value::Function(func_val))
             }
-            ExprKind::Cast { expr: inner } => self.eval_expr(inner, env),
+            ExprKind::Cast { expr: inner } => {
+                let value = self.eval_expr(inner, env)?;
+                self.cast_value(value, &expr.ty)
+            }
             ExprKind::Error => Err(RuntimeError(
                 "Encountered error expression in HIR".to_string(),
             )),
@@ -316,6 +319,18 @@ impl Interpreter {
                     .map_err(|_| RuntimeError("Invalid byte literal".to_string()))?;
                 Ok(Value::Byte(v))
             }
+            hir::PrimitiveTy::I8 => {
+                let v: i8 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid i8 literal".to_string()))?;
+                Ok(Value::I8(v))
+            }
+            hir::PrimitiveTy::I16 => {
+                let v: i16 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid i16 literal".to_string()))?;
+                Ok(Value::I16(v))
+            }
             hir::PrimitiveTy::I32 => {
                 let v: i32 = text
                     .parse()
@@ -328,6 +343,36 @@ impl Interpreter {
                     .map_err(|_| RuntimeError("Invalid i64 literal".to_string()))?;
                 Ok(Value::I64(v))
             }
+            hir::PrimitiveTy::U8 => {
+                let v: u8 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid u8 literal".to_string()))?;
+                Ok(Value::U8(v))
+            }
+            hir::PrimitiveTy::U16 => {
+                let v: u16 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid u16 literal".to_string()))?;
+                Ok(Value::U16(v))
+            }
+            hir::PrimitiveTy::U32 => {
+                let v: u32 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid u32 literal".to_string()))?;
+                Ok(Value::U32(v))
+            }
+            hir::PrimitiveTy::U64 => {
+                let v: u64 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid u64 literal".to_string()))?;
+                Ok(Value::U64(v))
+            }
+            hir::PrimitiveTy::F32 => {
+                let v: f32 = text
+                    .parse()
+                    .map_err(|_| RuntimeError("Invalid f32 literal".to_string()))?;
+                Ok(Value::F32(v))
+            }
             hir::PrimitiveTy::F64 => {
                 let v: f64 = text
                     .parse()
@@ -338,10 +383,126 @@ impl Interpreter {
         }
     }
 
+    fn cast_value(&self, value: Value, target_ty: &hir::Ty) -> Result<Value> {
+        let hir::Ty::Primitive(target) = target_ty else {
+            return Ok(value);
+        };
+
+        use hir::PrimitiveTy as P;
+        match target {
+            P::Bool => match value {
+                Value::Bool(b) => Ok(Value::Bool(b)),
+                other => Err(RuntimeError(format!("Cannot cast {} to bool", other))),
+            },
+            P::Byte => Ok(Value::Byte(Self::checked_unsigned_cast::<u8>(
+                &value, "byte",
+            )?)),
+            P::U8 => Ok(Value::U8(Self::checked_unsigned_cast::<u8>(&value, "u8")?)),
+            P::I8 => Ok(Value::I8(Self::checked_signed_cast::<i8>(&value, "i8")?)),
+            P::I16 => Ok(Value::I16(Self::checked_signed_cast::<i16>(&value, "i16")?)),
+            P::I32 => Ok(Value::I32(Self::checked_signed_cast::<i32>(&value, "i32")?)),
+            P::I64 => Ok(Value::I64(Self::checked_signed_cast::<i64>(&value, "i64")?)),
+            P::U16 => Ok(Value::U16(Self::checked_unsigned_cast::<u16>(
+                &value, "u16",
+            )?)),
+            P::U32 => Ok(Value::U32(Self::checked_unsigned_cast::<u32>(
+                &value, "u32",
+            )?)),
+            P::U64 => Ok(Value::U64(Self::checked_unsigned_cast::<u64>(
+                &value, "u64",
+            )?)),
+            P::F32 => Ok(Value::F32(Self::value_to_f64(&value)? as f32)),
+            P::F64 => Ok(Value::F64(Self::value_to_f64(&value)?)),
+            P::Str => match value {
+                Value::Str(s) => Ok(Value::Str(s)),
+                other => Err(RuntimeError(format!("Cannot cast {} to str", other))),
+            },
+        }
+    }
+
+    fn checked_signed_cast<T>(value: &Value, target: &str) -> Result<T>
+    where
+        T: TryFrom<i128>,
+    {
+        let value = Self::value_to_i128(value)?;
+        T::try_from(value).map_err(|_| RuntimeError(format!("value does not fit {}", target)))
+    }
+
+    fn checked_unsigned_cast<T>(value: &Value, target: &str) -> Result<T>
+    where
+        T: TryFrom<u128>,
+    {
+        let value = Self::value_to_u128(value)?;
+        T::try_from(value).map_err(|_| RuntimeError(format!("value does not fit {}", target)))
+    }
+
+    fn value_to_i128(value: &Value) -> Result<i128> {
+        match value {
+            Value::Byte(v) | Value::U8(v) => Ok(*v as i128),
+            Value::I8(v) => Ok(*v as i128),
+            Value::I16(v) => Ok(*v as i128),
+            Value::I32(v) => Ok(*v as i128),
+            Value::I64(v) => Ok(*v as i128),
+            Value::U16(v) => Ok(*v as i128),
+            Value::U32(v) => Ok(*v as i128),
+            Value::U64(v) => i128::try_from(*v)
+                .map_err(|_| RuntimeError("u64 value does not fit signed integer".to_string())),
+            Value::F32(v) => Ok(*v as i128),
+            Value::F64(v) => Ok(*v as i128),
+            other => Err(RuntimeError(format!("Cannot cast {} to integer", other))),
+        }
+    }
+
+    fn value_to_u128(value: &Value) -> Result<u128> {
+        match value {
+            Value::Byte(v) | Value::U8(v) => Ok(*v as u128),
+            Value::I8(v) => u128::try_from(*v).map_err(|_| {
+                RuntimeError("negative value does not fit unsigned integer".to_string())
+            }),
+            Value::I16(v) => u128::try_from(*v).map_err(|_| {
+                RuntimeError("negative value does not fit unsigned integer".to_string())
+            }),
+            Value::I32(v) => u128::try_from(*v).map_err(|_| {
+                RuntimeError("negative value does not fit unsigned integer".to_string())
+            }),
+            Value::I64(v) => u128::try_from(*v).map_err(|_| {
+                RuntimeError("negative value does not fit unsigned integer".to_string())
+            }),
+            Value::U16(v) => Ok(*v as u128),
+            Value::U32(v) => Ok(*v as u128),
+            Value::U64(v) => Ok(*v as u128),
+            Value::F32(v) if *v >= 0.0 => Ok(*v as u128),
+            Value::F64(v) if *v >= 0.0 => Ok(*v as u128),
+            other => Err(RuntimeError(format!(
+                "Cannot cast {} to unsigned integer",
+                other
+            ))),
+        }
+    }
+
+    fn value_to_f64(value: &Value) -> Result<f64> {
+        match value {
+            Value::Byte(v) | Value::U8(v) => Ok(*v as f64),
+            Value::I8(v) => Ok(*v as f64),
+            Value::I16(v) => Ok(*v as f64),
+            Value::I32(v) => Ok(*v as f64),
+            Value::I64(v) => Ok(*v as f64),
+            Value::U16(v) => Ok(*v as f64),
+            Value::U32(v) => Ok(*v as f64),
+            Value::U64(v) => Ok(*v as f64),
+            Value::F32(v) => Ok(*v as f64),
+            Value::F64(v) => Ok(*v),
+            other => Err(RuntimeError(format!("Cannot cast {} to float", other))),
+        }
+    }
+
     fn apply_unary(&self, op: UnaryOp, v: Value) -> Result<Value> {
         match (op, v) {
+            (UnaryOp::Negate, Value::I8(x)) => Ok(Value::I8(-x)),
+            (UnaryOp::Negate, Value::I16(x)) => Ok(Value::I16(-x)),
             (UnaryOp::Negate, Value::I32(x)) => Ok(Value::I32(-x)),
             (UnaryOp::Negate, Value::I64(x)) => Ok(Value::I64(-x)),
+            (UnaryOp::Negate, Value::F32(x)) => Ok(Value::F32(-x)),
             (UnaryOp::Negate, Value::F64(x)) => Ok(Value::F64(-x)),
             (UnaryOp::Not, Value::Bool(b)) => Ok(Value::Bool(!b)),
             _ => Err(RuntimeError("Invalid unary operation".to_string())),
@@ -351,33 +512,95 @@ impl Interpreter {
     fn apply_binary(&self, op: BinaryOp, lv: Value, rv: Value) -> Result<Value> {
         use Value as V;
         match (op, lv, rv) {
+            (BinaryOp::Add, V::I8(a), V::I8(b)) => Ok(V::I8(a + b)),
+            (BinaryOp::Add, V::I16(a), V::I16(b)) => Ok(V::I16(a + b)),
             (BinaryOp::Add, V::I32(a), V::I32(b)) => Ok(V::I32(a + b)),
             (BinaryOp::Add, V::I64(a), V::I64(b)) => Ok(V::I64(a + b)),
+            (BinaryOp::Add, V::U8(a), V::U8(b)) => Ok(V::U8(a + b)),
+            (BinaryOp::Add, V::U16(a), V::U16(b)) => Ok(V::U16(a + b)),
+            (BinaryOp::Add, V::U32(a), V::U32(b)) => Ok(V::U32(a + b)),
+            (BinaryOp::Add, V::U64(a), V::U64(b)) => Ok(V::U64(a + b)),
+            (BinaryOp::Add, V::F32(a), V::F32(b)) => Ok(V::F32(a + b)),
             (BinaryOp::Add, V::F64(a), V::F64(b)) => Ok(V::F64(a + b)),
+            (BinaryOp::Sub, V::I8(a), V::I8(b)) => Ok(V::I8(a - b)),
+            (BinaryOp::Sub, V::I16(a), V::I16(b)) => Ok(V::I16(a - b)),
             (BinaryOp::Sub, V::I32(a), V::I32(b)) => Ok(V::I32(a - b)),
             (BinaryOp::Sub, V::I64(a), V::I64(b)) => Ok(V::I64(a - b)),
+            (BinaryOp::Sub, V::U8(a), V::U8(b)) => Ok(V::U8(a - b)),
+            (BinaryOp::Sub, V::U16(a), V::U16(b)) => Ok(V::U16(a - b)),
+            (BinaryOp::Sub, V::U32(a), V::U32(b)) => Ok(V::U32(a - b)),
+            (BinaryOp::Sub, V::U64(a), V::U64(b)) => Ok(V::U64(a - b)),
+            (BinaryOp::Sub, V::F32(a), V::F32(b)) => Ok(V::F32(a - b)),
             (BinaryOp::Sub, V::F64(a), V::F64(b)) => Ok(V::F64(a - b)),
+            (BinaryOp::Mul, V::I8(a), V::I8(b)) => Ok(V::I8(a * b)),
+            (BinaryOp::Mul, V::I16(a), V::I16(b)) => Ok(V::I16(a * b)),
             (BinaryOp::Mul, V::I32(a), V::I32(b)) => Ok(V::I32(a * b)),
             (BinaryOp::Mul, V::I64(a), V::I64(b)) => Ok(V::I64(a * b)),
+            (BinaryOp::Mul, V::U8(a), V::U8(b)) => Ok(V::U8(a * b)),
+            (BinaryOp::Mul, V::U16(a), V::U16(b)) => Ok(V::U16(a * b)),
+            (BinaryOp::Mul, V::U32(a), V::U32(b)) => Ok(V::U32(a * b)),
+            (BinaryOp::Mul, V::U64(a), V::U64(b)) => Ok(V::U64(a * b)),
+            (BinaryOp::Mul, V::F32(a), V::F32(b)) => Ok(V::F32(a * b)),
             (BinaryOp::Mul, V::F64(a), V::F64(b)) => Ok(V::F64(a * b)),
+            (BinaryOp::Div, V::I8(a), V::I8(b)) => Ok(V::I8(a / b)),
+            (BinaryOp::Div, V::I16(a), V::I16(b)) => Ok(V::I16(a / b)),
             (BinaryOp::Div, V::I32(a), V::I32(b)) => Ok(V::I32(a / b)),
             (BinaryOp::Div, V::I64(a), V::I64(b)) => Ok(V::I64(a / b)),
+            (BinaryOp::Div, V::U8(a), V::U8(b)) => Ok(V::U8(a / b)),
+            (BinaryOp::Div, V::U16(a), V::U16(b)) => Ok(V::U16(a / b)),
+            (BinaryOp::Div, V::U32(a), V::U32(b)) => Ok(V::U32(a / b)),
+            (BinaryOp::Div, V::U64(a), V::U64(b)) => Ok(V::U64(a / b)),
+            (BinaryOp::Div, V::F32(a), V::F32(b)) => Ok(V::F32(a / b)),
             (BinaryOp::Div, V::F64(a), V::F64(b)) => Ok(V::F64(a / b)),
+            (BinaryOp::Mod, V::I8(a), V::I8(b)) => Ok(V::I8(a % b)),
+            (BinaryOp::Mod, V::I16(a), V::I16(b)) => Ok(V::I16(a % b)),
             (BinaryOp::Mod, V::I32(a), V::I32(b)) => Ok(V::I32(a % b)),
             (BinaryOp::Mod, V::I64(a), V::I64(b)) => Ok(V::I64(a % b)),
+            (BinaryOp::Mod, V::U8(a), V::U8(b)) => Ok(V::U8(a % b)),
+            (BinaryOp::Mod, V::U16(a), V::U16(b)) => Ok(V::U16(a % b)),
+            (BinaryOp::Mod, V::U32(a), V::U32(b)) => Ok(V::U32(a % b)),
+            (BinaryOp::Mod, V::U64(a), V::U64(b)) => Ok(V::U64(a % b)),
             (BinaryOp::Eq, a, b) => Ok(V::Bool(a == b)),
             (BinaryOp::Ne, a, b) => Ok(V::Bool(a != b)),
+            (BinaryOp::Lt, V::I8(a), V::I8(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lt, V::I16(a), V::I16(b)) => Ok(V::Bool(a < b)),
             (BinaryOp::Lt, V::I32(a), V::I32(b)) => Ok(V::Bool(a < b)),
             (BinaryOp::Lt, V::I64(a), V::I64(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lt, V::U8(a), V::U8(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lt, V::U16(a), V::U16(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lt, V::U32(a), V::U32(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lt, V::U64(a), V::U64(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lt, V::F32(a), V::F32(b)) => Ok(V::Bool(a < b)),
             (BinaryOp::Lt, V::F64(a), V::F64(b)) => Ok(V::Bool(a < b)),
+            (BinaryOp::Lte, V::I8(a), V::I8(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Lte, V::I16(a), V::I16(b)) => Ok(V::Bool(a <= b)),
             (BinaryOp::Lte, V::I32(a), V::I32(b)) => Ok(V::Bool(a <= b)),
             (BinaryOp::Lte, V::I64(a), V::I64(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Lte, V::U8(a), V::U8(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Lte, V::U16(a), V::U16(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Lte, V::U32(a), V::U32(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Lte, V::U64(a), V::U64(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Lte, V::F32(a), V::F32(b)) => Ok(V::Bool(a <= b)),
             (BinaryOp::Lte, V::F64(a), V::F64(b)) => Ok(V::Bool(a <= b)),
+            (BinaryOp::Gt, V::I8(a), V::I8(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gt, V::I16(a), V::I16(b)) => Ok(V::Bool(a > b)),
             (BinaryOp::Gt, V::I32(a), V::I32(b)) => Ok(V::Bool(a > b)),
             (BinaryOp::Gt, V::I64(a), V::I64(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gt, V::U8(a), V::U8(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gt, V::U16(a), V::U16(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gt, V::U32(a), V::U32(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gt, V::U64(a), V::U64(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gt, V::F32(a), V::F32(b)) => Ok(V::Bool(a > b)),
             (BinaryOp::Gt, V::F64(a), V::F64(b)) => Ok(V::Bool(a > b)),
+            (BinaryOp::Gte, V::I8(a), V::I8(b)) => Ok(V::Bool(a >= b)),
+            (BinaryOp::Gte, V::I16(a), V::I16(b)) => Ok(V::Bool(a >= b)),
             (BinaryOp::Gte, V::I32(a), V::I32(b)) => Ok(V::Bool(a >= b)),
             (BinaryOp::Gte, V::I64(a), V::I64(b)) => Ok(V::Bool(a >= b)),
+            (BinaryOp::Gte, V::U8(a), V::U8(b)) => Ok(V::Bool(a >= b)),
+            (BinaryOp::Gte, V::U16(a), V::U16(b)) => Ok(V::Bool(a >= b)),
+            (BinaryOp::Gte, V::U32(a), V::U32(b)) => Ok(V::Bool(a >= b)),
+            (BinaryOp::Gte, V::U64(a), V::U64(b)) => Ok(V::Bool(a >= b)),
+            (BinaryOp::Gte, V::F32(a), V::F32(b)) => Ok(V::Bool(a >= b)),
             (BinaryOp::Gte, V::F64(a), V::F64(b)) => Ok(V::Bool(a >= b)),
             (BinaryOp::And, V::Bool(a), V::Bool(b)) => Ok(V::Bool(a && b)),
             (BinaryOp::Or, V::Bool(a), V::Bool(b)) => Ok(V::Bool(a || b)),
@@ -468,8 +691,15 @@ fn is_truthy(v: &Value) -> bool {
         Value::Unit => false,
         Value::Bool(b) => *b,
         Value::Byte(b) => *b != 0,
+        Value::I8(i) => *i != 0,
+        Value::I16(i) => *i != 0,
         Value::I32(i) => *i != 0,
         Value::I64(i) => *i != 0,
+        Value::U8(i) => *i != 0,
+        Value::U16(i) => *i != 0,
+        Value::U32(i) => *i != 0,
+        Value::U64(i) => *i != 0,
+        Value::F32(f) => *f != 0.0,
         Value::F64(f) => *f != 0.0,
         Value::Str(s) => !s.is_empty(),
         Value::Array(a) => !a.is_empty(),

@@ -7,8 +7,15 @@ pub enum Value {
     Unit,
     Bool(bool),
     Byte(u8),
+    I8(i8),
+    I16(i16),
     I32(i32),
     I64(i64),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    F32(f32),
     F64(f64),
     Str(String),
     Array(Vec<Value>),
@@ -33,8 +40,15 @@ impl PartialEq for Value {
             (V::Unit, V::Unit) => true,
             (V::Bool(a), V::Bool(b)) => a == b,
             (V::Byte(a), V::Byte(b)) => a == b,
+            (V::I8(a), V::I8(b)) => a == b,
+            (V::I16(a), V::I16(b)) => a == b,
             (V::I32(a), V::I32(b)) => a == b,
             (V::I64(a), V::I64(b)) => a == b,
+            (V::U8(a), V::U8(b)) => a == b,
+            (V::U16(a), V::U16(b)) => a == b,
+            (V::U32(a), V::U32(b)) => a == b,
+            (V::U64(a), V::U64(b)) => a == b,
+            (V::F32(a), V::F32(b)) => a == b,
             (V::F64(a), V::F64(b)) => a == b,
             (V::Str(a), V::Str(b)) => a == b,
             (V::Array(a), V::Array(b)) => a == b,
@@ -61,8 +75,15 @@ impl std::fmt::Display for Value {
             Value::Unit => write!(f, "()"),
             Value::Bool(b) => write!(f, "{}", b),
             Value::Byte(b) => write!(f, "{}", b),
+            Value::I8(i) => write!(f, "{}", i),
+            Value::I16(i) => write!(f, "{}", i),
             Value::I32(i) => write!(f, "{}", i),
             Value::I64(i) => write!(f, "{}", i),
+            Value::U8(i) => write!(f, "{}", i),
+            Value::U16(i) => write!(f, "{}", i),
+            Value::U32(i) => write!(f, "{}", i),
+            Value::U64(i) => write!(f, "{}", i),
+            Value::F32(x) => write!(f, "{}", x),
             Value::F64(x) => write!(f, "{}", x),
             Value::Str(s) => write!(f, "\"{}\"", s),
             Value::Array(items) => {
@@ -109,6 +130,8 @@ pub fn value_to_exit_code(value: &Value) -> i32 {
             }
         }
         Value::Byte(b) => *b as i32,
+        Value::I8(i) => *i as i32,
+        Value::I16(i) => *i as i32,
         Value::I32(i) => *i,
         Value::I64(i) => {
             if *i > i32::MAX as i64 {
@@ -117,6 +140,17 @@ pub fn value_to_exit_code(value: &Value) -> i32 {
                 i32::MIN
             } else {
                 *i as i32
+            }
+        }
+        Value::U8(i) => *i as i32,
+        Value::U16(i) => *i as i32,
+        Value::U32(i) => (*i).min(i32::MAX as u32) as i32,
+        Value::U64(i) => (*i).min(i32::MAX as u64) as i32,
+        Value::F32(f) => {
+            if f.is_nan() {
+                1
+            } else {
+                *f as i32
             }
         }
         Value::F64(f) => {

@@ -48,8 +48,15 @@ pub enum SpecialTy {
 pub enum PrimitiveTy {
     Bool,
     Byte,
+    I8,
+    I16,
     I32,
     I64,
+    U8,
+    U16,
+    U32,
+    U64,
+    F32,
     F64,
     Str,
 }

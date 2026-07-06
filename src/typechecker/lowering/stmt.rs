@@ -24,17 +24,16 @@ impl Typechecker {
                     match (value.as_ref().map(|v| &v.item), &resolved_ty) {
                         // Disallow anonymous struct map sugar; require explicit Person { ... }
                         (Some(vexpr), _) => {
-                            let mut lowered = self.lower_expr(
+                            let mut lowered = self.lower_expr_with_expected(
                                 Spanned {
                                     item: vexpr.clone(),
                                     span: stmt.span,
                                 },
+                                resolved_ty.clone(),
                                 context.clone(),
                             )?;
                             if lowered.ty != resolved_ty {
-                                if TypeUnifier::is_numeric(&lowered.ty)
-                                    && TypeUnifier::is_numeric(&resolved_ty)
-                                {
+                                if TypeUnifier::is_assignable(&lowered.ty, &resolved_ty) {
                                     // Insert an explicit numeric cast for widening conversions
                                     lowered = hir::Expr {
                                         ty: resolved_ty.clone(),
@@ -44,7 +43,7 @@ impl Typechecker {
                                         span: stmt.span,
                                         resolution: None,
                                     };
-                                } else if !TypeUnifier::is_assignable(&lowered.ty, &resolved_ty) {
+                                } else {
                                     self.errors.push(TypeError { message: format!(
                                         "Mismatched types for variable '{}': expected {} but found {}",
                                         name, Typechecker::format_ty(&resolved_ty), Typechecker::format_ty(&lowered.ty)
@@ -140,10 +139,10 @@ impl Typechecker {
                     }
                     _ => self.lower_expr(lhs.clone(), context.clone())?,
                 };
-                let mut rhs_hir = self.lower_expr(rhs, context.clone())?;
+                let mut rhs_hir =
+                    self.lower_expr_with_expected(rhs, lhs_hir.ty.clone(), context.clone())?;
                 if lhs_hir.ty != rhs_hir.ty {
-                    if TypeUnifier::is_numeric(&rhs_hir.ty) && TypeUnifier::is_numeric(&lhs_hir.ty)
-                    {
+                    if TypeUnifier::is_assignable(&rhs_hir.ty, &lhs_hir.ty) {
                         // Widen numeric on the RHS via cast
                         rhs_hir = hir::Expr {
                             ty: lhs_hir.ty.clone(),
@@ -153,7 +152,7 @@ impl Typechecker {
                             span: stmt.span,
                             resolution: None,
                         };
-                    } else if !TypeUnifier::is_assignable(&rhs_hir.ty, &lhs_hir.ty) {
+                    } else {
                         self.errors.push(TypeError {
                             message: format!(
                                 "Assignment type mismatch: lhs={}, rhs={}",
@@ -179,18 +178,21 @@ impl Typechecker {
                 })
             }
             OwnedStmt::Return(expr_opt) => {
-                let mut expr_hir_opt = if let Some(e) = expr_opt {
-                    Some(self.lower_expr(e, context.clone())?)
-                } else {
-                    None
+                let expected_return_type = self.current_fn_return_type.clone();
+                let mut expr_hir_opt = match (expr_opt, expected_return_type.clone()) {
+                    (Some(e), Some(expected)) => {
+                        Some(self.lower_expr_with_expected(e, expected, context.clone())?)
+                    }
+                    (Some(e), None) => Some(self.lower_expr(e, context.clone())?),
+                    (None, _) => None,
                 };
-                if let Some(expected) = &self.current_fn_return_type {
+                if let Some(expected) = &expected_return_type {
                     let actual = expr_hir_opt
                         .as_ref()
                         .map(|e| e.ty.clone())
                         .unwrap_or(hir::Ty::Special(hir::SpecialTy::Unit));
                     if &actual != expected {
-                        if TypeUnifier::is_numeric(&actual) && TypeUnifier::is_numeric(expected) {
+                        if TypeUnifier::is_assignable(&actual, expected) {
                             if let Some(inner) = expr_hir_opt.take() {
                                 expr_hir_opt = Some(hir::Expr {
                                     ty: expected.clone(),
@@ -201,7 +203,7 @@ impl Typechecker {
                                     resolution: None,
                                 });
                             }
-                        } else if !TypeUnifier::is_assignable(&actual, expected) {
+                        } else {
                             self.errors.push(TypeError {
                                 message: format!(
                                     "Return type mismatch: expected {}, found {}",

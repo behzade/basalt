@@ -178,59 +178,80 @@
               "name": "user",
               "value": {
                 "kind": {
-                  "StructInit": {
-                    "path": [
-                      "UserType",
-                      "B2B"
-                    ],
-                    "fields": [
-                      [
-                        "company_id",
-                        {
-                          "kind": {
-                            "Literal": [
-                              "I32",
-                              "1"
+                  "Cast": {
+                    "expr": {
+                      "kind": {
+                        "StructInit": {
+                          "path": [
+                            "UserType",
+                            "B2B"
+                          ],
+                          "fields": [
+                            [
+                              "company_id",
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "I32",
+                                    "1"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 67,
+                                  "end": 68
+                                },
+                                "resolution": null
+                              }
+                            ],
+                            [
+                              "name",
+                              {
+                                "kind": {
+                                  "Literal": [
+                                    "Str",
+                                    "acme"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 71,
+                                  "end": 72
+                                },
+                                "resolution": null
+                              }
                             ]
-                          },
-                          "ty": {
-                            "Primitive": "I32"
-                          },
-                          "span": {
-                            "start": 67,
-                            "end": 68
-                          },
-                          "resolution": null
+                          ]
                         }
-                      ],
-                      [
-                        "name",
-                        {
-                          "kind": {
-                            "Literal": [
-                              "Str",
-                              "acme"
-                            ]
-                          },
-                          "ty": {
-                            "Primitive": "Str"
-                          },
-                          "span": {
-                            "start": 71,
-                            "end": 72
-                          },
-                          "resolution": null
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "UserType",
+                              "B2B"
+                            ],
+                            "generics": []
+                          }
                         }
-                      ]
-                    ]
+                      },
+                      "span": {
+                        "start": 55,
+                        "end": 73
+                      },
+                      "resolution": null
+                    }
                   }
                 },
                 "ty": {
                   "Adt": {
-                    "Struct": {
+                    "Enum": {
                       "name": [
-                        "UserType",
-                        "B2B"
+                        "UserType"
                       ],
                       "generics": []
                     }

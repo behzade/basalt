@@ -117,11 +117,13 @@ impl Typechecker {
 
         // Register builtin functions needed by tests
         self.register_builtin_functions();
+        let mut file_entries: Vec<(PathBuf, Vec<OwnedItemWithSpan>)> = files.into_iter().collect();
+        file_entries.sort_by(|(a, _), (b, _)| a.cmp(b));
 
         // Collect import aliases/names per file for module-aware name handling
         let mut imports_map: HashMap<PathBuf, HashSet<String>> = HashMap::new();
         let mut alias_map: HashMap<PathBuf, HashMap<String, hir::OwnedPath>> = HashMap::new();
-        for (path, items) in &files {
+        for (path, items) in &file_entries {
             let entry = imports_map.entry(path.clone()).or_default();
             let alias_entry = alias_map.entry(path.clone()).or_default();
             for it in items {
@@ -143,7 +145,7 @@ impl Typechecker {
         self.import_alias_map = alias_map;
 
         // --- PASS 1: Register all top-level definitions ---
-        for (path, items) in &files {
+        for (path, items) in &file_entries {
             for item in items {
                 self.register_top_level_item_with_file(item, path);
             }
@@ -151,7 +153,7 @@ impl Typechecker {
 
         let mut hir_items: Vec<hir::Item> = Vec::new();
         self.contexts.clear();
-        for (path, items) in &files {
+        for (path, items) in &file_entries {
             for item in items {
                 if let Ok(it) = self.lower_item(item.clone(), path.clone()) {
                     hir_items.push(it);
@@ -704,8 +706,16 @@ impl Typechecker {
         // 4. Handle fully-qualified paths.
         let type_name = owned_ty.path.join("::");
         match type_name.as_str() {
+            "byte" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::Byte)),
+            "i8" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::I8)),
+            "i16" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::I16)),
             "i32" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::I32)),
             "i64" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::I64)),
+            "u8" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::U8)),
+            "u16" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::U16)),
+            "u32" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::U32)),
+            "u64" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::U64)),
+            "f32" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::F32)),
             "f64" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::F64)),
             "bool" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::Bool)),
             "str" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::Str)),

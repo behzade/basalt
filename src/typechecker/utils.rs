@@ -18,12 +18,18 @@ impl Typechecker {
     ) -> (hir::PrimitiveTy, String) {
         match lit {
             crate::ast_owned::OwnedLiteral::Bool(b) => (hir::PrimitiveTy::Bool, b.to_string()),
+            crate::ast_owned::OwnedLiteral::I8(i) => (hir::PrimitiveTy::I8, i.to_string()),
+            crate::ast_owned::OwnedLiteral::I16(i) => (hir::PrimitiveTy::I16, i.to_string()),
             crate::ast_owned::OwnedLiteral::I32(i) => (hir::PrimitiveTy::I32, i.to_string()),
-            crate::ast_owned::OwnedLiteral::I64(i) => (hir::PrimitiveTy::I32, i.to_string()),
+            crate::ast_owned::OwnedLiteral::I64(i) => (hir::PrimitiveTy::I64, i.to_string()),
+            crate::ast_owned::OwnedLiteral::U8(i) => (hir::PrimitiveTy::U8, i.to_string()),
+            crate::ast_owned::OwnedLiteral::U16(i) => (hir::PrimitiveTy::U16, i.to_string()),
+            crate::ast_owned::OwnedLiteral::U32(i) => (hir::PrimitiveTy::U32, i.to_string()),
+            crate::ast_owned::OwnedLiteral::U64(i) => (hir::PrimitiveTy::U64, i.to_string()),
+            crate::ast_owned::OwnedLiteral::F32(f) => (hir::PrimitiveTy::F32, f.to_string()),
             crate::ast_owned::OwnedLiteral::F64(f) => (hir::PrimitiveTy::F64, f.to_string()),
             crate::ast_owned::OwnedLiteral::Str(s) => (hir::PrimitiveTy::Str, s),
             crate::ast_owned::OwnedLiteral::Unit => (hir::PrimitiveTy::Bool, "false".to_string()),
-            _ => (hir::PrimitiveTy::I32, "0".to_string()),
         }
     }
 

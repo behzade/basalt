@@ -184,3 +184,14 @@ with { Handler1, Handler2 } {
 // Each function call or a scope "with" block creates a child context.
 // In compile type, the compiler will convert the implicit context into a struct that has the handler table and arena and implicitly pass it to the functions.
 // On function calls, the paramters and return value are allocated in the parent context's arena. This allows sending data outside the function. Function can not send pointers to its local data to the outside.
+
+// Numeric model
+// Primitive numeric types: i8, i16, i32, i64, u8, u16, u32, u64, f32, f64.
+// Unsuffixed integer literals start as i32 when they fit, otherwise i64, and can be coerced into an annotated integer type when the value fits.
+// Unsuffixed float literals start as f64 and can be coerced into f32.
+// Suffixed literals use the target type directly: 1i8, 1u32, 1.5f32.
+// Integer widening is implicit when it is lossless in the target model. Narrowing and float-to-integer conversion require an explicit cast.
+
+// Handler model
+// Handlers are one-shot only. A handled operation may resume its suspended computation at most once.
+// This keeps runtime representation simple: no continuation cloning and no multi-shot handler protocol.

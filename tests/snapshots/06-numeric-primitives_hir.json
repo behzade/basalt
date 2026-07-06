@@ -1,0 +1,529 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "i8_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I8",
+                    "1"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I8"
+                },
+                "span": {
+                  "start": 7,
+                  "end": 13
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I8"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 7,
+                "end": 13
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "i16_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I16",
+                    "2"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I16"
+                },
+                "span": {
+                  "start": 13,
+                  "end": 19
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I16"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 13,
+                "end": 19
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "i32_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I32",
+                    "3"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 19,
+                  "end": 25
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 19,
+                "end": 25
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "i64_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I64",
+                    "4"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I64"
+                },
+                "span": {
+                  "start": 25,
+                  "end": 31
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 25,
+                "end": 31
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "u8_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "U8",
+                    "5"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U8"
+                },
+                "span": {
+                  "start": 31,
+                  "end": 37
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "U8"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 31,
+                "end": 37
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "u16_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "U16",
+                    "6"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U16"
+                },
+                "span": {
+                  "start": 37,
+                  "end": 43
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "U16"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 37,
+                "end": 43
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "u32_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "U32",
+                    "7"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U32"
+                },
+                "span": {
+                  "start": 43,
+                  "end": 49
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "U32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 43,
+                "end": 49
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "u64_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "8"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 49,
+                  "end": 55
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 49,
+                "end": 55
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "f32_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "F32",
+                    "1.5"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "F32"
+                },
+                "span": {
+                  "start": 55,
+                  "end": 61
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "F32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 55,
+                "end": 61
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "f64_value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "F64",
+                    "2.5"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "F64"
+                },
+                "span": {
+                  "start": 61,
+                  "end": 67
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "F64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 61,
+                "end": 67
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "widened_signed",
+              "value": {
+                "kind": {
+                  "Binary": {
+                    "op": "Add",
+                    "lhs": {
+                      "kind": {
+                        "Cast": {
+                          "expr": {
+                            "kind": {
+                              "Path": [
+                                "i8_value"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I8"
+                            },
+                            "span": {
+                              "start": 72,
+                              "end": 73
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "i8_value",
+                                "decl_span": {
+                                  "start": 7,
+                                  "end": 13
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "I64"
+                      },
+                      "span": {
+                        "start": 72,
+                        "end": 73
+                      },
+                      "resolution": null
+                    },
+                    "rhs": {
+                      "kind": {
+                        "Path": [
+                          "i64_value"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "I64"
+                      },
+                      "span": {
+                        "start": 74,
+                        "end": 75
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "i64_value",
+                          "decl_span": {
+                            "start": 25,
+                            "end": 31
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I64"
+                },
+                "span": {
+                  "start": 67,
+                  "end": 75
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 67,
+                "end": 75
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "widened_float",
+              "value": {
+                "kind": {
+                  "Binary": {
+                    "op": "Add",
+                    "lhs": {
+                      "kind": {
+                        "Cast": {
+                          "expr": {
+                            "kind": {
+                              "Path": [
+                                "f32_value"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "F32"
+                            },
+                            "span": {
+                              "start": 80,
+                              "end": 81
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "f32_value",
+                                "decl_span": {
+                                  "start": 55,
+                                  "end": 61
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "F64"
+                      },
+                      "span": {
+                        "start": 80,
+                        "end": 81
+                      },
+                      "resolution": null
+                    },
+                    "rhs": {
+                      "kind": {
+                        "Path": [
+                          "f64_value"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "F64"
+                      },
+                      "span": {
+                        "start": 82,
+                        "end": 83
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "f64_value",
+                          "decl_span": {
+                            "start": 61,
+                            "end": 67
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "F64"
+                },
+                "span": {
+                  "start": 75,
+                  "end": 83
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "F64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 75,
+                "end": 83
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "i32_value"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 83,
+            "end": 84
+          },
+          "resolution": {
+            "Local": {
+              "name": "i32_value",
+              "decl_span": {
+                "start": 19,
+                "end": 25
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/06-numeric-primitives.bst",
+      "span": {
+        "start": 6,
+        "end": 85
+      },
+      "context_id": 0
+    }
+  }
+]

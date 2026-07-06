@@ -7,30 +7,16 @@
             {
               "path": [
                 "std",
-                "fmt"
-              ],
-              "alias": null
-            },
-            {
-              "path": [
-                "std",
                 "io"
               ],
               "alias": null
-            },
-            {
-              "path": [
-                "std",
-                "fmt"
-              ],
-              "alias": "second_fmt"
             }
           ]
         }
       },
       "span": {
         "start": 0,
-        "end": 17
+        "end": 7
       }
     },
     {
@@ -61,39 +47,39 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "fmt",
-                                  "println"
+                                  "io",
+                                  "print"
                                 ]
                               },
                               "span": {
-                                "start": 24,
-                                "end": 28
+                                "start": 14,
+                                "end": 18
                               }
                             },
                             "args": [
                               {
                                 "item": {
                                   "Literal": {
-                                    "Str": "hi"
+                                    "Str": "hi\\n"
                                   }
                                 },
                                 "span": {
-                                  "start": 29,
-                                  "end": 30
+                                  "start": 19,
+                                  "end": 20
                                 }
                               }
                             ]
                           }
                         },
                         "span": {
-                          "start": 24,
-                          "end": 31
+                          "start": 14,
+                          "end": 21
                         }
                       }
                     },
                     "span": {
-                      "start": 24,
-                      "end": 31
+                      "start": 14,
+                      "end": 21
                     }
                   },
                   {
@@ -105,38 +91,38 @@
                               "item": {
                                 "Path": [
                                   "io",
-                                  "println"
+                                  "print"
                                 ]
                               },
                               "span": {
-                                "start": 31,
-                                "end": 35
+                                "start": 21,
+                                "end": 25
                               }
                             },
                             "args": [
                               {
                                 "item": {
                                   "Literal": {
-                                    "Str": "hi"
+                                    "Str": "hi2"
                                   }
                                 },
                                 "span": {
-                                  "start": 36,
-                                  "end": 37
+                                  "start": 26,
+                                  "end": 27
                                 }
                               }
                             ]
                           }
                         },
                         "span": {
-                          "start": 31,
-                          "end": 38
+                          "start": 21,
+                          "end": 28
                         }
                       }
                     },
                     "span": {
-                      "start": 31,
-                      "end": 38
+                      "start": 21,
+                      "end": 28
                     }
                   },
                   {
@@ -144,18 +130,18 @@
                       "Expr": {
                         "item": {
                           "Literal": {
-                            "I64": 0
+                            "I32": 0
                           }
                         },
                         "span": {
-                          "start": 38,
-                          "end": 39
+                          "start": 28,
+                          "end": 29
                         }
                       }
                     },
                     "span": {
-                      "start": 38,
-                      "end": 39
+                      "start": 28,
+                      "end": 29
                     }
                   }
                 ],
@@ -163,16 +149,16 @@
               }
             },
             "span": {
-              "start": 23,
-              "end": 40
+              "start": 13,
+              "end": 30
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 17,
-        "end": 40
+        "start": 7,
+        "end": 30
       }
     }
   ]

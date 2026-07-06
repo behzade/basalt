@@ -7,6 +7,21 @@ use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
+    fn cast_numeric_expr(expr: hir::Expr, target_ty: hir::Ty) -> hir::Expr {
+        if expr.ty == target_ty {
+            return expr;
+        }
+        let span = expr.span;
+        hir::Expr {
+            kind: hir::ExprKind::Cast {
+                expr: Box::new(expr),
+            },
+            ty: target_ty,
+            span,
+            resolution: None,
+        }
+    }
+
     pub(crate) fn lower_expr(
         &mut self,
         expr: SpannedExpr,
@@ -121,8 +136,11 @@ impl Typechecker {
                 let hir_rhs = self.lower_expr(*rhs, context.clone())?;
                 let (result_ty, hir_op) = match op {
                     crate::ast::UnaryOp::Neg => match hir_rhs.ty.clone() {
-                        hir::Ty::Primitive(hir::PrimitiveTy::I32)
+                        hir::Ty::Primitive(hir::PrimitiveTy::I8)
+                        | hir::Ty::Primitive(hir::PrimitiveTy::I16)
+                        | hir::Ty::Primitive(hir::PrimitiveTy::I32)
                         | hir::Ty::Primitive(hir::PrimitiveTy::I64)
+                        | hir::Ty::Primitive(hir::PrimitiveTy::F32)
                         | hir::Ty::Primitive(hir::PrimitiveTy::F64) => {
                             (hir_rhs.ty.clone(), hir::UnaryOp::Negate)
                         }
@@ -204,31 +222,37 @@ impl Typechecker {
                     ),
                 };
 
+                let op_kind = self.lower_binary_op(op);
+                let both_numeric =
+                    TypeUnifier::is_numeric(&hir_lhs.ty) && TypeUnifier::is_numeric(&hir_rhs.ty);
+                let is_comparison = matches!(
+                    op_kind,
+                    hir::BinaryOp::Eq
+                        | hir::BinaryOp::Ne
+                        | hir::BinaryOp::Lt
+                        | hir::BinaryOp::Lte
+                        | hir::BinaryOp::Gt
+                        | hir::BinaryOp::Gte
+                );
+                let is_arithmetic = matches!(
+                    op_kind,
+                    hir::BinaryOp::Add
+                        | hir::BinaryOp::Sub
+                        | hir::BinaryOp::Mul
+                        | hir::BinaryOp::Div
+                        | hir::BinaryOp::Mod
+                        | hir::BinaryOp::BitShiftLeft
+                        | hir::BinaryOp::BitShiftRight
+                        | hir::BinaryOp::Xor
+                );
+                let common_numeric_ty = if both_numeric && (is_comparison || is_arithmetic) {
+                    TypeUnifier::unify_numeric(&hir_lhs.ty, &hir_rhs.ty)
+                } else {
+                    None
+                };
+
                 if hir_lhs.ty != hir_rhs.ty {
-                    let op_kind = self.lower_binary_op(op);
-                    let both_numeric = TypeUnifier::is_numeric(&hir_lhs.ty)
-                        && TypeUnifier::is_numeric(&hir_rhs.ty);
-                    let is_comparison = matches!(
-                        op_kind,
-                        hir::BinaryOp::Eq
-                            | hir::BinaryOp::Ne
-                            | hir::BinaryOp::Lt
-                            | hir::BinaryOp::Lte
-                            | hir::BinaryOp::Gt
-                            | hir::BinaryOp::Gte
-                    );
-                    let is_arithmetic = matches!(
-                        op_kind,
-                        hir::BinaryOp::Add
-                            | hir::BinaryOp::Sub
-                            | hir::BinaryOp::Mul
-                            | hir::BinaryOp::Div
-                            | hir::BinaryOp::Mod
-                            | hir::BinaryOp::BitShiftLeft
-                            | hir::BinaryOp::BitShiftRight
-                            | hir::BinaryOp::Xor
-                    );
-                    if !(both_numeric && (is_comparison || is_arithmetic)) {
+                    if common_numeric_ty.is_none() {
                         self.errors.push(TypeError { message: format!(
                             "Binary operation between mismatched types: expected {} but found {}",
                             Typechecker::format_ty(&hir_lhs.ty), Typechecker::format_ty(&hir_rhs.ty)
@@ -236,7 +260,7 @@ impl Typechecker {
                     }
                 }
 
-                let result_ty = match self.lower_binary_op(op) {
+                let result_ty = match op_kind {
                     hir::BinaryOp::Add
                     | hir::BinaryOp::Sub
                     | hir::BinaryOp::Mul
@@ -244,8 +268,7 @@ impl Typechecker {
                     | hir::BinaryOp::Mod
                     | hir::BinaryOp::BitShiftLeft
                     | hir::BinaryOp::BitShiftRight
-                    | hir::BinaryOp::Xor => TypeUnifier::unify_numeric(&hir_lhs.ty, &hir_rhs.ty)
-                        .unwrap_or(hir_lhs.ty.clone()),
+                    | hir::BinaryOp::Xor => common_numeric_ty.clone().unwrap_or(hir_lhs.ty.clone()),
                     hir::BinaryOp::Assign => hir_lhs.ty.clone(),
                     hir::BinaryOp::Eq
                     | hir::BinaryOp::Ne
@@ -255,6 +278,15 @@ impl Typechecker {
                     | hir::BinaryOp::Gte
                     | hir::BinaryOp::And
                     | hir::BinaryOp::Or => hir::Ty::Primitive(hir::PrimitiveTy::Bool),
+                };
+
+                let (hir_lhs, hir_rhs) = if let Some(common_ty) = common_numeric_ty {
+                    (
+                        Self::cast_numeric_expr(hir_lhs, common_ty.clone()),
+                        Self::cast_numeric_expr(hir_rhs, common_ty),
+                    )
+                } else {
+                    (hir_lhs, hir_rhs)
                 };
 
                 Ok(hir::Expr {
