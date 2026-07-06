@@ -1,0 +1,1005 @@
+{
+  "tests/07-option-result.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Empty",
+          "generics": [],
+          "fields": [],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 4
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Option",
+          "generics": [
+            "T"
+          ],
+          "aliased": {
+            "Union": [
+              [
+                "Some",
+                {
+                  "path": [
+                    "T"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "None",
+                {
+                  "path": [
+                    "Empty"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 4,
+        "end": 17
+      }
+    },
+    {
+      "item": {
+        "TypeAlias": {
+          "name": "Result",
+          "generics": [
+            "T",
+            "E"
+          ],
+          "aliased": {
+            "Union": [
+              [
+                "Ok",
+                {
+                  "path": [
+                    "T"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ],
+              [
+                "Err",
+                {
+                  "path": [
+                    "E"
+                  ],
+                  "generics": [],
+                  "fn_params": null,
+                  "fn_ret": null,
+                  "fn_effects": null
+                }
+              ]
+            ]
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 17,
+        "end": 32
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "unwrap_or",
+          "generics": [],
+          "params": [
+            [
+              "value",
+              {
+                "path": [
+                  "Option"
+                ],
+                "generics": [
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  }
+                ],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "fallback",
+              {
+                "path": [
+                  "i32"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Match": {
+                            "scrutinee": {
+                              "item": {
+                                "Path": [
+                                  "value"
+                                ]
+                              },
+                              "span": {
+                                "start": 50,
+                                "end": 51
+                              }
+                            },
+                            "arms": [
+                              [
+                                {
+                                  "item": {
+                                    "VariantBind": {
+                                      "binding": "some",
+                                      "variant_path": [
+                                        "Some"
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 52,
+                                    "end": 55
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "some"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 56,
+                                    "end": 57
+                                  }
+                                }
+                              ],
+                              [
+                                {
+                                  "item": "Wildcard",
+                                  "span": {
+                                    "start": 58,
+                                    "end": 59
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "fallback"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 60,
+                                    "end": 61
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 49,
+                          "end": 61
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 49,
+                      "end": 61
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 48,
+              "end": 62
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 32,
+        "end": 62
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "add_if_present",
+          "generics": [],
+          "params": [
+            [
+              "lhs",
+              {
+                "path": [
+                  "Option"
+                ],
+                "generics": [
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  }
+                ],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "rhs",
+              {
+                "path": [
+                  "Option"
+                ],
+                "generics": [
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  }
+                ],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "left",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "unwrap_or"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 85,
+                                  "end": 86
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "lhs"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 87,
+                                    "end": 88
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 0
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 89,
+                                    "end": 90
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 85,
+                            "end": 91
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 82,
+                      "end": 91
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "right",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "unwrap_or"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 94,
+                                  "end": 95
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "rhs"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 96,
+                                    "end": 97
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 0
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 98,
+                                    "end": 99
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 94,
+                            "end": 100
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 91,
+                      "end": 100
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Add",
+                            "lhs": {
+                              "item": {
+                                "Path": [
+                                  "left"
+                                ]
+                              },
+                              "span": {
+                                "start": 100,
+                                "end": 101
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Path": [
+                                  "right"
+                                ]
+                              },
+                              "span": {
+                                "start": 102,
+                                "end": 103
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 100,
+                          "end": 103
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 100,
+                      "end": 103
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 81,
+              "end": 104
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 62,
+        "end": 104
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "score",
+          "generics": [],
+          "params": [
+            [
+              "result",
+              {
+                "path": [
+                  "Result"
+                ],
+                "generics": [
+                  {
+                    "path": [
+                      "i32"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  },
+                  {
+                    "path": [
+                      "str"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  }
+                ],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Match": {
+                            "scrutinee": {
+                              "item": {
+                                "Path": [
+                                  "result"
+                                ]
+                              },
+                              "span": {
+                                "start": 120,
+                                "end": 121
+                              }
+                            },
+                            "arms": [
+                              [
+                                {
+                                  "item": {
+                                    "VariantBind": {
+                                      "binding": "ok",
+                                      "variant_path": [
+                                        "Ok"
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 122,
+                                    "end": 125
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "ok"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 126,
+                                    "end": 127
+                                  }
+                                }
+                              ],
+                              [
+                                {
+                                  "item": {
+                                    "VariantBind": {
+                                      "binding": "err",
+                                      "variant_path": [
+                                        "Err"
+                                      ]
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 128,
+                                    "end": 131
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "MethodCall": {
+                                      "receiver": {
+                                        "item": {
+                                          "Path": [
+                                            "err"
+                                          ]
+                                        },
+                                        "span": {
+                                          "start": 132,
+                                          "end": 133
+                                        }
+                                      },
+                                      "method": "len",
+                                      "args": []
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 132,
+                                    "end": 137
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 119,
+                          "end": 137
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 119,
+                      "end": 137
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 118,
+              "end": 138
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 104,
+        "end": 138
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "present",
+                        "ty": {
+                          "path": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "i32"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "Some"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 153,
+                                  "end": 154
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 7
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 155,
+                                    "end": 156
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 153,
+                            "end": 157
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 145,
+                      "end": 157
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "missing",
+                        "ty": {
+                          "path": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "i32"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "StructInit": {
+                              "path": [
+                                "Option",
+                                "None"
+                              ],
+                              "generics": [],
+                              "fields": []
+                            }
+                          },
+                          "span": {
+                            "start": 165,
+                            "end": 171
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 157,
+                      "end": 171
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "total",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "add_if_present"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 174,
+                                  "end": 175
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "present"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 176,
+                                    "end": 177
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "missing"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 178,
+                                    "end": 179
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 174,
+                            "end": 180
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 171,
+                      "end": 180
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "ok",
+                        "ty": {
+                          "path": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "path": [
+                                "i32"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            },
+                            {
+                              "path": [
+                                "str"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            }
+                          ],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "Ok"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 190,
+                                  "end": 191
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 5
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 192,
+                                    "end": 193
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 190,
+                            "end": 194
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 180,
+                      "end": 194
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Add",
+                            "lhs": {
+                              "item": {
+                                "Path": [
+                                  "total"
+                                ]
+                              },
+                              "span": {
+                                "start": 194,
+                                "end": 195
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "score"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 196,
+                                      "end": 197
+                                    }
+                                  },
+                                  "args": [
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "ok"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 198,
+                                        "end": 199
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "span": {
+                                "start": 196,
+                                "end": 200
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 194,
+                          "end": 200
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 194,
+                      "end": 200
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 144,
+              "end": 201
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 138,
+        "end": 201
+      }
+    }
+  ]
+}

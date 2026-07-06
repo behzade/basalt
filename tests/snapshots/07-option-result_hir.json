@@ -1,0 +1,1506 @@
+[
+  {
+    "Struct": {
+      "name": "Empty",
+      "fields": [],
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 0,
+        "end": 4
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Enum": {
+      "name": "Option",
+      "variants": [
+        {
+          "name": "Some",
+          "payload": [
+            {
+              "Generic": "T"
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "None",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Empty"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 4,
+        "end": 17
+      },
+      "context_id": null
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "Option",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "Option"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 4,
+        "end": 17
+      }
+    }
+  },
+  {
+    "Enum": {
+      "name": "Result",
+      "variants": [
+        {
+          "name": "Ok",
+          "payload": [
+            {
+              "Generic": "T"
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "Err",
+          "payload": [
+            {
+              "Generic": "E"
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 17,
+        "end": 32
+      },
+      "context_id": null
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "Result",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "Result"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 17,
+        "end": 32
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "unwrap_or",
+        "params": [
+          {
+            "name": "value",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "Option"
+                  ],
+                  "generics": [
+                    {
+                      "Primitive": "I32"
+                    }
+                  ]
+                }
+              }
+            },
+            "span": null
+          },
+          {
+            "name": "fallback",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "value"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Option"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 50,
+                  "end": 51
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "value",
+                    "decl_span": null
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Some"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "some"
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Path": [
+                        "some"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 56,
+                      "end": 57
+                    },
+                    "resolution": {
+                      "Local": {
+                        "name": "some",
+                        "decl_span": null
+                      }
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "Wildcard",
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Option"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Path": [
+                        "fallback"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 60,
+                      "end": 61
+                    },
+                    "resolution": {
+                      "Local": {
+                        "name": "fallback",
+                        "decl_span": null
+                      }
+                    }
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 49,
+            "end": 61
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 48,
+        "end": 62
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "add_if_present",
+        "params": [
+          {
+            "name": "lhs",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "Option"
+                  ],
+                  "generics": [
+                    {
+                      "Primitive": "I32"
+                    }
+                  ]
+                }
+              }
+            },
+            "span": null
+          },
+          {
+            "name": "rhs",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "Option"
+                  ],
+                  "generics": [
+                    {
+                      "Primitive": "I32"
+                    }
+                  ]
+                }
+              }
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "left",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "unwrap_or"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Option"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 85,
+                        "end": 86
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "lhs"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Option"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 87,
+                          "end": 88
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "lhs",
+                            "decl_span": null
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "0"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 89,
+                          "end": 90
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 85,
+                  "end": 91
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 82,
+                "end": 91
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "right",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "unwrap_or"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Option"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 94,
+                        "end": 95
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "rhs"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Option"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 96,
+                          "end": 97
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "rhs",
+                            "decl_span": null
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "0"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 98,
+                          "end": 99
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 94,
+                  "end": 100
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 91,
+                "end": 100
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Binary": {
+              "op": "Add",
+              "lhs": {
+                "kind": {
+                  "Path": [
+                    "left"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 100,
+                  "end": 101
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "left",
+                    "decl_span": {
+                      "start": 82,
+                      "end": 91
+                    }
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Path": [
+                    "right"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 102,
+                  "end": 103
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "right",
+                    "decl_span": {
+                      "start": 91,
+                      "end": 100
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 100,
+            "end": 103
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 81,
+        "end": 104
+      },
+      "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "score",
+        "params": [
+          {
+            "name": "result",
+            "ty": {
+              "Adt": {
+                "Enum": {
+                  "name": [
+                    "Result"
+                  ],
+                  "generics": [
+                    {
+                      "Primitive": "I32"
+                    },
+                    {
+                      "Primitive": "Str"
+                    }
+                  ]
+                }
+              }
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "result"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "Str"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 120,
+                  "end": 121
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "result",
+                    "decl_span": null
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Ok"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "ok"
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            },
+                            {
+                              "Primitive": "Str"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Path": [
+                        "ok"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 126,
+                      "end": 127
+                    },
+                    "resolution": {
+                      "Local": {
+                        "name": "ok",
+                        "decl_span": null
+                      }
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Err"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "err"
+                            },
+                            "ty": {
+                              "Primitive": "Str"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Result"
+                          ],
+                          "generics": [
+                            {
+                              "Primitive": "I32"
+                            },
+                            {
+                              "Primitive": "Str"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "len"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Primitive": "Str"
+                                }
+                              ],
+                              "ret_type": {
+                                "Primitive": "I32"
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 132,
+                            "end": 137
+                          },
+                          "resolution": null
+                        },
+                        "args": [
+                          {
+                            "kind": {
+                              "Path": [
+                                "err"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "Str"
+                            },
+                            "span": {
+                              "start": 132,
+                              "end": 133
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "err",
+                                "decl_span": null
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 132,
+                      "end": 137
+                    },
+                    "resolution": null
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 119,
+            "end": 137
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 118,
+        "end": 138
+      },
+      "context_id": 3
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "present",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "Some"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "Option"
+                                ],
+                                "generics": [
+                                  {
+                                    "Primitive": "I32"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 153,
+                        "end": 154
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "7"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 155,
+                          "end": 156
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Option"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 145,
+                  "end": 157
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "Option"
+                    ],
+                    "generics": [
+                      {
+                        "Primitive": "I32"
+                      }
+                    ]
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 145,
+                "end": 157
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "missing",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "Option",
+                      "None"
+                    ],
+                    "fields": []
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Option"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 157,
+                  "end": 171
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "Option"
+                    ],
+                    "generics": [
+                      {
+                        "Primitive": "I32"
+                      }
+                    ]
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 157,
+                "end": 171
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "total",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "add_if_present"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Option"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Option"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 174,
+                        "end": 175
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "present"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Option"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 176,
+                          "end": 177
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "present",
+                            "decl_span": {
+                              "start": 145,
+                              "end": 157
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Path": [
+                            "missing"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Option"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 178,
+                          "end": 179
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "missing",
+                            "decl_span": {
+                              "start": 157,
+                              "end": 171
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 174,
+                  "end": 180
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 171,
+                "end": 180
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "ok",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "Ok"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Enum": {
+                                "name": [
+                                  "Result"
+                                ],
+                                "generics": [
+                                  {
+                                    "Primitive": "I32"
+                                  },
+                                  {
+                                    "Primitive": "Str"
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 190,
+                        "end": 191
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "5"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 192,
+                          "end": 193
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Result"
+                      ],
+                      "generics": [
+                        {
+                          "Primitive": "I32"
+                        },
+                        {
+                          "Primitive": "Str"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "span": {
+                  "start": 180,
+                  "end": 194
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "Result"
+                    ],
+                    "generics": [
+                      {
+                        "Primitive": "I32"
+                      },
+                      {
+                        "Primitive": "Str"
+                      }
+                    ]
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 180,
+                "end": 194
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Binary": {
+              "op": "Add",
+              "lhs": {
+                "kind": {
+                  "Path": [
+                    "total"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 194,
+                  "end": 195
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "total",
+                    "decl_span": {
+                      "start": 171,
+                      "end": 180
+                    }
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "score"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Enum": {
+                                  "name": [
+                                    "Result"
+                                  ],
+                                  "generics": [
+                                    {
+                                      "Primitive": "I32"
+                                    },
+                                    {
+                                      "Primitive": "Str"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 196,
+                        "end": 197
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "ok"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Enum": {
+                              "name": [
+                                "Result"
+                              ],
+                              "generics": [
+                                {
+                                  "Primitive": "I32"
+                                },
+                                {
+                                  "Primitive": "Str"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 198,
+                          "end": 199
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "ok",
+                            "decl_span": {
+                              "start": 180,
+                              "end": 194
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 196,
+                  "end": 200
+                },
+                "resolution": null
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 194,
+            "end": 200
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/07-option-result.bst",
+      "span": {
+        "start": 144,
+        "end": 201
+      },
+      "context_id": 4
+    }
+  }
+]

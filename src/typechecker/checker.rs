@@ -30,6 +30,9 @@ pub struct Typechecker {
     /// Populated from type aliases that define unions.
     pub(crate) union_variants: HashMap<hir::OwnedPath, Vec<(String, Option<Vec<hir::Ty>>)>>,
 
+    /// Generic parameters declared on type aliases, keyed by alias path.
+    pub(crate) type_alias_generics: HashMap<hir::OwnedPath, Vec<String>>,
+
     /// Map of file path -> set of imported names (aliases or last path segment).
     /// Used to suppress spurious unknown-name errors for module identifiers like `io`.
     pub(crate) imports_by_file: HashMap<PathBuf, HashSet<String>>,
@@ -554,6 +557,8 @@ impl Typechecker {
                     context_id: None,
                 };
                 let path = vec![ta.name.clone()];
+                self.type_alias_generics
+                    .insert(path.clone(), ta.generics.clone());
                 self.type_definitions
                     .insert(path.clone(), hir::Item::Enum(def.clone()));
                 // Keep internal union_variants as tuple vec
@@ -807,18 +812,39 @@ impl Typechecker {
                         }
                     }
                     match item {
-                        hir::Item::Struct(_) => Ok(hir::Ty::Adt(hir::AdtTy::Struct {
-                            name: path_vec,
-                            generics: vec![],
-                        })),
-                        hir::Item::Enum(_) => Ok(hir::Ty::Adt(hir::AdtTy::Enum {
-                            name: path_vec,
-                            generics: vec![],
-                        })),
-                        hir::Item::Effect(_) => Ok(hir::Ty::Adt(hir::AdtTy::Effect {
-                            name: path_vec,
-                            generics: vec![],
-                        })),
+                        hir::Item::Struct(_) => {
+                            let generics = owned_ty
+                                .generics
+                                .iter()
+                                .map(|g| self.resolve_type(g, context.clone()))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            Ok(hir::Ty::Adt(hir::AdtTy::Struct {
+                                name: path_vec,
+                                generics,
+                            }))
+                        }
+                        hir::Item::Enum(_) => {
+                            let generics = owned_ty
+                                .generics
+                                .iter()
+                                .map(|g| self.resolve_type(g, context.clone()))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            Ok(hir::Ty::Adt(hir::AdtTy::Enum {
+                                name: path_vec,
+                                generics,
+                            }))
+                        }
+                        hir::Item::Effect(_) => {
+                            let generics = owned_ty
+                                .generics
+                                .iter()
+                                .map(|g| self.resolve_type(g, context.clone()))
+                                .collect::<Result<Vec<_>, _>>()?;
+                            Ok(hir::Ty::Adt(hir::AdtTy::Effect {
+                                name: path_vec,
+                                generics,
+                            }))
+                        }
                         _ => {
                             self.errors.push(TypeError {
                                 message: format!("Unsupported type item for {}", type_name),

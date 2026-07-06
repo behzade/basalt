@@ -262,18 +262,9 @@ impl Typechecker {
             } => {
                 let variant_name = variant_path.last().cloned().unwrap_or_default();
                 let payload = match scrutinee_ty {
-                    hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => {
-                        let mut found: Option<Vec<hir::Ty>> = None;
-                        if let Some(vs) = self.union_variants.get(name) {
-                            for (vn, pl) in vs {
-                                if vn == &variant_name {
-                                    found = pl.clone();
-                                    break;
-                                }
-                            }
-                        }
-                        found
-                    }
+                    hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => self
+                        .instantiated_union_payload(name, generics, &variant_name)
+                        .flatten(),
                     _ => None,
                 };
                 let mut bound = Vec::new();

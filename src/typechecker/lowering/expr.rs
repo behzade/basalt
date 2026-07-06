@@ -1594,6 +1594,92 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::Expr, ()> {
         match (expr.item.clone(), expected.clone()) {
+            (OwnedExpr::Call { fun, args }, hir::Ty::Adt(hir::AdtTy::Enum { name, generics })) => {
+                if let OwnedExpr::Path(path) = &fun.item {
+                    if path.len() == 1 {
+                        let variant_name = &path[0];
+                        if let Some(payload_types) =
+                            self.instantiated_union_payload(&name, &generics, variant_name)
+                        {
+                            let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
+                                name: name.clone(),
+                                generics: generics.clone(),
+                            });
+                            let expected_payload_ty =
+                                payload_types.as_ref().and_then(|v| v.get(0)).cloned();
+                            let mut lowered_args = Vec::new();
+                            if let Some(exp_ty) = expected_payload_ty.clone() {
+                                if let Some(first) = args.get(0) {
+                                    lowered_args.push(self.lower_expr_with_expected(
+                                        first.clone(),
+                                        exp_ty.clone(),
+                                        context.clone(),
+                                    )?);
+                                } else {
+                                    self.errors.push(TypeError {
+                                        message: format!(
+                                            "Variant `{}` expects 1 argument",
+                                            variant_name
+                                        ),
+                                        context: context.clone(),
+                                    });
+                                }
+                            }
+                            let fun_expr = hir::Expr {
+                                kind: hir::ExprKind::Path(vec![variant_name.clone()]),
+                                ty: hir::Ty::Function {
+                                    param_types: expected_payload_ty
+                                        .map(|ty| vec![ty])
+                                        .unwrap_or_default(),
+                                    ret_type: Box::new(ret_ty.clone()),
+                                    effects: vec![],
+                                },
+                                span: fun.span,
+                                resolution: None,
+                            };
+                            return Ok(hir::Expr {
+                                ty: ret_ty,
+                                kind: hir::ExprKind::Call {
+                                    fun: Box::new(fun_expr),
+                                    args: lowered_args,
+                                },
+                                span: expr.span,
+                                resolution: None,
+                            });
+                        }
+                    }
+                }
+                self.lower_expr(expr, context)
+            }
+            (
+                OwnedExpr::StructInit {
+                    path,
+                    generics: init_generics,
+                    fields,
+                },
+                hir::Ty::Adt(hir::AdtTy::Enum { name, generics }),
+            ) if path.len() == name.len() + 1 && path.starts_with(&name) => {
+                let variant_name = path.last().cloned().unwrap_or_default();
+                if self
+                    .instantiated_union_payload(&name, &generics, &variant_name)
+                    .is_some()
+                {
+                    let mut lowered = self.lower_expr(
+                        Spanned {
+                            item: OwnedExpr::StructInit {
+                                path,
+                                generics: init_generics,
+                                fields,
+                            },
+                            span: expr.span,
+                        },
+                        context,
+                    )?;
+                    lowered.ty = hir::Ty::Adt(hir::AdtTy::Enum { name, generics });
+                    return Ok(lowered);
+                }
+                self.lower_expr(expr, context)
+            }
             (OwnedExpr::Literal(lit), hir::Ty::Primitive(exp_prim)) => {
                 if let Some((pty, s)) = self.coerce_numeric_literal(&lit, exp_prim.clone()) {
                     return Ok(hir::Expr {

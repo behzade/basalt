@@ -236,6 +236,22 @@ impl Interpreter {
                 // Evaluate callee; support calling top-level and function values
                 if let ExprKind::Path(p) = &fun.kind {
                     if let Some(name) = p.last() {
+                        if let hir::Ty::Function { ret_type, .. } = &fun.ty {
+                            if let hir::Ty::Adt(hir::AdtTy::Enum {
+                                name: enum_name, ..
+                            }) = ret_type.as_ref()
+                            {
+                                if !self.functions.contains_key(name) {
+                                    let mut fields = HashMap::new();
+                                    if let Some(first) = args.get(0) {
+                                        fields.insert("0".to_string(), self.eval_expr(first, env)?);
+                                    }
+                                    let mut path = enum_name.clone();
+                                    path.push(name.clone());
+                                    return Ok(Value::Struct { path, fields });
+                                }
+                            }
+                        }
                         // Builtins: minimal host I/O
                         if let Some(builtin) = self.try_builtin_call(name, args, env)? {
                             return Ok(builtin);
@@ -481,7 +497,13 @@ impl Interpreter {
                 for arg in args {
                     match &arg.kind {
                         hir::HirPatternKind::Identifier(name) => {
-                            bindings.insert(name.clone(), value.clone());
+                            let bound = match value {
+                                Value::Struct { fields, .. } => {
+                                    fields.get("0").cloned().unwrap_or_else(|| value.clone())
+                                }
+                                _ => value.clone(),
+                            };
+                            bindings.insert(name.clone(), bound);
                         }
                         hir::HirPatternKind::Wildcard => {}
                         _ => {

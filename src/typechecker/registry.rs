@@ -202,6 +202,8 @@ impl Typechecker {
                         context_id: None,
                     };
                     let path = vec![ta.name.clone()];
+                    self.type_alias_generics
+                        .insert(path.clone(), ta.generics.clone());
                     self.type_definitions
                         .insert(path.clone(), hir::Item::Enum(def));
                     self.type_definition_meta
