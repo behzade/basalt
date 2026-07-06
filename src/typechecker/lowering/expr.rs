@@ -34,6 +34,174 @@ impl Typechecker {
         }
     }
 
+    fn merge_effects(mut base: Vec<hir::Ty>, extra: &[hir::Ty]) -> Vec<hir::Ty> {
+        for effect in extra {
+            if !base
+                .iter()
+                .any(|existing| Typechecker::same_effect_name(existing, effect))
+            {
+                base.push(effect.clone());
+            }
+        }
+        base
+    }
+
+    fn effect_from_perform_path(&self, path: &[String]) -> Option<hir::Ty> {
+        let effect_name = path.first()?;
+        let effect_path = vec![effect_name.clone()];
+        if matches!(
+            self.type_definitions.get(&effect_path),
+            Some(hir::Item::Effect(_))
+        ) {
+            Some(hir::Ty::Adt(hir::AdtTy::Effect {
+                name: effect_path,
+                generics: vec![],
+            }))
+        } else {
+            None
+        }
+    }
+
+    fn expr_effects(&self, expr: &hir::Expr) -> Vec<hir::Ty> {
+        match &expr.kind {
+            hir::ExprKind::Call { fun, .. } => match &fun.ty {
+                hir::Ty::Function { effects, .. } => effects.clone(),
+                _ => vec![],
+            },
+            hir::ExprKind::Perform { path, .. } => self
+                .effect_from_perform_path(path)
+                .map(|effect| vec![effect])
+                .unwrap_or_default(),
+            hir::ExprKind::Block(block) => self.block_effects(block),
+            hir::ExprKind::If {
+                then_block,
+                else_block,
+                ..
+            } => {
+                let mut effects = self.block_effects(then_block);
+                if let Some(else_expr) = else_block {
+                    effects = Self::merge_effects(effects, &self.expr_effects(else_expr));
+                }
+                effects
+            }
+            hir::ExprKind::Match { arms, .. } => arms.iter().fold(vec![], |effects, (_, arm)| {
+                Self::merge_effects(effects, &self.expr_effects(arm))
+            }),
+            hir::ExprKind::While { body, .. } => self.block_effects(body),
+            hir::ExprKind::Handle { body, handler } => {
+                let mut effects = self.block_effects(body);
+                if let hir::Ty::Handler {
+                    effects: handled_effects,
+                } = &handler.ty
+                {
+                    effects.retain(|effect| {
+                        !handled_effects
+                            .iter()
+                            .any(|handled| Typechecker::same_effect_name(effect, handled))
+                    });
+                }
+                effects
+            }
+            _ => vec![],
+        }
+    }
+
+    fn block_effects(&self, block: &hir::HirBlock) -> Vec<hir::Ty> {
+        let mut effects = vec![];
+        for stmt in &block.stmts {
+            let stmt_effects = match stmt {
+                hir::Stmt::Let { value, .. } => value
+                    .as_ref()
+                    .map(|expr| self.expr_effects(expr))
+                    .unwrap_or_default(),
+                hir::Stmt::Return { value, .. } => value
+                    .as_ref()
+                    .map(|expr| self.expr_effects(expr))
+                    .unwrap_or_default(),
+                hir::Stmt::Assign { rhs, .. } => self.expr_effects(rhs),
+                hir::Stmt::Expr { expr, .. } => self.expr_effects(expr),
+                hir::Stmt::Error { .. } => vec![],
+            };
+            effects = Self::merge_effects(effects, &stmt_effects);
+        }
+        if let Some(last) = &block.last_expr {
+            effects = Self::merge_effects(effects, &self.expr_effects(last));
+        }
+        effects
+    }
+
+    fn lower_handler_body_expr(
+        &mut self,
+        handler: OwnedHandlerBody,
+        context: ItemContext,
+        span: crate::token::SimpleSpan,
+    ) -> Result<hir::Expr, ()> {
+        match handler {
+            OwnedHandlerBody::Path(path) => {
+                let Some(name) = path.last().cloned() else {
+                    self.errors.push(TypeError {
+                        message: "Empty handler path".to_string(),
+                        context,
+                    });
+                    return Err(());
+                };
+                let effects = if let Some(effects) = self.handler_values.get(&name).cloned() {
+                    effects
+                } else if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned()
+                {
+                    if let hir::Ty::Handler { effects } = ty {
+                        effects
+                    } else {
+                        self.errors.push(TypeError {
+                            message: format!("`{}` is not a handler value", name),
+                            context,
+                        });
+                        return Err(());
+                    }
+                } else {
+                    self.errors.push(TypeError {
+                        message: format!("Unknown handler `{}`", name),
+                        context,
+                    });
+                    return Err(());
+                };
+                Ok(hir::Expr {
+                    kind: hir::ExprKind::Handler(hir::HirHandlerBody::Path(path)),
+                    ty: hir::Ty::Handler { effects },
+                    span,
+                    resolution: None,
+                })
+            }
+            OwnedHandlerBody::Inline(funcs) => {
+                let mut lowered = Vec::new();
+                for f in funcs {
+                    lowered.push(self.lower_function(f, context.clone())?);
+                }
+                Ok(hir::Expr {
+                    kind: hir::ExprKind::Handler(hir::HirHandlerBody::Inline(lowered)),
+                    ty: hir::Ty::Handler { effects: vec![] },
+                    span,
+                    resolution: None,
+                })
+            }
+        }
+    }
+
+    fn lower_handler_value_path_expr(
+        &mut self,
+        path: Vec<String>,
+        span: crate::token::SimpleSpan,
+    ) -> Option<hir::Expr> {
+        let name = path.last()?.clone();
+        let effects = self.handler_values.get(&name).cloned()?;
+        Some(hir::Expr {
+            kind: hir::ExprKind::Handler(hir::HirHandlerBody::Path(path)),
+            ty: hir::Ty::Handler { effects },
+            span,
+            resolution: None,
+        })
+    }
+
     pub(crate) fn lower_expr(
         &mut self,
         expr: SpannedExpr,
@@ -62,6 +230,11 @@ impl Typechecker {
                 }
             },
             OwnedExpr::Path(path) => {
+                if let Some(handler_expr) =
+                    self.lower_handler_value_path_expr(path.clone(), expr.span)
+                {
+                    return Ok(handler_expr);
+                }
                 let name = path.last().cloned().expect("Path cannot be empty");
                 let sym_opt = self.lookup_symbol(&name).cloned();
                 match sym_opt {
@@ -1136,37 +1309,83 @@ impl Typechecker {
                 })
             }
             OwnedExpr::Handle { body, handler } => {
-                let body_hir = self.lower_expr(*body, context.clone())?;
-                let handler_hir = match handler {
-                    OwnedHandlerBody::Path(p) => hir::HirHandlerBody::Path(p),
-                    OwnedHandlerBody::Inline(funcs) => {
-                        let mut lowered = Vec::new();
-                        for f in funcs {
-                            if let Ok(h) = self.lower_function(
-                                f,
-                                ItemContext {
-                                    span: expr.span,
-                                    path: context.path.clone(),
-                                },
-                            ) {
-                                lowered.push(h);
-                            }
-                        }
-                        hir::HirHandlerBody::Inline(lowered)
-                    }
+                let handler_hir =
+                    self.lower_handler_body_expr(handler, context.clone(), expr.span)?;
+                let handler_effects = match &handler_hir.ty {
+                    hir::Ty::Handler { effects } => effects.clone(),
+                    _ => vec![],
                 };
+
+                let pushed_effect_scope =
+                    if let Some(current_allowed) = self.current_effects_stack.last().cloned() {
+                        let extended = Self::merge_effects(current_allowed, &handler_effects);
+                        self.current_effects_stack.push(extended);
+                        true
+                    } else {
+                        false
+                    };
+
+                let body_result = if let OwnedExpr::Path(path) = body.item.clone() {
+                    match self.lower_handler_value_path_expr(path, body.span) {
+                        Some(handler_value) => Ok(handler_value),
+                        None => self.lower_expr(*body, context.clone()),
+                    }
+                } else {
+                    self.lower_expr(*body, context.clone())
+                };
+                if pushed_effect_scope {
+                    let _ = self.current_effects_stack.pop();
+                }
+                let body_hir = body_result?;
+
+                let body_effects = self.expr_effects(&body_hir);
+                for required in &body_effects {
+                    if !handler_effects
+                        .iter()
+                        .any(|handled| Typechecker::same_effect_name(required, handled))
+                    {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Handler does not cover effect `{}`",
+                                Typechecker::format_ty(required)
+                            ),
+                            context: context.clone(),
+                        });
+                    }
+                }
+
+                let result_ty = if let hir::Ty::Handler {
+                    effects: body_handler_effects,
+                } = body_hir.ty.clone()
+                {
+                    hir::Ty::Handler {
+                        effects: body_handler_effects
+                            .into_iter()
+                            .filter(|effect| {
+                                !handler_effects
+                                    .iter()
+                                    .any(|handled| Typechecker::same_effect_name(effect, handled))
+                            })
+                            .collect(),
+                    }
+                } else {
+                    body_hir.ty.clone()
+                };
+
+                let body_block = match body_hir.kind.clone() {
+                    hir::ExprKind::Block(b) => b,
+                    _ => hir::HirBlock {
+                        stmts: vec![],
+                        last_expr: Some(Box::new(body_hir)),
+                        ty: result_ty.clone(),
+                    },
+                };
+
                 Ok(hir::Expr {
-                    ty: body_hir.ty.clone(),
+                    ty: result_ty,
                     kind: hir::ExprKind::Handle {
-                        body: match body_hir.kind.clone() {
-                            hir::ExprKind::Block(b) => b,
-                            _ => hir::HirBlock {
-                                stmts: vec![],
-                                last_expr: Some(Box::new(body_hir.clone())),
-                                ty: body_hir.ty.clone(),
-                            },
-                        },
-                        handler: handler_hir,
+                        body: body_block,
+                        handler: Box::new(handler_hir),
                     },
                     span: expr.span,
                     resolution: None,

@@ -285,6 +285,9 @@ impl Interpreter {
             ExprKind::Perform { .. } => Err(RuntimeError(
                 "Effects/perform not yet supported".to_string(),
             )),
+            ExprKind::Handler(_) => Err(RuntimeError(
+                "Handler values not yet supported at runtime".to_string(),
+            )),
             ExprKind::Handle { .. } => Err(RuntimeError(
                 "Handlers/handle not yet supported".to_string(),
             )),

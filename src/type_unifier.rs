@@ -169,6 +169,7 @@ impl TypeUnifier {
                 hir::Ty::Adt(hir::AdtTy::Enum { name: a, .. }),
                 hir::Ty::Adt(hir::AdtTy::Enum { name: b, .. }),
             ) => a == b,
+            (hir::Ty::Handler { effects: a }, hir::Ty::Handler { effects: b }) => a == b,
 
             // Allow assigning a specific enum variant (struct-like `Enum::Variant`) to its parent enum type
             (

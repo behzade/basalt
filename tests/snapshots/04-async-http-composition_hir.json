@@ -691,9 +691,34 @@
                       }
                     },
                     "handler": {
-                      "Path": [
-                        "AsyncHttpHandler"
-                      ]
+                      "kind": {
+                        "Handler": {
+                          "Path": [
+                            "AsyncHttpHandler"
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Handler": {
+                          "effects": [
+                            {
+                              "Adt": {
+                                "Effect": {
+                                  "name": [
+                                    "Http"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "span": {
+                        "start": 161,
+                        "end": 165
+                      },
+                      "resolution": null
                     }
                   }
                 },

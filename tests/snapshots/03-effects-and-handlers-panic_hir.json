@@ -552,9 +552,34 @@
                       }
                     },
                     "handler": {
-                      "Path": [
-                        "OsExitPanic"
-                      ]
+                      "kind": {
+                        "Handler": {
+                          "Path": [
+                            "OsExitPanic"
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Handler": {
+                          "effects": [
+                            {
+                              "Adt": {
+                                "Effect": {
+                                  "name": [
+                                    "Panic"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "span": {
+                        "start": 89,
+                        "end": 95
+                      },
+                      "resolution": null
                     }
                   }
                 },

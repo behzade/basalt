@@ -1,12 +1,38 @@
 use std::path::PathBuf;
 
-use crate::ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedTypeAliasBody};
+use crate::ast_owned::{OwnedExpr, OwnedItem, OwnedItemWithSpan, OwnedStmt, OwnedTypeAliasBody};
 use crate::hir;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
+    fn effect_set_difference(left: &[hir::Ty], right: &[hir::Ty]) -> Vec<hir::Ty> {
+        left.iter()
+            .filter(|effect| {
+                !right
+                    .iter()
+                    .any(|handled| Self::same_effect_name(effect, handled))
+            })
+            .cloned()
+            .collect()
+    }
+
+    pub(crate) fn same_effect_name(a: &hir::Ty, b: &hir::Ty) -> bool {
+        match (a, b) {
+            (
+                hir::Ty::Adt(hir::AdtTy::Effect { name: a, .. }),
+                hir::Ty::Adt(hir::AdtTy::Effect { name: b, .. }),
+            ) => a == b,
+            (hir::Ty::Generic(a), hir::Ty::Generic(b)) => a == b,
+            (hir::Ty::Adt(hir::AdtTy::Effect { name, .. }), hir::Ty::Generic(g))
+            | (hir::Ty::Generic(g), hir::Ty::Adt(hir::AdtTy::Effect { name, .. })) => {
+                name.last().map(|n| n == g).unwrap_or(false)
+            }
+            _ => false,
+        }
+    }
+
     fn resolve_effect_names(
         &mut self,
         effect_names: &[String],
@@ -29,6 +55,56 @@ impl Typechecker {
             }
         }
         Some(effects)
+    }
+
+    fn register_handler_value(&mut self, name: &str, effects: &[String], context: ItemContext) {
+        if let Some(effects) = self.resolve_effect_names(effects, context) {
+            self.handler_values.insert(name.to_string(), effects);
+        }
+    }
+
+    fn register_handler_alias_stmt(&mut self, item: &OwnedItemWithSpan, context: ItemContext) {
+        let OwnedItem::Stmt(stmt) = &item.item else {
+            return;
+        };
+        let OwnedStmt::Let {
+            name,
+            value: Some(value),
+            ..
+        } = &stmt.item
+        else {
+            return;
+        };
+        let OwnedExpr::Handle { body, handler } = &value.item else {
+            return;
+        };
+        let OwnedExpr::Path(body_path) = &body.item else {
+            return;
+        };
+        let Some(body_name) = body_path.last() else {
+            return;
+        };
+        let Some(body_effects) = self.handler_values.get(body_name).cloned() else {
+            return;
+        };
+        let handler_effects = match handler {
+            crate::ast_owned::OwnedHandlerBody::Path(path) => path
+                .last()
+                .and_then(|handler_name| self.handler_values.get(handler_name))
+                .cloned(),
+            crate::ast_owned::OwnedHandlerBody::Inline(_) => Some(vec![]),
+        };
+        let Some(handler_effects) = handler_effects else {
+            self.errors.push(TypeError {
+                message: format!("Unknown handler `{}`", body_name),
+                context,
+            });
+            return;
+        };
+        self.handler_values.insert(
+            name.clone(),
+            Self::effect_set_difference(&body_effects, &handler_effects),
+        );
     }
 
     pub(crate) fn register_top_level_item(&mut self, item: &OwnedItemWithSpan) {
@@ -189,6 +265,22 @@ impl Typechecker {
                     .insert(path.clone(), hir::Item::Effect(def));
                 self.type_definition_meta
                     .insert(path, (ctx.path.clone(), eff.is_public));
+            }
+            OwnedItem::Handler(h) => {
+                let ctx = ItemContext {
+                    span: item.span,
+                    path: PathBuf::from("<global>"),
+                };
+                self.register_handler_value(&h.name, &h.effects, ctx);
+            }
+            OwnedItem::Stmt(_) => {
+                self.register_handler_alias_stmt(
+                    item,
+                    ItemContext {
+                        span: item.span,
+                        path: PathBuf::from("<global>"),
+                    },
+                );
             }
             _ => {}
         }
@@ -366,6 +458,22 @@ impl Typechecker {
                     .insert(path.clone(), hir::Item::Effect(def));
                 self.type_definition_meta
                     .insert(path, (ctx2.path.clone(), eff.is_public));
+            }
+            OwnedItem::Handler(h) => {
+                let ctx2 = ItemContext {
+                    span: item.span,
+                    path: file.clone(),
+                };
+                self.register_handler_value(&h.name, &h.effects, ctx2);
+            }
+            OwnedItem::Stmt(_) => {
+                self.register_handler_alias_stmt(
+                    item,
+                    ItemContext {
+                        span: item.span,
+                        path: file.clone(),
+                    },
+                );
             }
             _ => {
                 // Fallback for other item kinds if needed in the future

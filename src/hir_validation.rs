@@ -229,6 +229,22 @@ impl Validator {
                     _ => false,
                 }
             }
+            hir::Ty::Handler {
+                effects: expected_effects,
+            } => match actual {
+                hir::Ty::Handler {
+                    effects: actual_effects,
+                } => {
+                    actual_effects.len() == expected_effects.len()
+                        && actual_effects
+                            .iter()
+                            .zip(expected_effects)
+                            .all(|(actual, expected)| {
+                                Self::matches_with_generics(actual, expected, bindings)
+                            })
+                }
+                _ => false,
+            },
         }
     }
 
@@ -739,15 +755,36 @@ impl Validator {
                 }
                 self.validate_perform(perform_path, args, expr, path);
             }
-            hir::ExprKind::Handle { body, handler } => {
-                self.validate_block(body, path, &expr.ty);
+            hir::ExprKind::Handler(handler) => {
+                if !matches!(expr.ty, hir::Ty::Handler { .. }) {
+                    self.error(
+                        path,
+                        expr.span,
+                        format!("HIR handler expression has non-handler type {:?}", expr.ty),
+                    );
+                }
                 match handler {
-                    hir::HirHandlerBody::Path(_) => {}
+                    hir::HirHandlerBody::Path(handler_path) => {
+                        if handler_path.last().is_none() {
+                            self.error(path, expr.span, "HIR handler path is empty".to_string());
+                        }
+                    }
                     hir::HirHandlerBody::Inline(functions) => {
                         for f in functions {
                             self.validate_function(f);
                         }
                     }
+                }
+            }
+            hir::ExprKind::Handle { body, handler } => {
+                self.validate_block(body, path, &expr.ty);
+                self.validate_expr(handler, path);
+                if !matches!(handler.ty, hir::Ty::Handler { .. }) {
+                    self.error(
+                        path,
+                        handler.span,
+                        format!("HIR handle uses non-handler type {:?}", handler.ty),
+                    );
                 }
             }
             hir::ExprKind::FnLiteral(f) => {
@@ -1350,6 +1387,11 @@ impl Validator {
                     self.validate_ty(effect, path, span);
                 }
             }
+            hir::Ty::Handler { effects } => {
+                for effect in effects {
+                    self.validate_ty(effect, path, span);
+                }
+            }
             hir::Ty::Generic(name) if name == "!" => {
                 self.error(
                     path,
@@ -1584,6 +1626,55 @@ mod tests {
             messages
                 .iter()
                 .any(|msg| msg.contains("expression-level assignment"))
+        );
+    }
+
+    #[test]
+    fn rejects_handler_expression_with_non_handler_type() {
+        let expr = hir::Expr {
+            ty: hir::Ty::Special(hir::SpecialTy::Unit),
+            kind: hir::ExprKind::Handler(hir::HirHandlerBody::Path(vec![
+                "PanicHandler".to_string(),
+            ])),
+            span: span(),
+            resolution: None,
+        };
+
+        let messages = validation_messages(vec![function_with_expr(expr)]);
+        assert!(
+            messages
+                .iter()
+                .any(|msg| msg.contains("handler expression has non-handler type"))
+        );
+    }
+
+    #[test]
+    fn rejects_handle_with_non_handler_value() {
+        let handler = hir::Expr {
+            ty: hir::Ty::Special(hir::SpecialTy::Unit),
+            kind: hir::ExprKind::Literal(hir::PrimitiveTy::I32, "1".to_string()),
+            span: span(),
+            resolution: None,
+        };
+        let expr = hir::Expr {
+            ty: hir::Ty::Special(hir::SpecialTy::Unit),
+            kind: hir::ExprKind::Handle {
+                body: hir::HirBlock {
+                    stmts: vec![],
+                    last_expr: None,
+                    ty: hir::Ty::Special(hir::SpecialTy::Unit),
+                },
+                handler: Box::new(handler),
+            },
+            span: span(),
+            resolution: None,
+        };
+
+        let messages = validation_messages(vec![function_with_expr(expr)]);
+        assert!(
+            messages
+                .iter()
+                .any(|msg| msg.contains("handle uses non-handler type"))
         );
     }
 }

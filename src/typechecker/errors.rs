@@ -75,6 +75,14 @@ impl super::checker::Typechecker {
                 };
                 format!("fn({}) -> {}{}", params, Self::format_ty(ret_type), eff)
             }
+            Ty::Handler { effects } => {
+                let effects = effects
+                    .iter()
+                    .map(Self::format_ty)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("handler {{ {} }}", effects)
+            }
             Ty::Generic(name) => name.clone(),
             Ty::Adt(AdtTy::Struct { name, generics })
             | Ty::Adt(AdtTy::Enum { name, generics })

@@ -42,6 +42,10 @@ pub struct Typechecker {
     /// Top-level value functions by simple name. Ambiguities are not handled here yet.
     pub(crate) top_level_functions: HashMap<String, (hir::HirFunctionSignature, bool, PathBuf)>,
 
+    /// Top-level handler values by simple name. The vector is the effects this
+    /// handler value can discharge after any static handler composition.
+    pub(crate) handler_values: HashMap<String, Vec<hir::Ty>>,
+
     /// Persistent HIR contexts being built during lowering
     pub contexts: Vec<HirContext>,
     /// Stack of active context ids during lowering (function, block, etc.)

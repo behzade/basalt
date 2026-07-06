@@ -33,6 +33,9 @@ pub enum Ty {
         ret_type: Box<Ty>,
         effects: Vec<Ty>, // Represents the canonical effect types
     },
+    Handler {
+        effects: Vec<Ty>,
+    },
     // A placeholder for generic types like `T` before monomorphization
     Generic(String),
 }
@@ -288,9 +291,10 @@ pub enum ExprKind {
         path: OwnedPath, // Path to the effect operation
         args: Vec<Expr>,
     },
+    Handler(HirHandlerBody),
     Handle {
         body: HirBlock,
-        handler: HirHandlerBody,
+        handler: Box<Expr>,
     },
     /// Function literal value capturing a function body at runtime
     FnLiteral(HirFnLiteral),

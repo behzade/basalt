@@ -209,6 +209,14 @@ pub fn hir_ty_to_string(ty: &hir::Ty) -> String {
                 format!("({}) -> {} {{effects: {}}}", params, ret, effs)
             }
         }
+        Ty::Handler { effects } => {
+            let effects = effects
+                .iter()
+                .map(hir_ty_to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("handler {{ {} }}", effects)
+        }
         Ty::Generic(name) => name.clone(),
     }
 }
@@ -969,7 +977,11 @@ pub fn collect_lets_in_expr(expr: &hir::Expr, out: &mut Vec<(String, SimpleSpan)
                 collect_lets_in_expr(v, out);
             }
         }
-        EK::Handle { body, .. } => collect_lets_in_block(body, out),
+        EK::Handler(_) => {}
+        EK::Handle { body, handler } => {
+            collect_lets_in_block(body, out);
+            collect_lets_in_expr(handler, out);
+        }
         EK::Cast { expr: inner } => collect_lets_in_expr(inner, out),
         EK::Path(_) | EK::Literal(..) | EK::Perform { .. } | EK::Error => {}
         EK::FnLiteral(f) => {} // is this right?
