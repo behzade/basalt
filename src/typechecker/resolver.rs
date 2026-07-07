@@ -68,8 +68,19 @@ pub(crate) struct ResolvedHandlerValue {
     pub effects: Vec<hir::Ty>,
 }
 
+pub(crate) enum ResolvedNominalType {
+    Struct,
+    Enum,
+    Effect,
+    Unsupported,
+}
+
 pub(crate) enum ResolveError {
     PrivateFunction { name: String },
+}
+
+pub(crate) enum TypeResolveError {
+    PrivateType { name: String },
 }
 
 pub(crate) enum HandlerResolveError {
@@ -295,6 +306,31 @@ impl Typechecker {
         }
     }
 
+    pub(crate) fn resolve_effect_type_name(&self, name: &str) -> Option<hir::Ty> {
+        let path = vec![name.to_string()];
+        self.resolve_effect_type_path(&path)
+    }
+
+    pub(crate) fn resolve_effect_type_path(&self, path: &hir::OwnedPath) -> Option<hir::Ty> {
+        match self.type_definitions.get(path) {
+            Some(hir::Item::Effect(_)) => Some(hir::Ty::Adt(hir::AdtTy::Effect {
+                name: path.clone(),
+                generics: vec![],
+            })),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn resolve_effect_operations(
+        &self,
+        path: &hir::OwnedPath,
+    ) -> Option<Vec<hir::HirFunctionSignature>> {
+        match self.type_definitions.get(path) {
+            Some(hir::Item::Effect(def)) => Some(def.operations.clone()),
+            _ => None,
+        }
+    }
+
     pub(crate) fn resolve_registered_handler_path(
         &self,
         path: &[String],
@@ -351,6 +387,29 @@ impl Typechecker {
         } else {
             hir::HirHandlerBody::Path(path.to_vec())
         }
+    }
+
+    pub(crate) fn resolve_nominal_type_path(
+        &self,
+        path: &hir::OwnedPath,
+        context: &ItemContext,
+    ) -> Result<Option<ResolvedNominalType>, TypeResolveError> {
+        let Some(item) = self.type_definitions.get(path) else {
+            return Ok(None);
+        };
+        if let Some((defined_in, is_public)) = self.type_definition_meta.get(path) {
+            if !*is_public && defined_in != &context.path {
+                return Err(TypeResolveError::PrivateType {
+                    name: path.join("::"),
+                });
+            }
+        }
+        Ok(Some(match item {
+            hir::Item::Struct(_) => ResolvedNominalType::Struct,
+            hir::Item::Enum(_) => ResolvedNominalType::Enum,
+            hir::Item::Effect(_) => ResolvedNominalType::Effect,
+            _ => ResolvedNominalType::Unsupported,
+        }))
     }
 
     fn find_union_variant_matches(

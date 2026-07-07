@@ -40,12 +40,8 @@ impl Typechecker {
     ) -> Option<Vec<hir::Ty>> {
         let mut effects = Vec::new();
         for eff_name in effect_names {
-            let path = vec![eff_name.clone()];
-            if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
-                effects.push(hir::Ty::Adt(hir::AdtTy::Effect {
-                    name: path,
-                    generics: vec![],
-                }));
+            if let Some(effect) = self.resolve_effect_type_name(eff_name) {
+                effects.push(effect);
             } else {
                 self.errors.push(TypeError {
                     message: format!("Unknown effect `{}`", eff_name),

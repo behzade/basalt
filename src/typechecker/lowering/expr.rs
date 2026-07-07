@@ -147,18 +147,7 @@ impl Typechecker {
 
     fn effect_from_perform_path(&self, path: &[String]) -> Option<hir::Ty> {
         let effect_name = path.first()?;
-        let effect_path = vec![effect_name.clone()];
-        if matches!(
-            self.type_definitions.get(&effect_path),
-            Some(hir::Item::Effect(_))
-        ) {
-            Some(hir::Ty::Adt(hir::AdtTy::Effect {
-                name: effect_path,
-                generics: vec![],
-            }))
-        } else {
-            None
-        }
+        self.resolve_effect_type_name(effect_name)
     }
 
     fn expr_effects(&self, expr: &hir::Expr) -> Vec<hir::Ty> {

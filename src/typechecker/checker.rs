@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::hir::{ContextId, HirContext, HirContextKind, HirSymbolDecl, HirSymbolKind};
+use crate::typechecker::resolver::{ResolvedNominalType, TypeResolveError};
 use crate::typechecker::symbols::Symbol;
 
 #[derive(Default)]
@@ -280,12 +281,8 @@ impl Typechecker {
         // Resolve effect types from the function signature's effect list
         let mut effects_vec: Vec<hir::Ty> = Vec::new();
         for eff_name in &func.effects {
-            let path = vec![eff_name.clone()];
-            if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
-                effects_vec.push(hir::Ty::Adt(hir::AdtTy::Effect {
-                    name: path,
-                    generics: vec![],
-                }));
+            if let Some(effect) = self.resolve_effect_type_name(eff_name) {
+                effects_vec.push(effect);
             } else {
                 self.errors.push(TypeError {
                     message: format!("Unknown effect `{}`", eff_name),
@@ -612,12 +609,8 @@ impl Typechecker {
         // Convert effect names to canonical types when possible; unknowns become Generic placeholders
         let mut effects: Vec<hir::Ty> = Vec::new();
         for eff_name in &h.effects {
-            let path = vec![eff_name.clone()];
-            if let Some(hir::Item::Effect(_)) = self.type_definitions.get(&path) {
-                effects.push(hir::Ty::Adt(hir::AdtTy::Effect {
-                    name: path,
-                    generics: vec![],
-                }));
+            if let Some(effect) = self.resolve_effect_type_name(eff_name) {
+                effects.push(effect);
             } else {
                 self.errors.push(TypeError {
                     message: format!("Unknown effect `{}`", eff_name),
@@ -637,12 +630,7 @@ impl Typechecker {
         });
         let all_effect_ops: Vec<hir::HirFunctionSignature> = primary_effect_path
             .as_ref()
-            .and_then(|p| {
-                self.type_definitions.get(p).and_then(|it| match it {
-                    hir::Item::Effect(def) => Some(def.operations.clone()),
-                    _ => None,
-                })
-            })
+            .and_then(|p| self.resolve_effect_operations(p))
             .unwrap_or_default();
 
         // Lower functions with allowed effects = handler's declared effects
@@ -786,69 +774,65 @@ impl Typechecker {
             _ => {
                 // Try to resolve against registered type definitions
                 let path_vec = owned_ty.path.clone();
-                if let Some(item) = self.type_definitions.get(&path_vec) {
-                    // Enforce visibility at module boundaries for types
-                    if let Some((defined_in, is_public)) = self.type_definition_meta.get(&path_vec)
-                    {
-                        if !*is_public && defined_in != &context.path {
-                            self.errors.push(TypeError {
-                                message: format!("Type `{}` is private", type_name),
-                                context: context.clone(),
-                            });
-                            return Err(());
-                        }
+                match self.resolve_nominal_type_path(&path_vec, &context) {
+                    Ok(Some(ResolvedNominalType::Struct)) => {
+                        let generics = owned_ty
+                            .generics
+                            .iter()
+                            .map(|g| self.resolve_type(g, context.clone()))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Ok(hir::Ty::Adt(hir::AdtTy::Struct {
+                            name: path_vec,
+                            generics,
+                        }))
                     }
-                    match item {
-                        hir::Item::Struct(_) => {
-                            let generics = owned_ty
-                                .generics
-                                .iter()
-                                .map(|g| self.resolve_type(g, context.clone()))
-                                .collect::<Result<Vec<_>, _>>()?;
-                            Ok(hir::Ty::Adt(hir::AdtTy::Struct {
-                                name: path_vec,
-                                generics,
-                            }))
-                        }
-                        hir::Item::Enum(_) => {
-                            let generics = owned_ty
-                                .generics
-                                .iter()
-                                .map(|g| self.resolve_type(g, context.clone()))
-                                .collect::<Result<Vec<_>, _>>()?;
-                            Ok(hir::Ty::Adt(hir::AdtTy::Enum {
-                                name: path_vec,
-                                generics,
-                            }))
-                        }
-                        hir::Item::Effect(_) => {
-                            let generics = owned_ty
-                                .generics
-                                .iter()
-                                .map(|g| self.resolve_type(g, context.clone()))
-                                .collect::<Result<Vec<_>, _>>()?;
-                            Ok(hir::Ty::Adt(hir::AdtTy::Effect {
-                                name: path_vec,
-                                generics,
-                            }))
-                        }
-                        _ => {
-                            self.errors.push(TypeError {
-                                message: format!("Unsupported type item for {}", type_name),
-                                context: context.clone(),
-                            });
-                            Err(())
-                        }
+                    Ok(Some(ResolvedNominalType::Enum)) => {
+                        let generics = owned_ty
+                            .generics
+                            .iter()
+                            .map(|g| self.resolve_type(g, context.clone()))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Ok(hir::Ty::Adt(hir::AdtTy::Enum {
+                            name: path_vec,
+                            generics,
+                        }))
                     }
-                } else if owned_ty.path.len() == 1 {
-                    // Treat single-segment unknown types as generics, e.g., T
-                    Ok(hir::Ty::Generic(owned_ty.path[0].clone()))
-                } else {
-                    self.errors.push(TypeError {
-                        message: format!("Unknown type: {}", type_name),
-                        context: context.clone(),
-                    });
-                    Err(())
+                    Ok(Some(ResolvedNominalType::Effect)) => {
+                        let generics = owned_ty
+                            .generics
+                            .iter()
+                            .map(|g| self.resolve_type(g, context.clone()))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Ok(hir::Ty::Adt(hir::AdtTy::Effect {
+                            name: path_vec,
+                            generics,
+                        }))
+                    }
+                    Ok(Some(ResolvedNominalType::Unsupported)) => {
+                        self.errors.push(TypeError {
+                            message: format!("Unsupported type item for {}", type_name),
+                            context: context.clone(),
+                        });
+                        Err(())
+                    }
+                    Ok(None) if owned_ty.path.len() == 1 => {
+                        // Treat single-segment unknown types as generics, e.g., T
+                        Ok(hir::Ty::Generic(owned_ty.path[0].clone()))
+                    }
+                    Ok(None) => {
+                        self.errors.push(TypeError {
+                            message: format!("Unknown type: {}", type_name),
+                            context: context.clone(),
+                        });
+                        Err(())
+                    }
+                    Err(TypeResolveError::PrivateType { name }) => {
+                        self.errors.push(TypeError {
+                            message: format!("Type `{}` is private", name),
+                            context: context.clone(),
+                        });
+                        Err(())
+                    }
                 }
             }
         }
