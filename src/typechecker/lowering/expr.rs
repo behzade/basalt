@@ -3,7 +3,7 @@ use crate::hir;
 use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
-use crate::typechecker::resolver::{ResolveError, ResolvedValue};
+use crate::typechecker::resolver::{ResolveError, ResolvedValue, VariantResolveError};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
@@ -839,36 +839,49 @@ impl Typechecker {
                             });
                         }
 
-                        let variant_matches = self.find_union_variant_matches(&name);
-                        if variant_matches.len() > 1 {
-                            let candidates = variant_matches
-                                .iter()
-                                .map(|(path, _)| path.join("::"))
-                                .collect::<Vec<_>>()
-                                .join(", ");
-                            self.errors.push(TypeError {
-                                message: format!(
-                                    "Ambiguous variant constructor `{}`; add an expected enum type. Candidates: {}",
-                                    name, candidates
-                                ),
-                                context: context.clone(),
-                            });
-                            return Err(());
-                        }
-
-                        if let Some((union_path, payload_types)) =
-                            variant_matches.into_iter().next()
-                        {
-                            return self.lower_enum_constructor_call(
-                                union_path,
-                                vec![],
+                        match self.resolve_enum_constructor(&name) {
+                            Ok(Some(constructor)) => {
+                                return self.lower_enum_constructor_call(
+                                    constructor.enum_path,
+                                    constructor.enum_generics,
+                                    constructor.variant_name,
+                                    constructor.payload_types,
+                                    adjusted_args,
+                                    fun.span,
+                                    expr.span,
+                                    context,
+                                );
+                            }
+                            Ok(None) => {}
+                            Err(VariantResolveError::AmbiguousVariantConstructor {
                                 name,
-                                payload_types,
-                                adjusted_args,
-                                fun.span,
-                                expr.span,
-                                context,
-                            );
+                                candidates,
+                            }) => {
+                                let candidates = candidates
+                                    .iter()
+                                    .map(|path| path.join("::"))
+                                    .collect::<Vec<_>>()
+                                    .join(", ");
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Ambiguous variant constructor `{}`; add an expected enum type. Candidates: {}",
+                                        name, candidates
+                                    ),
+                                    context: context.clone(),
+                                });
+                                return Err(());
+                            }
+                            Err(VariantResolveError::UnknownVariant { enum_path, variant }) => {
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Unknown variant `{}` for enum `{}`",
+                                        variant,
+                                        enum_path.join("::")
+                                    ),
+                                    context: context.clone(),
+                                });
+                                return Err(());
+                            }
                         }
 
                         // Fallback: calling a variable of function type (e.g., `task()`)
@@ -947,6 +960,16 @@ impl Typechecker {
                                 self.lower_expr(arg, context.clone())?
                             };
                             lowered_args.push(arg_expr);
+                        }
+                        if lowered_args.len() != params.len() {
+                            self.errors.push(TypeError {
+                                message: format!(
+                                    "Function value expects {} args, found {}",
+                                    params.len(),
+                                    lowered_args.len()
+                                ),
+                                context: context.clone(),
+                            });
                         }
                         let ret_ty = match &fun_hir.ty {
                             hir::Ty::Function { ret_type, .. } => (*ret_type.clone()).clone(),
@@ -1246,7 +1269,14 @@ impl Typechecker {
             }
             OwnedExpr::Perform { path, args } => {
                 // Enforce that this perform is allowed in the current function's effect list
-                let effect_name = path.get(0).cloned().unwrap_or_default();
+                let Some(operation) = self.resolve_effect_operation(&path) else {
+                    self.errors.push(TypeError {
+                        message: format!("Unknown effect operation `{}`", path.join(".")),
+                        context: context.clone(),
+                    });
+                    return Err(());
+                };
+                let effect_name = operation.effect_name.clone();
                 if let Some(current_allowed) = self.current_effects_stack.last() {
                     let mut effect_allowed = false;
                     for eff in current_allowed {
@@ -1270,13 +1300,8 @@ impl Typechecker {
                         self.errors.push(TypeError { message: format!("Effect `{}` is not allowed here; add it to the function's effect list", effect_name), context: context.clone() });
                     }
                 }
-                let Some((mut ret_ty, param_tys)) = self.resolve_effect_op(&path) else {
-                    self.errors.push(TypeError {
-                        message: format!("Unknown effect operation `{}`", path.join(".")),
-                        context: context.clone(),
-                    });
-                    return Err(());
-                };
+                let mut ret_ty = operation.ret_ty;
+                let param_tys = operation.param_tys;
                 let mut lowered_args = Vec::new();
                 for (idx, a) in args.into_iter().enumerate() {
                     let lowered = if let Some(param_ty) = param_tys.get(idx) {
@@ -1419,20 +1444,63 @@ impl Typechecker {
                 })
             }
             OwnedExpr::StructInit { path, fields, .. } => {
-                if let Some((enum_path, variant, variants)) =
-                    path.split_last().and_then(|(variant, rest)| {
-                        if rest.is_empty() {
-                            None
-                        } else {
-                            let enum_path = rest.to_vec();
-                            self.union_variants
-                                .get(&enum_path)
-                                .map(|variants| (enum_path, variant.clone(), variants.clone()))
+                match self.resolve_variant_struct_init(&path) {
+                    Ok(Some(variant_init)) => {
+                        let field_defs = variant_init.field_defs;
+                        let mut lowered_fields = Vec::new();
+                        for (name, expr) in fields {
+                            let e = if let Some(field_def) =
+                                field_defs.iter().find(|field| field.name == name)
+                            {
+                                self.lower_expr_with_expected(
+                                    expr,
+                                    field_def.ty.clone(),
+                                    context.clone(),
+                                )?
+                            } else {
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Unknown field `{}` for variant `{}`",
+                                        name,
+                                        path.join("::")
+                                    ),
+                                    context: context.clone(),
+                                });
+                                self.lower_expr(expr, context.clone())?
+                            };
+                            lowered_fields.push((name, e));
                         }
-                    })
-                {
-                    let Some((_, payload)) = variants.iter().find(|(name, _)| name == &variant)
-                    else {
+                        for field_def in &field_defs {
+                            if !lowered_fields
+                                .iter()
+                                .any(|(field_name, _)| field_name == &field_def.name)
+                            {
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Missing field `{}` for variant `{}`",
+                                        field_def.name,
+                                        path.join("::")
+                                    ),
+                                    context: context.clone(),
+                                });
+                            }
+                        }
+
+                        return Ok(hir::Expr {
+                            ty: hir::Ty::Adt(hir::AdtTy::Enum {
+                                name: variant_init.enum_path,
+                                generics: vec![],
+                            }),
+                            kind: hir::ExprKind::StructInit {
+                                path,
+                                fields: lowered_fields,
+                            },
+                            span: expr.span,
+                            resolution: None,
+                        });
+                    }
+                    Ok(None) => {}
+                    Err(VariantResolveError::UnknownVariant { enum_path, variant }) => {
                         self.errors.push(TypeError {
                             message: format!(
                                 "Unknown variant `{}` for enum `{}`",
@@ -1442,74 +1510,22 @@ impl Typechecker {
                             context: context.clone(),
                         });
                         return Err(());
-                    };
-                    let payload = payload.clone().unwrap_or_default();
-                    let field_defs = if let [
-                        hir::Ty::Adt(hir::AdtTy::Struct {
-                            name: payload_struct,
-                            ..
-                        }),
-                    ] = payload.as_slice()
-                    {
-                        match self.type_definitions.get(payload_struct) {
-                            Some(hir::Item::Struct(struct_def)) => struct_def.fields.clone(),
-                            _ => vec![],
-                        }
-                    } else {
-                        vec![]
-                    };
-
-                    let mut lowered_fields = Vec::new();
-                    for (name, expr) in fields {
-                        let e = if let Some(field_def) =
-                            field_defs.iter().find(|field| field.name == name)
-                        {
-                            self.lower_expr_with_expected(
-                                expr,
-                                field_def.ty.clone(),
-                                context.clone(),
-                            )?
-                        } else {
-                            self.errors.push(TypeError {
-                                message: format!(
-                                    "Unknown field `{}` for variant `{}`",
-                                    name,
-                                    path.join("::")
-                                ),
-                                context: context.clone(),
-                            });
-                            self.lower_expr(expr, context.clone())?
-                        };
-                        lowered_fields.push((name, e));
                     }
-                    for field_def in &field_defs {
-                        if !lowered_fields
+                    Err(VariantResolveError::AmbiguousVariantConstructor { name, candidates }) => {
+                        let candidates = candidates
                             .iter()
-                            .any(|(field_name, _)| field_name == &field_def.name)
-                        {
-                            self.errors.push(TypeError {
-                                message: format!(
-                                    "Missing field `{}` for variant `{}`",
-                                    field_def.name,
-                                    path.join("::")
-                                ),
-                                context: context.clone(),
-                            });
-                        }
+                            .map(|path| path.join("::"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Ambiguous variant constructor `{}`; add an expected enum type. Candidates: {}",
+                                name, candidates
+                            ),
+                            context: context.clone(),
+                        });
+                        return Err(());
                     }
-
-                    return Ok(hir::Expr {
-                        ty: hir::Ty::Adt(hir::AdtTy::Enum {
-                            name: enum_path,
-                            generics: vec![],
-                        }),
-                        kind: hir::ExprKind::StructInit {
-                            path,
-                            fields: lowered_fields,
-                        },
-                        span: expr.span,
-                        resolution: None,
-                    });
                 }
 
                 let Some(hir::Item::Struct(struct_def)) = self.type_definitions.get(&path).cloned()
@@ -1588,14 +1604,14 @@ impl Typechecker {
                 if let OwnedExpr::Path(path) = &fun.item {
                     if path.len() == 1 {
                         let variant_name = &path[0];
-                        if let Some(payload_types) =
-                            self.instantiated_union_payload(&name, &generics, variant_name)
+                        if let Some(constructor) =
+                            self.resolve_expected_enum_constructor(&name, &generics, variant_name)
                         {
                             return self.lower_enum_constructor_call(
-                                name,
-                                generics,
-                                variant_name.clone(),
-                                payload_types,
+                                constructor.enum_path,
+                                constructor.enum_generics,
+                                constructor.variant_name,
+                                constructor.payload_types,
                                 args,
                                 fun.span,
                                 expr.span,
@@ -1616,7 +1632,7 @@ impl Typechecker {
             ) if path.len() == name.len() + 1 && path.starts_with(&name) => {
                 let variant_name = path.last().cloned().unwrap_or_default();
                 if self
-                    .instantiated_union_payload(&name, &generics, &variant_name)
+                    .resolve_expected_enum_constructor(&name, &generics, &variant_name)
                     .is_some()
                 {
                     let mut lowered = self.lower_expr(

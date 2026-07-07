@@ -39,8 +39,43 @@ pub(crate) struct ResolvedField {
     pub ty: hir::Ty,
 }
 
+pub(crate) struct ResolvedEnumConstructor {
+    pub enum_path: hir::OwnedPath,
+    pub enum_generics: Vec<hir::Ty>,
+    pub variant_name: String,
+    pub payload_types: Option<Vec<hir::Ty>>,
+}
+
+pub(crate) struct ResolvedVariantStruct {
+    pub enum_path: hir::OwnedPath,
+    pub field_defs: Vec<hir::HirField>,
+}
+
+pub(crate) struct ResolvedPatternVariant {
+    pub path: hir::OwnedPath,
+    pub payload_types: Option<Vec<hir::Ty>>,
+    pub exists: bool,
+}
+
+pub(crate) struct ResolvedEffectOperation {
+    pub effect_name: String,
+    pub ret_ty: hir::Ty,
+    pub param_tys: Vec<hir::Ty>,
+}
+
 pub(crate) enum ResolveError {
     PrivateFunction { name: String },
+}
+
+pub(crate) enum VariantResolveError {
+    AmbiguousVariantConstructor {
+        name: String,
+        candidates: Vec<hir::OwnedPath>,
+    },
+    UnknownVariant {
+        enum_path: hir::OwnedPath,
+        variant: String,
+    },
 }
 
 impl Typechecker {
@@ -111,6 +146,156 @@ impl Typechecker {
             field: field.to_string(),
             ty,
         })
+    }
+
+    pub(crate) fn resolve_enum_constructor(
+        &self,
+        variant_name: &str,
+    ) -> Result<Option<ResolvedEnumConstructor>, VariantResolveError> {
+        let matches = self.find_union_variant_matches(variant_name);
+        if matches.len() > 1 {
+            return Err(VariantResolveError::AmbiguousVariantConstructor {
+                name: variant_name.to_string(),
+                candidates: matches
+                    .into_iter()
+                    .map(|(enum_path, _)| enum_path)
+                    .collect(),
+            });
+        }
+        Ok(matches
+            .into_iter()
+            .next()
+            .map(|(enum_path, payload_types)| ResolvedEnumConstructor {
+                enum_path,
+                enum_generics: vec![],
+                variant_name: variant_name.to_string(),
+                payload_types,
+            }))
+    }
+
+    pub(crate) fn resolve_expected_enum_constructor(
+        &self,
+        enum_path: &hir::OwnedPath,
+        enum_generics: &[hir::Ty],
+        variant_name: &str,
+    ) -> Option<ResolvedEnumConstructor> {
+        self.instantiated_union_payload(enum_path, enum_generics, variant_name)
+            .map(|payload_types| ResolvedEnumConstructor {
+                enum_path: enum_path.clone(),
+                enum_generics: enum_generics.to_vec(),
+                variant_name: variant_name.to_string(),
+                payload_types,
+            })
+    }
+
+    pub(crate) fn resolve_variant_struct_init(
+        &self,
+        path: &[String],
+    ) -> Result<Option<ResolvedVariantStruct>, VariantResolveError> {
+        let Some((variant, enum_path_parts)) = path.split_last() else {
+            return Ok(None);
+        };
+        if enum_path_parts.is_empty() {
+            return Ok(None);
+        }
+        let enum_path = enum_path_parts.to_vec();
+        let Some(variants) = self.union_variants.get(&enum_path) else {
+            return Ok(None);
+        };
+        let Some((_, payload)) = variants.iter().find(|(name, _)| name == variant) else {
+            return Err(VariantResolveError::UnknownVariant {
+                enum_path,
+                variant: variant.clone(),
+            });
+        };
+        let payload_types = payload.clone().unwrap_or_default();
+        let field_defs = if let [
+            hir::Ty::Adt(hir::AdtTy::Struct {
+                name: payload_struct,
+                ..
+            }),
+        ] = payload_types.as_slice()
+        {
+            match self.type_definitions.get(payload_struct) {
+                Some(hir::Item::Struct(struct_def)) => struct_def.fields.clone(),
+                _ => vec![],
+            }
+        } else {
+            vec![]
+        };
+        Ok(Some(ResolvedVariantStruct {
+            enum_path,
+            field_defs,
+        }))
+    }
+
+    pub(crate) fn resolve_pattern_variant(
+        &self,
+        scrutinee_ty: &hir::Ty,
+        variant_path: &[String],
+    ) -> Option<ResolvedPatternVariant> {
+        let variant_name = variant_path.last()?.clone();
+        match scrutinee_ty {
+            hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => {
+                let mut path = name.clone();
+                path.push(variant_name.clone());
+                match self.instantiated_union_payload(name, generics, &variant_name) {
+                    Some(payload_types) => Some(ResolvedPatternVariant {
+                        path,
+                        payload_types,
+                        exists: true,
+                    }),
+                    None => Some(ResolvedPatternVariant {
+                        path,
+                        payload_types: None,
+                        exists: false,
+                    }),
+                }
+            }
+            _ => Some(ResolvedPatternVariant {
+                path: variant_path.to_vec(),
+                payload_types: None,
+                exists: false,
+            }),
+        }
+    }
+
+    pub(crate) fn resolve_effect_operation(
+        &self,
+        path: &hir::OwnedPath,
+    ) -> Option<ResolvedEffectOperation> {
+        if path.len() != 2 {
+            return None;
+        }
+        let effect_name = path[0].clone();
+        let effect_path = vec![effect_name.clone()];
+        let op_name = &path[1];
+        match self.type_definitions.get(&effect_path) {
+            Some(hir::Item::Effect(def)) => def
+                .operations
+                .iter()
+                .find(|sig| &sig.name == op_name)
+                .map(|sig| ResolvedEffectOperation {
+                    effect_name,
+                    ret_ty: sig.ret_type.clone(),
+                    param_tys: sig.params.iter().map(|p| p.ty.clone()).collect(),
+                }),
+            _ => None,
+        }
+    }
+
+    fn find_union_variant_matches(
+        &self,
+        variant: &str,
+    ) -> Vec<(hir::OwnedPath, Option<Vec<hir::Ty>>)> {
+        let mut matches = Vec::new();
+        for (union_path, variants) in &self.union_variants {
+            if let Some((_, payload)) = variants.iter().find(|(name, _)| name == variant).cloned() {
+                matches.push((union_path.clone(), payload));
+            }
+        }
+        matches.sort_by(|(left, _), (right, _)| left.cmp(right));
+        matches
     }
 
     pub(crate) fn resolve_path_call(

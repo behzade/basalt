@@ -70,43 +70,4 @@ impl Typechecker {
             _ => None,
         }
     }
-
-    pub(crate) fn find_union_variant_matches(
-        &self,
-        variant: &str,
-    ) -> Vec<(hir::OwnedPath, Option<Vec<hir::Ty>>)> {
-        let mut matches = Vec::new();
-        for (union_path, variants) in &self.union_variants {
-            if let Some((_, payload)) = variants.iter().find(|(name, _)| name == variant).cloned() {
-                matches.push((union_path.clone(), payload));
-            }
-        }
-        matches.sort_by(|(left, _), (right, _)| left.cmp(right));
-        matches
-    }
-
-    pub(crate) fn resolve_effect_op(
-        &self,
-        path: &hir::OwnedPath,
-    ) -> Option<(hir::Ty, Vec<hir::Ty>)> {
-        if path.len() != 2 {
-            return None;
-        }
-        let effect_name = vec![path[0].clone()];
-        let op_name = &path[1];
-        match self.type_definitions.get(&effect_name) {
-            Some(hir::Item::Effect(def)) => {
-                for sig in &def.operations {
-                    if &sig.name == op_name {
-                        return Some((
-                            sig.ret_type.clone(),
-                            sig.params.iter().map(|p| p.ty.clone()).collect(),
-                        ));
-                    }
-                }
-                None
-            }
-            _ => None,
-        }
-    }
 }

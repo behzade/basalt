@@ -300,39 +300,24 @@ impl Typechecker {
                 variant_path,
             } => {
                 let variant_name = variant_path.last().cloned().unwrap_or_default();
-                let (pattern_path, payload, variant_exists) = match scrutinee_ty {
-                    hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => {
-                        let mut path = name.clone();
-                        path.push(variant_name.clone());
-                        let (payload, variant_exists) =
-                            match self.instantiated_union_payload(name, generics, &variant_name) {
-                                Some(payload) => (payload, true),
-                                None => {
-                                    self.errors.push(TypeError {
-                                        message: format!(
-                                            "Unknown variant `{}` for enum `{}`",
-                                            variant_name,
-                                            name.join("::")
-                                        ),
-                                        context: context.clone(),
-                                    });
-                                    (None, false)
-                                }
-                            };
-                        (path, payload, variant_exists)
+                let resolved_variant = self
+                    .resolve_pattern_variant(scrutinee_ty, &variant_path)
+                    .expect("variant bind path cannot be empty");
+                if !resolved_variant.exists {
+                    if let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = scrutinee_ty {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Unknown variant `{}` for enum `{}`",
+                                variant_name,
+                                name.join("::")
+                            ),
+                            context: context.clone(),
+                        });
                     }
-                    _ => (
-                        variant_path
-                            .into_iter()
-                            .map(|part| part.to_string())
-                            .collect(),
-                        None,
-                        false,
-                    ),
                 };
                 let mut bound = Vec::new();
                 let mut subpatterns = Vec::new();
-                if let Some(pl) = payload.clone() {
+                if let Some(pl) = resolved_variant.payload_types.clone() {
                     if let Some(first) = pl.get(0) {
                         bound.push((binding.clone(), first.clone()));
                         subpatterns.push(hir::HirPattern {
@@ -340,7 +325,7 @@ impl Typechecker {
                             ty: first.clone(),
                         });
                     }
-                } else if variant_exists {
+                } else if resolved_variant.exists {
                     self.errors.push(TypeError {
                         message: format!(
                             "Variant `{}` has no payload to bind as `{}`",
@@ -352,7 +337,7 @@ impl Typechecker {
                 (
                     hir::HirPattern {
                         kind: hir::HirPatternKind::Path {
-                            path: pattern_path,
+                            path: resolved_variant.path,
                             args: subpatterns,
                         },
                         ty: scrutinee_ty.clone(),
