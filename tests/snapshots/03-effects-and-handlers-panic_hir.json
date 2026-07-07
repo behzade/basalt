@@ -170,7 +170,15 @@
                       "start": 34,
                       "end": 38
                     },
-                    "resolution": null
+                    "resolution": {
+                      "Function": {
+                        "defined_in": "./modules/std/runtime/exit.bst",
+                        "span": {
+                          "start": 0,
+                          "end": 12
+                        }
+                      }
+                    }
                   },
                   "args": [
                     {
@@ -199,7 +207,15 @@
                 "start": 34,
                 "end": 41
               },
-              "resolution": null
+              "resolution": {
+                "Function": {
+                  "defined_in": "./modules/std/runtime/exit.bst",
+                  "span": {
+                    "start": 0,
+                    "end": 12
+                  }
+                }
+              }
             },
             "ty": {
               "Special": "Never"

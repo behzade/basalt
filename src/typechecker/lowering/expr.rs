@@ -3,7 +3,7 @@ use crate::hir;
 use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
-use crate::typechecker::resolver::ResolveError;
+use crate::typechecker::resolver::{ResolveError, ResolvedValue};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
@@ -359,14 +359,14 @@ impl Typechecker {
                     return Ok(handler_expr);
                 }
                 let name = path.last().cloned().expect("Path cannot be empty");
-                let sym_opt = self.lookup_symbol(&name).cloned();
-                match sym_opt {
-                    Some(Symbol::Variable {
+                match self.resolve_value_path(&path, &context) {
+                    Ok(Some(ResolvedValue::Variable {
+                        name,
                         ty,
+                        is_mut: _,
                         initialized,
                         decl_span,
-                        ..
-                    }) => {
+                    })) => {
                         if !initialized {
                             self.errors.push(TypeError {
                                 message: format!(
@@ -378,7 +378,7 @@ impl Typechecker {
                         }
                         Ok(hir::Expr {
                             kind: hir::ExprKind::Path(path),
-                            ty: ty.clone(),
+                            ty,
                             span: expr.span,
                             resolution: Some(hir::Resolution::Local {
                                 name: name.clone(),
@@ -386,21 +386,10 @@ impl Typechecker {
                             }),
                         })
                     }
-                    Some(Symbol::Function {
-                        signature,
-                        is_public,
-                        defined_in,
-                        decl_span: _,
-                    }) => {
-                        if !is_public && &defined_in != &context.path {
-                            self.errors.push(TypeError {
-                                message: format!("Function `{}` is private", name),
-                                context: context.clone(),
-                            });
-                            return Err(());
-                        }
+                    Ok(Some(ResolvedValue::Function(function))) => {
+                        let signature = function.signature;
                         Ok(hir::Expr {
-                            kind: hir::ExprKind::Path(path),
+                            kind: hir::ExprKind::Path(function.call_path),
                             ty: hir::Ty::Function {
                                 param_types: signature
                                     .params
@@ -414,19 +403,22 @@ impl Typechecker {
                             resolution: None,
                         })
                     }
-                    None => {
-                        if let Some(names) = self.imports_by_file.get(&context.path) {
-                            if names.contains(&name) {
-                                return Ok(hir::Expr {
-                                    kind: hir::ExprKind::Path(path),
-                                    ty: hir::Ty::Special(hir::SpecialTy::Unit),
-                                    span: expr.span,
-                                    resolution: None,
-                                });
-                            }
-                        }
+                    Ok(Some(ResolvedValue::ImportedModule)) => Ok(hir::Expr {
+                        kind: hir::ExprKind::Path(path),
+                        ty: hir::Ty::Special(hir::SpecialTy::Unit),
+                        span: expr.span,
+                        resolution: None,
+                    }),
+                    Ok(None) => {
                         self.errors.push(TypeError {
                             message: format!("Cannot find value `{}` in this scope", name),
+                            context: context.clone(),
+                        });
+                        Err(())
+                    }
+                    Err(ResolveError::PrivateFunction { name }) => {
+                        self.errors.push(TypeError {
+                            message: format!("Function `{}` is private", name),
                             context: context.clone(),
                         });
                         Err(())
@@ -602,63 +594,66 @@ impl Typechecker {
                 })
             }
             OwnedExpr::FieldAccess { receiver, field } => {
-                if let OwnedExpr::Path(path) = &receiver.item {
-                    if let Some(base) = path.last() {
-                        match self.lookup_symbol(base).cloned() {
-                            Some(_) => {}
-                            None => {
-                                if let Some(Symbol::Function {
-                                    signature,
-                                    is_public,
-                                    defined_in,
-                                    decl_span: _,
-                                }) = self.lookup_symbol(&field).cloned()
-                                {
-                                    if !is_public && defined_in != context.path {
-                                        self.errors.push(TypeError {
-                                            message: format!("Function `{}` is private", field),
-                                            context: context.clone(),
-                                        });
-                                        return Err(());
-                                    }
-                                    return Ok(hir::Expr {
-                                        kind: hir::ExprKind::Path(vec![field]),
-                                        ty: hir::Ty::Function {
-                                            param_types: signature
-                                                .params
-                                                .iter()
-                                                .map(|p| p.ty.clone())
-                                                .collect(),
-                                            ret_type: Box::new(signature.ret_type.clone()),
-                                            effects: signature.effects.clone(),
-                                        },
-                                        span: expr.span,
-                                        resolution: None,
+                match self.resolve_field_function(&receiver.item, &field, &context) {
+                    Ok(Some(function)) => {
+                        let signature = function.signature;
+                        return Ok(hir::Expr {
+                            kind: hir::ExprKind::Path(function.call_path),
+                            ty: hir::Ty::Function {
+                                param_types: signature
+                                    .params
+                                    .iter()
+                                    .map(|p| p.ty.clone())
+                                    .collect(),
+                                ret_type: Box::new(signature.ret_type.clone()),
+                                effects: signature.effects.clone(),
+                            },
+                            span: expr.span,
+                            resolution: function.decl_span.map(|span| hir::Resolution::Function {
+                                defined_in: function.defined_in,
+                                span,
+                            }),
+                        });
+                    }
+                    Ok(None) => {
+                        if let OwnedExpr::Path(path) = &receiver.item {
+                            if let Some(base) = path.last() {
+                                if self.lookup_symbol(base).is_none() {
+                                    self.errors.push(TypeError {
+                                        message: format!(
+                                            "Cannot find value `{}` in this scope",
+                                            base
+                                        ),
+                                        context: context.clone(),
                                     });
+                                    return Err(());
                                 }
-                                self.errors.push(TypeError {
-                                    message: format!("Cannot find value `{}` in this scope", base),
-                                    context: context.clone(),
-                                });
-                                return Err(());
                             }
                         }
+                    }
+                    Err(ResolveError::PrivateFunction { name }) => {
+                        self.errors.push(TypeError {
+                            message: format!("Function `{}` is private", name),
+                            context: context.clone(),
+                        });
+                        return Err(());
                     }
                 }
 
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
-                if let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = recv_hir.ty.clone() {
-                    if let Some(ty) = self.lookup_struct_field_type(&name, &field).cloned() {
-                        return Ok(hir::Expr {
-                            kind: hir::ExprKind::FieldAccess {
-                                receiver: Box::new(recv_hir),
-                                field: field.clone(),
-                            },
-                            ty,
-                            span: expr.span,
-                            resolution: Some(hir::Resolution::Field { owner: name, field }),
-                        });
-                    }
+                if let Some(resolved_field) = self.resolve_struct_field(&recv_hir.ty, &field) {
+                    return Ok(hir::Expr {
+                        kind: hir::ExprKind::FieldAccess {
+                            receiver: Box::new(recv_hir),
+                            field: resolved_field.field.clone(),
+                        },
+                        ty: resolved_field.ty,
+                        span: expr.span,
+                        resolution: Some(hir::Resolution::Field {
+                            owner: resolved_field.owner,
+                            field: resolved_field.field,
+                        }),
+                    });
                 }
                 self.errors.push(TypeError {
                     message: "Unknown field access on non-record type or missing field".to_string(),

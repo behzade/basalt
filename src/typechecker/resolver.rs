@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::ast_owned::SpannedExpr;
+use crate::ast_owned::{OwnedExpr, SpannedExpr};
 use crate::hir;
 use crate::token::SimpleSpan;
 use crate::typechecker::checker::Typechecker;
@@ -21,11 +21,98 @@ pub(crate) struct ResolvedPathCall {
     pub function: Option<ResolvedFunction>,
 }
 
+pub(crate) enum ResolvedValue {
+    Variable {
+        name: String,
+        ty: hir::Ty,
+        is_mut: bool,
+        initialized: bool,
+        decl_span: Option<SimpleSpan>,
+    },
+    Function(ResolvedFunction),
+    ImportedModule,
+}
+
+pub(crate) struct ResolvedField {
+    pub owner: hir::OwnedPath,
+    pub field: String,
+    pub ty: hir::Ty,
+}
+
 pub(crate) enum ResolveError {
     PrivateFunction { name: String },
 }
 
 impl Typechecker {
+    pub(crate) fn resolve_value_path(
+        &self,
+        path: &[String],
+        context: &ItemContext,
+    ) -> Result<Option<ResolvedValue>, ResolveError> {
+        let Some(name) = path.last().cloned() else {
+            return Ok(None);
+        };
+        match self.lookup_symbol(&name) {
+            Some(Symbol::Variable {
+                ty,
+                is_mut,
+                initialized,
+                decl_span,
+            }) => Ok(Some(ResolvedValue::Variable {
+                name,
+                ty: ty.clone(),
+                is_mut: *is_mut,
+                initialized: *initialized,
+                decl_span: *decl_span,
+            })),
+            Some(Symbol::Function { .. }) => self
+                .resolve_visible_function_path(path, context)
+                .map(|function| function.map(ResolvedValue::Function)),
+            None => {
+                let is_imported_module = self
+                    .imports_by_file
+                    .get(&context.path)
+                    .map(|names| names.contains(&name))
+                    .unwrap_or(false);
+                Ok(is_imported_module.then_some(ResolvedValue::ImportedModule))
+            }
+        }
+    }
+
+    pub(crate) fn resolve_field_function(
+        &self,
+        receiver: &OwnedExpr,
+        field: &str,
+        context: &ItemContext,
+    ) -> Result<Option<ResolvedFunction>, ResolveError> {
+        let OwnedExpr::Path(path) = receiver else {
+            return Ok(None);
+        };
+        let Some(base) = path.last() else {
+            return Ok(None);
+        };
+        if self.lookup_symbol(base).is_some() {
+            return Ok(None);
+        }
+        self.resolve_visible_function_path(&[field.to_string()], context)
+    }
+
+    pub(crate) fn resolve_struct_field(
+        &self,
+        receiver_ty: &hir::Ty,
+        field: &str,
+    ) -> Option<ResolvedField> {
+        let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = receiver_ty else {
+            return None;
+        };
+        let ty = self.lookup_struct_field_type(name, field)?.clone();
+        Some(ResolvedField {
+            owner: name.clone(),
+            field: field.to_string(),
+            ty,
+        })
+    }
+
     pub(crate) fn resolve_path_call(
         &self,
         path: &[String],
@@ -113,7 +200,7 @@ impl Typechecker {
         path: &[String],
         context: &ItemContext,
     ) -> Result<Option<ResolvedFunction>, ResolveError> {
-        let lookup_names = self.function_lookup_names(path, context);
+        let lookup_names = self.function_lookup_names(path);
         for lookup_name in lookup_names {
             let Some(Symbol::Function {
                 signature,
@@ -137,22 +224,13 @@ impl Typechecker {
         Ok(None)
     }
 
-    fn function_lookup_names(&self, path: &[String], context: &ItemContext) -> Vec<String> {
+    fn function_lookup_names(&self, path: &[String]) -> Vec<String> {
         match path {
             [] => vec![],
             [name] => vec![name.clone()],
             [alias, name] => {
                 let qualified = format!("{}::{}", alias, name);
-                let alias_is_import = self
-                    .import_alias_map
-                    .get(&context.path)
-                    .and_then(|aliases| aliases.get(alias))
-                    .is_some();
-                if alias_is_import {
-                    vec![qualified]
-                } else {
-                    vec![qualified, name.clone()]
-                }
+                vec![qualified, name.clone()]
             }
             _ => vec![path.join("::")],
         }

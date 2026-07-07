@@ -4,6 +4,7 @@ use crate::hir::{HirSymbolDecl, HirSymbolKind};
 use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
+use crate::typechecker::resolver::{ResolveError, ResolvedValue};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
@@ -115,32 +116,40 @@ impl Typechecker {
                             Some(n) => n.clone(),
                             None => "".to_string(),
                         };
-                        if let Some(Symbol::Variable { ty, is_mut, .. }) =
-                            self.lookup_symbol(&name).cloned()
-                        {
-                            if !is_mut {
+                        match self.resolve_value_path(path, &context) {
+                            Ok(Some(ResolvedValue::Variable { ty, is_mut, .. })) => {
+                                if !is_mut {
+                                    self.errors.push(TypeError {
+                                        message: format!(
+                                            "Cannot assign to immutable variable '{}'",
+                                            name
+                                        ),
+                                        context: ItemContext {
+                                            span: lhs.span,
+                                            path: context.path.clone(),
+                                        },
+                                    });
+                                }
+                                hir::Expr {
+                                    kind: hir::ExprKind::Path(path.clone()),
+                                    ty,
+                                    span: lhs.span,
+                                    resolution: Some(hir::Resolution::Local {
+                                        name: name.clone(),
+                                        decl_span: None,
+                                    }),
+                                }
+                            }
+                            Ok(Some(_)) | Ok(None) => {
+                                self.lower_expr(lhs.clone(), context.clone())?
+                            }
+                            Err(ResolveError::PrivateFunction { name }) => {
                                 self.errors.push(TypeError {
-                                    message: format!(
-                                        "Cannot assign to immutable variable '{}'",
-                                        name
-                                    ),
-                                    context: ItemContext {
-                                        span: lhs.span,
-                                        path: context.path.clone(),
-                                    },
+                                    message: format!("Function `{}` is private", name),
+                                    context: context.clone(),
                                 });
+                                return Err(());
                             }
-                            hir::Expr {
-                                kind: hir::ExprKind::Path(path.clone()),
-                                ty,
-                                span: lhs.span,
-                                resolution: Some(hir::Resolution::Local {
-                                    name: name.clone(),
-                                    decl_span: None,
-                                }),
-                            }
-                        } else {
-                            self.lower_expr(lhs.clone(), context.clone())?
                         }
                     }
                     OwnedExpr::FieldAccess { receiver, .. } => {
