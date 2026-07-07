@@ -36,7 +36,7 @@ echo
 
 DEVBOX_BUILD_LOG=$(mktemp)
 if ! devbox run -- cargo build 2>"$DEVBOX_BUILD_LOG"; then
-    if grep -Eq "cache\\.nixos\\.org|operation not permitted|lookup .* failed|Could not resolve|network" "$DEVBOX_BUILD_LOG"; then
+    if grep -Eq "cache\\.nixos\\.org|operation not permitted|lookup .* failed|Could not resolve|network|missing DEVELOPER_DIR path" "$DEVBOX_BUILD_LOG"; then
         cat "$DEVBOX_BUILD_LOG"
         echo -e "${YELLOW}Devbox build failed due to sandbox/network access; falling back to local cargo build.${NC}"
         cargo build || exit 1
@@ -52,6 +52,10 @@ rm -f "$DEVBOX_BUILD_LOG"
 setup_directories() {
     mkdir -p "$SNAPSHOTS_DIR"
     mkdir -p "$TEMP_DIR"
+}
+
+normalize_output() {
+    sed 's/[[:blank:]]*$//'
 }
 
 # Function to get snapshot file path
@@ -214,7 +218,8 @@ generate_snapshots() {
         local exit_code=0
         local output=""
         output=$(run_test_command "$test_file" "$test_type") || exit_code=$?
-        
+        output=$(printf '%s\n' "$output" | normalize_output)
+
         if [ $exit_code -eq 0 ]; then
             # Success case - save the output
             echo "$output" > "$snapshot_file"
@@ -270,7 +275,8 @@ compare_snapshots() {
         local exit_code=0
         local output=""
         output=$(run_test_command "$test_file" "$test_type") || exit_code=$?
-        
+        output=$(printf '%s\n' "$output" | normalize_output)
+
         if [ $exit_code -eq 0 ]; then
             # Compare with snapshot
             if diff -q <(echo "$output") "$snapshot_file" >/dev/null 2>&1; then
@@ -316,7 +322,8 @@ run_test() {
     local exit_code=0
     local output=""
     output=$(run_test_command "$test_file" "$test_type") || exit_code=$?
-    
+    output=$(printf '%s\n' "$output" | normalize_output)
+
     if [ $exit_code -eq 0 ]; then
         echo -e "${GREEN}✓${NC}"
         ((PASSED_TESTS++))

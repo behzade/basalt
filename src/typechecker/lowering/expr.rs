@@ -7,6 +7,71 @@ use crate::typechecker::errors::{ItemContext, TypeError};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
+    fn lower_enum_constructor_call(
+        &mut self,
+        enum_path: hir::OwnedPath,
+        enum_generics: Vec<hir::Ty>,
+        variant_name: String,
+        payload_types: Option<Vec<hir::Ty>>,
+        args: Vec<SpannedExpr>,
+        fun_span: crate::token::SimpleSpan,
+        call_span: crate::token::SimpleSpan,
+        context: ItemContext,
+    ) -> Result<hir::Expr, ()> {
+        let payload_types = payload_types.unwrap_or_default();
+        if args.len() != payload_types.len() {
+            let expected_plural = if payload_types.len() == 1 { "" } else { "s" };
+            let found_plural = if args.len() == 1 { "" } else { "s" };
+            self.errors.push(TypeError {
+                message: format!(
+                    "Variant `{}` expects {} argument{}, found {} argument{}",
+                    variant_name,
+                    payload_types.len(),
+                    expected_plural,
+                    args.len(),
+                    found_plural
+                ),
+                context,
+            });
+            return Err(());
+        }
+
+        let lowered_args = args
+            .into_iter()
+            .zip(payload_types.iter().cloned())
+            .map(|(arg, expected_ty)| {
+                self.lower_expr_with_expected(arg, expected_ty, context.clone())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
+            name: enum_path.clone(),
+            generics: enum_generics,
+        });
+        let mut constructor_path = enum_path;
+        constructor_path.push(variant_name);
+        let fun_expr = hir::Expr {
+            kind: hir::ExprKind::Path(constructor_path),
+            ty: hir::Ty::Function {
+                param_types: payload_types,
+                ret_type: Box::new(ret_ty.clone()),
+                effects: vec![],
+            },
+            span: fun_span,
+            resolution: None,
+        };
+
+        Ok(hir::Expr {
+            ty: ret_ty,
+            kind: hir::ExprKind::Call {
+                fun: Box::new(fun_expr),
+                args: lowered_args,
+            },
+            span: call_span,
+            resolution: None,
+        })
+    }
+
     fn cast_numeric_expr(expr: hir::Expr, target_ty: hir::Ty) -> hir::Expr {
         if expr.ty == target_ty {
             return expr;
@@ -949,51 +1014,16 @@ impl Typechecker {
                         if let Some((union_path, payload_types)) =
                             variant_matches.into_iter().next()
                         {
-                            let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
-                                name: union_path.clone(),
-                                generics: vec![],
-                            });
-                            let expected_payload_ty =
-                                payload_types.as_ref().and_then(|v| v.get(0)).cloned();
-                            let mut lowered_args = Vec::new();
-                            if let Some(exp_ty) = expected_payload_ty.clone() {
-                                if let Some(first) = adjusted_args.get(0) {
-                                    let lowered = self.lower_expr_with_expected(
-                                        first.clone(),
-                                        exp_ty.clone(),
-                                        context.clone(),
-                                    )?;
-                                    lowered_args.push(lowered);
-                                } else {
-                                    self.errors.push(TypeError {
-                                        message: format!("Variant `{}` expects 1 argument", name),
-                                        context: context.clone(),
-                                    });
-                                }
-                            }
-                            let mut constructor_path = union_path.clone();
-                            constructor_path.push(name);
-                            let fun_expr = hir::Expr {
-                                kind: hir::ExprKind::Path(constructor_path),
-                                ty: hir::Ty::Function {
-                                    param_types: expected_payload_ty
-                                        .map(|t| vec![t])
-                                        .unwrap_or_default(),
-                                    ret_type: Box::new(ret_ty.clone()),
-                                    effects: vec![],
-                                },
-                                span: fun.span,
-                                resolution: None,
-                            };
-                            return Ok(hir::Expr {
-                                ty: ret_ty,
-                                kind: hir::ExprKind::Call {
-                                    fun: Box::new(fun_expr),
-                                    args: lowered_args,
-                                },
-                                span: expr.span,
-                                resolution: None,
-                            });
+                            return self.lower_enum_constructor_call(
+                                union_path,
+                                vec![],
+                                name,
+                                payload_types,
+                                adjusted_args,
+                                fun.span,
+                                expr.span,
+                                context,
+                            );
                         }
 
                         // Fallback: calling a variable of function type (e.g., `task()`)
@@ -1717,53 +1747,16 @@ impl Typechecker {
                         if let Some(payload_types) =
                             self.instantiated_union_payload(&name, &generics, variant_name)
                         {
-                            let ret_ty = hir::Ty::Adt(hir::AdtTy::Enum {
-                                name: name.clone(),
-                                generics: generics.clone(),
-                            });
-                            let expected_payload_ty =
-                                payload_types.as_ref().and_then(|v| v.get(0)).cloned();
-                            let mut lowered_args = Vec::new();
-                            if let Some(exp_ty) = expected_payload_ty.clone() {
-                                if let Some(first) = args.get(0) {
-                                    lowered_args.push(self.lower_expr_with_expected(
-                                        first.clone(),
-                                        exp_ty.clone(),
-                                        context.clone(),
-                                    )?);
-                                } else {
-                                    self.errors.push(TypeError {
-                                        message: format!(
-                                            "Variant `{}` expects 1 argument",
-                                            variant_name
-                                        ),
-                                        context: context.clone(),
-                                    });
-                                }
-                            }
-                            let mut constructor_path = name.clone();
-                            constructor_path.push(variant_name.clone());
-                            let fun_expr = hir::Expr {
-                                kind: hir::ExprKind::Path(constructor_path),
-                                ty: hir::Ty::Function {
-                                    param_types: expected_payload_ty
-                                        .map(|ty| vec![ty])
-                                        .unwrap_or_default(),
-                                    ret_type: Box::new(ret_ty.clone()),
-                                    effects: vec![],
-                                },
-                                span: fun.span,
-                                resolution: None,
-                            };
-                            return Ok(hir::Expr {
-                                ty: ret_ty,
-                                kind: hir::ExprKind::Call {
-                                    fun: Box::new(fun_expr),
-                                    args: lowered_args,
-                                },
-                                span: expr.span,
-                                resolution: None,
-                            });
+                            return self.lower_enum_constructor_call(
+                                name,
+                                generics,
+                                variant_name.clone(),
+                                payload_types,
+                                args,
+                                fun.span,
+                                expr.span,
+                                context,
+                            );
                         }
                     }
                 }

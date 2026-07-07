@@ -295,8 +295,8 @@ impl Interpreter {
                             {
                                 if !self.functions.contains_key(name) {
                                     let mut fields = HashMap::new();
-                                    if let Some(first) = args.get(0) {
-                                        fields.insert("0".to_string(), self.eval_expr(first, env)?);
+                                    for (idx, arg) in args.iter().enumerate() {
+                                        fields.insert(idx.to_string(), self.eval_expr(arg, env)?);
                                     }
                                     let mut path = enum_name.clone();
                                     path.push(name.clone());
