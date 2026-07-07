@@ -1,0 +1,135 @@
+{
+  "tests/29-chunk-exhaustion.bst": [
+    {
+      "item": {
+        "Memory": {
+          "name": "Tiny",
+          "byte_limit": 32,
+          "object_limit": 4
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "one",
+                        "memory": "Tiny",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "11111111111111111111"
+                            }
+                          },
+                          "span": {
+                            "start": 21,
+                            "end": 22
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 22
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "two",
+                        "memory": "Tiny",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "22222222222222222222"
+                            }
+                          },
+                          "span": {
+                            "start": 27,
+                            "end": 28
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 22,
+                      "end": 28
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "two"
+                                ]
+                              },
+                              "span": {
+                                "start": 28,
+                                "end": 29
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 28,
+                          "end": 33
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 28,
+                      "end": 33
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 34
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 34
+      }
+    }
+  ]
+}

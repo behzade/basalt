@@ -392,6 +392,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "_",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {

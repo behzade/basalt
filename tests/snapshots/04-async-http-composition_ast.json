@@ -137,6 +137,7 @@
                           "Let": {
                             "is_mut": false,
                             "name": "res",
+                            "memory": null,
                             "ty": null,
                             "value": {
                               "item": {
@@ -254,6 +255,7 @@
                           "Let": {
                             "is_mut": false,
                             "name": "http_task",
+                            "memory": null,
                             "ty": null,
                             "value": {
                               "item": {
@@ -320,6 +322,7 @@
                           "Let": {
                             "is_mut": false,
                             "name": "content",
+                            "memory": null,
                             "ty": null,
                             "value": {
                               "item": {
@@ -401,6 +404,7 @@
             "Let": {
               "is_mut": false,
               "name": "AsyncHttpHandler",
+              "memory": null,
               "ty": null,
               "value": {
                 "item": {
@@ -482,6 +486,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "content",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -590,6 +595,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "size",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {

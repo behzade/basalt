@@ -1,0 +1,160 @@
+{
+  "tests/28-chunk-allocated-strings.bst": [
+    {
+      "item": {
+        "Memory": {
+          "name": "Scratch",
+          "byte_limit": 4096,
+          "object_limit": 32
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "a",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                            }
+                          },
+                          "span": {
+                            "start": 21,
+                            "end": 22
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 22
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "b",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                            }
+                          },
+                          "span": {
+                            "start": 27,
+                            "end": 28
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 22,
+                      "end": 28
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "c",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                            }
+                          },
+                          "span": {
+                            "start": 33,
+                            "end": 34
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 28,
+                      "end": 34
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "c"
+                                ]
+                              },
+                              "span": {
+                                "start": 34,
+                                "end": 35
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 34,
+                          "end": 39
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 34,
+                      "end": 39
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 40
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 40
+      }
+    }
+  ]
+}

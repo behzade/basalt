@@ -226,6 +226,7 @@ pub fn hir_ty_to_string(ty: &hir::Ty) -> String {
 pub fn item_name_and_span<'a>(item: &'a hir::Item) -> (String, &'a PathBuf, SimpleSpan) {
     match item {
         hir::Item::Fn(f) => (f.signature.name.clone(), &f.defined_in, f.span),
+        hir::Item::Memory(m) => (m.name.clone(), &m.defined_in, m.span),
         hir::Item::Struct(s) => (s.name.clone(), &s.defined_in, s.span),
         hir::Item::Enum(e) => (e.name.clone(), &e.defined_in, e.span),
         hir::Item::TypeAlias(t) => (t.name.clone(), &t.defined_in, t.span),
@@ -237,6 +238,7 @@ pub fn item_name_and_span<'a>(item: &'a hir::Item) -> (String, &'a PathBuf, Simp
 pub fn symbol_kind_for_item(item: &hir::Item) -> lsp::SymbolKind {
     match item {
         hir::Item::Fn(_) => lsp::SymbolKind::FUNCTION,
+        hir::Item::Memory(_) => lsp::SymbolKind::CONSTANT,
         hir::Item::Struct(_) => lsp::SymbolKind::STRUCT,
         hir::Item::Enum(_) => lsp::SymbolKind::ENUM,
         hir::Item::TypeAlias(ta) => symbol_kind_for_type_alias(ta),

@@ -1,4 +1,5 @@
 # filename expected_exit_code
+00-runtime-externs.bst 0
 02-ufcs-method-calls.bst 12
 03-effects-and-handlers-panic.bst 0
 04-async-http-composition.bst 6
@@ -12,3 +13,8 @@
 16-user-function-shadows-builtin.bst 42
 17-duplicate-variant-names.bst 3
 24-runtime-local-mutation.bst 5
+26-stack-allocated-string.bst 12
+27-stack-frame-exhaustion.bst 1
+28-chunk-allocated-strings.bst 128
+29-chunk-exhaustion.bst 1
+31-runtime-memory-externs.bst 0

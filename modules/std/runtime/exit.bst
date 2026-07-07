@@ -1,2 +1,1 @@
-pub fn exit(code: i32) -> ! {
-}
+pub extern fn exit(code: i32) -> !

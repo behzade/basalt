@@ -177,6 +177,83 @@ impl std::fmt::Display for Value {
     }
 }
 
+impl Value {
+    pub(crate) fn allocation_kind(&self) -> &'static str {
+        match self {
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Byte(_)
+            | Value::I8(_)
+            | Value::I16(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::F32(_)
+            | Value::F64(_) => "scalar",
+            Value::Str(_) => "str",
+            Value::Array(_) => "array",
+            Value::Map(_) => "map",
+            Value::Struct { .. } => "struct",
+            Value::EnumVariant { .. } => "enum variant",
+            Value::Function(_) => "function",
+            Value::Handler(_) => "handler",
+        }
+    }
+
+    pub(crate) fn stack_size_bytes(&self) -> usize {
+        match self {
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Byte(_)
+            | Value::I8(_)
+            | Value::I16(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::F32(_)
+            | Value::F64(_) => 0,
+            Value::Str(s) => s.len(),
+            Value::Array(items) => {
+                std::mem::size_of::<Value>() * items.len()
+                    + items.iter().map(Value::stack_size_bytes).sum::<usize>()
+            }
+            Value::Map(entries) => {
+                std::mem::size_of::<(Value, Value)>() * entries.len()
+                    + entries
+                        .iter()
+                        .map(|(key, value)| key.stack_size_bytes() + value.stack_size_bytes())
+                        .sum::<usize>()
+            }
+            Value::Struct { path, fields } | Value::EnumVariant { path, fields } => {
+                path.iter().map(String::len).sum::<usize>()
+                    + fields
+                        .iter()
+                        .map(|(key, value)| key.len() + value.stack_size_bytes())
+                        .sum::<usize>()
+            }
+            Value::Function(function) => {
+                std::mem::size_of::<FunctionValue>()
+                    + function
+                        .captured
+                        .iter()
+                        .flat_map(|scope| scope.iter())
+                        .map(|(key, value)| key.len() + value.stack_size_bytes())
+                        .sum::<usize>()
+            }
+            Value::Handler(handler) => {
+                std::mem::size_of::<HandlerValue>()
+                    + std::mem::size_of::<HandlerEntry>() * handler.entries.len()
+            }
+        }
+    }
+}
+
 /// Convert a runtime value into a process exit code.
 /// Convention: 0 indicates success, non-zero indicates failure.
 pub fn value_to_exit_code(value: &Value) -> i32 {

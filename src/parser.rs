@@ -843,16 +843,18 @@ fn expression_bundle<'src>() -> (
     let let_decl = just(Token::Let)
         .ignore_then(just(Token::Mut).or_not())
         .then(ident())
+        .then(just(Token::Ident("in")).ignore_then(ident()).or_not())
         .then(just(Token::Colon).ignore_then(type_parser()).or_not())
         .then(
             select! { Token::Op(op) if op == "=" => () }
                 .ignore_then(expr.clone())
                 .or_not(),
         )
-        .map_with(|(((is_mut, name), ty), value_opt), e| Spanned {
+        .map_with(|((((is_mut, name), memory), ty), value_opt), e| Spanned {
             node: StmtNode::Let {
                 is_mut: is_mut.is_some(),
                 name,
+                memory,
                 ty,
                 value: value_opt,
             },
@@ -868,6 +870,7 @@ fn expression_bundle<'src>() -> (
             node: StmtNode::Let {
                 is_mut: false,
                 name,
+                memory: None,
                 ty: Some(ty),
                 value: Some(value),
             },
@@ -979,22 +982,37 @@ fn fn_def_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (_expr, _stmt, block) = expression_bundle();
     let vis = just(Token::Pub).or_not().map(|m| m.is_some());
-    vis.then_ignore(just(Token::Fn))
+    let body = block.clone().map(|b| match &b.node {
+        ExprNode::Block { stmts, last_expr } if stmts.is_empty() && last_expr.is_none() => {
+            Spanned {
+                node: ExprNode::Literal(Literal::Unit),
+                span: b.span,
+            }
+        }
+        _ => b,
+    });
+    let extern_body = empty().map_with(|_, e| Spanned {
+        node: ExprNode::Literal(Literal::Unit),
+        span: e.span(),
+    });
+
+    let normal_fn = vis
+        .clone()
+        .then_ignore(just(Token::Fn))
         .then(fn_signature_parser())
-        .then(
-            // Only direct block bodies (no '=')
-            block.clone().map(|b| match &b.node {
-                ExprNode::Block { stmts, last_expr } if stmts.is_empty() && last_expr.is_none() => {
-                    Spanned {
-                        node: ExprNode::Literal(Literal::Unit),
-                        span: b.span,
-                    }
-                }
-                _ => b,
-            }),
-        )
+        .then(body)
+        .map(|((is_public, signature), body)| (is_public, false, signature, body));
+
+    let extern_fn = vis
+        .then_ignore(just(Token::Extern))
+        .then_ignore(just(Token::Fn))
+        .then(fn_signature_parser())
+        .then(extern_body)
+        .map(|((is_public, signature), body)| (is_public, true, signature, body));
+
+    choice((extern_fn, normal_fn))
         .map(
-            |((is_public, (name, generics, params, ret_type, effects)), body)| Function {
+            |(is_public, is_extern, (name, generics, params, ret_type, effects), body)| Function {
                 name,
                 generics,
                 params,
@@ -1002,6 +1020,7 @@ fn fn_def_parser<'src>()
                 effects,
                 body,
                 is_public,
+                is_extern,
             },
         )
         .labelled("function definition")
@@ -1189,11 +1208,39 @@ fn struct_def_parser<'src>()
         })
 }
 
+fn memory_parser<'src>()
+-> impl Parser<'src, &'src [Token<'src>], MemoryDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
+    let usize_literal = select! {
+        Token::I32(n) if n >= 0 => n as usize,
+        Token::I64(n) if n >= 0 => n as usize,
+        Token::U8(n) => n as usize,
+        Token::U16(n) => n as usize,
+        Token::U32(n) => n as usize,
+        Token::U64(n) => n as usize,
+    };
+
+    let chunk_args = usize_literal
+        .then(just(Token::Comma).ignore_then(usize_literal).or_not())
+        .delimited_by(just(Token::LParen), just(Token::RParen));
+
+    just(Token::Memory)
+        .ignore_then(ident())
+        .then_ignore(just(Token::Colon))
+        .then_ignore(select! { Token::Ident(s) if s == "chunk" => () })
+        .then(chunk_args)
+        .map(|(name, (byte_limit, object_limit))| MemoryDef {
+            name,
+            byte_limit,
+            object_limit,
+        })
+}
+
 fn item_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
     let (_expr, stmt, _block) = expression_bundle();
     choice((
         import_parser(),
+        spanned(memory_parser().map(ItemNode::Memory)),
         spanned(fn_def_parser().map(ItemNode::Fn)),
         spanned(effect_parser().map(ItemNode::Effect)),
         spanned(handler_parser().map(ItemNode::Handler)),

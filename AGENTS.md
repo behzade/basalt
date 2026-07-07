@@ -1,2 +1,3 @@
 - Always do a cutover to a new version of the codebase without leaving backwards compatibility. This codebase is not in use by anyone else.
 - Ask to commit git with a conventional commit message in a single elevated git add and commit request. Don't try to commit without elevated permissions.
+- Run `./tests/run.sh` with elevated access from Codex. Sandboxed runs can falsely fail in Devbox with a stale `DEVELOPER_DIR`/Apple SDK path, while elevated runs use the correct developer environment.

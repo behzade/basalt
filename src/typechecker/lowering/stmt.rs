@@ -17,9 +17,34 @@ impl Typechecker {
             OwnedStmt::Let {
                 is_mut,
                 name,
+                memory,
                 ty,
                 value,
             } => {
+                if let Some(region) = &memory {
+                    if !self.memory_regions.contains(region) {
+                        self.errors.push(TypeError {
+                            message: format!("Unknown memory region '{}'", region),
+                            context: ItemContext {
+                                span: stmt.span,
+                                path: context.path.clone(),
+                            },
+                        });
+                    }
+                    if value.is_none() {
+                        self.errors.push(TypeError {
+                            message: format!(
+                                "Memory placement for variable '{}' requires an initializer",
+                                name
+                            ),
+                            context: ItemContext {
+                                span: stmt.span,
+                                path: context.path.clone(),
+                            },
+                        });
+                    }
+                }
+
                 let (hir_value_opt, var_ty) = if let Some(annotated_ty) = ty.clone() {
                     let resolved_ty = self.resolve_type(&annotated_ty, context.clone())?;
                     match (value.as_ref().map(|v| &v.item), &resolved_ty) {
@@ -105,6 +130,7 @@ impl Typechecker {
                     value: hir_value_opt,
                     ty: var_ty,
                     is_mut,
+                    memory,
                     span: stmt.span,
                     name_span: None,
                 })

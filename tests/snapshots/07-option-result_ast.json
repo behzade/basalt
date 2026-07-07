@@ -325,6 +325,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "left",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -383,6 +384,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "right",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -686,6 +688,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "present",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Option"
@@ -751,6 +754,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "missing",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Option"
@@ -798,6 +802,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "total",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -856,6 +861,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "ok",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Result"

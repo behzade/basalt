@@ -32,6 +32,7 @@ pub type Type<'src> = Spanned<TypeNode<'src>>;
 pub enum ItemNode<'src> {
     Stmt(Stmt<'src>),
     ImportBlock { imports: Vec<ImportPath<'src>> },
+    Memory(MemoryDef<'src>),
     Fn(Function<'src>),
     Struct(StructDef<'src>),
     Enum(EnumDef<'src>),
@@ -46,12 +47,20 @@ pub struct ImportPath<'src> {
     pub alias: Option<&'src str>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct MemoryDef<'src> {
+    pub name: &'src str,
+    pub byte_limit: usize,
+    pub object_limit: Option<usize>,
+}
+
 /// A statement within a block.
 #[derive(Debug, PartialEq, Clone)]
 pub enum StmtNode<'src> {
     Let {
         is_mut: bool,
         name: &'src str,
+        memory: Option<&'src str>,
         ty: Option<Type<'src>>,
         value: Option<Expr<'src>>,
     },
@@ -197,6 +206,7 @@ pub struct Function<'src> {
     pub effects: Vec<Type<'src>>,
     pub body: Expr<'src>,
     pub is_public: bool,
+    pub is_extern: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]

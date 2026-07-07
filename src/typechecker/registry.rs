@@ -172,6 +172,17 @@ impl Typechecker {
                     );
                 }
             }
+            OwnedItem::Memory(memory) => {
+                if !self.memory_regions.insert(memory.name.clone()) {
+                    self.errors.push(TypeError {
+                        message: format!("Memory region '{}' already defined", memory.name),
+                        context: ItemContext {
+                            span: item.span,
+                            path: PathBuf::from("<global>"),
+                        },
+                    });
+                }
+            }
             OwnedItem::TypeAlias(ta) => match &ta.aliased {
                 OwnedTypeAliasBody::Union(variants) => {
                     let ctx = ItemContext {

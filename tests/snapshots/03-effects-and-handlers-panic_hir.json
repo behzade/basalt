@@ -26,12 +26,93 @@
         }
       },
       "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
       "defined_in": "./modules/std/runtime/exit.bst",
       "span": {
         "start": 0,
-        "end": 12
+        "end": 11
       },
       "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "alloc",
+        "params": [
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "U64"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Primitive": "U64"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 0,
+        "end": 11
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "free",
+        "params": [
+          {
+            "name": "ptr",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 11,
+        "end": 24
+      },
+      "context_id": 2
     }
   },
   {
@@ -69,12 +150,13 @@
         }
       },
       "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
       "defined_in": "./modules/std/runtime/write.bst",
       "span": {
         "start": 0,
-        "end": 14
+        "end": 13
       },
-      "context_id": 1
+      "context_id": 3
     }
   },
   {
@@ -175,7 +257,7 @@
                         "defined_in": "./modules/std/runtime/exit.bst",
                         "span": {
                           "start": 0,
-                          "end": 12
+                          "end": 11
                         }
                       }
                     }
@@ -212,7 +294,7 @@
                   "defined_in": "./modules/std/runtime/exit.bst",
                   "span": {
                     "start": 0,
-                    "end": 12
+                    "end": 11
                   }
                 }
               }
@@ -227,7 +309,7 @@
             "start": 33,
             "end": 43
           },
-          "context_id": 2
+          "context_id": 4
         }
       ],
       "is_public": false,
@@ -460,7 +542,7 @@
         "start": 61,
         "end": 79
       },
-      "context_id": 3
+      "context_id": 5
     }
   },
   {
@@ -669,7 +751,7 @@
         "start": 85,
         "end": 101
       },
-      "context_id": 4
+      "context_id": 6
     }
   }
 ]

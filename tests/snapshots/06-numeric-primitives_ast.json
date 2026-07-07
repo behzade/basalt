@@ -25,6 +25,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "i8_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i8"
@@ -57,6 +58,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "i16_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i16"
@@ -89,6 +91,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "i32_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i32"
@@ -121,6 +124,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "i64_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i64"
@@ -153,6 +157,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "u8_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "u8"
@@ -185,6 +190,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "u16_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "u16"
@@ -217,6 +223,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "u32_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "u32"
@@ -249,6 +256,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "u64_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "u64"
@@ -281,6 +289,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "f32_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "f32"
@@ -313,6 +322,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "f64_value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "f64"
@@ -345,6 +355,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "widened_signed",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i64"
@@ -399,6 +410,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "widened_float",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "f64"

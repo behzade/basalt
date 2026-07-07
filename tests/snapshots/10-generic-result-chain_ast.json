@@ -998,6 +998,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "parsed",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Result"
@@ -1174,6 +1175,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "bumped",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Result"

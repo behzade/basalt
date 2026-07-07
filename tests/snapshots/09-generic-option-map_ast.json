@@ -316,6 +316,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Option"
@@ -381,6 +382,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "mapped",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Option"

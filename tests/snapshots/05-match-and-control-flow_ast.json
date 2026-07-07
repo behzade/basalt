@@ -144,6 +144,7 @@
                       "Let": {
                         "is_mut": true,
                         "name": "person",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Person"
@@ -209,6 +210,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "user",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "UserType"
@@ -275,6 +277,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "match_result",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -407,6 +410,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "if_result",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -689,6 +693,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "block_result",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i32"
@@ -707,6 +712,7 @@
                                     "Let": {
                                       "is_mut": false,
                                       "name": "a",
+                                      "memory": null,
                                       "ty": {
                                         "path": [
                                           "i32"
@@ -739,6 +745,7 @@
                                     "Let": {
                                       "is_mut": false,
                                       "name": "b",
+                                      "memory": null,
                                       "ty": {
                                         "path": [
                                           "i32"

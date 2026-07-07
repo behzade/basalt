@@ -379,6 +379,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "a",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "A"
@@ -416,6 +417,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "b",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "B"

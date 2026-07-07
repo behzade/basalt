@@ -45,6 +45,7 @@ impl Validator {
     fn validate_item(&mut self, item: &hir::Item) {
         match item {
             hir::Item::Fn(f) => self.validate_function(f),
+            hir::Item::Memory(_) => {}
             hir::Item::Struct(s) => {
                 for field in &s.fields {
                     self.validate_ty(&field.ty, &s.defined_in, s.span);
@@ -268,6 +269,9 @@ impl Validator {
 
     fn validate_function(&mut self, f: &hir::HirFunction) {
         self.validate_signature(&f.signature, &f.defined_in, f.span);
+        if f.extern_kind.is_some() {
+            return;
+        }
         self.validate_block(&f.body, &f.defined_in, &f.signature.ret_type);
         if !Self::is_normalized_to(&f.body.ty, &f.signature.ret_type) {
             self.error(
@@ -1586,6 +1590,7 @@ mod tests {
                 ty: hir::Ty::Special(hir::SpecialTy::Unit),
             },
             is_public: false,
+            extern_kind: None,
             defined_in: path(),
             span: span(),
             context_id: None,

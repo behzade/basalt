@@ -79,6 +79,7 @@ pub enum AdtTy {
 #[derive(Debug, Clone, Serialize)]
 pub enum Item {
     Fn(HirFunction),
+    Memory(HirMemoryDef),
     Struct(HirStructDef),
     Enum(HirEnumDef),
     TypeAlias(HirTypeAlias),
@@ -87,10 +88,22 @@ pub enum Item {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct HirMemoryDef {
+    pub name: String,
+    pub byte_limit: usize,
+    pub object_limit: Option<usize>,
+    pub defined_in: PathBuf,
+    #[serde(serialize_with = "crate::token::serialize_simple_span")]
+    pub span: crate::token::SimpleSpan,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct HirFunction {
     pub signature: HirFunctionSignature,
     pub body: HirBlock,
     pub is_public: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extern_kind: Option<HirExternKind>,
     /// Absolute path to the file where this function is defined
     pub defined_in: PathBuf,
     /// Token-index span covering the function item (best-effort)
@@ -98,6 +111,12 @@ pub struct HirFunction {
     pub span: crate::token::SimpleSpan,
     /// Context for this function's parameters and local variables
     pub context_id: Option<ContextId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+pub enum HirExternKind {
+    RuntimeIntrinsic,
+    Foreign,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
@@ -200,6 +219,8 @@ pub enum Stmt {
         value: Option<Expr>,
         ty: Ty, // Type is resolved and non-optional
         is_mut: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        memory: Option<String>,
         #[serde(serialize_with = "crate::token::serialize_simple_span")]
         span: crate::token::SimpleSpan,
         /// Span of the variable identifier token

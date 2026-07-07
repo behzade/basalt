@@ -82,6 +82,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "bad",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Option"

@@ -38,6 +38,8 @@ pub struct OwnedFunction {
     pub effects: Vec<String>,
     pub body: SpannedExpr, // UPDATED
     pub is_public: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_extern: bool,
 }
 
 /// Owned version of StructDef for symbol signatures
@@ -167,6 +169,7 @@ pub enum OwnedStmt {
     Let {
         is_mut: bool,
         name: String,
+        memory: Option<String>,
         ty: Option<OwnedType>,
         value: Option<SpannedExpr>, // UPDATED
     },
@@ -217,12 +220,20 @@ pub enum OwnedHandlerBody {
 pub enum OwnedItem {
     Stmt(SpannedStmt), // UPDATED
     ImportBlock { imports: Vec<OwnedImportPath> },
+    Memory(OwnedMemoryDef),
     Fn(OwnedFunction),
     Struct(OwnedStructDef),
     Enum(OwnedEnumDef),
     Effect(OwnedEffectDef),
     Handler(OwnedHandlerDef),
     TypeAlias(OwnedTypeAliasDef),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OwnedMemoryDef {
+    pub name: String,
+    pub byte_limit: usize,
+    pub object_limit: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -271,8 +282,13 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
                 .collect(),
             body: (&func.body).into(),
             is_public: func.is_public,
+            is_extern: func.is_extern,
         }
     }
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl<'src> From<&StructDef<'src>> for OwnedStructDef {
@@ -423,6 +439,11 @@ impl<'src> From<&Item<'src>> for OwnedItem {
             ItemNode::ImportBlock { imports } => OwnedItem::ImportBlock {
                 imports: imports.iter().map(|i| i.into()).collect(),
             },
+            ItemNode::Memory(m) => OwnedItem::Memory(OwnedMemoryDef {
+                name: m.name.to_string(),
+                byte_limit: m.byte_limit,
+                object_limit: m.object_limit,
+            }),
             ItemNode::Fn(f) => OwnedItem::Fn(f.into()),
             ItemNode::Struct(s) => OwnedItem::Struct(s.into()),
             ItemNode::Enum(e) => OwnedItem::Enum(e.into()),
@@ -600,11 +621,13 @@ impl<'src> From<&Stmt<'src>> for SpannedStmt {
             StmtNode::Let {
                 is_mut,
                 name,
+                memory,
                 ty,
                 value,
             } => OwnedStmt::Let {
                 is_mut: *is_mut,
                 name: name.to_string(),
+                memory: memory.map(|s| s.to_string()),
                 ty: ty.as_ref().map(|t| t.into()),
                 value: value.as_ref().map(|v| v.into()),
             },

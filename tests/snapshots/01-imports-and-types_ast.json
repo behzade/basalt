@@ -247,6 +247,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "person",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Person"
@@ -333,6 +334,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "company",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Company"
@@ -419,6 +421,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "user1",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "UserType"
@@ -485,6 +488,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "user2",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "UserType"

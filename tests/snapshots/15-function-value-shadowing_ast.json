@@ -81,6 +81,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "f",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {

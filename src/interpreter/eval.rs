@@ -6,22 +6,32 @@ use crate::hir::{
 };
 use crate::hir_index::HirIndex;
 
-use super::builtins;
 use super::env::{Env, Result, RuntimeError};
+use super::primitive_ops;
+use super::runtime;
+use super::stack::{AllocationRegionGuard, StackAllocator, StackFrameGuard};
 use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 
 /// A very small tree-walking interpreter over the HIR.
 pub struct Interpreter {
     index: HirIndex,
     active_handlers: RefCell<Vec<HandlerValue>>,
+    stack: RefCell<StackAllocator>,
 }
 
 impl Interpreter {
-    pub fn new(items: &[hir::Item]) -> Self {
-        Interpreter {
+    pub fn new(items: &[hir::Item]) -> Result<Self> {
+        let mut stack = StackAllocator::default();
+        for item in items {
+            if let hir::Item::Memory(memory) = item {
+                stack.define_region(memory.name.clone(), memory.byte_limit, memory.object_limit)?;
+            }
+        }
+        Ok(Interpreter {
             index: HirIndex::from_items(items),
             active_handlers: RefCell::new(vec![]),
-        }
+            stack: RefCell::new(stack),
+        })
     }
 
     /// Runs the program by looking for a top-level function named `main`.
@@ -35,6 +45,19 @@ impl Interpreter {
     }
 
     pub(crate) fn call_function(&self, function: &HirFunction, args: Vec<Value>) -> Result<Value> {
+        match function.extern_kind {
+            Some(hir::HirExternKind::RuntimeIntrinsic) => {
+                return runtime::call_runtime_intrinsic(function, args);
+            }
+            Some(hir::HirExternKind::Foreign) => {
+                return Err(RuntimeError(format!(
+                    "Foreign extern function '{}' cannot run in the interpreter",
+                    function.signature.name
+                )));
+            }
+            None => {}
+        }
+
         if !function.signature.params.is_empty() && function.signature.params.len() != args.len() {
             return Err(RuntimeError(format!(
                 "Function '{}' expected {} arguments, got {}",
@@ -44,6 +67,7 @@ impl Interpreter {
             )));
         }
 
+        let _frame = StackFrameGuard::push(&self.stack, function.signature.name.clone());
         let mut env = Env::new();
         // bind params
         for (idx, param) in function.signature.params.iter().enumerate() {
@@ -68,6 +92,7 @@ impl Interpreter {
                 args.len()
             )));
         }
+        let _frame = StackFrameGuard::push(&self.stack, "<fn literal>");
         // Recreate environment with captured scopes and a fresh top scope for parameters
         let mut env = Env {
             scopes: function.captured.clone(),
@@ -103,8 +128,14 @@ impl Interpreter {
 
     fn eval_stmt(&self, stmt: &Stmt, env: &mut Env) -> Result<ControlFlow> {
         match stmt {
-            Stmt::Let { name, value, .. } => {
+            Stmt::Let {
+                name,
+                value,
+                memory,
+                ..
+            } => {
                 let v = if let Some(expr) = value {
+                    let _region_guard = AllocationRegionGuard::enter(&self.stack, memory.clone());
                     self.eval_expr(expr, env)?
                 } else {
                     Value::Unit
@@ -174,14 +205,14 @@ impl Interpreter {
                 for item in items {
                     values.push(self.eval_expr(item, env)?);
                 }
-                Ok(Value::Array(values))
+                self.alloc(Value::Array(values))
             }
             ExprKind::Map(entries) => {
                 let mut values = Vec::with_capacity(entries.len());
                 for (key, value) in entries {
                     values.push((self.eval_expr(key, env)?, self.eval_expr(value, env)?));
                 }
-                Ok(Value::Map(values))
+                self.alloc(Value::Map(values))
             }
             ExprKind::Path(path) => {
                 // Variable lookup for simple paths
@@ -247,12 +278,12 @@ impl Interpreter {
                             return self.call_function(f, evaled);
                         }
                         // Builtins: minimal host I/O, only after user-visible bindings.
-                        if let Some(builtin) =
-                            builtins::try_builtin_call(name, args, env, |expr, env| {
+                        if let Some(primitive) =
+                            primitive_ops::try_primitive_call(name, args, env, |expr, env| {
                                 self.eval_expr(expr, env)
                             })?
                         {
-                            return Ok(builtin);
+                            return Ok(primitive);
                         }
                         if let hir::Ty::Function { ret_type, .. } = &fun.ty {
                             if let hir::Ty::Adt(hir::AdtTy::Enum {
@@ -266,7 +297,7 @@ impl Interpreter {
                                     }
                                     let mut path = enum_name.clone();
                                     path.push(name.clone());
-                                    return Ok(Value::EnumVariant { path, fields });
+                                    return self.alloc(Value::EnumVariant { path, fields });
                                 }
                             }
                         }
@@ -292,12 +323,12 @@ impl Interpreter {
                 }
                 if let hir::Ty::Adt(hir::AdtTy::Enum { .. }) = &expr.ty {
                     let map = self.canonical_enum_fields(path, map);
-                    return Ok(Value::EnumVariant {
+                    return self.alloc(Value::EnumVariant {
                         path: path.clone(),
                         fields: map,
                     });
                 }
-                Ok(Value::Struct {
+                self.alloc(Value::Struct {
                     path: path.clone(),
                     fields: map,
                 })
@@ -366,7 +397,7 @@ impl Interpreter {
                     body: f.body.clone(),
                     captured: env.scopes.clone(),
                 };
-                Ok(Value::Function(func_val))
+                self.alloc(Value::Function(func_val))
             }
             ExprKind::Cast { expr: inner } => {
                 let value = self.eval_expr(inner, env)?;
@@ -434,7 +465,7 @@ impl Interpreter {
                 let Some(handler) = self.index.handler(name) else {
                     return Err(RuntimeError(format!("Unknown handler: {}", name)));
                 };
-                Ok(Value::Handler(HandlerValue {
+                self.alloc(Value::Handler(HandlerValue {
                     entries: vec![HandlerEntry {
                         effects: handler.effects.clone(),
                         functions: handler.functions.clone(),
@@ -454,9 +485,9 @@ impl Interpreter {
                     };
                     base.entries.extend(handler.entries);
                 }
-                Ok(Value::Handler(base))
+                self.alloc(Value::Handler(base))
             }
-            HirHandlerBody::Inline(functions) => Ok(Value::Handler(HandlerValue {
+            HirHandlerBody::Inline(functions) => self.alloc(Value::Handler(HandlerValue {
                 entries: vec![HandlerEntry {
                     effects: vec![],
                     functions: functions.clone(),
@@ -639,8 +670,12 @@ impl Interpreter {
                     .map_err(|_| RuntimeError("Invalid f64 literal".to_string()))?;
                 Ok(Value::F64(v))
             }
-            hir::PrimitiveTy::Str => Ok(Value::Str(text.to_string())),
+            hir::PrimitiveTy::Str => self.alloc(Value::Str(text.to_string())),
         }
+    }
+
+    fn alloc(&self, value: Value) -> Result<Value> {
+        self.stack.borrow_mut().alloc_value(value)
     }
 
     fn cast_value(&self, value: Value, target_ty: &hir::Ty) -> Result<Value> {
@@ -873,7 +908,7 @@ impl Interpreter {
 
 /// Convenience function to run a HIR program end-to-end.
 pub fn run_program(items: &[hir::Item]) -> Result<Value> {
-    Interpreter::new(items).run()
+    Interpreter::new(items)?.run()
 }
 
 fn is_truthy(v: &Value) -> bool {
@@ -1018,6 +1053,7 @@ mod tests {
                 ty: i32_ty(),
             },
             is_public: false,
+            extern_kind: None,
             defined_in: defined_in.into(),
             span: span(),
             context_id: None,
@@ -1038,6 +1074,7 @@ mod tests {
                 ty: body_expr.ty,
             },
             is_public: false,
+            extern_kind: None,
             defined_in: "test.bst".into(),
             span: span(),
             context_id: None,
@@ -1281,6 +1318,7 @@ mod tests {
                     value: Some(resolved_function_path("value", "a.bst", i32_ty())),
                     ty: selected_ty.clone(),
                     is_mut: false,
+                    memory: None,
                     span: span(),
                     name_span: Some(span()),
                 }],

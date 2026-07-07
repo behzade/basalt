@@ -124,8 +124,10 @@ pub fn lexer<'src>()
     let ident = text::ident().map(|ident: &str| match ident {
         "let" => Token::Let,
         "mut" => Token::Mut,
+        "memory" => Token::Memory,
         "type" => Token::Type,
         "struct" => Token::Struct,
+        "extern" => Token::Extern,
         "fn" => Token::Fn,
         "import" => Token::Import,
         "as" => Token::As,

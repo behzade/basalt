@@ -50,6 +50,9 @@ pub struct Typechecker {
     /// handler value can discharge after any static handler composition.
     pub(crate) handler_values: HashMap<String, Vec<hir::Ty>>,
 
+    /// Top-level named memory regions available for explicit allocation placement.
+    pub(crate) memory_regions: HashSet<String>,
+
     /// Simple top-level handler aliases of the form `let X = Base with {A, B}`.
     pub(crate) handler_aliases: HashMap<String, (String, Vec<String>)>,
 
@@ -101,9 +104,8 @@ impl Typechecker {
         self.current_context_stack.last().copied()
     }
 
-    fn is_magic_runtime_file(&self, path: &PathBuf) -> bool {
+    fn is_runtime_file(&self, path: &PathBuf) -> bool {
         let s = path.to_string_lossy();
-        // Only treat modules under /modules/std/runtime/ as compiler-magic
         s.contains("/modules/std/runtime/") || s.contains("\\modules\\std\\runtime\\")
     }
     pub fn check_program(
@@ -196,6 +198,28 @@ impl Typechecker {
                     },
                 )
                 .map(|item| vec![hir::Item::Fn(item)]),
+            OwnedItem::Memory(memory) => {
+                if memory.byte_limit == 0 {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Memory region '{}' must have a non-zero byte limit",
+                            memory.name
+                        ),
+                        context: ItemContext {
+                            span: item.span,
+                            path: path.clone(),
+                        },
+                    });
+                    return Err(());
+                }
+                Ok(vec![hir::Item::Memory(hir::HirMemoryDef {
+                    name: memory.name,
+                    byte_limit: memory.byte_limit,
+                    object_limit: memory.object_limit,
+                    defined_in: path,
+                    span: item.span,
+                })])
+            }
             OwnedItem::Struct(s) => self
                 .lower_struct(
                     s,
@@ -315,9 +339,27 @@ impl Typechecker {
             self.add_symbol_to_current_scope(p.name.clone(), symbol);
         }
 
-        // 3. Lower the function body...
-        // Special-case: compiler-magic std runtime files have no meaningful bodies; assume signature is correct
-        let (body_block, body_span) = if self.is_magic_runtime_file(&context.path) {
+        let extern_kind = if func.is_extern {
+            Some(if self.is_runtime_file(&context.path) {
+                hir::HirExternKind::RuntimeIntrinsic
+            } else {
+                hir::HirExternKind::Foreign
+            })
+        } else {
+            None
+        };
+
+        if !func.is_extern && self.is_runtime_file(&context.path) {
+            self.errors.push(TypeError {
+                message: "Functions in std::runtime must be extern declarations".to_string(),
+                context: context.clone(),
+            });
+            return Err(());
+        }
+
+        // 3. Lower the function body. Extern declarations have no Basalt body;
+        // their implementation lives in the interpreter/native runtime.
+        let (body_block, body_span) = if func.is_extern {
             let block = hir::HirBlock {
                 stmts: vec![],
                 last_expr: None,
@@ -401,6 +443,7 @@ impl Typechecker {
             signature,
             body: body_block,
             is_public: func.is_public,
+            extern_kind,
             defined_in: context.path.clone(),
             // Use the body expression span as a best-effort function span for navigation
             span: body_span,

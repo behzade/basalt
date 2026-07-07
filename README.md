@@ -64,6 +64,7 @@ Works in the interpreter runtime:
 - `match` execution
 - `perform`/`handle` execution
 - Map runtime values
+- Stack-frame and named-chunk allocation accounting for heap-shaped runtime values. The current interpreter charges strings, arrays, maps, structs, enum variants, closures, and handlers to the active allocation context and errors when the budget is exhausted. Named chunks reserve backing bytes through `std::runtime::alloc`; values are still represented by Rust data structures internally.
 
 Known interpreter gaps:
 
@@ -78,6 +79,8 @@ Note: `=` is the assignment operator (older `<-` syntax has been removed).
 - `import { self::... }` resolves from `./src`
 - Other imports resolve from `./modules`
 - Standard-library-like modules in this repo are minimal placeholders under `modules/std/**`
+- `modules/std/runtime/**` is the only compiler-known runtime surface. Functions there are bodyless `extern fn` declarations implemented by the interpreter/native runtime; higher stdlib modules should call those capabilities instead of relying on hard-coded builtins.
+- `memory Name: chunk(bytes[, objects])` is a core compiler item. In interpreter mode, chunk backing memory is reserved through `std::runtime::alloc` while value storage is still represented by Rust values with Basalt-side accounting.
 
 ## Tests
 

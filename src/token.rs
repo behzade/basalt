@@ -11,8 +11,10 @@ pub enum Token<'src> {
     // Keywords
     Let,
     Mut,
+    Memory,
     Type,
     Struct,
+    Extern,
     Fn,
 
     Import,
@@ -73,8 +75,10 @@ impl<'src> fmt::Display for Token<'src> {
             // Keywords
             Token::Let => write!(f, "let"),
             Token::Mut => write!(f, "mut"),
+            Token::Memory => write!(f, "memory"),
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "type"),
+            Token::Extern => write!(f, "extern"),
             Token::Fn => write!(f, "fn"),
 
             Token::Import => write!(f, "import"),
@@ -133,8 +137,10 @@ impl<'src> fmt::Display for Token<'src> {
 pub enum OwnedToken {
     Let,
     Mut,
+    Memory,
     Type,
     Struct,
+    Extern,
     Fn,
 
     Import,
@@ -195,8 +201,10 @@ impl From<Token<'_>> for OwnedToken {
         match token {
             Token::Let => OwnedToken::Let,
             Token::Mut => OwnedToken::Mut,
+            Token::Memory => OwnedToken::Memory,
             Token::Struct => OwnedToken::Struct,
             Token::Type => OwnedToken::Type,
+            Token::Extern => OwnedToken::Extern,
             Token::Fn => OwnedToken::Fn,
 
             Token::Import => OwnedToken::Import,

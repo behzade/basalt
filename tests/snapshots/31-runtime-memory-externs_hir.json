@@ -2,137 +2,6 @@
   {
     "Fn": {
       "signature": {
-        "name": "print",
-        "params": [
-          {
-            "name": "data",
-            "ty": {
-              "Primitive": "Str"
-            },
-            "is_mut": false,
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Special": "Unit"
-        },
-        "effects": []
-      },
-      "body": {
-        "stmts": [],
-        "last_expr": {
-          "kind": {
-            "Call": {
-              "fun": {
-                "kind": {
-                  "Path": [
-                    "runtime",
-                    "write"
-                  ]
-                },
-                "ty": {
-                  "Function": {
-                    "param_types": [
-                      {
-                        "Primitive": "Str"
-                      },
-                      {
-                        "Primitive": "Str"
-                      }
-                    ],
-                    "ret_type": {
-                      "Special": "Unit"
-                    },
-                    "effects": []
-                  }
-                },
-                "span": {
-                  "start": 17,
-                  "end": 21
-                },
-                "resolution": {
-                  "Function": {
-                    "defined_in": "./modules/std/runtime/write.bst",
-                    "span": {
-                      "start": 0,
-                      "end": 14
-                    }
-                  }
-                }
-              },
-              "args": [
-                {
-                  "kind": {
-                    "Literal": [
-                      "Str",
-                      "stdout"
-                    ]
-                  },
-                  "ty": {
-                    "Primitive": "Str"
-                  },
-                  "span": {
-                    "start": 22,
-                    "end": 23
-                  },
-                  "resolution": null
-                },
-                {
-                  "kind": {
-                    "Path": [
-                      "data"
-                    ]
-                  },
-                  "ty": {
-                    "Primitive": "Str"
-                  },
-                  "span": {
-                    "start": 24,
-                    "end": 25
-                  },
-                  "resolution": {
-                    "Local": {
-                      "name": "data",
-                      "decl_span": null
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          "ty": {
-            "Special": "Unit"
-          },
-          "span": {
-            "start": 17,
-            "end": 26
-          },
-          "resolution": {
-            "Function": {
-              "defined_in": "./modules/std/runtime/write.bst",
-              "span": {
-                "start": 0,
-                "end": 14
-              }
-            }
-          }
-        },
-        "ty": {
-          "Special": "Unit"
-        }
-      },
-      "is_public": true,
-      "defined_in": "./modules/std/io/print.bst",
-      "span": {
-        "start": 16,
-        "end": 27
-      },
-      "context_id": 0
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
         "name": "exit",
         "params": [
           {
@@ -157,12 +26,93 @@
         }
       },
       "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
       "defined_in": "./modules/std/runtime/exit.bst",
       "span": {
         "start": 0,
-        "end": 12
+        "end": 11
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "alloc",
+        "params": [
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "U64"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Primitive": "U64"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 0,
+        "end": 11
       },
       "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "free",
+        "params": [
+          {
+            "name": "ptr",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 11,
+        "end": 24
+      },
+      "context_id": 2
     }
   },
   {
@@ -200,12 +150,13 @@
         }
       },
       "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
       "defined_in": "./modules/std/runtime/write.bst",
       "span": {
         "start": 0,
-        "end": 14
+        "end": 13
       },
-      "context_id": 2
+      "context_id": 3
     }
   },
   {
@@ -221,40 +172,41 @@
       "body": {
         "stmts": [
           {
-            "Expr": {
-              "expr": {
+            "Let": {
+              "name": "ptr",
+              "value": {
                 "kind": {
                   "Call": {
                     "fun": {
                       "kind": {
                         "Path": [
-                          "io",
-                          "print"
+                          "runtime",
+                          "alloc"
                         ]
                       },
                       "ty": {
                         "Function": {
                           "param_types": [
                             {
-                              "Primitive": "Str"
+                              "Primitive": "U64"
                             }
                           ],
                           "ret_type": {
-                            "Special": "Unit"
+                            "Primitive": "U64"
                           },
                           "effects": []
                         }
                       },
                       "span": {
-                        "start": 14,
-                        "end": 18
+                        "start": 17,
+                        "end": 21
                       },
                       "resolution": {
                         "Function": {
-                          "defined_in": "./modules/std/io/print.bst",
+                          "defined_in": "./modules/std/runtime/memory.bst",
                           "span": {
-                            "start": 8,
-                            "end": 27
+                            "start": 0,
+                            "end": 11
                           }
                         }
                       }
@@ -263,16 +215,16 @@
                       {
                         "kind": {
                           "Literal": [
-                            "Str",
-                            "hi\\n"
+                            "U64",
+                            "64"
                           ]
                         },
                         "ty": {
-                          "Primitive": "Str"
+                          "Primitive": "U64"
                         },
                         "span": {
-                          "start": 19,
-                          "end": 20
+                          "start": 22,
+                          "end": 23
                         },
                         "resolution": null
                       }
@@ -280,26 +232,31 @@
                   }
                 },
                 "ty": {
-                  "Special": "Unit"
+                  "Primitive": "U64"
                 },
                 "span": {
-                  "start": 14,
-                  "end": 21
+                  "start": 17,
+                  "end": 24
                 },
                 "resolution": {
                   "Function": {
-                    "defined_in": "./modules/std/io/print.bst",
+                    "defined_in": "./modules/std/runtime/memory.bst",
                     "span": {
-                      "start": 8,
-                      "end": 27
+                      "start": 0,
+                      "end": 11
                     }
                   }
                 }
               },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
               "span": {
                 "start": 14,
-                "end": 21
-              }
+                "end": 24
+              },
+              "name_span": null
             }
           },
           {
@@ -310,15 +267,18 @@
                     "fun": {
                       "kind": {
                         "Path": [
-                          "io",
-                          "print"
+                          "runtime",
+                          "free"
                         ]
                       },
                       "ty": {
                         "Function": {
                           "param_types": [
                             {
-                              "Primitive": "Str"
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
                             }
                           ],
                           "ret_type": {
@@ -328,15 +288,15 @@
                         }
                       },
                       "span": {
-                        "start": 21,
-                        "end": 25
+                        "start": 24,
+                        "end": 28
                       },
                       "resolution": {
                         "Function": {
-                          "defined_in": "./modules/std/io/print.bst",
+                          "defined_in": "./modules/std/runtime/memory.bst",
                           "span": {
-                            "start": 8,
-                            "end": 27
+                            "start": 11,
+                            "end": 24
                           }
                         }
                       }
@@ -344,17 +304,40 @@
                     "args": [
                       {
                         "kind": {
-                          "Literal": [
-                            "Str",
-                            "hi2"
+                          "Path": [
+                            "ptr"
                           ]
                         },
                         "ty": {
-                          "Primitive": "Str"
+                          "Primitive": "U64"
                         },
                         "span": {
-                          "start": 26,
-                          "end": 27
+                          "start": 29,
+                          "end": 30
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "ptr",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 24
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "64"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 31,
+                          "end": 32
                         },
                         "resolution": null
                       }
@@ -365,22 +348,22 @@
                   "Special": "Unit"
                 },
                 "span": {
-                  "start": 21,
-                  "end": 28
+                  "start": 24,
+                  "end": 33
                 },
                 "resolution": {
                   "Function": {
-                    "defined_in": "./modules/std/io/print.bst",
+                    "defined_in": "./modules/std/runtime/memory.bst",
                     "span": {
-                      "start": 8,
-                      "end": 27
+                      "start": 11,
+                      "end": 24
                     }
                   }
                 }
               },
               "span": {
-                "start": 21,
-                "end": 28
+                "start": 24,
+                "end": 33
               }
             }
           }
@@ -396,8 +379,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 28,
-            "end": 29
+            "start": 33,
+            "end": 34
           },
           "resolution": null
         },
@@ -406,12 +389,12 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/00-imports-and-aliases.bst",
+      "defined_in": "tests/31-runtime-memory-externs.bst",
       "span": {
         "start": 13,
-        "end": 30
+        "end": 35
       },
-      "context_id": 3
+      "context_id": 4
     }
   }
 ]

@@ -334,6 +334,7 @@
                       "Let": {
                         "is_mut": true,
                         "name": "p",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Person"
@@ -399,6 +400,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "age",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
@@ -435,6 +437,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "inc",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {

@@ -1,1 +1,1 @@
-pub fn write(stream: str, input: str) { }
+pub extern fn write(stream: str, input: str)

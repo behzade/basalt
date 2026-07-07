@@ -80,6 +80,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "value",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "Choice"
