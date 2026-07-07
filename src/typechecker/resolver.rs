@@ -51,6 +51,11 @@ pub(crate) struct ResolvedVariantStruct {
     pub field_defs: Vec<hir::HirField>,
 }
 
+pub(crate) struct ResolvedStructInit {
+    pub path: hir::OwnedPath,
+    pub field_defs: Vec<hir::HirField>,
+}
+
 pub(crate) struct ResolvedPatternVariant {
     pub path: hir::OwnedPath,
     pub payload_types: Option<Vec<hir::Ty>>,
@@ -162,7 +167,14 @@ impl Typechecker {
         let hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) = receiver_ty else {
             return None;
         };
-        let ty = self.lookup_struct_field_type(name, field)?.clone();
+        let ty = match self.type_definitions.get(name) {
+            Some(hir::Item::Struct(def)) => def
+                .fields
+                .iter()
+                .find(|candidate| candidate.name == field)
+                .map(|candidate| candidate.ty.clone())?,
+            _ => return None,
+        };
         Some(ResolvedField {
             owner: name.clone(),
             field: field.to_string(),
@@ -249,6 +261,16 @@ impl Typechecker {
             enum_path,
             field_defs,
         }))
+    }
+
+    pub(crate) fn resolve_struct_init(&self, path: &[String]) -> Option<ResolvedStructInit> {
+        match self.type_definitions.get(path) {
+            Some(hir::Item::Struct(struct_def)) => Some(ResolvedStructInit {
+                path: path.to_vec(),
+                field_defs: struct_def.fields.clone(),
+            }),
+            _ => None,
+        }
     }
 
     pub(crate) fn resolve_pattern_variant(

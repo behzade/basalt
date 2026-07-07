@@ -1493,8 +1493,7 @@ impl Typechecker {
                     }
                 }
 
-                let Some(hir::Item::Struct(struct_def)) = self.type_definitions.get(&path).cloned()
-                else {
+                let Some(struct_init) = self.resolve_struct_init(&path) else {
                     self.errors.push(TypeError {
                         message: format!("Unknown struct `{}`", path.join("::")),
                         context: context.clone(),
@@ -1502,13 +1501,15 @@ impl Typechecker {
                     return Err(());
                 };
                 let adt_ty = hir::Ty::Adt(hir::AdtTy::Struct {
-                    name: path.clone(),
+                    name: struct_init.path.clone(),
                     generics: vec![],
                 });
                 let mut lowered_fields = Vec::new();
                 for (name, expr) in fields {
-                    let e = if let Some(field_def) =
-                        struct_def.fields.iter().find(|field| field.name == name)
+                    let e = if let Some(field_def) = struct_init
+                        .field_defs
+                        .iter()
+                        .find(|field| field.name == name)
                     {
                         self.lower_expr_with_expected(expr, field_def.ty.clone(), context.clone())?
                     } else {
@@ -1524,7 +1525,7 @@ impl Typechecker {
                     };
                     lowered_fields.push((name, e));
                 }
-                for field_def in &struct_def.fields {
+                for field_def in &struct_init.field_defs {
                     if !lowered_fields
                         .iter()
                         .any(|(field_name, _)| field_name == &field_def.name)

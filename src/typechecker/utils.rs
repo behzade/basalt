@@ -57,17 +57,4 @@ impl Typechecker {
             A::BitShiftRight => hir::BinaryOp::BitShiftRight,
         }
     }
-
-    pub(crate) fn lookup_struct_field_type(
-        &self,
-        path: &hir::OwnedPath,
-        field: &str,
-    ) -> Option<&hir::Ty> {
-        match self.type_definitions.get(path) {
-            Some(hir::Item::Struct(def)) => {
-                def.fields.iter().find(|f| f.name == field).map(|f| &f.ty)
-            }
-            _ => None,
-        }
-    }
 }
