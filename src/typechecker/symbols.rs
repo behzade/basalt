@@ -1,5 +1,4 @@
 use crate::hir;
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -15,10 +14,6 @@ pub(crate) enum Symbol {
         is_public: bool,
         defined_in: PathBuf,
         decl_span: Option<crate::token::SimpleSpan>,
-    },
-    Type {
-        canonical_path: hir::OwnedPath,
-        ty: hir::Ty,
     },
 }
 

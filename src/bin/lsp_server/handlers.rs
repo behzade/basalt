@@ -8,7 +8,7 @@ use crate::backend::Backend;
 use crate::symbols;
 
 pub async fn initialize(
-    backend: &Backend,
+    _backend: &Backend,
     _: lsp::InitializeParams,
 ) -> LspResult<lsp::InitializeResult> {
     let server_caps = lsp::ServerCapabilities {
@@ -147,7 +147,7 @@ pub async fn goto_definition(
                             decl_span,
                         } => {
                             let target_span = decl_span.unwrap_or(expr.span);
-                            if let Some(src_text) = analysis.sources.get(&path) {
+                            if analysis.sources.get(&path).is_some() {
                                 let ranges =
                                     analysis.token_spans.get(&path).cloned().unwrap_or_default();
                                 let range =

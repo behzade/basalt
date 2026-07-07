@@ -1,13 +1,8 @@
 use crate::ast::BinaryOp;
 use crate::hir;
-use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 
 impl Typechecker {
-    pub(crate) fn is_numeric_type(&self, ty: &hir::Ty) -> bool {
-        TypeUnifier::is_numeric(ty)
-    }
-
     pub(crate) fn is_numeric_literal(&self, lit: &crate::ast_owned::OwnedLiteral) -> bool {
         matches!(
             lit,
@@ -29,10 +24,6 @@ impl Typechecker {
             op,
             BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div | BinaryOp::Mod
         )
-    }
-
-    pub(crate) fn unify_numeric_types(&self, a: hir::Ty, b: hir::Ty) -> Option<hir::Ty> {
-        TypeUnifier::unify_numeric(&a, &b)
     }
 
     pub(crate) fn coerce_numeric_literal(

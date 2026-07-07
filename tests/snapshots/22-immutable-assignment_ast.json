@@ -1,0 +1,124 @@
+{
+  "tests/22-immutable-assignment.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "value",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 1
+                            }
+                          },
+                          "span": {
+                            "start": 12,
+                            "end": 13
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 13
+                    }
+                  },
+                  {
+                    "item": {
+                      "Assign": [
+                        {
+                          "item": {
+                            "Path": [
+                              "value"
+                            ]
+                          },
+                          "span": {
+                            "start": 13,
+                            "end": 14
+                          }
+                        },
+                        {
+                          "item": {
+                            "Literal": {
+                              "I32": 2
+                            }
+                          },
+                          "span": {
+                            "start": 15,
+                            "end": 16
+                          }
+                        }
+                      ]
+                    },
+                    "span": {
+                      "start": 13,
+                      "end": 16
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "value"
+                          ]
+                        },
+                        "span": {
+                          "start": 16,
+                          "end": 17
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 17
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 18
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 18
+      }
+    }
+  ]
+}

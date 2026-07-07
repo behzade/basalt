@@ -1,29 +1,6 @@
-use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
-use chumsky::prelude::*;
+use basalt::compiler::{Compiler, CompilerStage};
 use clap::Parser as ClapParser;
-use std::fs;
-use std::io::{self, Read};
-
-// --- Module Declarations ---
-mod ast;
-mod ast_owned;
-mod compiler;
-mod hir;
-mod hir_validation;
-mod interpreter;
-mod lexer;
-mod parser;
-mod token;
-mod type_unifier;
-mod typechecker;
-
-use crate::compiler::{Compiler, CompilerStage};
-use crate::{
-    hir::Item,
-    lexer::lexer,
-    parser::file_parser,
-    token::{SimpleSpan, Token},
-};
+use std::io;
 
 // --- Command-Line Interface ---
 
@@ -115,7 +92,7 @@ fn main() -> io::Result<()> {
                 .run_interpreter()
                 .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
             if let Some(val) = compiler.workspace.last_run_result.as_ref() {
-                let code = crate::interpreter::value_to_exit_code(val);
+                let code = basalt::interpreter::value_to_exit_code(val);
                 std::process::exit(code);
             }
         }

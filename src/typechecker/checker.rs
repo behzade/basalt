@@ -84,21 +84,6 @@ impl Typechecker {
         id
     }
 
-    fn add_child_context(&mut self, parent: ContextId, child: ContextId) {
-        if let Some(p) = self.contexts.get_mut(parent) {
-            p.children.push(child);
-        }
-        if let Some(c) = self.contexts.get_mut(child) {
-            c.parent = Some(parent);
-        }
-    }
-
-    fn set_context_kind(&mut self, id: ContextId, kind: HirContextKind) {
-        if let Some(c) = self.contexts.get_mut(id) {
-            c.kind = kind;
-        }
-    }
-
     pub(crate) fn add_symbol_to_context(&mut self, id: ContextId, sym: HirSymbolDecl) {
         if let Some(c) = self.contexts.get_mut(id) {
             c.symbols.push(sym);

@@ -311,7 +311,7 @@ fn expression_bundle<'src>() -> (
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LParen), just(Token::RParen)),
         )
-        .map_with(|(((e1, e2), args)), e| Spanned {
+        .map_with(|((e1, e2), args), e| Spanned {
             node: ExprNode::Perform {
                 path: vec![e1, e2],
                 args,
@@ -976,7 +976,7 @@ fn import_parser<'src>()
 
 fn fn_def_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Function<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, _stmt, block) = expression_bundle();
+    let (_expr, _stmt, block) = expression_bundle();
     let vis = just(Token::Pub).or_not().map(|m| m.is_some());
     vis.then_ignore(just(Token::Fn))
         .then(fn_signature_parser())
@@ -1045,7 +1045,7 @@ fn effect_parser<'src>()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
-        .map(|(((is_public, name), operations))| EffectDef {
+        .map(|((is_public, name), operations)| EffectDef {
             name,
             operations,
             is_public,
@@ -1054,7 +1054,6 @@ fn effect_parser<'src>()
 
 fn handler_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], HandlerDef<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let fndef = fn_def_parser();
     let effects = just(Token::Colon)
         .ignore_then(type_parser())
         .then(effects_types(|| type_parser()))
@@ -1082,7 +1081,7 @@ fn handler_parser<'src>()
         .then(ident())
         .then(effects)
         .then(make_block())
-        .map(|((((is_public, name), effects), functions))| HandlerDef {
+        .map(|(((is_public, name), effects), functions)| HandlerDef {
             name,
             effects,
             functions,
@@ -1171,7 +1170,7 @@ fn struct_def_parser<'src>()
         .then(ident())
         .then_ignore(just(Token::Colon))
         .then(type_parser())
-        .map(|(((is_public, name), ty))| (name, ty));
+        .map(|((_is_public, name), ty)| (name, ty));
     vis.then_ignore(just(Token::Struct))
         .then(ident())
         .then(
@@ -1191,7 +1190,7 @@ fn struct_def_parser<'src>()
 
 fn item_parser<'src>()
 -> impl Parser<'src, &'src [Token<'src>], Item<'src>, extra::Err<Rich<'src, Token<'src>>>> {
-    let (expr, stmt, _block) = expression_bundle();
+    let (_expr, stmt, _block) = expression_bundle();
     choice((
         import_parser(),
         spanned(fn_def_parser().map(ItemNode::Fn)),

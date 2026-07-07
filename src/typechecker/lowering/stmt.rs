@@ -65,21 +65,15 @@ impl Typechecker {
                 };
 
                 // Prevent redeclaration in the same scope
-                if let Some(existing) = self.lookup_symbol(&name).cloned() {
-                    // Only block if existing is from the same innermost scope: detect by peeking last scope
-                    if let Some(last) = self.scopes.last() {
-                        if last.contains_key(&name) {
-                            self.errors.push(TypeError {
-                                message: format!(
-                                    "Variable '{}' already defined in this scope",
-                                    name
-                                ),
-                                context: ItemContext {
-                                    span: stmt.span,
-                                    path: context.path.clone(),
-                                },
-                            });
-                        }
+                if let Some(last) = self.scopes.last() {
+                    if last.contains_key(&name) {
+                        self.errors.push(TypeError {
+                            message: format!("Variable '{}' already defined in this scope", name),
+                            context: ItemContext {
+                                span: stmt.span,
+                                path: context.path.clone(),
+                            },
+                        });
                     }
                 }
                 let symbol = Symbol::Variable {
@@ -121,9 +115,21 @@ impl Typechecker {
                             Some(n) => n.clone(),
                             None => "".to_string(),
                         };
-                        if let Some(Symbol::Variable { ty, .. }) =
+                        if let Some(Symbol::Variable { ty, is_mut, .. }) =
                             self.lookup_symbol(&name).cloned()
                         {
+                            if !is_mut {
+                                self.errors.push(TypeError {
+                                    message: format!(
+                                        "Cannot assign to immutable variable '{}'",
+                                        name
+                                    ),
+                                    context: ItemContext {
+                                        span: lhs.span,
+                                        path: context.path.clone(),
+                                    },
+                                });
+                            }
                             hir::Expr {
                                 kind: hir::ExprKind::Path(path.clone()),
                                 ty,

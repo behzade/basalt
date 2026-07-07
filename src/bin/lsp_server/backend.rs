@@ -6,9 +6,8 @@ use tokio::sync::Mutex;
 use tower_lsp::lsp_types as lsp;
 use tower_lsp::{Client, LanguageServer};
 
-use crate::analysis::{AnalysisResult, Analyzer};
+use crate::analysis::AnalysisResult;
 use crate::handlers;
-use crate::symbols;
 
 pub struct Backend {
     pub client: Client,

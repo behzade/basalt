@@ -1,5 +1,5 @@
 use ariadne::{Color, Fmt, Label, Report, ReportKind, Source};
-use chumsky::{Parser, error::Rich, input::Input};
+use chumsky::{Parser, error::Rich};
 use std::{
     collections::{HashMap, HashSet},
     fs, io,
@@ -7,9 +7,9 @@ use std::{
 };
 
 use crate::{
-    ast::{Item, ItemNode},
+    ast::ItemNode,
     ast_owned::{OwnedItem, OwnedItemWithSpan, OwnedTypeAliasBody, Spanned},
-    hir::{self, Item as HirItem},
+    hir,
     lexer::lexer,
     parser::file_parser,
     token::{OwnedTokenWithSpan, SimpleSpan, Token},
@@ -330,9 +330,10 @@ impl Compiler {
     }
 
     fn run_build(&mut self) -> io::Result<()> {
+        let output = self.output_path.as_deref().unwrap_or("a.out");
         Err(io::Error::new(
             io::ErrorKind::Other,
-            "build not implemented",
+            format!("build not implemented for output `{}`", output),
         ))
     }
 

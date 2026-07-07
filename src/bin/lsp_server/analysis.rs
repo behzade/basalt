@@ -1,18 +1,12 @@
-use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use chumsky::Parser;
 use chumsky::span::Span;
 use tower_lsp::lsp_types as lsp;
 
-use basalt::ast;
-use basalt::ast_owned;
 use basalt::compiler::{Compiler, CompilerStage};
 use basalt::hir;
-use basalt::lexer;
-use basalt::parser;
-use basalt::token;
 use basalt::typechecker::{TypeError, Typechecker};
 
 use basalt::lexer::lexer;

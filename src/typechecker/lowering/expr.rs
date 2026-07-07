@@ -1,4 +1,3 @@
-use crate::ast::BinaryOp;
 use crate::ast_owned::*;
 use crate::hir;
 use crate::type_unifier::TypeUnifier;
@@ -431,13 +430,6 @@ impl Typechecker {
                         });
                         Err(())
                     }
-                    _ => {
-                        self.errors.push(TypeError {
-                            message: format!("`{}` is not a value", name),
-                            context: context.clone(),
-                        });
-                        Err(())
-                    }
                 }
             }
             OwnedExpr::Unary { op, rhs } => {
@@ -492,7 +484,7 @@ impl Typechecker {
             }
             OwnedExpr::Binary { op, lhs, rhs } => {
                 let (hir_lhs, hir_rhs) = match (&lhs.item, &rhs.item) {
-                    (OwnedExpr::Literal(l), other) if self.is_numeric_literal(l) => {
+                    (OwnedExpr::Literal(l), _) if self.is_numeric_literal(l) => {
                         let other_hir = self.lower_expr(*rhs, context.clone())?;
                         if TypeUnifier::is_numeric(&other_hir.ty) && self.is_arithmetic_op(op) {
                             let coerced_lhs = self.lower_expr_with_expected(
@@ -508,7 +500,7 @@ impl Typechecker {
                             (self.lower_expr(*lhs, context.clone())?, other_hir)
                         }
                     }
-                    (other, OwnedExpr::Literal(r)) if self.is_numeric_literal(r) => {
+                    (_, OwnedExpr::Literal(r)) if self.is_numeric_literal(r) => {
                         let other_hir = self.lower_expr(*lhs, context.clone())?;
                         if TypeUnifier::is_numeric(&other_hir.ty) && self.is_arithmetic_op(op) {
                             let coerced_rhs = self.lower_expr_with_expected(
@@ -950,7 +942,7 @@ impl Typechecker {
                             let mut fun_resolution: Option<hir::Resolution> = None;
                             if is_module_qualified {
                                 if let Some(Symbol::Function {
-                                    signature: sig,
+                                    signature: _,
                                     is_public,
                                     defined_in,
                                     decl_span,
@@ -1032,7 +1024,7 @@ impl Typechecker {
                                 if let hir::Ty::Function {
                                     param_types,
                                     ret_type,
-                                    effects,
+                                    effects: _,
                                 } = fun_hir.ty.clone()
                                 {
                                     let mut lowered_args = Vec::new();

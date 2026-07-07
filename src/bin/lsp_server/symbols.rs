@@ -1,10 +1,12 @@
+#![allow(deprecated)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use tower_lsp::lsp_types as lsp;
 
 use basalt::hir;
-use basalt::token::{self, SimpleSpan};
+use basalt::token::SimpleSpan;
 
 use crate::analysis::AnalysisResult;
 
@@ -219,10 +221,6 @@ pub fn hir_ty_to_string(ty: &hir::Ty) -> String {
         }
         Ty::Generic(name) => name.clone(),
     }
-}
-
-pub fn join_path(path: &hir::OwnedPath) -> String {
-    path.join("::")
 }
 
 pub fn item_name_and_span<'a>(item: &'a hir::Item) -> (String, &'a PathBuf, SimpleSpan) {
@@ -984,6 +982,6 @@ pub fn collect_lets_in_expr(expr: &hir::Expr, out: &mut Vec<(String, SimpleSpan)
         }
         EK::Cast { expr: inner } => collect_lets_in_expr(inner, out),
         EK::Path(_) | EK::Literal(..) | EK::Perform { .. } | EK::Error => {}
-        EK::FnLiteral(f) => {} // is this right?
+        EK::FnLiteral(_) => {}
     }
 }
