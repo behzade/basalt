@@ -11,13 +11,13 @@ pub struct HirEnumVariantIndexEntry {
 
 #[derive(Clone, Default)]
 pub struct HirIndex {
-    pub functions: HashMap<String, hir::HirFunction>,
-    pub resolved_functions: HashMap<(PathBuf, String), hir::HirFunction>,
-    pub structs: HashMap<hir::OwnedPath, hir::HirStructDef>,
-    pub enums: HashMap<hir::OwnedPath, hir::HirEnumDef>,
-    pub effects: HashMap<hir::OwnedPath, hir::HirEffectDef>,
-    pub handlers: HashMap<String, hir::HirHandlerDef>,
-    pub enum_variants: HashMap<hir::OwnedPath, HirEnumVariantIndexEntry>,
+    functions: HashMap<String, hir::HirFunction>,
+    resolved_functions: HashMap<PathBuf, HashMap<String, hir::HirFunction>>,
+    structs: HashMap<hir::OwnedPath, hir::HirStructDef>,
+    enums: HashMap<hir::OwnedPath, hir::HirEnumDef>,
+    effects: HashMap<hir::OwnedPath, hir::HirEffectDef>,
+    handlers: HashMap<String, hir::HirHandlerDef>,
+    enum_variants: HashMap<hir::OwnedPath, HirEnumVariantIndexEntry>,
 }
 
 impl HirIndex {
@@ -27,10 +27,11 @@ impl HirIndex {
         for item in items {
             match item {
                 hir::Item::Fn(function) => {
-                    index.resolved_functions.insert(
-                        (function.defined_in.clone(), function.signature.name.clone()),
-                        function.clone(),
-                    );
+                    index
+                        .resolved_functions
+                        .entry(function.defined_in.clone())
+                        .or_default()
+                        .insert(function.signature.name.clone(), function.clone());
                     index
                         .functions
                         .insert(function.signature.name.clone(), function.clone());
@@ -68,6 +69,52 @@ impl HirIndex {
         }
 
         index
+    }
+
+    pub fn function(&self, name: &str) -> Option<&hir::HirFunction> {
+        self.functions.get(name)
+    }
+
+    pub fn contains_function(&self, name: &str) -> bool {
+        self.functions.contains_key(name)
+    }
+
+    pub fn resolved_function(&self, defined_in: &PathBuf, name: &str) -> Option<&hir::HirFunction> {
+        self.resolved_functions
+            .get(defined_in)
+            .and_then(|functions| functions.get(name))
+    }
+
+    pub fn struct_def(&self, path: &[String]) -> Option<&hir::HirStructDef> {
+        self.structs.get(path)
+    }
+
+    pub fn contains_struct(&self, path: &[String]) -> bool {
+        self.structs.contains_key(path)
+    }
+
+    pub fn enum_def(&self, path: &[String]) -> Option<&hir::HirEnumDef> {
+        self.enums.get(path)
+    }
+
+    pub fn contains_enum(&self, path: &[String]) -> bool {
+        self.enums.contains_key(path)
+    }
+
+    pub fn effect(&self, path: &[String]) -> Option<&hir::HirEffectDef> {
+        self.effects.get(path)
+    }
+
+    pub fn contains_effect(&self, path: &[String]) -> bool {
+        self.effects.contains_key(path)
+    }
+
+    pub fn handler(&self, name: &str) -> Option<&hir::HirHandlerDef> {
+        self.handlers.get(name)
+    }
+
+    pub fn enum_variant(&self, path: &[String]) -> Option<&HirEnumVariantIndexEntry> {
+        self.enum_variants.get(path)
     }
 
     pub fn enum_variant_payload(&self, path: &[String]) -> Option<&Option<Vec<hir::Ty>>> {

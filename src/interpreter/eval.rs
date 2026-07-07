@@ -27,7 +27,7 @@ impl Interpreter {
     /// Runs the program by looking for a top-level function named `main`.
     /// Returns `Unit` if no `main` is present.
     pub fn run(&self) -> Result<Value> {
-        if let Some(main_fn) = self.index.functions.get("main") {
+        if let Some(main_fn) = self.index.function("main") {
             self.call_function(main_fn, vec![])
         } else {
             Ok(Value::Unit)
@@ -192,7 +192,7 @@ impl Interpreter {
                     if let Some(function) = self.resolved_function(expr, name) {
                         return Ok(Self::function_value(function));
                     }
-                    if let Some(function) = self.index.functions.get(name) {
+                    if let Some(function) = self.index.function(name) {
                         return Ok(Self::function_value(function));
                     }
                 }
@@ -239,7 +239,7 @@ impl Interpreter {
                             }
                             return self.call_function(f, evaled);
                         }
-                        if let Some(f) = self.index.functions.get(name) {
+                        if let Some(f) = self.index.function(name) {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
                                 evaled.push(self.eval_expr(a, env)?);
@@ -259,7 +259,7 @@ impl Interpreter {
                                 name: enum_name, ..
                             }) = ret_type.as_ref()
                             {
-                                if !self.index.functions.contains_key(name) {
+                                if !self.index.contains_function(name) {
                                     let mut fields = HashMap::new();
                                     for (idx, arg) in args.iter().enumerate() {
                                         fields.insert(idx.to_string(), self.eval_expr(arg, env)?);
@@ -431,7 +431,7 @@ impl Interpreter {
                 if let Some(Value::Handler(value)) = env.get(name) {
                     return Ok(Value::Handler(value));
                 }
-                let Some(handler) = self.index.handlers.get(name) else {
+                let Some(handler) = self.index.handler(name) else {
                     return Err(RuntimeError(format!("Unknown handler: {}", name)));
                 };
                 Ok(Value::Handler(HandlerValue {
@@ -522,9 +522,7 @@ impl Interpreter {
         let Some(hir::Resolution::Function { defined_in, .. }) = &fun.resolution else {
             return None;
         };
-        self.index
-            .resolved_functions
-            .get(&(defined_in.clone(), name.to_string()))
+        self.index.resolved_function(defined_in, name)
     }
 
     fn function_value(function: &HirFunction) -> Value {

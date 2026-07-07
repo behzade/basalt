@@ -489,8 +489,7 @@ impl Validator {
                 let expected = match &receiver.ty {
                     hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) => match self
                         .index
-                        .structs
-                        .get(name)
+                        .struct_def(name)
                     {
                         Some(struct_def) => match struct_def
                             .fields
@@ -878,7 +877,7 @@ impl Validator {
                     );
                 }
 
-                let Some(struct_def) = self.index.structs.get(name).cloned() else {
+                let Some(struct_def) = self.index.struct_def(name).cloned() else {
                     self.error(
                         path,
                         expr.span,
@@ -926,7 +925,7 @@ impl Validator {
                 }
             }
             hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => {
-                let Some(variant) = self.index.enum_variants.get(init_path).cloned() else {
+                let Some(variant) = self.index.enum_variant(init_path).cloned() else {
                     self.error(
                         path,
                         expr.span,
@@ -934,18 +933,17 @@ impl Validator {
                     );
                     return;
                 };
-                let enum_path = variant.enum_path;
-                let payload = variant.payload.unwrap_or_default();
-                if &enum_path != name {
+                if &variant.enum_path != name {
                     self.error(
                         path,
                         expr.span,
                         format!(
                             "HIR enum init variant {:?} belongs to {:?}, not {:?}",
-                            init_path, enum_path, name
+                            init_path, variant.enum_path, name
                         ),
                     );
                 }
+                let payload = variant.payload.unwrap_or_default();
                 if let [
                     hir::Ty::Adt(hir::AdtTy::Struct {
                         name: payload_struct,
@@ -953,7 +951,7 @@ impl Validator {
                     }),
                 ] = payload.as_slice()
                 {
-                    let Some(struct_def) = self.index.structs.get(payload_struct).cloned() else {
+                    let Some(struct_def) = self.index.struct_def(payload_struct).cloned() else {
                         self.error(
                             path,
                             expr.span,
@@ -1064,7 +1062,7 @@ impl Validator {
         }
 
         let effect_path = vec![perform_path[0].clone()];
-        let Some(effect) = self.index.effects.get(&effect_path).cloned() else {
+        let Some(effect) = self.index.effect(&effect_path).cloned() else {
             self.error(
                 path,
                 expr.span,
@@ -1340,22 +1338,21 @@ impl Validator {
                     );
                 }
 
-                let variant = self.index.enum_variants.get(variant_path).cloned();
+                let variant = self.index.enum_variant(variant_path).cloned();
                 if let Some(variant) = variant {
-                    let enum_path = variant.enum_path;
-                    let payload = variant.payload.unwrap_or_default();
                     if let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &pattern.ty {
-                        if name != &enum_path {
+                        if name != &variant.enum_path {
                             self.error(
                                 path,
                                 span,
                                 format!(
                                     "HIR path pattern {:?} belongs to enum {:?}, not {:?}",
-                                    variant_path, enum_path, name
+                                    variant_path, variant.enum_path, name
                                 ),
                             );
                         }
                     }
+                    let payload = variant.payload.unwrap_or_default();
                     if args.len() != payload.len() {
                         self.error(
                             path,
@@ -1396,7 +1393,7 @@ impl Validator {
         let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &scrutinee.ty else {
             return;
         };
-        let Some(enum_def) = self.index.enums.get(name) else {
+        let Some(enum_def) = self.index.enum_def(name) else {
             return;
         };
         if arms.iter().any(|(pattern, _)| {
@@ -1438,7 +1435,7 @@ impl Validator {
         match ty {
             hir::Ty::Special(_) | hir::Ty::Primitive(_) => {}
             hir::Ty::Adt(hir::AdtTy::Struct { name, generics }) => {
-                if !self.index.structs.contains_key(name) {
+                if !self.index.contains_struct(name) {
                     self.error(
                         path,
                         span,
@@ -1450,7 +1447,7 @@ impl Validator {
                 }
             }
             hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => {
-                if !self.index.enums.contains_key(name) {
+                if !self.index.contains_enum(name) {
                     self.error(
                         path,
                         span,
@@ -1462,7 +1459,7 @@ impl Validator {
                 }
             }
             hir::Ty::Adt(hir::AdtTy::Effect { name, generics }) => {
-                if !self.index.effects.contains_key(name) {
+                if !self.index.contains_effect(name) {
                     self.error(
                         path,
                         span,
