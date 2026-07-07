@@ -414,7 +414,15 @@
                         "start": 85,
                         "end": 86
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/07-option-result.bst",
+                          "span": {
+                            "start": 32,
+                            "end": 62
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -474,7 +482,15 @@
                   "start": 85,
                   "end": 91
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/07-option-result.bst",
+                    "span": {
+                      "start": 32,
+                      "end": 62
+                    }
+                  }
+                }
               },
               "ty": {
                 "Primitive": "I32"
@@ -530,7 +546,15 @@
                         "start": 94,
                         "end": 95
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/07-option-result.bst",
+                          "span": {
+                            "start": 32,
+                            "end": 62
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -590,7 +614,15 @@
                   "start": 94,
                   "end": 100
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/07-option-result.bst",
+                    "span": {
+                      "start": 32,
+                      "end": 62
+                    }
+                  }
+                }
               },
               "ty": {
                 "Primitive": "I32"
@@ -1161,7 +1193,15 @@
                         "start": 174,
                         "end": 175
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/07-option-result.bst",
+                          "span": {
+                            "start": 62,
+                            "end": 104
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -1242,7 +1282,15 @@
                   "start": 174,
                   "end": 180
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/07-option-result.bst",
+                    "span": {
+                      "start": 62,
+                      "end": 104
+                    }
+                  }
+                }
               },
               "ty": {
                 "Primitive": "I32"
@@ -1437,7 +1485,15 @@
                         "start": 196,
                         "end": 197
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/07-option-result.bst",
+                          "span": {
+                            "start": 104,
+                            "end": 138
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -1487,7 +1543,15 @@
                   "start": 196,
                   "end": 200
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/07-option-result.bst",
+                    "span": {
+                      "start": 104,
+                      "end": 138
+                    }
+                  }
+                }
               }
             }
           },

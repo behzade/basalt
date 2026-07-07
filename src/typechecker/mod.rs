@@ -3,6 +3,7 @@ pub mod errors;
 pub mod generics;
 pub mod lowering;
 pub mod registry;
+pub mod resolver;
 pub mod scope;
 pub mod symbols;
 pub mod unify;

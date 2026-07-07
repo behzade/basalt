@@ -507,7 +507,15 @@
                                 "start": 89,
                                 "end": 90
                               },
-                              "resolution": null
+                              "resolution": {
+                                "Function": {
+                                  "defined_in": "tests/03-effects-and-handlers-panic.bst",
+                                  "span": {
+                                    "start": 44,
+                                    "end": 79
+                                  }
+                                }
+                              }
                             },
                             "args": [
                               {
@@ -552,7 +560,15 @@
                           "start": 89,
                           "end": 95
                         },
-                        "resolution": null
+                        "resolution": {
+                          "Function": {
+                            "defined_in": "tests/03-effects-and-handlers-panic.bst",
+                            "span": {
+                              "start": 44,
+                              "end": 79
+                            }
+                          }
+                        }
                       },
                       "ty": {
                         "Primitive": "I32"

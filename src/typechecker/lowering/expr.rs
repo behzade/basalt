@@ -3,6 +3,7 @@ use crate::hir;
 use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
+use crate::typechecker::resolver::ResolveError;
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
@@ -670,110 +671,67 @@ impl Typechecker {
                 method,
                 args,
             } => {
-                // UFCS desugaring: m.f(x,y) => f(m,x,y) or module::f(m,x,y) when needed
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
-                // Candidate function names to try: simple `method` and alias-qualified `alias::method`
-                let mut candidate_names: Vec<String> = vec![method.clone()];
-                if let hir::Ty::Adt(hir::AdtTy::Struct {
-                    name: type_path, ..
-                })
-                | hir::Ty::Adt(hir::AdtTy::Enum {
-                    name: type_path, ..
-                }) = &recv_hir.ty
-                {
-                    if type_path.len() >= 1 {
-                        // Try to find an import alias matching the module path of the type (all but last segment)
-                        let module_path: Vec<String> = type_path
-                            .iter()
-                            .cloned()
-                            .take(type_path.len().saturating_sub(1))
-                            .collect();
-                        if let Some(alias_map) = self.import_alias_map.get(&context.path) {
-                            for (alias, mod_path) in alias_map.iter() {
-                                if mod_path == &module_path {
-                                    candidate_names.push(format!("{}::{}", alias, method));
-                                }
-                            }
-                        }
+                let candidates = match self.resolve_method_function_candidates(
+                    &method,
+                    &recv_hir.ty,
+                    &context,
+                ) {
+                    Ok(candidates) => candidates,
+                    Err(ResolveError::PrivateFunction { name }) => {
+                        self.errors.push(TypeError {
+                            message: format!("Function `{}` is private", name),
+                            context: context.clone(),
+                        });
+                        return Err(());
                     }
-                }
+                };
 
-                // Try to resolve a visible function with a compatible first parameter type
-                for cand in candidate_names {
-                    if let Some(Symbol::Function {
-                        signature,
-                        is_public,
-                        defined_in,
-                        decl_span,
-                    }) = self.lookup_symbol(&cand).cloned()
-                    {
-                        if !is_public && defined_in != context.path {
-                            self.errors.push(TypeError {
-                                message: format!("Function `{}` is private", cand),
-                                context: context.clone(),
+                for function in candidates {
+                    let signature = function.signature;
+                    if let Some(first_param) = signature.params.get(0) {
+                        if first_param.ty != recv_hir.ty {
+                            continue;
+                        }
+                        let mut lowered_args: Vec<hir::Expr> = Vec::with_capacity(1 + args.len());
+                        lowered_args.push(recv_hir.clone());
+                        for (idx, arg) in args.into_iter().enumerate() {
+                            let exp = signature.params.get(idx + 1).map(|p| p.ty.clone());
+                            let lowered = if let Some(expected) = exp {
+                                self.lower_expr_with_expected(arg, expected, context.clone())?
+                            } else {
+                                self.lower_expr(arg, context.clone())?
+                            };
+                            lowered_args.push(lowered);
+                        }
+                        let fun_resolution =
+                            function.decl_span.map(|span| hir::Resolution::Function {
+                                defined_in: function.defined_in.clone(),
+                                span,
                             });
-                            return Err(());
-                        }
-                        // Ensure function has at least one param and receiver type matches first param
-                        if let Some(first_param) = signature.params.get(0) {
-                            // Simple equality check; could be relaxed with unification if needed
-                            if first_param.ty == recv_hir.ty {
-                                // Lower remaining args against subsequent parameters
-                                let mut lowered_args: Vec<hir::Expr> =
-                                    Vec::with_capacity(1 + args.len());
-                                lowered_args.push(recv_hir.clone());
-                                for (idx, arg) in args.into_iter().enumerate() {
-                                    let exp = signature.params.get(idx + 1).map(|p| p.ty.clone());
-                                    let lowered = if let Some(expected) = exp {
-                                        self.lower_expr_with_expected(
-                                            arg,
-                                            expected,
-                                            context.clone(),
-                                        )?
-                                    } else {
-                                        self.lower_expr(arg, context.clone())?
-                                    };
-                                    lowered_args.push(lowered);
-                                }
-                                // Build function expr and call
-                                let mut fun_path: Vec<String> = vec![method.clone()];
-                                if cand.contains("::") {
-                                    // preserve qualified lookup spelling for resolution
-                                    let parts: Vec<String> =
-                                        cand.split("::").map(|s| s.to_string()).collect();
-                                    fun_path = parts;
-                                }
-                                let mut fun_expr = hir::Expr {
-                                    kind: hir::ExprKind::Path(fun_path),
-                                    ty: hir::Ty::Function {
-                                        param_types: signature
-                                            .params
-                                            .iter()
-                                            .map(|p| p.ty.clone())
-                                            .collect(),
-                                        ret_type: Box::new(signature.ret_type.clone()),
-                                        effects: signature.effects.clone(),
-                                    },
-                                    span: expr.span,
-                                    resolution: None,
-                                };
-                                if let Some(sp) = decl_span {
-                                    fun_expr.resolution = Some(hir::Resolution::Function {
-                                        defined_in: defined_in.clone(),
-                                        span: sp,
-                                    });
-                                }
-                                return Ok(hir::Expr {
-                                    ty: signature.ret_type.clone(),
-                                    kind: hir::ExprKind::Call {
-                                        fun: Box::new(fun_expr),
-                                        args: lowered_args,
-                                    },
-                                    span: expr.span,
-                                    resolution: None,
-                                });
-                            }
-                        }
+                        let fun_expr = hir::Expr {
+                            kind: hir::ExprKind::Path(function.call_path),
+                            ty: hir::Ty::Function {
+                                param_types: signature
+                                    .params
+                                    .iter()
+                                    .map(|p| p.ty.clone())
+                                    .collect(),
+                                ret_type: Box::new(signature.ret_type.clone()),
+                                effects: signature.effects.clone(),
+                            },
+                            span: expr.span,
+                            resolution: fun_resolution,
+                        };
+                        return Ok(hir::Expr {
+                            ty: signature.ret_type.clone(),
+                            kind: hir::ExprKind::Call {
+                                fun: Box::new(fun_expr),
+                                args: lowered_args,
+                            },
+                            span: expr.span,
+                            resolution: None,
+                        });
                     }
                 }
 
@@ -790,103 +748,21 @@ impl Typechecker {
             OwnedExpr::Call { fun, args } => {
                 match fun.item.clone() {
                     OwnedExpr::Path(path) => {
-                        let name = path.last().expect("Path cannot be empty").clone();
-
-                        let mut is_module_qualified = false;
-                        let mut adjusted_args: Vec<SpannedExpr> = args.clone();
-                        if let Some(first) = args.get(0) {
-                            if let OwnedExpr::Path(p) = &first.item {
-                                if p.len() == 1 {
-                                    let base = p.last().unwrap();
-                                    let is_import_alias = self
-                                        .imports_by_file
-                                        .get(&context.path)
-                                        .map(|s| s.contains(base))
-                                        .unwrap_or(false);
-                                    let is_value_symbol = self.lookup_symbol(base).is_some();
-                                    if is_import_alias && !is_value_symbol {
-                                        is_module_qualified = true;
-                                        adjusted_args = args.iter().cloned().skip(1).collect();
-                                    }
-                                }
+                        let resolved_call = match self.resolve_path_call(&path, &args, &context) {
+                            Ok(resolved_call) => resolved_call,
+                            Err(ResolveError::PrivateFunction { name }) => {
+                                self.errors.push(TypeError {
+                                    message: format!("Function `{}` is private", name),
+                                    context: context.clone(),
+                                });
+                                return Err(());
                             }
-                        }
+                        };
+                        let name = resolved_call.display_name;
+                        let adjusted_args = resolved_call.adjusted_args;
 
-                        let mut signature_opt: Option<hir::HirFunctionSignature> = None;
-                        // Handle module-qualified names via import aliases: alias::name
-                        if path.len() == 2 {
-                            let alias = &path[0];
-                            if let Some(alias_map) = self.import_alias_map.get(&context.path) {
-                                if let Some(_mod_path) = alias_map.get(alias) {
-                                    let qual = format!("{}::{}", alias, name);
-                                    if let Some(Symbol::Function {
-                                        signature,
-                                        is_public,
-                                        defined_in,
-                                        ..
-                                    }) = self.lookup_symbol(&qual)
-                                    {
-                                        if !is_public && *defined_in != context.path {
-                                            self.errors.push(TypeError {
-                                                message: format!("Function `{}` is private", qual),
-                                                context: context.clone(),
-                                            });
-                                            return Err(());
-                                        }
-                                        signature_opt = Some(signature.clone());
-                                    }
-                                }
-                            }
-                        }
-                        if signature_opt.is_none() {
-                            signature_opt = match self.lookup_symbol(&name) {
-                                Some(Symbol::Function {
-                                    signature,
-                                    is_public,
-                                    defined_in,
-                                    decl_span: _,
-                                }) => {
-                                    if !is_public && *defined_in != context.path {
-                                        self.errors.push(TypeError {
-                                            message: format!("Function `{}` is private", name),
-                                            context: context.clone(),
-                                        });
-                                        None
-                                    } else {
-                                        Some(signature.clone())
-                                    }
-                                }
-                                // try module-qualified name like fmt::x; enforce visibility
-                                None if path.len() == 2 => {
-                                    let qual = format!("{}::{}", path[0], path[1]);
-                                    match self.lookup_symbol(&qual) {
-                                        Some(Symbol::Function {
-                                            signature,
-                                            is_public,
-                                            defined_in,
-                                            ..
-                                        }) => {
-                                            if !is_public && *defined_in != context.path {
-                                                self.errors.push(TypeError {
-                                                    message: format!(
-                                                        "Function `{}` is private",
-                                                        qual
-                                                    ),
-                                                    context: context.clone(),
-                                                });
-                                                None
-                                            } else {
-                                                Some(signature.clone())
-                                            }
-                                        }
-                                        _ => None,
-                                    }
-                                }
-                                _ => None,
-                            };
-                        }
-
-                        if let Some(signature) = signature_opt {
+                        if let Some(function) = resolved_call.function {
+                            let signature = function.signature;
                             let has_generics = signature
                                 .params
                                 .iter()
@@ -938,28 +814,13 @@ impl Typechecker {
                                     context: context.clone(),
                                 });
                             }
-                            // Attach semantic resolution for top-level function or method calls
-                            let mut fun_resolution: Option<hir::Resolution> = None;
-                            if is_module_qualified {
-                                if let Some(Symbol::Function {
-                                    signature: _,
-                                    is_public,
-                                    defined_in,
-                                    decl_span,
-                                }) = self.lookup_symbol(&name).cloned()
-                                {
-                                    if is_public {
-                                        if let Some(sp) = decl_span {
-                                            fun_resolution = Some(hir::Resolution::Function {
-                                                defined_in,
-                                                span: sp,
-                                            });
-                                        }
-                                    }
-                                }
-                            }
-                            let mut fun_expr = hir::Expr {
-                                kind: hir::ExprKind::Path(path),
+                            let fun_resolution =
+                                function.decl_span.map(|span| hir::Resolution::Function {
+                                    defined_in: function.defined_in,
+                                    span,
+                                });
+                            let fun_expr = hir::Expr {
+                                kind: hir::ExprKind::Path(function.call_path),
                                 ty: hir::Ty::Function {
                                     param_types: signature
                                         .params
@@ -970,11 +831,8 @@ impl Typechecker {
                                     effects: signature.effects.clone(),
                                 },
                                 span: fun.span,
-                                resolution: None,
+                                resolution: fun_resolution.clone(),
                             };
-                            if let Some(res) = fun_resolution.clone() {
-                                fun_expr.resolution = Some(res);
-                            }
                             return Ok(hir::Expr {
                                 ty: signature.ret_type.clone(),
                                 kind: hir::ExprKind::Call {
@@ -1019,47 +877,45 @@ impl Typechecker {
                         }
 
                         // Fallback: calling a variable of function type (e.g., `task()`)
-                        if signature_opt.is_none() {
-                            if let Ok(fun_hir) = self.lower_expr(*fun.clone(), context.clone()) {
-                                if let hir::Ty::Function {
-                                    param_types,
-                                    ret_type,
-                                    effects: _,
-                                } = fun_hir.ty.clone()
-                                {
-                                    let mut lowered_args = Vec::new();
-                                    for (idx, arg) in adjusted_args.into_iter().enumerate() {
-                                        let arg_expr = if let Some(p) = param_types.get(idx) {
-                                            self.lower_expr_with_expected(
-                                                arg,
-                                                p.clone(),
-                                                context.clone(),
-                                            )?
-                                        } else {
-                                            self.lower_expr(arg, context.clone())?
-                                        };
-                                        lowered_args.push(arg_expr);
-                                    }
-                                    if lowered_args.len() != param_types.len() {
-                                        self.errors.push(TypeError {
-                                            message: format!(
-                                                "Function value expects {} args, found {}",
-                                                param_types.len(),
-                                                lowered_args.len()
-                                            ),
-                                            context: context.clone(),
-                                        });
-                                    }
-                                    return Ok(hir::Expr {
-                                        ty: (*ret_type).clone(),
-                                        kind: hir::ExprKind::Call {
-                                            fun: Box::new(fun_hir),
-                                            args: lowered_args,
-                                        },
-                                        span: expr.span,
-                                        resolution: None,
+                        if let Ok(fun_hir) = self.lower_expr(*fun.clone(), context.clone()) {
+                            if let hir::Ty::Function {
+                                param_types,
+                                ret_type,
+                                effects: _,
+                            } = fun_hir.ty.clone()
+                            {
+                                let mut lowered_args = Vec::new();
+                                for (idx, arg) in adjusted_args.into_iter().enumerate() {
+                                    let arg_expr = if let Some(p) = param_types.get(idx) {
+                                        self.lower_expr_with_expected(
+                                            arg,
+                                            p.clone(),
+                                            context.clone(),
+                                        )?
+                                    } else {
+                                        self.lower_expr(arg, context.clone())?
+                                    };
+                                    lowered_args.push(arg_expr);
+                                }
+                                if lowered_args.len() != param_types.len() {
+                                    self.errors.push(TypeError {
+                                        message: format!(
+                                            "Function value expects {} args, found {}",
+                                            param_types.len(),
+                                            lowered_args.len()
+                                        ),
+                                        context: context.clone(),
                                     });
                                 }
+                                return Ok(hir::Expr {
+                                    ty: (*ret_type).clone(),
+                                    kind: hir::ExprKind::Call {
+                                        fun: Box::new(fun_hir),
+                                        args: lowered_args,
+                                    },
+                                    span: expr.span,
+                                    resolution: None,
+                                });
                             }
                         }
 

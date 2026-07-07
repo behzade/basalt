@@ -630,7 +630,15 @@
                         "start": 99,
                         "end": 100
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/17-duplicate-variant-names.bst",
+                          "span": {
+                            "start": 24,
+                            "end": 47
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -673,7 +681,15 @@
                   "start": 99,
                   "end": 103
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/17-duplicate-variant-names.bst",
+                    "span": {
+                      "start": 24,
+                      "end": 47
+                    }
+                  }
+                }
               },
               "rhs": {
                 "kind": {
@@ -708,7 +724,15 @@
                         "start": 104,
                         "end": 105
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/17-duplicate-variant-names.bst",
+                          "span": {
+                            "start": 47,
+                            "end": 70
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -751,7 +775,15 @@
                   "start": 104,
                   "end": 108
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/17-duplicate-variant-names.bst",
+                    "span": {
+                      "start": 47,
+                      "end": 70
+                    }
+                  }
+                }
               }
             }
           },

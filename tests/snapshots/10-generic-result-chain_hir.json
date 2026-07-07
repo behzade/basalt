@@ -1633,7 +1633,15 @@
                         "start": 211,
                         "end": 212
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/10-generic-result-chain.bst",
+                          "span": {
+                            "start": 15,
+                            "end": 74
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -1676,7 +1684,15 @@
                                 "start": 213,
                                 "end": 214
                               },
-                              "resolution": null
+                              "resolution": {
+                                "Function": {
+                                  "defined_in": "tests/10-generic-result-chain.bst",
+                                  "span": {
+                                    "start": 135,
+                                    "end": 172
+                                  }
+                                }
+                              }
                             },
                             "args": [
                               {
@@ -1719,7 +1735,15 @@
                           "start": 213,
                           "end": 217
                         },
-                        "resolution": null
+                        "resolution": {
+                          "Function": {
+                            "defined_in": "tests/10-generic-result-chain.bst",
+                            "span": {
+                              "start": 135,
+                              "end": 172
+                            }
+                          }
+                        }
                       },
                       {
                         "kind": {
@@ -1850,7 +1874,15 @@
                   "start": 201,
                   "end": 234
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/10-generic-result-chain.bst",
+                    "span": {
+                      "start": 15,
+                      "end": 74
+                    }
+                  }
+                }
               },
               "ty": {
                 "Adt": {
@@ -1961,7 +1993,15 @@
                         "start": 244,
                         "end": 245
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/10-generic-result-chain.bst",
+                          "span": {
+                            "start": 74,
+                            "end": 135
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -2064,7 +2104,15 @@
                   "start": 234,
                   "end": 250
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/10-generic-result-chain.bst",
+                    "span": {
+                      "start": 74,
+                      "end": 135
+                    }
+                  }
+                }
               },
               "ty": {
                 "Adt": {

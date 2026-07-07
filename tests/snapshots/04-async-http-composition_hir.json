@@ -660,7 +660,15 @@
                                 "start": 161,
                                 "end": 162
                               },
-                              "resolution": null
+                              "resolution": {
+                                "Function": {
+                                  "defined_in": "tests/04-async-http-composition.bst",
+                                  "span": {
+                                    "start": 121,
+                                    "end": 151
+                                  }
+                                }
+                              }
                             },
                             "args": [
                               {
@@ -689,7 +697,15 @@
                           "start": 161,
                           "end": 165
                         },
-                        "resolution": null
+                        "resolution": {
+                          "Function": {
+                            "defined_in": "tests/04-async-http-composition.bst",
+                            "span": {
+                              "start": 121,
+                              "end": 151
+                            }
+                          }
+                        }
                       },
                       "ty": {
                         "Primitive": "I32"

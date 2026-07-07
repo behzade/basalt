@@ -367,7 +367,15 @@
                         "start": 64,
                         "end": 65
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/08-higher-order-functions.bst",
+                          "span": {
+                            "start": 26,
+                            "end": 54
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -406,7 +414,15 @@
                   "start": 64,
                   "end": 68
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/08-higher-order-functions.bst",
+                    "span": {
+                      "start": 26,
+                      "end": 54
+                    }
+                  }
+                }
               },
               "ty": {
                 "Function": {
@@ -469,7 +485,15 @@
                   "start": 68,
                   "end": 69
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/08-higher-order-functions.bst",
+                    "span": {
+                      "start": 0,
+                      "end": 26
+                    }
+                  }
+                }
               },
               "args": [
                 {
@@ -531,7 +555,15 @@
             "start": 68,
             "end": 74
           },
-          "resolution": null
+          "resolution": {
+            "Function": {
+              "defined_in": "tests/08-higher-order-functions.bst",
+              "span": {
+                "start": 0,
+                "end": 26
+              }
+            }
+          }
         },
         "ty": {
           "Primitive": "I32"

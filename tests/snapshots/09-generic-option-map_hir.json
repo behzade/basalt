@@ -611,7 +611,15 @@
                         "start": 97,
                         "end": 98
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/09-generic-option-map.bst",
+                          "span": {
+                            "start": 17,
+                            "end": 70
+                          }
+                        }
+                      }
                     },
                     "args": [
                       {
@@ -729,7 +737,15 @@
                   "start": 89,
                   "end": 113
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/09-generic-option-map.bst",
+                    "span": {
+                      "start": 17,
+                      "end": 70
+                    }
+                  }
+                }
               },
               "ty": {
                 "Adt": {
