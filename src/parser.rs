@@ -213,20 +213,21 @@ fn type_atom_parser<'src>()
 fn params_parser<'src>() -> impl Parser<
     'src,
     &'src [Token<'src>],
-    Vec<(Option<&'src str>, Type<'src>)>,
+    Vec<(bool, Option<&'src str>, Type<'src>)>,
     extra::Err<Rich<'src, Token<'src>>>,
 > {
     let ty = type_parser().boxed();
     let named = ident()
         .then_ignore(just(Token::Colon))
         .then(ty.clone())
-        .map(|(n, t)| (Some(n), t));
-    let self_param = just(Token::Mut)
+        .map(|(n, t)| (false, Some(n), t));
+    let flexible_param = just(Token::Mut)
         .or_not()
-        .ignore_then(ident())
+        .then(ident())
         .then(just(Token::Colon).ignore_then(ty.clone()).or_not())
-        .map_with(|(name, ty), e| {
+        .map_with(|((is_mut, name), ty), e| {
             (
+                is_mut.is_some(),
                 Some(name),
                 ty.unwrap_or_else(|| Spanned {
                     node: TypeNode::Path {
@@ -237,7 +238,7 @@ fn params_parser<'src>() -> impl Parser<
                 }),
             )
         });
-    choice((named, self_param))
+    choice((named, flexible_param))
         .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect::<Vec<_>>()
@@ -1016,7 +1017,7 @@ fn effect_parser<'src>()
         .then(just(Token::Arrow).ignore_then(type_parser()))
         .map(|(((is_public, name), params), ret_type)| EffectOp {
             name,
-            params: params.into_iter().map(|(_, t)| t).collect(),
+            params: params.into_iter().map(|(_, _, t)| t).collect(),
             ret_type,
             is_public,
         })
@@ -1095,7 +1096,7 @@ fn fn_signature_parser<'src>() -> impl Parser<
     (
         &'src str,
         Vec<&'src str>,
-        Vec<(Option<&'src str>, Type<'src>)>,
+        Vec<(bool, Option<&'src str>, Type<'src>)>,
         Option<Type<'src>>,
         Vec<Type<'src>>,
     ),

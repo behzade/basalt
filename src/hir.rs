@@ -112,6 +112,7 @@ pub struct HirFunctionSignature {
 pub struct HirParam {
     pub name: String,
     pub ty: Ty,
+    pub is_mut: bool,
     #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
     pub span: Option<crate::token::SimpleSpan>,
 }

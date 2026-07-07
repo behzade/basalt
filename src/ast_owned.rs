@@ -33,7 +33,7 @@ pub struct OwnedType {
 pub struct OwnedFunction {
     pub name: String,
     pub generics: Vec<String>,
-    pub params: Vec<(Option<String>, OwnedType)>,
+    pub params: Vec<(bool, Option<String>, OwnedType)>,
     pub ret_type: Option<OwnedType>,
     pub effects: Vec<String>,
     pub body: SpannedExpr, // UPDATED
@@ -149,7 +149,7 @@ pub enum OwnedExpr {
     },
     /// Anonymous function literal: fn(params) -> ret effects { effects } { body }
     FnLiteral {
-        params: Vec<(Option<String>, OwnedType)>,
+        params: Vec<(bool, Option<String>, OwnedType)>,
         ret_type: Option<OwnedType>,
         effects: Vec<OwnedType>,
         body: Box<SpannedExpr>,
@@ -255,7 +255,7 @@ impl<'src> From<&Function<'src>> for OwnedFunction {
             params: func
                 .params
                 .iter()
-                .map(|(name, ty)| (name.map(|s| s.to_string()), ty.into()))
+                .map(|(is_mut, name, ty)| (*is_mut, name.map(|s| s.to_string()), ty.into()))
                 .collect(),
             ret_type: func.ret_type.as_ref().map(|t| t.into()),
             effects: func
@@ -574,7 +574,7 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
             } => OwnedExpr::FnLiteral {
                 params: params
                     .iter()
-                    .map(|(n, t)| (n.map(|s| s.to_string()), t.into()))
+                    .map(|(is_mut, n, t)| (*is_mut, n.map(|s| s.to_string()), t.into()))
                     .collect(),
                 ret_type: ret_type.as_ref().map(|t| t.into()),
                 effects: effects.iter().map(|t| t.into()).collect(),

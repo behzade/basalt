@@ -1,0 +1,218 @@
+{
+  "tests/23-immutable-field-assignment.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Person",
+          "generics": [],
+          "fields": [
+            [
+              "name",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              "age",
+              {
+                "path": [
+                  "i32"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 12
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "person",
+                        "ty": {
+                          "path": [
+                            "Person"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "StructInit": {
+                              "path": [
+                                "Person"
+                              ],
+                              "generics": [],
+                              "fields": [
+                                [
+                                  "name",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "behzad"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 28,
+                                      "end": 29
+                                    }
+                                  }
+                                ],
+                                [
+                                  "age",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "I32": 10
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 32,
+                                      "end": 33
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 24,
+                            "end": 34
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 19,
+                      "end": 34
+                    }
+                  },
+                  {
+                    "item": {
+                      "Assign": [
+                        {
+                          "item": {
+                            "FieldAccess": {
+                              "receiver": {
+                                "item": {
+                                  "Path": [
+                                    "person"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 34,
+                                  "end": 35
+                                }
+                              },
+                              "field": "age"
+                            }
+                          },
+                          "span": {
+                            "start": 34,
+                            "end": 35
+                          }
+                        },
+                        {
+                          "item": {
+                            "Literal": {
+                              "I32": 11
+                            }
+                          },
+                          "span": {
+                            "start": 38,
+                            "end": 39
+                          }
+                        }
+                      ]
+                    },
+                    "span": {
+                      "start": 34,
+                      "end": 39
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "FieldAccess": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "person"
+                                ]
+                              },
+                              "span": {
+                                "start": 39,
+                                "end": 40
+                              }
+                            },
+                            "field": "age"
+                          }
+                        },
+                        "span": {
+                          "start": 39,
+                          "end": 42
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 39,
+                      "end": 42
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 18,
+              "end": 43
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 12,
+        "end": 43
+      }
+    }
+  ]
+}

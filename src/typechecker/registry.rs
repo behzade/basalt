@@ -134,11 +134,12 @@ impl Typechecker {
                 // Allow duplicate function names across modules; resolution can be qualified.
                 let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
-                for (name_opt, ty) in &func.params {
+                for (is_mut, name_opt, ty) in &func.params {
                     match self.resolve_type(ty, ctx.clone()) {
                         Ok(t) => params.push(hir::HirParam {
                             name: name_opt.clone().unwrap_or("_".to_string()),
                             ty: t,
+                            is_mut: *is_mut,
                             span: None,
                         }),
                         Err(_) => has_error = true,
@@ -258,6 +259,7 @@ impl Typechecker {
                             params.push(hir::HirParam {
                                 name: "_".to_string(),
                                 ty: t,
+                                is_mut: false,
                                 span: None,
                             });
                         }
@@ -329,11 +331,12 @@ impl Typechecker {
                 }
                 let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
-                for (name_opt, ty) in &func.params {
+                for (is_mut, name_opt, ty) in &func.params {
                     match self.resolve_type(ty, ctx.clone()) {
                         Ok(t) => params.push(hir::HirParam {
                             name: name_opt.clone().clone().unwrap_or("_".to_string()),
                             ty: t,
+                            is_mut: *is_mut,
                             span: None,
                         }),
                         Err(_) => has_error = true,
@@ -453,6 +456,7 @@ impl Typechecker {
                             params.push(hir::HirParam {
                                 name: "_".to_string(),
                                 ty: t,
+                                is_mut: false,
                                 span: None,
                             });
                         }
@@ -513,6 +517,7 @@ impl Typechecker {
             params: vec![hir::HirParam {
                 name: "s".to_string(),
                 ty: hir::Ty::Primitive(hir::PrimitiveTy::Str),
+                is_mut: false,
                 span: None,
             }],
             ret_type: hir::Ty::Primitive(hir::PrimitiveTy::I32),

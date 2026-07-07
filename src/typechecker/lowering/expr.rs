@@ -1122,12 +1122,13 @@ impl Typechecker {
                 // Lower a function literal into an explicit HirFnLiteral
                 let mut lowered_params: Vec<hir::HirParam> = Vec::new();
                 let mut param_types: Vec<hir::Ty> = Vec::new();
-                for (name_opt, ty) in params {
+                for (is_mut, name_opt, ty) in params {
                     let t = self.resolve_type(&ty, context.clone())?;
                     param_types.push(t.clone());
                     lowered_params.push(hir::HirParam {
                         name: name_opt.unwrap_or("_".to_string()),
                         ty: t,
+                        is_mut,
                         span: None,
                     });
                 }
@@ -1148,7 +1149,7 @@ impl Typechecker {
                         p.name.clone(),
                         crate::typechecker::symbols::Symbol::Variable {
                             ty: p.ty.clone(),
-                            is_mut: false,
+                            is_mut: p.is_mut,
                             initialized: true,
                             decl_span: p.span,
                         },

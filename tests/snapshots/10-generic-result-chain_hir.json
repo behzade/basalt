@@ -76,6 +76,7 @@
                 }
               }
             },
+            "is_mut": false,
             "span": null
           },
           {
@@ -93,6 +94,7 @@
                 "effects": []
               }
             },
+            "is_mut": false,
             "span": null
           }
         ],
@@ -536,6 +538,7 @@
                 }
               }
             },
+            "is_mut": false,
             "span": null
           },
           {
@@ -567,6 +570,7 @@
                 "effects": []
               }
             },
+            "is_mut": false,
             "span": null
           }
         ],
@@ -954,6 +958,7 @@
             "ty": {
               "Primitive": "Str"
             },
+            "is_mut": false,
             "span": null
           }
         ],
@@ -1373,6 +1378,7 @@
             "ty": {
               "Primitive": "I32"
             },
+            "is_mut": false,
             "span": null
           }
         ],
@@ -1724,6 +1730,7 @@
                                 "ty": {
                                   "Primitive": "Str"
                                 },
+                                "is_mut": false,
                                 "span": null
                               }
                             ],

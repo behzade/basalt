@@ -143,6 +143,29 @@ impl Typechecker {
                             self.lower_expr(lhs.clone(), context.clone())?
                         }
                     }
+                    OwnedExpr::FieldAccess { receiver, .. } => {
+                        if let OwnedExpr::Path(path) = &receiver.item {
+                            if let Some(name) = path.last() {
+                                if let Some(Symbol::Variable { is_mut, .. }) =
+                                    self.lookup_symbol(name).cloned()
+                                {
+                                    if !is_mut {
+                                        self.errors.push(TypeError {
+                                            message: format!(
+                                                "Cannot assign through immutable variable '{}'",
+                                                name
+                                            ),
+                                            context: ItemContext {
+                                                span: lhs.span,
+                                                path: context.path.clone(),
+                                            },
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        self.lower_expr(lhs.clone(), context.clone())?
+                    }
                     _ => self.lower_expr(lhs.clone(), context.clone())?,
                 };
                 let mut rhs_hir =

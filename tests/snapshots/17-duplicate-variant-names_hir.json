@@ -163,6 +163,7 @@
                 }
               }
             },
+            "is_mut": false,
             "span": null
           }
         ],
@@ -332,6 +333,7 @@
                 }
               }
             },
+            "is_mut": false,
             "span": null
           }
         ],

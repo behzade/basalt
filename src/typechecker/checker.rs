@@ -261,11 +261,12 @@ impl Typechecker {
         let params: Vec<hir::HirParam> = func
             .params
             .iter()
-            .map(|(name, ty)| {
+            .map(|(is_mut, name, ty)| {
                 let resolved_ty = self.resolve_type(ty, context.clone())?;
                 Ok(hir::HirParam {
                     name: name.clone().unwrap_or_else(|| "_".to_string()),
                     ty: resolved_ty,
+                    is_mut: *is_mut,
                     span: None,
                 })
             })
@@ -310,7 +311,7 @@ impl Typechecker {
         for p in &params {
             let symbol = Symbol::Variable {
                 ty: p.ty.clone(),
-                is_mut: false,
+                is_mut: p.is_mut,
                 initialized: true,
                 decl_span: None,
             };
@@ -392,7 +393,7 @@ impl Typechecker {
                     name: p.name.clone(),
                     kind: HirSymbolKind::Param,
                     ty: Some(p.ty.clone()),
-                    is_mut: Some(false),
+                    is_mut: Some(p.is_mut),
                     span: body_span,
                     name_span: p.span,
                 },
@@ -582,6 +583,7 @@ impl Typechecker {
                 params.push(hir::HirParam {
                     name: "_".to_string(),
                     ty: self.resolve_type(p, context.clone())?,
+                    is_mut: false,
                     span: None,
                 });
             }

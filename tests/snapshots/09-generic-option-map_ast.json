@@ -67,6 +67,7 @@
           ],
           "params": [
             [
+              false,
               "value",
               {
                 "path": [
@@ -89,6 +90,7 @@
               }
             ],
             [
+              false,
               "f",
               {
                 "path": [
@@ -429,6 +431,7 @@
                                     "FnLiteral": {
                                       "params": [
                                         [
+                                          false,
                                           "n",
                                           {
                                             "path": [

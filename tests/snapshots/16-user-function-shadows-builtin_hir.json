@@ -9,6 +9,7 @@
             "ty": {
               "Primitive": "Str"
             },
+            "is_mut": false,
             "span": null
           }
         ],

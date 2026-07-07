@@ -11,6 +11,7 @@
               "ty": {
                 "Primitive": "Str"
               },
+              "is_mut": false,
               "span": null
             }
           ],
@@ -46,6 +47,7 @@
                   "effects": []
                 }
               },
+              "is_mut": false,
               "span": null
             }
           ],
@@ -94,6 +96,7 @@
                     "effects": []
                   }
                 },
+                "is_mut": false,
                 "span": null
               }
             ],
@@ -239,6 +242,7 @@
                 "ty": {
                   "Primitive": "Str"
                 },
+                "is_mut": false,
                 "span": null
               }
             ],
@@ -445,6 +449,7 @@
             "ty": {
               "Primitive": "Str"
             },
+            "is_mut": false,
             "span": null
           }
         ],

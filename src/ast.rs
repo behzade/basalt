@@ -126,7 +126,7 @@ pub enum ExprNode<'src> {
     },
     /// Anonymous function literal: fn(params) -> ret effects { effects } { body }
     FnLiteral {
-        params: Vec<(Option<&'src str>, Type<'src>)>,
+        params: Vec<(bool, Option<&'src str>, Type<'src>)>,
         ret_type: Option<Type<'src>>,
         effects: Vec<Type<'src>>,
         body: Box<Expr<'src>>,
@@ -192,7 +192,7 @@ pub enum PatternNode<'src> {
 pub struct Function<'src> {
     pub name: &'src str,
     pub generics: Vec<&'src str>,
-    pub params: Vec<(Option<&'src str>, Type<'src>)>,
+    pub params: Vec<(bool, Option<&'src str>, Type<'src>)>,
     pub ret_type: Option<Type<'src>>,
     pub effects: Vec<Type<'src>>,
     pub body: Expr<'src>,
