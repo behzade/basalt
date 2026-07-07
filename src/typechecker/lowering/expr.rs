@@ -3,8 +3,9 @@ use crate::hir;
 use crate::type_unifier::TypeUnifier;
 use crate::typechecker::checker::Typechecker;
 use crate::typechecker::errors::{ItemContext, TypeError};
-use crate::typechecker::resolver::{ResolveError, ResolvedValue, VariantResolveError};
-use crate::typechecker::symbols::Symbol;
+use crate::typechecker::resolver::{
+    HandlerResolveError, ResolveError, ResolvedValue, VariantResolveError,
+};
 
 impl Typechecker {
     fn lower_enum_constructor_call(
@@ -236,49 +237,35 @@ impl Typechecker {
     ) -> Result<hir::Expr, ()> {
         match handler {
             OwnedHandlerBody::Path(path) => {
-                let Some(name) = path.last().cloned() else {
-                    self.errors.push(TypeError {
-                        message: "Empty handler path".to_string(),
-                        context,
-                    });
-                    return Err(());
-                };
-                let effects = if let Some(effects) = self.handler_values.get(&name).cloned() {
-                    effects
-                } else if let Some(Symbol::Variable { ty, .. }) = self.lookup_symbol(&name).cloned()
-                {
-                    if let hir::Ty::Handler { effects } = ty {
-                        effects
-                    } else {
+                let resolved = match self.resolve_handler_body_path(&path) {
+                    Ok(resolved) => resolved,
+                    Err(HandlerResolveError::EmptyPath) => {
+                        self.errors.push(TypeError {
+                            message: "Empty handler path".to_string(),
+                            context,
+                        });
+                        return Err(());
+                    }
+                    Err(HandlerResolveError::NotHandlerValue { name }) => {
                         self.errors.push(TypeError {
                             message: format!("`{}` is not a handler value", name),
                             context,
                         });
                         return Err(());
                     }
-                } else {
-                    self.errors.push(TypeError {
-                        message: format!("Unknown handler `{}`", name),
-                        context,
-                    });
-                    return Err(());
-                };
-                let body = if let Some((base, handlers)) = self.handler_aliases.get(&name).cloned()
-                {
-                    hir::HirHandlerBody::Composed {
-                        base: Box::new(hir::HirHandlerBody::Path(vec![base])),
-                        handlers: handlers
-                            .into_iter()
-                            .filter(|name| !name.is_empty())
-                            .map(|name| hir::HirHandlerBody::Path(vec![name]))
-                            .collect(),
+                    Err(HandlerResolveError::UnknownHandler { name }) => {
+                        self.errors.push(TypeError {
+                            message: format!("Unknown handler `{}`", name),
+                            context,
+                        });
+                        return Err(());
                     }
-                } else {
-                    hir::HirHandlerBody::Path(path)
                 };
                 Ok(hir::Expr {
-                    kind: hir::ExprKind::Handler(body),
-                    ty: hir::Ty::Handler { effects },
+                    kind: hir::ExprKind::Handler(resolved.body),
+                    ty: hir::Ty::Handler {
+                        effects: resolved.effects,
+                    },
                     span,
                     resolution: None,
                 })
@@ -303,23 +290,12 @@ impl Typechecker {
         path: Vec<String>,
         span: crate::token::SimpleSpan,
     ) -> Option<hir::Expr> {
-        let name = path.last()?.clone();
-        let effects = self.handler_values.get(&name).cloned()?;
-        let body = if let Some((base, handlers)) = self.handler_aliases.get(&name).cloned() {
-            hir::HirHandlerBody::Composed {
-                base: Box::new(hir::HirHandlerBody::Path(vec![base])),
-                handlers: handlers
-                    .into_iter()
-                    .filter(|name| !name.is_empty())
-                    .map(|name| hir::HirHandlerBody::Path(vec![name]))
-                    .collect(),
-            }
-        } else {
-            hir::HirHandlerBody::Path(path)
-        };
+        let resolved = self.resolve_registered_handler_path(&path)?;
         Some(hir::Expr {
-            kind: hir::ExprKind::Handler(body),
-            ty: hir::Ty::Handler { effects },
+            kind: hir::ExprKind::Handler(resolved.body),
+            ty: hir::Ty::Handler {
+                effects: resolved.effects,
+            },
             span,
             resolution: None,
         })

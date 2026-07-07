@@ -63,8 +63,19 @@ pub(crate) struct ResolvedEffectOperation {
     pub param_tys: Vec<hir::Ty>,
 }
 
+pub(crate) struct ResolvedHandlerValue {
+    pub body: hir::HirHandlerBody,
+    pub effects: Vec<hir::Ty>,
+}
+
 pub(crate) enum ResolveError {
     PrivateFunction { name: String },
+}
+
+pub(crate) enum HandlerResolveError {
+    EmptyPath,
+    NotHandlerValue { name: String },
+    UnknownHandler { name: String },
 }
 
 pub(crate) enum VariantResolveError {
@@ -281,6 +292,64 @@ impl Typechecker {
                     param_tys: sig.params.iter().map(|p| p.ty.clone()).collect(),
                 }),
             _ => None,
+        }
+    }
+
+    pub(crate) fn resolve_registered_handler_path(
+        &self,
+        path: &[String],
+    ) -> Option<ResolvedHandlerValue> {
+        let name = path.last()?;
+        let effects = self.handler_values.get(name)?.clone();
+        Some(ResolvedHandlerValue {
+            body: self.resolved_handler_body(path),
+            effects,
+        })
+    }
+
+    pub(crate) fn resolve_handler_body_path(
+        &self,
+        path: &[String],
+    ) -> Result<ResolvedHandlerValue, HandlerResolveError> {
+        let Some(name) = path.last() else {
+            return Err(HandlerResolveError::EmptyPath);
+        };
+        if let Some(effects) = self.handler_values.get(name).cloned() {
+            return Ok(ResolvedHandlerValue {
+                body: self.resolved_handler_body(path),
+                effects,
+            });
+        }
+        match self.lookup_symbol(name) {
+            Some(Symbol::Variable {
+                ty: hir::Ty::Handler { effects },
+                ..
+            }) => Ok(ResolvedHandlerValue {
+                body: hir::HirHandlerBody::Path(path.to_vec()),
+                effects: effects.clone(),
+            }),
+            Some(Symbol::Variable { .. }) => {
+                Err(HandlerResolveError::NotHandlerValue { name: name.clone() })
+            }
+            _ => Err(HandlerResolveError::UnknownHandler { name: name.clone() }),
+        }
+    }
+
+    fn resolved_handler_body(&self, path: &[String]) -> hir::HirHandlerBody {
+        let Some(name) = path.last() else {
+            return hir::HirHandlerBody::Path(vec![]);
+        };
+        if let Some((base, handlers)) = self.handler_aliases.get(name).cloned() {
+            hir::HirHandlerBody::Composed {
+                base: Box::new(hir::HirHandlerBody::Path(vec![base])),
+                handlers: handlers
+                    .into_iter()
+                    .filter(|name| !name.is_empty())
+                    .map(|name| hir::HirHandlerBody::Path(vec![name]))
+                    .collect(),
+            }
+        } else {
+            hir::HirHandlerBody::Path(path.to_vec())
         }
     }
 
