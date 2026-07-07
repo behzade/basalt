@@ -1,0 +1,146 @@
+{
+  "tests/24-runtime-local-mutation.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "value",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 1
+                            }
+                          },
+                          "span": {
+                            "start": 13,
+                            "end": 14
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 14
+                    }
+                  },
+                  {
+                    "item": {
+                      "Assign": [
+                        {
+                          "item": {
+                            "Path": [
+                              "value"
+                            ]
+                          },
+                          "span": {
+                            "start": 14,
+                            "end": 15
+                          }
+                        },
+                        {
+                          "item": {
+                            "Binary": {
+                              "op": "Add",
+                              "lhs": {
+                                "item": {
+                                  "Path": [
+                                    "value"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 16,
+                                  "end": 17
+                                }
+                              },
+                              "rhs": {
+                                "item": {
+                                  "Literal": {
+                                    "I32": 4
+                                  }
+                                },
+                                "span": {
+                                  "start": 18,
+                                  "end": 19
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 16,
+                            "end": 19
+                          }
+                        }
+                      ]
+                    },
+                    "span": {
+                      "start": 14,
+                      "end": 19
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "value"
+                          ]
+                        },
+                        "span": {
+                          "start": 19,
+                          "end": 20
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 19,
+                      "end": 20
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 21
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 21
+      }
+    }
+  ]
+}
