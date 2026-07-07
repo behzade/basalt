@@ -1,11 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use crate::hir::{
-    self, BinaryOp, Expr, ExprKind, HirBlock, HirFunction, HirHandlerBody, HirHandlerDef, Stmt,
-    UnaryOp,
+    self, BinaryOp, Expr, ExprKind, HirBlock, HirFunction, HirHandlerBody, Stmt, UnaryOp,
 };
+use crate::hir_index::HirIndex;
 
 use super::builtins;
 use super::env::{Env, Result, RuntimeError};
@@ -13,47 +12,14 @@ use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 
 /// A very small tree-walking interpreter over the HIR.
 pub struct Interpreter {
-    functions: HashMap<String, HirFunction>,
-    resolved_functions: HashMap<(PathBuf, String), HirFunction>,
-    handlers: HashMap<String, HirHandlerDef>,
-    enum_payloads: HashMap<Vec<String>, Option<Vec<hir::Ty>>>,
+    index: HirIndex,
     active_handlers: RefCell<Vec<HandlerValue>>,
 }
 
 impl Interpreter {
     pub fn new(items: &[hir::Item]) -> Self {
-        let mut functions = HashMap::new();
-        let mut resolved_functions = HashMap::new();
-        let mut handlers = HashMap::new();
-        let mut enum_payloads = HashMap::new();
-        for item in items {
-            match item {
-                hir::Item::Fn(func) => {
-                    resolved_functions.insert(
-                        (func.defined_in.clone(), func.signature.name.clone()),
-                        func.clone(),
-                    );
-                    functions.insert(func.signature.name.clone(), func.clone());
-                }
-                hir::Item::Handler(handler) => {
-                    handlers.insert(handler.name.clone(), handler.clone());
-                }
-                hir::Item::Enum(enum_def) => {
-                    for variant in &enum_def.variants {
-                        enum_payloads.insert(
-                            vec![enum_def.name.clone(), variant.name.clone()],
-                            variant.payload.clone(),
-                        );
-                    }
-                }
-                _ => {}
-            }
-        }
         Interpreter {
-            functions,
-            resolved_functions,
-            handlers,
-            enum_payloads,
+            index: HirIndex::from_items(items),
             active_handlers: RefCell::new(vec![]),
         }
     }
@@ -61,7 +27,7 @@ impl Interpreter {
     /// Runs the program by looking for a top-level function named `main`.
     /// Returns `Unit` if no `main` is present.
     pub fn run(&self) -> Result<Value> {
-        if let Some(main_fn) = self.functions.get("main") {
+        if let Some(main_fn) = self.index.functions.get("main") {
             self.call_function(main_fn, vec![])
         } else {
             Ok(Value::Unit)
@@ -226,7 +192,7 @@ impl Interpreter {
                     if let Some(function) = self.resolved_function(expr, name) {
                         return Ok(Self::function_value(function));
                     }
-                    if let Some(function) = self.functions.get(name) {
+                    if let Some(function) = self.index.functions.get(name) {
                         return Ok(Self::function_value(function));
                     }
                 }
@@ -273,7 +239,7 @@ impl Interpreter {
                             }
                             return self.call_function(f, evaled);
                         }
-                        if let Some(f) = self.functions.get(name) {
+                        if let Some(f) = self.index.functions.get(name) {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
                                 evaled.push(self.eval_expr(a, env)?);
@@ -293,7 +259,7 @@ impl Interpreter {
                                 name: enum_name, ..
                             }) = ret_type.as_ref()
                             {
-                                if !self.functions.contains_key(name) {
+                                if !self.index.functions.contains_key(name) {
                                     let mut fields = HashMap::new();
                                     for (idx, arg) in args.iter().enumerate() {
                                         fields.insert(idx.to_string(), self.eval_expr(arg, env)?);
@@ -465,7 +431,7 @@ impl Interpreter {
                 if let Some(Value::Handler(value)) = env.get(name) {
                     return Ok(Value::Handler(value));
                 }
-                let Some(handler) = self.handlers.get(name) else {
+                let Some(handler) = self.index.handlers.get(name) else {
                     return Err(RuntimeError(format!("Unknown handler: {}", name)));
                 };
                 Ok(Value::Handler(HandlerValue {
@@ -556,7 +522,8 @@ impl Interpreter {
         let Some(hir::Resolution::Function { defined_in, .. }) = &fun.resolution else {
             return None;
         };
-        self.resolved_functions
+        self.index
+            .resolved_functions
             .get(&(defined_in.clone(), name.to_string()))
     }
 
@@ -577,7 +544,7 @@ impl Interpreter {
             return fields;
         }
 
-        let Some(Some(payload)) = self.enum_payloads.get(path) else {
+        let Some(Some(payload)) = self.index.enum_variant_payload(path) else {
             return fields;
         };
         let [

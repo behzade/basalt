@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use chumsky::span::Span;
 
 use crate::hir;
+use crate::hir_index::HirIndex;
 use crate::token::SimpleSpan;
 use crate::type_unifier::TypeUnifier;
 
@@ -30,55 +31,15 @@ pub fn validate_program(items: &[hir::Item]) -> Result<(), Vec<HirValidationErro
 
 struct Validator {
     errors: Vec<HirValidationError>,
-    structs: HashMap<hir::OwnedPath, hir::HirStructDef>,
-    enums: HashMap<hir::OwnedPath, hir::HirEnumDef>,
-    effects: HashMap<hir::OwnedPath, hir::HirEffectDef>,
-    handlers: HashMap<String, hir::HirHandlerDef>,
-    enum_variants: HashMap<hir::OwnedPath, (hir::OwnedPath, Vec<hir::Ty>)>,
+    index: HirIndex,
 }
 
 impl Validator {
     fn new(items: &[hir::Item]) -> Self {
-        let mut validator = Self {
+        Self {
             errors: vec![],
-            structs: HashMap::new(),
-            enums: HashMap::new(),
-            effects: HashMap::new(),
-            handlers: HashMap::new(),
-            enum_variants: HashMap::new(),
-        };
-
-        for item in items {
-            match item {
-                hir::Item::Struct(s) => {
-                    validator.structs.insert(vec![s.name.clone()], s.clone());
-                }
-                hir::Item::Effect(e) => {
-                    validator.effects.insert(vec![e.name.clone()], e.clone());
-                }
-                hir::Item::Enum(e) => {
-                    let enum_path = vec![e.name.clone()];
-                    validator.enums.insert(enum_path.clone(), e.clone());
-                    for variant in &e.variants {
-                        let mut variant_path = enum_path.clone();
-                        variant_path.push(variant.name.clone());
-                        validator.enum_variants.insert(
-                            variant_path,
-                            (
-                                enum_path.clone(),
-                                variant.payload.clone().unwrap_or_default(),
-                            ),
-                        );
-                    }
-                }
-                hir::Item::Handler(h) => {
-                    validator.handlers.insert(h.name.clone(), h.clone());
-                }
-                _ => {}
-            }
+            index: HirIndex::from_items(items),
         }
-
-        validator
     }
 
     fn validate_item(&mut self, item: &hir::Item) {
@@ -526,7 +487,11 @@ impl Validator {
             hir::ExprKind::FieldAccess { receiver, field } => {
                 self.validate_expr(receiver, path);
                 let expected = match &receiver.ty {
-                    hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) => match self.structs.get(name) {
+                    hir::Ty::Adt(hir::AdtTy::Struct { name, .. }) => match self
+                        .index
+                        .structs
+                        .get(name)
+                    {
                         Some(struct_def) => match struct_def
                             .fields
                             .iter()
@@ -913,7 +878,7 @@ impl Validator {
                     );
                 }
 
-                let Some(struct_def) = self.structs.get(name).cloned() else {
+                let Some(struct_def) = self.index.structs.get(name).cloned() else {
                     self.error(
                         path,
                         expr.span,
@@ -961,7 +926,7 @@ impl Validator {
                 }
             }
             hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) => {
-                let Some((enum_path, payload)) = self.enum_variants.get(init_path).cloned() else {
+                let Some(variant) = self.index.enum_variants.get(init_path).cloned() else {
                     self.error(
                         path,
                         expr.span,
@@ -969,6 +934,8 @@ impl Validator {
                     );
                     return;
                 };
+                let enum_path = variant.enum_path;
+                let payload = variant.payload.unwrap_or_default();
                 if &enum_path != name {
                     self.error(
                         path,
@@ -986,7 +953,7 @@ impl Validator {
                     }),
                 ] = payload.as_slice()
                 {
-                    let Some(struct_def) = self.structs.get(payload_struct).cloned() else {
+                    let Some(struct_def) = self.index.structs.get(payload_struct).cloned() else {
                         self.error(
                             path,
                             expr.span,
@@ -1097,7 +1064,7 @@ impl Validator {
         }
 
         let effect_path = vec![perform_path[0].clone()];
-        let Some(effect) = self.effects.get(&effect_path).cloned() else {
+        let Some(effect) = self.index.effects.get(&effect_path).cloned() else {
             self.error(
                 path,
                 expr.span,
@@ -1373,8 +1340,10 @@ impl Validator {
                     );
                 }
 
-                let variant = self.enum_variants.get(variant_path).cloned();
-                if let Some((enum_path, payload)) = variant {
+                let variant = self.index.enum_variants.get(variant_path).cloned();
+                if let Some(variant) = variant {
+                    let enum_path = variant.enum_path;
+                    let payload = variant.payload.unwrap_or_default();
                     if let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &pattern.ty {
                         if name != &enum_path {
                             self.error(
@@ -1427,7 +1396,7 @@ impl Validator {
         let hir::Ty::Adt(hir::AdtTy::Enum { name, .. }) = &scrutinee.ty else {
             return;
         };
-        let Some(enum_def) = self.enums.get(name) else {
+        let Some(enum_def) = self.index.enums.get(name) else {
             return;
         };
         if arms.iter().any(|(pattern, _)| {
@@ -1469,7 +1438,7 @@ impl Validator {
         match ty {
             hir::Ty::Special(_) | hir::Ty::Primitive(_) => {}
             hir::Ty::Adt(hir::AdtTy::Struct { name, generics }) => {
-                if !self.structs.contains_key(name) {
+                if !self.index.structs.contains_key(name) {
                     self.error(
                         path,
                         span,
@@ -1481,7 +1450,7 @@ impl Validator {
                 }
             }
             hir::Ty::Adt(hir::AdtTy::Enum { name, generics }) => {
-                if !self.enums.contains_key(name) {
+                if !self.index.enums.contains_key(name) {
                     self.error(
                         path,
                         span,
@@ -1493,7 +1462,7 @@ impl Validator {
                 }
             }
             hir::Ty::Adt(hir::AdtTy::Effect { name, generics }) => {
-                if !self.effects.contains_key(name) {
+                if !self.index.effects.contains_key(name) {
                     self.error(
                         path,
                         span,
