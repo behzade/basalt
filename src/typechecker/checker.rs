@@ -104,9 +104,13 @@ impl Typechecker {
         self.current_context_stack.last().copied()
     }
 
-    fn is_runtime_file(&self, path: &PathBuf) -> bool {
+    pub(crate) fn is_runtime_file(&self, path: &PathBuf) -> bool {
         let s = path.to_string_lossy();
         s.contains("/modules/std/runtime/") || s.contains("\\modules\\std\\runtime\\")
+    }
+
+    pub(crate) fn is_raw_runtime_intrinsic(&self, path: &PathBuf, name: &str) -> bool {
+        self.is_runtime_file(path) && matches!(name, "alloc" | "free")
     }
     pub fn check_program(
         &mut self,

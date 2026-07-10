@@ -226,8 +226,17 @@ generate_snapshots() {
             echo -e "${GREEN}✓${NC}"
             ((SNAPSHOT_TESTS++))
         else
-            # Only refresh expected-error snapshots that already opt into ERROR.
-            if [ -f "$snapshot_file" ] && head -n 1 "$snapshot_file" | grep -q '^ERROR:'; then
+            if [ -f "$snapshot_file" ] && head -n 1 "$snapshot_file" | grep -q '^ERROR-CONTAINS: '; then
+                local expected_error=$(head -n 1 "$snapshot_file" | sed 's/^ERROR-CONTAINS: //')
+                if printf '%s\n' "$output" | grep -Fq "$expected_error"; then
+                    echo -e "${YELLOW}⚠ (expected error)${NC}"
+                    ((SNAPSHOT_TESTS++))
+                else
+                    echo -e "${RED}✗ (unexpected error)${NC}"
+                    ((FAILED_TESTS++))
+                fi
+            # Only refresh exact expected-error snapshots that already opt into ERROR.
+            elif [ -f "$snapshot_file" ] && head -n 1 "$snapshot_file" | grep -q '^ERROR:'; then
                 echo "ERROR: $output" > "$snapshot_file"
                 echo -e "${YELLOW}⚠ (expected error)${NC}"
                 ((SNAPSHOT_TESTS++))
@@ -292,7 +301,16 @@ compare_snapshots() {
             fi
         else
             # Check if error matches snapshot
-            if diff -q <(echo "ERROR: $output") "$snapshot_file" >/dev/null 2>&1; then
+            if head -n 1 "$snapshot_file" | grep -q '^ERROR-CONTAINS: '; then
+                local expected_error=$(head -n 1 "$snapshot_file" | sed 's/^ERROR-CONTAINS: //')
+                if printf '%s\n' "$output" | grep -Fq "$expected_error"; then
+                    echo -e "${GREEN}✓ (expected error)${NC}"
+                    ((PASSED_TESTS++))
+                else
+                    echo -e "${RED}✗ (unexpected error)${NC}"
+                    ((FAILED_TESTS++))
+                fi
+            elif diff -q <(echo "ERROR: $output") "$snapshot_file" >/dev/null 2>&1; then
                 echo -e "${GREEN}✓ (expected error)${NC}"
                 ((PASSED_TESTS++))
             else

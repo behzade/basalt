@@ -352,6 +352,9 @@ impl Typechecker {
                         })
                     }
                     Ok(Some(ResolvedValue::Function(function))) => {
+                        if self.reject_raw_runtime_intrinsic(&function, &context) {
+                            return Err(());
+                        }
                         let signature = function.signature;
                         Ok(hir::Expr {
                             kind: hir::ExprKind::Path(function.call_path),
@@ -722,6 +725,9 @@ impl Typechecker {
                         let adjusted_args = resolved_call.adjusted_args;
 
                         if let Some(function) = resolved_call.function {
+                            if self.reject_raw_runtime_intrinsic(&function, &context) {
+                                return Err(());
+                            }
                             let signature = function.signature;
                             let has_generics = signature
                                 .params
@@ -1556,6 +1562,27 @@ impl Typechecker {
                 span: expr.span,
                 resolution: None,
             }),
+        }
+    }
+
+    fn reject_raw_runtime_intrinsic(
+        &mut self,
+        function: &crate::typechecker::resolver::ResolvedFunction,
+        context: &ItemContext,
+    ) -> bool {
+        if self.is_raw_runtime_intrinsic(&function.defined_in, &function.signature.name)
+            && !self.is_runtime_file(&context.path)
+        {
+            self.errors.push(TypeError {
+                message: format!(
+                    "Raw runtime intrinsic `{}` requires an unsafe block",
+                    function.signature.name
+                ),
+                context: context.clone(),
+            });
+            true
+        } else {
+            false
         }
     }
 
