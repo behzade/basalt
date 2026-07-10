@@ -86,7 +86,7 @@ impl Interpreter {
         // bind params
         for (idx, param) in function.signature.params.iter().enumerate() {
             if let Some(arg_val) = args.get(idx).cloned() {
-                env.define(param.name.clone(), arg_val);
+                env.define(param.name.clone(), arg_val, false);
             }
         }
 
@@ -114,7 +114,7 @@ impl Interpreter {
         };
         env.push_scope();
         for (idx, param) in function.params.iter().enumerate() {
-            env.define(param.name.clone(), args[idx].clone());
+            env.define(param.name.clone(), args[idx].clone(), false);
         }
         match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => Ok(value),
@@ -148,6 +148,7 @@ impl Interpreter {
                 name,
                 value,
                 memory,
+                is_mut,
                 ..
             } => {
                 let v = if let Some(expr) = value {
@@ -156,7 +157,7 @@ impl Interpreter {
                 } else {
                     Value::Unit
                 };
-                env.define(name.clone(), v);
+                env.define(name.clone(), v, *is_mut);
                 Ok(Flow::Value(()))
             }
             Stmt::Return { value, .. } => {
@@ -386,7 +387,7 @@ impl Interpreter {
                         let mut arm_env = env.clone();
                         arm_env.push_scope();
                         for (name, value) in bindings {
-                            arm_env.define(name, value);
+                            arm_env.define(name, value, false);
                         }
                         let result = self.eval_expr(arm_expr, &mut arm_env);
                         arm_env.pop_scope();

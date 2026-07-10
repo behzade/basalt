@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::hir::{self, HirBlock};
+use crate::interpreter::env::Scope;
 
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -36,7 +37,7 @@ pub enum Value {
 pub struct FunctionValue {
     pub params: Vec<hir::HirParam>,
     pub body: HirBlock,
-    pub captured: Vec<HashMap<String, Value>>, // captured lexical scopes
+    pub(crate) captured: Vec<Scope>, // shared captured lexical bindings
 }
 
 #[derive(Debug, Clone)]
