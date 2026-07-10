@@ -2,19 +2,6 @@
   "tests/28-chunk-allocated-strings.bst": [
     {
       "item": {
-        "Memory": {
-          "name": "Scratch",
-          "byte_limit": 4096,
-          "object_limit": 32
-        }
-      },
-      "span": {
-        "start": 0,
-        "end": 9
-      }
-    },
-    {
-      "item": {
         "Fn": {
           "name": "main",
           "generics": [],
@@ -33,6 +20,19 @@
             "item": {
               "Block": {
                 "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "Scratch",
+                        "byte_limit": 4096,
+                        "object_limit": 32
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  },
                   {
                     "item": {
                       "Let": {
@@ -144,7 +144,7 @@
               }
             },
             "span": {
-              "start": 15,
+              "start": 6,
               "end": 40
             }
           },
@@ -152,7 +152,7 @@
         }
       },
       "span": {
-        "start": 9,
+        "start": 0,
         "end": 40
       }
     }

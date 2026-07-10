@@ -34,6 +34,7 @@ impl super::checker::Typechecker {
             Ty::Primitive(PrimitiveTy::F32) => "f32".to_string(),
             Ty::Primitive(PrimitiveTy::F64) => "f64".to_string(),
             Ty::Primitive(PrimitiveTy::Str) => "str".to_string(),
+            Ty::Region => "Region".to_string(),
             Ty::Array(elem) => format!("[{}]", Self::format_ty(elem)),
             Ty::Map { key, value } => {
                 let key_str = match **key {

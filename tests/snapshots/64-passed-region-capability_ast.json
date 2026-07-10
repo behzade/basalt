@@ -1,0 +1,228 @@
+{
+  "tests/64-passed-region-capability.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "fill",
+          "generics": [],
+          "params": [
+            [
+              true,
+              "region",
+              {
+                "path": [
+                  "Region"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "str"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "message",
+                        "memory": "region",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "passed"
+                            }
+                          },
+                          "span": {
+                            "start": 16,
+                            "end": 17
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 11,
+                      "end": 17
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "message"
+                          ]
+                        },
+                        "span": {
+                          "start": 17,
+                          "end": 18
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 17,
+                      "end": 18
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 10,
+              "end": 19
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 19
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "scratch",
+                        "byte_limit": 64,
+                        "object_limit": 4
+                      }
+                    },
+                    "span": {
+                      "start": 26,
+                      "end": 35
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "message",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "fill"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 38,
+                                  "end": 39
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Path": [
+                                      "scratch"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 40,
+                                    "end": 41
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 38,
+                            "end": 42
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 35,
+                      "end": 42
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "message"
+                                ]
+                              },
+                              "span": {
+                                "start": 42,
+                                "end": 43
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 42,
+                          "end": 47
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 42,
+                      "end": 47
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 25,
+              "end": 48
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 19,
+        "end": 48
+      }
+    }
+  ]
+}

@@ -1,17 +1,44 @@
 {
-  "tests/51-stale-frame-value.bst": [
+  "tests/62-mutable-field-placement.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Message",
+          "generics": [],
+          "fields": [
+            [
+              "text",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 8
+      }
+    },
     {
       "item": {
         "Fn": {
-          "name": "replace_with_temporary",
+          "name": "overwrite",
           "generics": [],
           "params": [
             [
               true,
-              "value",
+              "message",
               {
                 "path": [
-                  "str"
+                  "Message"
                 ],
                 "generics": [],
                 "fn_params": null,
@@ -31,13 +58,24 @@
                       "Assign": [
                         {
                           "item": {
-                            "Path": [
-                              "value"
-                            ]
+                            "FieldAccess": {
+                              "receiver": {
+                                "item": {
+                                  "Path": [
+                                    "message"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 17,
+                                  "end": 18
+                                }
+                              },
+                              "field": "text"
+                            }
                           },
                           "span": {
-                            "start": 9,
-                            "end": 10
+                            "start": 17,
+                            "end": 18
                           }
                         },
                         {
@@ -47,15 +85,15 @@
                             }
                           },
                           "span": {
-                            "start": 11,
-                            "end": 12
+                            "start": 21,
+                            "end": 22
                           }
                         }
                       ]
                     },
                     "span": {
-                      "start": 9,
-                      "end": 12
+                      "start": 17,
+                      "end": 22
                     }
                   }
                 ],
@@ -63,16 +101,16 @@
               }
             },
             "span": {
-              "start": 8,
-              "end": 13
+              "start": 16,
+              "end": 23
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 0,
-        "end": 13
+        "start": 8,
+        "end": 23
       }
     },
     {
@@ -99,25 +137,44 @@
                     "item": {
                       "Let": {
                         "is_mut": true,
-                        "name": "value",
+                        "name": "message",
                         "memory": null,
                         "ty": null,
                         "value": {
                           "item": {
-                            "Literal": {
-                              "Str": "caller"
+                            "StructInit": {
+                              "path": [
+                                "Message"
+                              ],
+                              "generics": [],
+                              "fields": [
+                                [
+                                  "text",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "caller"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 38,
+                                      "end": 39
+                                    }
+                                  }
+                                ]
+                              ]
                             }
                           },
                           "span": {
-                            "start": 24,
-                            "end": 25
+                            "start": 34,
+                            "end": 40
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 20,
-                      "end": 25
+                      "start": 30,
+                      "end": 40
                     }
                   },
                   {
@@ -128,38 +185,38 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "replace_with_temporary"
+                                  "overwrite"
                                 ]
                               },
                               "span": {
-                                "start": 25,
-                                "end": 26
+                                "start": 40,
+                                "end": 41
                               }
                             },
                             "args": [
                               {
                                 "item": {
                                   "Path": [
-                                    "value"
+                                    "message"
                                   ]
                                 },
                                 "span": {
-                                  "start": 27,
-                                  "end": 28
+                                  "start": 42,
+                                  "end": 43
                                 }
                               }
                             ]
                           }
                         },
                         "span": {
-                          "start": 25,
-                          "end": 29
+                          "start": 40,
+                          "end": 44
                         }
                       }
                     },
                     "span": {
-                      "start": 25,
-                      "end": 29
+                      "start": 40,
+                      "end": 44
                     }
                   },
                   {
@@ -169,13 +226,24 @@
                           "MethodCall": {
                             "receiver": {
                               "item": {
-                                "Path": [
-                                  "value"
-                                ]
+                                "FieldAccess": {
+                                  "receiver": {
+                                    "item": {
+                                      "Path": [
+                                        "message"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 44,
+                                      "end": 45
+                                    }
+                                  },
+                                  "field": "text"
+                                }
                               },
                               "span": {
-                                "start": 29,
-                                "end": 30
+                                "start": 44,
+                                "end": 47
                               }
                             },
                             "method": "len",
@@ -183,14 +251,14 @@
                           }
                         },
                         "span": {
-                          "start": 29,
-                          "end": 34
+                          "start": 44,
+                          "end": 51
                         }
                       }
                     },
                     "span": {
-                      "start": 29,
-                      "end": 34
+                      "start": 44,
+                      "end": 51
                     }
                   }
                 ],
@@ -198,16 +266,16 @@
               }
             },
             "span": {
-              "start": 19,
-              "end": 35
+              "start": 29,
+              "end": 52
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 13,
-        "end": 35
+        "start": 23,
+        "end": 52
       }
     }
   ]

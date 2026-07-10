@@ -8,6 +8,40 @@ use crate::typechecker::resolver::{
 };
 
 impl Typechecker {
+    fn require_exclusive_mutable_arguments(
+        &mut self,
+        arguments: &[SpannedExpr],
+        parameters: &[hir::HirParam],
+        context: &ItemContext,
+    ) -> Result<(), ()> {
+        let mut borrowed = std::collections::HashSet::new();
+        for (argument, parameter) in arguments.iter().zip(parameters) {
+            if !parameter.is_mut {
+                continue;
+            }
+            let OwnedExpr::Path(path) = &argument.item else {
+                continue;
+            };
+            let Some(name) = path.last() else {
+                continue;
+            };
+            if !borrowed.insert(name.clone()) {
+                self.errors.push(TypeError {
+                    message: format!(
+                        "Mutable argument '{}' is passed more than once in the same call",
+                        name
+                    ),
+                    context: ItemContext {
+                        span: argument.span,
+                        path: context.path.clone(),
+                    },
+                });
+                return Err(());
+            }
+        }
+        Ok(())
+    }
+
     fn require_mutable_argument(
         &mut self,
         argument: &SpannedExpr,
@@ -245,11 +279,12 @@ impl Typechecker {
         let mut effects = vec![];
         for stmt in &block.stmts {
             let stmt_effects = match stmt {
+                hir::Stmt::Memory { .. } => vec![],
                 hir::Stmt::Let { value, .. } => value
                     .as_ref()
                     .map(|expr| self.expr_effects(expr))
                     .unwrap_or_default(),
-                hir::Stmt::Reset { .. } => vec![],
+                hir::Stmt::Reset { region, .. } => self.expr_effects(region),
                 hir::Stmt::Return { value, .. } => value
                     .as_ref()
                     .map(|expr| self.expr_effects(expr))
@@ -824,6 +859,11 @@ impl Typechecker {
                             } else {
                                 signature
                             };
+                            self.require_exclusive_mutable_arguments(
+                                &adjusted_args,
+                                &signature.params,
+                                &context,
+                            )?;
                             let mut lowered_args = Vec::new();
                             for (idx, arg) in adjusted_args.into_iter().enumerate() {
                                 let arg_expr = if let Some(p) = signature.params.get(idx) {

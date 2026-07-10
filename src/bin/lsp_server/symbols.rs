@@ -176,6 +176,7 @@ pub fn hir_ty_to_string(ty: &hir::Ty) -> String {
         Ty::Primitive(PrimitiveTy::F32) => "f32".to_string(),
         Ty::Primitive(PrimitiveTy::F64) => "f64".to_string(),
         Ty::Primitive(PrimitiveTy::Str) => "str".to_string(),
+        Ty::Region => "Region".to_string(),
         Ty::Adt(AdtTy::Struct { name, generics })
         | Ty::Adt(AdtTy::Enum { name, generics })
         | Ty::Adt(AdtTy::Effect { name, generics }) => {
@@ -226,7 +227,6 @@ pub fn hir_ty_to_string(ty: &hir::Ty) -> String {
 pub fn item_name_and_span<'a>(item: &'a hir::Item) -> (String, &'a PathBuf, SimpleSpan) {
     match item {
         hir::Item::Fn(f) => (f.signature.name.clone(), &f.defined_in, f.span),
-        hir::Item::Memory(m) => (m.name.clone(), &m.defined_in, m.span),
         hir::Item::Struct(s) => (s.name.clone(), &s.defined_in, s.span),
         hir::Item::Enum(e) => (e.name.clone(), &e.defined_in, e.span),
         hir::Item::TypeAlias(t) => (t.name.clone(), &t.defined_in, t.span),
@@ -238,7 +238,6 @@ pub fn item_name_and_span<'a>(item: &'a hir::Item) -> (String, &'a PathBuf, Simp
 pub fn symbol_kind_for_item(item: &hir::Item) -> lsp::SymbolKind {
     match item {
         hir::Item::Fn(_) => lsp::SymbolKind::FUNCTION,
-        hir::Item::Memory(_) => lsp::SymbolKind::CONSTANT,
         hir::Item::Struct(_) => lsp::SymbolKind::STRUCT,
         hir::Item::Enum(_) => lsp::SymbolKind::ENUM,
         hir::Item::TypeAlias(ta) => symbol_kind_for_type_alias(ta),
@@ -769,13 +768,14 @@ pub fn find_hir_expr_in_block(block: &hir::HirBlock, tok_idx: usize) -> Option<h
 pub fn find_hir_expr_in_stmt(stmt: &hir::Stmt, tok_idx: usize) -> Option<hir::Expr> {
     use hir::Stmt as HS;
     match stmt {
+        HS::Memory { .. } => None,
         HS::Let { value, .. } => {
             if let Some(v) = value {
                 return find_hir_expr(v, tok_idx);
             }
             None
         }
-        HS::Reset { .. } => None,
+        HS::Reset { region, .. } => find_hir_expr(region, tok_idx),
         HS::Assign { lhs, rhs, .. } => {
             if let Some(e) = find_hir_expr(lhs, tok_idx) {
                 return Some(e);
@@ -897,6 +897,9 @@ pub fn collect_lets_in_block(block: &hir::HirBlock, out: &mut Vec<(String, Simpl
     use hir::Stmt as HS;
     for s in &block.stmts {
         match s {
+            HS::Memory { name, span, .. } => {
+                out.push((name.clone(), *span));
+            }
             HS::Let {
                 name,
                 span,
@@ -905,7 +908,7 @@ pub fn collect_lets_in_block(block: &hir::HirBlock, out: &mut Vec<(String, Simpl
             } => {
                 out.push((name.clone(), name_span.unwrap_or(*span)));
             }
-            HS::Reset { .. } => {}
+            HS::Reset { region, .. } => collect_lets_in_expr(region, out),
             HS::Assign { lhs, rhs, .. } => {
                 collect_lets_in_expr(lhs, out);
                 collect_lets_in_expr(rhs, out);

@@ -1,0 +1,252 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "Source",
+              "byte_limit": 64,
+              "object_limit": 4,
+              "span": {
+                "start": 7,
+                "end": 16
+              }
+            }
+          },
+          {
+            "Memory": {
+              "name": "Destination",
+              "byte_limit": 64,
+              "object_limit": 4,
+              "span": {
+                "start": 16,
+                "end": 25
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "original",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "copy"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 30,
+                  "end": 31
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Source"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 25,
+                  "end": 31
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Source",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 25,
+                "end": 31
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "copied",
+              "value": {
+                "kind": {
+                  "Path": [
+                    "original"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 36,
+                  "end": 37
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "original",
+                    "decl_span": {
+                      "start": 25,
+                      "end": 31
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Destination"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 31,
+                  "end": 37
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Destination",
+                    "decl_span": {
+                      "start": 16,
+                      "end": 25
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 31,
+                "end": 37
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Reset": {
+              "region": {
+                "kind": {
+                  "Path": [
+                    "Source"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 37,
+                  "end": 39
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Source",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 37,
+                "end": 39
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 39,
+                  "end": 44
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "copied"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 39,
+                    "end": 40
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "copied",
+                      "decl_span": {
+                        "start": 31,
+                        "end": 37
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 39,
+            "end": 44
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/57-cross-region-copy.bst",
+      "span": {
+        "start": 6,
+        "end": 45
+      },
+      "context_id": 0
+    }
+  }
+]

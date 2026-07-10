@@ -1,0 +1,176 @@
+{
+  "tests/60-stale-nested-struct.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Message",
+          "generics": [],
+          "fields": [
+            [
+              "text",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 8
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "Scratch",
+                        "byte_limit": 128,
+                        "object_limit": 8
+                      }
+                    },
+                    "span": {
+                      "start": 15,
+                      "end": 24
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "message",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "StructInit": {
+                              "path": [
+                                "Message"
+                              ],
+                              "generics": [],
+                              "fields": [
+                                [
+                                  "text",
+                                  {
+                                    "item": {
+                                      "Literal": {
+                                        "Str": "stale"
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 33,
+                                      "end": 34
+                                    }
+                                  }
+                                ]
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 29,
+                            "end": 35
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 24,
+                      "end": 35
+                    }
+                  },
+                  {
+                    "item": {
+                      "Reset": "Scratch"
+                    },
+                    "span": {
+                      "start": 35,
+                      "end": 37
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "FieldAccess": {
+                                  "receiver": {
+                                    "item": {
+                                      "Path": [
+                                        "message"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 37,
+                                      "end": 38
+                                    }
+                                  },
+                                  "field": "text"
+                                }
+                              },
+                              "span": {
+                                "start": 37,
+                                "end": 40
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 37,
+                          "end": 44
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 37,
+                      "end": 44
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 14,
+              "end": 45
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 8,
+        "end": 45
+      }
+    }
+  ]
+}

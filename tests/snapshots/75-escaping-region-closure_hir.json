@@ -1,0 +1,211 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "escaped",
+              "value": {
+                "kind": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "Memory": {
+                          "name": "scratch",
+                          "byte_limit": 64,
+                          "object_limit": 4,
+                          "span": {
+                            "start": 11,
+                            "end": 20
+                          }
+                        }
+                      }
+                    ],
+                    "last_expr": {
+                      "kind": {
+                        "FnLiteral": {
+                          "params": [],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": [],
+                          "body": {
+                            "stmts": [
+                              {
+                                "Reset": {
+                                  "region": {
+                                    "kind": {
+                                      "Path": [
+                                        "scratch"
+                                      ]
+                                    },
+                                    "ty": "Region",
+                                    "span": {
+                                      "start": 26,
+                                      "end": 28
+                                    },
+                                    "resolution": {
+                                      "Local": {
+                                        "name": "scratch",
+                                        "decl_span": {
+                                          "start": 11,
+                                          "end": 20
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 26,
+                                    "end": 28
+                                  }
+                                }
+                              }
+                            ],
+                            "last_expr": {
+                              "kind": {
+                                "Literal": [
+                                  "I32",
+                                  "0"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 28,
+                                "end": 29
+                              },
+                              "resolution": null
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 20,
+                        "end": 30
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Function": {
+                        "param_types": [],
+                        "ret_type": {
+                          "Primitive": "I32"
+                        },
+                        "effects": []
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 10,
+                  "end": 31
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Function": {
+                  "param_types": [],
+                  "ret_type": {
+                    "Primitive": "I32"
+                  },
+                  "effects": []
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 7,
+                "end": 31
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "escaped"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 31,
+                  "end": 32
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "escaped",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 31
+                    }
+                  }
+                }
+              },
+              "args": []
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 31,
+            "end": 34
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/75-escaping-region-closure.bst",
+      "span": {
+        "start": 6,
+        "end": 35
+      },
+      "context_id": 0
+    }
+  }
+]

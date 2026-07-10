@@ -1,0 +1,119 @@
+{
+  "tests/71-lexical-region-handle-escape.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "escaped",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Block": {
+                              "stmts": [
+                                {
+                                  "item": {
+                                    "Memory": {
+                                      "name": "scratch",
+                                      "byte_limit": 64,
+                                      "object_limit": 4
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 11,
+                                    "end": 20
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Expr": {
+                                      "item": {
+                                        "Path": [
+                                          "scratch"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 20,
+                                        "end": 21
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 20,
+                                    "end": 21
+                                  }
+                                }
+                              ],
+                              "last_expr": null
+                            }
+                          },
+                          "span": {
+                            "start": 10,
+                            "end": 22
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 22
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 22,
+                          "end": 23
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 22,
+                      "end": 23
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 24
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 24
+      }
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "tests/57-cross-region-copy.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "Source",
+                        "byte_limit": 64,
+                        "object_limit": 4
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  },
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "Destination",
+                        "byte_limit": 64,
+                        "object_limit": 4
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 25
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "original",
+                        "memory": "Source",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "copy"
+                            }
+                          },
+                          "span": {
+                            "start": 30,
+                            "end": 31
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 25,
+                      "end": 31
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "copied",
+                        "memory": "Destination",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Path": [
+                              "original"
+                            ]
+                          },
+                          "span": {
+                            "start": 36,
+                            "end": 37
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 31,
+                      "end": 37
+                    }
+                  },
+                  {
+                    "item": {
+                      "Reset": "Source"
+                    },
+                    "span": {
+                      "start": 37,
+                      "end": 39
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "copied"
+                                ]
+                              },
+                              "span": {
+                                "start": 39,
+                                "end": 40
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 39,
+                          "end": 44
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 39,
+                      "end": 44
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 45
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 45
+      }
+    }
+  ]
+}

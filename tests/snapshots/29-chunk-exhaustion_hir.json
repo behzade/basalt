@@ -1,17 +1,5 @@
 [
   {
-    "Memory": {
-      "name": "Tiny",
-      "byte_limit": 32,
-      "object_limit": 4,
-      "defined_in": "tests/29-chunk-exhaustion.bst",
-      "span": {
-        "start": 0,
-        "end": 9
-      }
-    }
-  },
-  {
     "Fn": {
       "signature": {
         "name": "main",
@@ -23,6 +11,17 @@
       },
       "body": {
         "stmts": [
+          {
+            "Memory": {
+              "name": "Tiny",
+              "byte_limit": 32,
+              "object_limit": 4,
+              "span": {
+                "start": 7,
+                "end": 16
+              }
+            }
+          },
           {
             "Let": {
               "name": "one",
@@ -46,7 +45,27 @@
                 "Primitive": "Str"
               },
               "is_mut": false,
-              "memory": "Tiny",
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Tiny"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 16,
+                  "end": 22
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Tiny",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
               "span": {
                 "start": 16,
                 "end": 22
@@ -77,7 +96,27 @@
                 "Primitive": "Str"
               },
               "is_mut": false,
-              "memory": "Tiny",
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Tiny"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 22,
+                  "end": 28
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Tiny",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
               "span": {
                 "start": 22,
                 "end": 28
@@ -157,7 +196,7 @@
       "is_public": false,
       "defined_in": "tests/29-chunk-exhaustion.bst",
       "span": {
-        "start": 15,
+        "start": 6,
         "end": 34
       },
       "context_id": 0

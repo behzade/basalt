@@ -1,0 +1,181 @@
+{
+  "tests/75-escaping-region-closure.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "escaped",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Block": {
+                              "stmts": [
+                                {
+                                  "item": {
+                                    "Memory": {
+                                      "name": "scratch",
+                                      "byte_limit": 64,
+                                      "object_limit": 4
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 11,
+                                    "end": 20
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Expr": {
+                                      "item": {
+                                        "FnLiteral": {
+                                          "params": [],
+                                          "ret_type": {
+                                            "path": [
+                                              "i32"
+                                            ],
+                                            "generics": [],
+                                            "fn_params": null,
+                                            "fn_ret": null,
+                                            "fn_effects": null
+                                          },
+                                          "effects": [],
+                                          "body": {
+                                            "item": {
+                                              "Block": {
+                                                "stmts": [
+                                                  {
+                                                    "item": {
+                                                      "Reset": "scratch"
+                                                    },
+                                                    "span": {
+                                                      "start": 26,
+                                                      "end": 28
+                                                    }
+                                                  },
+                                                  {
+                                                    "item": {
+                                                      "Expr": {
+                                                        "item": {
+                                                          "Literal": {
+                                                            "I32": 0
+                                                          }
+                                                        },
+                                                        "span": {
+                                                          "start": 28,
+                                                          "end": 29
+                                                        }
+                                                      }
+                                                    },
+                                                    "span": {
+                                                      "start": 28,
+                                                      "end": 29
+                                                    }
+                                                  }
+                                                ],
+                                                "last_expr": null
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 25,
+                                              "end": 30
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 20,
+                                        "end": 30
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 20,
+                                    "end": 30
+                                  }
+                                }
+                              ],
+                              "last_expr": null
+                            }
+                          },
+                          "span": {
+                            "start": 10,
+                            "end": 31
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 31
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "escaped"
+                                ]
+                              },
+                              "span": {
+                                "start": 31,
+                                "end": 32
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 31,
+                          "end": 34
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 31,
+                      "end": 34
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 35
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 35
+      }
+    }
+  ]
+}

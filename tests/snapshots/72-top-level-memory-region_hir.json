@@ -1,0 +1,1 @@
+ERROR-CONTAINS: Memory regions must be declared inside a lexical block

@@ -1,17 +1,5 @@
 [
   {
-    "Memory": {
-      "name": "Scratch",
-      "byte_limit": 4096,
-      "object_limit": 32,
-      "defined_in": "tests/28-chunk-allocated-strings.bst",
-      "span": {
-        "start": 0,
-        "end": 9
-      }
-    }
-  },
-  {
     "Fn": {
       "signature": {
         "name": "main",
@@ -23,6 +11,17 @@
       },
       "body": {
         "stmts": [
+          {
+            "Memory": {
+              "name": "Scratch",
+              "byte_limit": 4096,
+              "object_limit": 32,
+              "span": {
+                "start": 7,
+                "end": 16
+              }
+            }
+          },
           {
             "Let": {
               "name": "a",
@@ -46,7 +45,27 @@
                 "Primitive": "Str"
               },
               "is_mut": false,
-              "memory": "Scratch",
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 16,
+                  "end": 22
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
               "span": {
                 "start": 16,
                 "end": 22
@@ -77,7 +96,27 @@
                 "Primitive": "Str"
               },
               "is_mut": false,
-              "memory": "Scratch",
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 22,
+                  "end": 28
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
               "span": {
                 "start": 22,
                 "end": 28
@@ -108,7 +147,27 @@
                 "Primitive": "Str"
               },
               "is_mut": false,
-              "memory": "Scratch",
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 28,
+                  "end": 34
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
               "span": {
                 "start": 28,
                 "end": 34
@@ -188,7 +247,7 @@
       "is_public": false,
       "defined_in": "tests/28-chunk-allocated-strings.bst",
       "span": {
-        "start": 15,
+        "start": 6,
         "end": 40
       },
       "context_id": 0

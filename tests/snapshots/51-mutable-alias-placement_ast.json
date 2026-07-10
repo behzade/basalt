@@ -1,0 +1,214 @@
+{
+  "tests/51-mutable-alias-placement.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "replace_with_temporary",
+          "generics": [],
+          "params": [
+            [
+              true,
+              "value",
+              {
+                "path": [
+                  "str"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": null,
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Assign": [
+                        {
+                          "item": {
+                            "Path": [
+                              "value"
+                            ]
+                          },
+                          "span": {
+                            "start": 9,
+                            "end": 10
+                          }
+                        },
+                        {
+                          "item": {
+                            "Literal": {
+                              "Str": "temporary"
+                            }
+                          },
+                          "span": {
+                            "start": 11,
+                            "end": 12
+                          }
+                        }
+                      ]
+                    },
+                    "span": {
+                      "start": 9,
+                      "end": 12
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 8,
+              "end": 13
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 13
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "value",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "caller"
+                            }
+                          },
+                          "span": {
+                            "start": 24,
+                            "end": 25
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 20,
+                      "end": 25
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "replace_with_temporary"
+                                ]
+                              },
+                              "span": {
+                                "start": 25,
+                                "end": 26
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Path": [
+                                    "value"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 27,
+                                  "end": 28
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 25,
+                          "end": 29
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 25,
+                      "end": 29
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "value"
+                                ]
+                              },
+                              "span": {
+                                "start": 29,
+                                "end": 30
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 29,
+                          "end": 34
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 29,
+                      "end": 34
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 19,
+              "end": 35
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 13,
+        "end": 35
+      }
+    }
+  ]
+}

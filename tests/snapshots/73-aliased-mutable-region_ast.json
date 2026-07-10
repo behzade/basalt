@@ -1,0 +1,225 @@
+{
+  "tests/73-aliased-mutable-region.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "use_both",
+          "generics": [],
+          "params": [
+            [
+              true,
+              "left",
+              {
+                "path": [
+                  "Region"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ],
+            [
+              true,
+              "right",
+              {
+                "path": [
+                  "Region"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": null,
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Reset": "left"
+                    },
+                    "span": {
+                      "start": 14,
+                      "end": 16
+                    }
+                  },
+                  {
+                    "item": {
+                      "Reset": "right"
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 18
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 13,
+              "end": 19
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 19
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "scratch",
+                        "byte_limit": 64,
+                        "object_limit": 4
+                      }
+                    },
+                    "span": {
+                      "start": 26,
+                      "end": 35
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "alias",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Path": [
+                              "scratch"
+                            ]
+                          },
+                          "span": {
+                            "start": 39,
+                            "end": 40
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 35,
+                      "end": 40
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "use_both"
+                                ]
+                              },
+                              "span": {
+                                "start": 40,
+                                "end": 41
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Path": [
+                                    "scratch"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 42,
+                                  "end": 43
+                                }
+                              },
+                              {
+                                "item": {
+                                  "Path": [
+                                    "alias"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 44,
+                                  "end": 45
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 40,
+                          "end": 46
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 40,
+                      "end": 46
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 46,
+                          "end": 47
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 46,
+                      "end": 47
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 25,
+              "end": 48
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 19,
+        "end": 48
+      }
+    }
+  ]
+}

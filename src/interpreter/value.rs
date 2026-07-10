@@ -50,6 +50,7 @@ pub enum Value {
     U64(u64),
     F32(f32),
     F64(f64),
+    Region(AllocationOwner),
     Str(Managed<String>),
     Array(Managed<Vec<Value>>),
     Map(Managed<Vec<(Value, Value)>>),
@@ -104,6 +105,7 @@ impl PartialEq for Value {
             (V::U64(a), V::U64(b)) => a == b,
             (V::F32(a), V::F32(b)) => a == b,
             (V::F64(a), V::F64(b)) => a == b,
+            (V::Region(a), V::Region(b)) => a == b,
             (V::Str(a), V::Str(b)) => a == b,
             (V::Array(a), V::Array(b)) => a == b,
             (V::Map(a), V::Map(b)) => a == b,
@@ -155,6 +157,7 @@ impl std::fmt::Display for Value {
             Value::U64(i) => write!(f, "{}", i),
             Value::F32(x) => write!(f, "{}", x),
             Value::F64(x) => write!(f, "{}", x),
+            Value::Region(owner) => write!(f, "<region {}:{}>", owner.id, owner.generation),
             Value::Str(s) => write!(f, "\"{}\"", s.value),
             Value::Array(items) => {
                 write!(f, "[")?;
@@ -268,9 +271,44 @@ impl Value {
         }
     }
 
+    pub(crate) fn detach_views_for_copy(&mut self, owner: AllocationOwner) {
+        match self {
+            Value::Array(items) => {
+                for item in &mut items.value {
+                    item.detach_views_for_copy(owner);
+                }
+            }
+            Value::Map(entries) => {
+                for (key, value) in &mut entries.value {
+                    key.detach_views_for_copy(owner);
+                    value.detach_views_for_copy(owner);
+                }
+            }
+            Value::Struct { fields, .. } | Value::EnumVariant { fields, .. } => {
+                for value in fields.values_mut() {
+                    value.detach_views_for_copy(owner);
+                }
+            }
+            Value::Function(function) => {
+                for scope in &mut function.captured {
+                    for binding in scope.values_mut() {
+                        let mut captured = binding.value();
+                        captured.detach_views_for_copy(owner);
+                        captured.assign_owner_recursive(owner);
+                        *binding = binding.detached_with(captured, owner);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn visit_owners(&self, visit: &mut impl FnMut(AllocationOwner)) {
         if let Some(owner) = self.owner() {
             visit(owner);
+        }
+        if let Value::Region(owner) = self {
+            visit(*owner);
         }
         match self {
             Value::Array(items) => {
@@ -287,6 +325,39 @@ impl Value {
             Value::Struct { fields, .. } | Value::EnumVariant { fields, .. } => {
                 for value in fields.values() {
                     value.visit_owners(visit);
+                }
+            }
+            Value::Function(function) => {
+                for binding in function.captured.iter().flat_map(|scope| scope.values()) {
+                    binding.value().visit_owners(visit);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    pub(crate) fn visit_region_handles(&self, visit: &mut impl FnMut(AllocationOwner)) {
+        match self {
+            Value::Region(owner) => visit(*owner),
+            Value::Array(items) => {
+                for item in &items.value {
+                    item.visit_region_handles(visit);
+                }
+            }
+            Value::Map(entries) => {
+                for (key, value) in &entries.value {
+                    key.visit_region_handles(visit);
+                    value.visit_region_handles(visit);
+                }
+            }
+            Value::Struct { fields, .. } | Value::EnumVariant { fields, .. } => {
+                for value in fields.values() {
+                    value.visit_region_handles(visit);
+                }
+            }
+            Value::Function(function) => {
+                for binding in function.captured.iter().flat_map(|scope| scope.values()) {
+                    binding.value().visit_region_handles(visit);
                 }
             }
             _ => {}
@@ -308,6 +379,7 @@ impl Value {
             | Value::U64(_)
             | Value::F32(_)
             | Value::F64(_) => "scalar",
+            Value::Region(_) => "region capability",
             Value::Str(_) => "str",
             Value::Array(_) => "array",
             Value::Map(_) => "map",
@@ -332,7 +404,8 @@ impl Value {
             | Value::U32(_)
             | Value::U64(_)
             | Value::F32(_)
-            | Value::F64(_) => 0,
+            | Value::F64(_)
+            | Value::Region(_) => 0,
             Value::Str(s) => s.len(),
             Value::Array(items) => {
                 std::mem::size_of::<Value>() * items.len()
@@ -412,6 +485,7 @@ pub fn value_to_exit_code(value: &Value) -> i32 {
                 *f as i32
             }
         }
+        Value::Region(_) => 0,
         // Strings, collections, structs, and functions default to success
         Value::Str(_)
         | Value::Array(_)

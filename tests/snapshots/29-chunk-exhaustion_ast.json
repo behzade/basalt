@@ -2,19 +2,6 @@
   "tests/29-chunk-exhaustion.bst": [
     {
       "item": {
-        "Memory": {
-          "name": "Tiny",
-          "byte_limit": 32,
-          "object_limit": 4
-        }
-      },
-      "span": {
-        "start": 0,
-        "end": 9
-      }
-    },
-    {
-      "item": {
         "Fn": {
           "name": "main",
           "generics": [],
@@ -33,6 +20,19 @@
             "item": {
               "Block": {
                 "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "Tiny",
+                        "byte_limit": 32,
+                        "object_limit": 4
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  },
                   {
                     "item": {
                       "Let": {
@@ -119,7 +119,7 @@
               }
             },
             "span": {
-              "start": 15,
+              "start": 6,
               "end": 34
             }
           },
@@ -127,7 +127,7 @@
         }
       },
       "span": {
-        "start": 9,
+        "start": 0,
         "end": 34
       }
     }

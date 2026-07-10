@@ -2,13 +2,11 @@
   {
     "Fn": {
       "signature": {
-        "name": "replace_with_temporary",
+        "name": "clear",
         "params": [
           {
-            "name": "value",
-            "ty": {
-              "Primitive": "Str"
-            },
+            "name": "region",
+            "ty": "Region",
             "is_mut": true,
             "span": null
           }
@@ -21,46 +19,28 @@
       "body": {
         "stmts": [
           {
-            "Assign": {
-              "lhs": {
+            "Reset": {
+              "region": {
                 "kind": {
                   "Path": [
-                    "value"
+                    "region"
                   ]
                 },
-                "ty": {
-                  "Primitive": "Str"
-                },
+                "ty": "Region",
                 "span": {
                   "start": 9,
-                  "end": 10
+                  "end": 11
                 },
                 "resolution": {
                   "Local": {
-                    "name": "value",
+                    "name": "region",
                     "decl_span": null
                   }
                 }
               },
-              "rhs": {
-                "kind": {
-                  "Literal": [
-                    "Str",
-                    "temporary"
-                  ]
-                },
-                "ty": {
-                  "Primitive": "Str"
-                },
-                "span": {
-                  "start": 11,
-                  "end": 12
-                },
-                "resolution": null
-              },
               "span": {
                 "start": 9,
-                "end": 12
+                "end": 11
               }
             }
           }
@@ -71,10 +51,10 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/51-stale-frame-value.bst",
+      "defined_in": "tests/69-passed-region-reset.bst",
       "span": {
         "start": 8,
-        "end": 13
+        "end": 12
       },
       "context_id": 0
     }
@@ -92,31 +72,63 @@
       "body": {
         "stmts": [
           {
+            "Memory": {
+              "name": "scratch",
+              "byte_limit": 64,
+              "object_limit": 4,
+              "span": {
+                "start": 19,
+                "end": 28
+              }
+            }
+          },
+          {
             "Let": {
-              "name": "value",
+              "name": "stale",
               "value": {
                 "kind": {
                   "Literal": [
                     "Str",
-                    "caller"
+                    "old"
                   ]
                 },
                 "ty": {
                   "Primitive": "Str"
                 },
                 "span": {
-                  "start": 24,
-                  "end": 25
+                  "start": 33,
+                  "end": 34
                 },
                 "resolution": null
               },
               "ty": {
                 "Primitive": "Str"
               },
-              "is_mut": true,
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 28,
+                  "end": 34
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "scratch",
+                    "decl_span": {
+                      "start": 19,
+                      "end": 28
+                    }
+                  }
+                }
+              },
               "span": {
-                "start": 20,
-                "end": 25
+                "start": 28,
+                "end": 34
               },
               "name_span": null
             }
@@ -129,15 +141,13 @@
                     "fun": {
                       "kind": {
                         "Path": [
-                          "replace_with_temporary"
+                          "clear"
                         ]
                       },
                       "ty": {
                         "Function": {
                           "param_types": [
-                            {
-                              "Primitive": "Str"
-                            }
+                            "Region"
                           ],
                           "ret_type": {
                             "Special": "Unit"
@@ -146,15 +156,15 @@
                         }
                       },
                       "span": {
-                        "start": 25,
-                        "end": 26
+                        "start": 34,
+                        "end": 35
                       },
                       "resolution": {
                         "Function": {
-                          "defined_in": "tests/51-stale-frame-value.bst",
+                          "defined_in": "tests/69-passed-region-reset.bst",
                           "span": {
                             "start": 0,
-                            "end": 13
+                            "end": 12
                           }
                         }
                       }
@@ -163,22 +173,20 @@
                       {
                         "kind": {
                           "Path": [
-                            "value"
+                            "scratch"
                           ]
                         },
-                        "ty": {
-                          "Primitive": "Str"
-                        },
+                        "ty": "Region",
                         "span": {
-                          "start": 27,
-                          "end": 28
+                          "start": 36,
+                          "end": 37
                         },
                         "resolution": {
                           "Local": {
-                            "name": "value",
+                            "name": "scratch",
                             "decl_span": {
-                              "start": 20,
-                              "end": 25
+                              "start": 19,
+                              "end": 28
                             }
                           }
                         }
@@ -190,23 +198,74 @@
                   "Special": "Unit"
                 },
                 "span": {
-                  "start": 25,
-                  "end": 29
+                  "start": 34,
+                  "end": 38
                 },
                 "resolution": {
                   "Function": {
-                    "defined_in": "tests/51-stale-frame-value.bst",
+                    "defined_in": "tests/69-passed-region-reset.bst",
                     "span": {
                       "start": 0,
-                      "end": 13
+                      "end": 12
                     }
                   }
                 }
               },
               "span": {
-                "start": 25,
-                "end": 29
+                "start": 34,
+                "end": 38
               }
+            }
+          },
+          {
+            "Let": {
+              "name": "fresh",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "fresh"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 43,
+                  "end": 44
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 38,
+                  "end": 44
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "scratch",
+                    "decl_span": {
+                      "start": 19,
+                      "end": 28
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 38,
+                "end": 44
+              },
+              "name_span": null
             }
           }
         ],
@@ -233,8 +292,8 @@
                   }
                 },
                 "span": {
-                  "start": 29,
-                  "end": 34
+                  "start": 44,
+                  "end": 49
                 },
                 "resolution": null
               },
@@ -242,22 +301,22 @@
                 {
                   "kind": {
                     "Path": [
-                      "value"
+                      "fresh"
                     ]
                   },
                   "ty": {
                     "Primitive": "Str"
                   },
                   "span": {
-                    "start": 29,
-                    "end": 30
+                    "start": 44,
+                    "end": 45
                   },
                   "resolution": {
                     "Local": {
-                      "name": "value",
+                      "name": "fresh",
                       "decl_span": {
-                        "start": 20,
-                        "end": 25
+                        "start": 38,
+                        "end": 44
                       }
                     }
                   }
@@ -269,8 +328,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 29,
-            "end": 34
+            "start": 44,
+            "end": 49
           },
           "resolution": null
         },
@@ -279,10 +338,10 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/51-stale-frame-value.bst",
+      "defined_in": "tests/69-passed-region-reset.bst",
       "span": {
-        "start": 19,
-        "end": 35
+        "start": 18,
+        "end": 50
       },
       "context_id": 1
     }

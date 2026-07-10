@@ -930,6 +930,13 @@ fn expression_bundle<'src>() -> (
         })
         .labelled("memory region reset");
 
+    let memory_stmt = memory_parser()
+        .map_with(|memory, e| Spanned {
+            node: StmtNode::Memory(memory),
+            span: e.span(),
+        })
+        .labelled("memory region declaration");
+
     let expr_stmt = expr.clone().map_with(|e1, e| Spanned {
         node: StmtNode::Expr(e1),
         span: e.span(),
@@ -951,6 +958,7 @@ fn expression_bundle<'src>() -> (
         .labelled("local function");
     let stmt_p = choice((
         local_fn_stmt,
+        memory_stmt,
         let_decl,
         typed_init,
         assign,
@@ -1257,7 +1265,6 @@ fn item_parser<'src>()
     let (_expr, stmt, _block) = expression_bundle();
     choice((
         import_parser(),
-        spanned(memory_parser().map(ItemNode::Memory)),
         spanned(fn_def_parser().map(ItemNode::Fn)),
         spanned(effect_parser().map(ItemNode::Effect)),
         spanned(handler_parser().map(ItemNode::Handler)),

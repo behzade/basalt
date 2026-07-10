@@ -1,0 +1,156 @@
+{
+  "tests/70-lexical-region-value-escape.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "copied",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Block": {
+                              "stmts": [
+                                {
+                                  "item": {
+                                    "Memory": {
+                                      "name": "scratch",
+                                      "byte_limit": 64,
+                                      "object_limit": 4
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 11,
+                                    "end": 20
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Let": {
+                                      "is_mut": false,
+                                      "name": "local",
+                                      "memory": "scratch",
+                                      "ty": null,
+                                      "value": {
+                                        "item": {
+                                          "Literal": {
+                                            "Str": "copied"
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 25,
+                                          "end": 26
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 20,
+                                    "end": 26
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Expr": {
+                                      "item": {
+                                        "Path": [
+                                          "local"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 26,
+                                        "end": 27
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 26,
+                                    "end": 27
+                                  }
+                                }
+                              ],
+                              "last_expr": null
+                            }
+                          },
+                          "span": {
+                            "start": 10,
+                            "end": 28
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 28
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "copied"
+                                ]
+                              },
+                              "span": {
+                                "start": 28,
+                                "end": 29
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 28,
+                          "end": 33
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 28,
+                      "end": 33
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 34
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 34
+      }
+    }
+  ]
+}

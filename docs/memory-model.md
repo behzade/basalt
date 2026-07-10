@@ -17,16 +17,16 @@ Basalt allocation is charged to a memory context.
 The default context for ordinary function-local allocations is stack-like temporary memory. Large or long-lived data should be allocated into explicit named chunk contexts.
 
 ```bst
-memory Catalog: chunk(67108864)
-
 fn main() -> i32 {
+    memory catalog: chunk(67108864)
     let scratch = "short lived"
-    let catalog in Catalog = load_catalog()
+    let records in catalog = load_catalog()
     0
 }
 ```
 
-In this example, `scratch` belongs to the current function's temporary frame. `catalog` belongs to the named `Catalog` chunk.
+In this example, `scratch` belongs to the current function's temporary frame. `records` belongs to
+the lexical `catalog` chunk. The region is destroyed when its declaring block exits.
 
 ## Contexts And Regions
 
@@ -34,7 +34,7 @@ A memory context is a lifetime and accounting unit. Contexts form a tree.
 
 - Global/root context lives for the program.
 - Function contexts are short-lived stack-like children.
-- Named chunk contexts have explicit size/object budgets and explicit lifetimes.
+- Lexically declared chunk contexts have explicit size/object budgets and block-bounded lifetimes.
 - Child contexts may read from ancestor contexts.
 - Ancestor contexts may not retain references to child contexts.
 - Sibling contexts may not reference each other directly.
@@ -61,8 +61,8 @@ The first allocator kinds are composable but simple.
 ### Chunk Allocator
 
 - Explicit size.
-- Current syntax is `memory Name: chunk(bytes[, objects])`.
-- `reset Name` rewinds the chunk and advances its allocation generation.
+- Current block-statement syntax is `memory name: chunk(bytes[, objects])`.
+- `reset name` rewinds the chunk and advances its allocation generation.
 - Bump allocation inside a named chunk.
 - Reset or destroy whole chunk.
 - No individual free initially.
@@ -93,7 +93,7 @@ Every allocation has a destination.
 
 ```text
 let x = expr            -> current temp context
-let x in Region = expr  -> named region
+let x in region = expr  -> mutable Region symbol in lexical scope
 return expr             -> caller-provided return destination
 ```
 
@@ -104,15 +104,16 @@ The caller controls where returned owned values live. A function may use tempora
 Performance-sensitive pipelines should create an explicit named context for the working set.
 
 ```bst
-memory Request: chunk(524288)
+fn parse_request(mut region: Region, body: str) -> i32 {
+    let tokens in region = lex(body)
+    let ast in region = parse(tokens)
+    let checked in region = typecheck(ast)
+    checked.score()
+}
 
 fn handle_request(body: str) -> i32 {
-    with context Request {
-        let tokens = lex(body)
-        let ast = parse(tokens)
-        let checked = typecheck(ast)
-        checked.score()
-    }
+    memory request: chunk(524288)
+    parse_request(request, body)
 }
 ```
 
@@ -148,6 +149,24 @@ Initial references should be stack-only views:
 
 This keeps the first model away from full Rust-style lifetime syntax while preserving useful no-copy reads and exclusive mutation.
 
+The interpreter now treats bindings as destination-aware views. An immutable compound parameter
+observes its source value without changing its owner. A mutable parameter aliases one caller
+binding, retains that binding's allocation destination, and copies assigned compound values into
+that destination before the callee can publish them. Passing the same binding to two mutable
+parameters in one call is rejected by the typechecker and checked again by the interpreter.
+
+`let value in Region = existing` always copies/reconstructs `existing` into `Region`, including
+when the initializer is only a path. Struct field assignment similarly places the new field value
+in the struct owner's context. These rules prevent bindings and fields from retaining callee or
+sibling-owned temporaries.
+
+Regions themselves are opaque lexical capability values. `memory name: chunk(...)` introduces an
+inherently mutable `Region` symbol in the current block. A function must receive
+`mut region: Region` to allocate into or reset the caller's region; a plain `Region` parameter has
+no allocation authority. Region capabilities cannot be returned or stored in structs. Runtime
+mutable-call checks compare underlying region identity, so two different aliases cannot lend the
+same region mutably in one call.
+
 ## Effects, Async, And Stack Unrolling
 
 The temp stack model is straightforward for normal synchronous calls. It becomes constrained at dynamic control boundaries:
@@ -172,7 +191,7 @@ Initial constraints:
 The interpreter currently implements accounting plus runtime-backed chunk reservation, not physical placement of every value into that chunk.
 
 - Heap-shaped values are charged to the active function frame.
-- Named chunk declarations reserve their backing byte budget through an internal host allocation.
+- Lexical chunk declarations reserve their backing byte budget through an internal host allocation.
 - `std::runtime::allocator::Arena` is a real bump allocator whose cursor, alignment, exhaustion,
   reset, and release policy is implemented in Basalt. The internal `std::runtime::raw` submodule
   contains its small `libc_*` process-memory boundary and opaque address operations.
@@ -188,15 +207,22 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
 - Interpreter allocation contexts now have stable identities and generations. Heap-shaped values
   record their allocation context, and every read checks that the recorded generation is live.
 - Contexts record explicit parents: the user-global context belongs to the host-private runtime
-  root, named regions and the outermost frame belong to the user-global context, and nested call
-  frames belong to their caller frame. Ancestor transfer rules are not enforced yet.
+  root, nested call frames belong to their caller frame, and a lexical region belongs to the
+  context active where its `memory` statement executes.
+- Interpreter binding reads use one checked observation path. Bindings retain their allocation
+  destination, so whole-value and field mutation reconstruct compound values in the owner context.
+- Function literals capture only referenced free variables. When a closure crosses an allocation
+  context, its captured bindings are detached and reconstructed into the closure destination;
+  mutable captured state remains shared by subsequent calls to that closure.
 - Function results are copied/reconstructed into the caller's active destination before the callee
   frame is invalidated. `let x in Region = call()` therefore makes `Region` the return destination,
   while an ordinary call returns into the caller's temporary frame.
-- A callee that writes one of its temporary compound values through a mutable caller alias leaves a
-  stale value; interpreter/debug mode rejects the next read after the callee frame exits.
-- `reset Region` clears the region's byte/object accounting and advances its generation. Existing
+- A callee that writes a compound value through a mutable caller alias reconstructs that value in
+  the caller binding's allocation destination before the callee frame exits.
+- `reset region` requires a mutable Region binding, clears byte/object accounting, and advances its generation. Existing
   values retain the prior generation and are rejected on their next read.
+- Exiting the declaring lexical block copies an owned block result into the outer destination,
+  invalidates remaining region values, and destroys the region backing allocation.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.
@@ -256,7 +282,7 @@ Main risks:
 
 - Escape behavior can become surprising unless destinations are explicit.
 - Mutable ancestor references can grow into a borrow checker if Basalt allows arbitrary stored references.
-- Chunk lifetimes need precise creation, reset, destruction, and nesting rules.
+- Dynamic region nesting beyond lexical blocks still needs precise rules.
 - Globals can break the model if they can point into ordinary chunks or temporary frames.
 - Cross-region copying needs clear copy, move, ownership, and destructor semantics.
 
@@ -272,9 +298,6 @@ Near-term recommendations from the review:
 
 ## Open Questions
 
-- Should `with context Region` be lexical only, dynamic only, or both?
-- Should region names be compile-time declarations only, or can code create dynamic region handles?
-- What is the first syntax for region declarations and byte sizes?
 - How should return destination be represented in HIR?
 - How much region information belongs in user-facing types versus internal HIR metadata?
 - Which effects are guaranteed non-suspending, and how is that represented?

@@ -1,0 +1,203 @@
+{
+  "tests/65-immutable-region-placement.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "misuse",
+          "generics": [],
+          "params": [
+            [
+              false,
+              "region",
+              {
+                "path": [
+                  "Region"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "message",
+                        "memory": "region",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "forbidden"
+                            }
+                          },
+                          "span": {
+                            "start": 15,
+                            "end": 16
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 10,
+                      "end": 16
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "message"
+                                ]
+                              },
+                              "span": {
+                                "start": 16,
+                                "end": 17
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 16,
+                          "end": 21
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 21
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 9,
+              "end": 22
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 22
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "scratch",
+                        "byte_limit": 64,
+                        "object_limit": 4
+                      }
+                    },
+                    "span": {
+                      "start": 29,
+                      "end": 38
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "misuse"
+                                ]
+                              },
+                              "span": {
+                                "start": 38,
+                                "end": 39
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Path": [
+                                    "scratch"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 40,
+                                  "end": 41
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 38,
+                          "end": 42
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 38,
+                      "end": 42
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 28,
+              "end": 43
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 22,
+        "end": 43
+      }
+    }
+  ]
+}

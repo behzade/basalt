@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::hir::{
     self, BinaryOp, Expr, ExprKind, HirBlock, HirFunction, HirHandlerBody, Stmt, UnaryOp,
@@ -47,6 +47,8 @@ impl Interpreter {
         env: &mut Env,
     ) -> Result<Flow<Vec<CallArgument>>> {
         let mut evaluated = Vec::with_capacity(args.len());
+        let mut mutable_bindings: Vec<Binding> = Vec::new();
+        let mut mutable_regions = HashSet::new();
         for (index, arg) in args.iter().enumerate() {
             if params.get(index).is_some_and(|param| param.is_mut) {
                 let ExprKind::Path(path) = &arg.kind else {
@@ -60,7 +62,26 @@ impl Interpreter {
                 let binding = env
                     .binding(name)
                     .ok_or_else(|| RuntimeError(format!("Undefined mutable argument: {}", name)))?;
-                self.ensure_live(&binding.value())?;
+                let binding_value = binding.value();
+                self.ensure_live(&binding_value)?;
+                if mutable_bindings
+                    .iter()
+                    .any(|existing| existing.same_storage(&binding))
+                {
+                    return Err(RuntimeError(format!(
+                        "Mutable argument '{}' aliases another mutable argument in the same call",
+                        name
+                    )));
+                }
+                if let Value::Region(owner) = binding_value
+                    && !mutable_regions.insert(owner.id)
+                {
+                    return Err(RuntimeError(format!(
+                        "Region argument '{}' aliases another mutable region in the same call",
+                        name
+                    )));
+                }
+                mutable_bindings.push(binding.clone());
                 evaluated.push(CallArgument::MutableBinding(binding));
             } else {
                 match self.eval_expr(arg, env)? {
@@ -73,16 +94,10 @@ impl Interpreter {
     }
 
     pub fn new(items: &[hir::Item]) -> Result<Self> {
-        let mut stack = StackAllocator::default();
-        for item in items {
-            if let hir::Item::Memory(memory) = item {
-                stack.define_region(memory.name.clone(), memory.byte_limit, memory.object_limit)?;
-            }
-        }
         Ok(Interpreter {
             index: HirIndex::from_items(items),
             active_handlers: RefCell::new(vec![]),
-            stack: RefCell::new(stack),
+            stack: RefCell::new(StackAllocator::default()),
             runtime_memory: RefCell::new(runtime::RuntimeMemory::default()),
         })
     }
@@ -151,10 +166,16 @@ impl Interpreter {
                 CallArgument::MutableBinding(binding) if param.is_mut => {
                     env.define_alias(param.name.clone(), binding)
                 }
-                CallArgument::MutableBinding(binding) => {
-                    env.define(param.name.clone(), binding.value(), false)
+                CallArgument::MutableBinding(binding) => env.define(
+                    param.name.clone(),
+                    binding.value(),
+                    false,
+                    binding.destination(),
+                ),
+                CallArgument::Value(value) => {
+                    let destination = value.owner();
+                    env.define(param.name.clone(), value, param.is_mut, destination)
                 }
-                CallArgument::Value(value) => env.define(param.name.clone(), value, param.is_mut),
             }
         }
 
@@ -181,12 +202,12 @@ impl Interpreter {
         let return_target = self.stack.borrow().return_target();
         let _frame = StackFrameGuard::push(&self.stack, "<fn literal>");
         // Recreate environment with captured scopes and a fresh top scope for parameters
-        let mut env = Env {
-            scopes: function.captured.clone(),
-        };
+        let mut env = Env::with_captured(function.captured.clone());
         env.push_scope();
         for (idx, param) in function.params.iter().enumerate() {
-            env.define(param.name.clone(), args[idx].clone(), param.is_mut);
+            let value = args[idx].clone();
+            let destination = value.owner();
+            env.define(param.name.clone(), value, param.is_mut, destination);
         }
         let value = match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => value,
@@ -203,8 +224,7 @@ impl Interpreter {
             match self.eval_stmt(stmt, env)? {
                 Flow::Value(()) => {}
                 Flow::Return(value) => {
-                    env.pop_scope();
-                    return Ok(Flow::Return(value));
+                    return self.finish_block_scope(Flow::Return(value), env);
                 }
             }
         }
@@ -213,12 +233,72 @@ impl Interpreter {
         } else {
             Flow::Value(Value::Unit)
         };
-        env.pop_scope();
-        Ok(result)
+        self.finish_block_scope(result, env)
+    }
+
+    fn finish_block_scope(&self, flow: Flow<Value>, env: &mut Env) -> Result<Flow<Value>> {
+        let regions = env.pop_scope();
+        let mut escaping_region = false;
+        let value = match &flow {
+            Flow::Value(value) | Flow::Return(value) => value,
+        };
+        value.visit_region_handles(&mut |owner| {
+            if regions.iter().any(|region| region.id == owner.id) {
+                escaping_region = true;
+            }
+        });
+        let placed = if escaping_region {
+            Err(RuntimeError(
+                "Region capability cannot escape its declaring scope".to_string(),
+            ))
+        } else {
+            let target = self.stack.borrow().current_target();
+            match flow {
+                Flow::Value(value) => self
+                    .stack
+                    .borrow_mut()
+                    .copy_value_to(target, value)
+                    .map(Flow::Value),
+                Flow::Return(value) => self
+                    .stack
+                    .borrow_mut()
+                    .copy_value_to(target, value)
+                    .map(Flow::Return),
+            }
+        };
+
+        let mut cleanup_error = None;
+        for region in regions.into_iter().rev() {
+            if let Err(error) = self.stack.borrow_mut().destroy_region(region)
+                && cleanup_error.is_none()
+            {
+                cleanup_error = Some(error);
+            }
+        }
+        match (placed, cleanup_error) {
+            (Err(error), _) | (Ok(_), Some(error)) => Err(error),
+            (Ok(flow), None) => Ok(flow),
+        }
     }
 
     fn eval_stmt(&self, stmt: &Stmt, env: &mut Env) -> Result<Flow<()>> {
         match stmt {
+            Stmt::Memory {
+                name,
+                byte_limit,
+                object_limit,
+                ..
+            } => {
+                let owner = self.stack.borrow_mut().define_region(
+                    name.clone(),
+                    *byte_limit,
+                    *object_limit,
+                )?;
+                let destination = self.stack.borrow().current_target();
+                env.define(name.clone(), Value::Region(owner), true, destination);
+                env.register_region(owner);
+                Ok(Flow::Value(()))
+            }
             Stmt::Let {
                 name,
                 value,
@@ -226,17 +306,50 @@ impl Interpreter {
                 is_mut,
                 ..
             } => {
-                let v = if let Some(expr) = value {
-                    let _region_guard = AllocationRegionGuard::enter(&self.stack, memory.clone());
+                let region = if let Some(region) = memory {
+                    let value = flow_value!(self.eval_expr(region, env));
+                    let Value::Region(owner) = value else {
+                        return Err(RuntimeError(
+                            "Memory placement target must be Region".to_string(),
+                        ));
+                    };
+                    Some(owner)
+                } else {
+                    None
+                };
+                let value = if let Some(expr) = value {
+                    let _region_guard = AllocationRegionGuard::enter(&self.stack, region);
                     flow_value!(self.eval_expr(expr, env))
                 } else {
                     Value::Unit
                 };
-                env.define(name.clone(), v, *is_mut);
+                let destination = region
+                    .or_else(|| self.stack.borrow().current_target())
+                    .ok_or_else(|| {
+                        RuntimeError("No active allocation context for binding".to_string())
+                    })?;
+                let value = self
+                    .stack
+                    .borrow_mut()
+                    .copy_value_to(Some(destination), value)?;
+                env.define(name.clone(), value, *is_mut, Some(destination));
                 Ok(Flow::Value(()))
             }
             Stmt::Reset { region, .. } => {
-                self.stack.borrow_mut().reset_region(region)?;
+                let value = flow_value!(self.eval_expr(region, env));
+                let Value::Region(owner) = value else {
+                    return Err(RuntimeError("reset target must be Region".to_string()));
+                };
+                let owner = self.stack.borrow_mut().reset_region(owner)?;
+                let ExprKind::Path(path) = &region.kind else {
+                    return Err(RuntimeError(
+                        "reset target must be a mutable region binding".to_string(),
+                    ));
+                };
+                let name = path
+                    .last()
+                    .ok_or_else(|| RuntimeError("reset target has an empty path".to_string()))?;
+                self.assign_binding(env, name, Value::Region(owner))?;
                 Ok(Flow::Value(()))
             }
             Stmt::Return { value, .. } => {
@@ -251,17 +364,17 @@ impl Interpreter {
                 if let ExprKind::Path(path) = &lhs.kind {
                     if let Some(var_name) = path.last() {
                         let new_val = flow_value!(self.eval_expr(rhs, env));
-                        env.assign(var_name, new_val)?;
+                        self.assign_binding(env, var_name, new_val)?;
                         return Ok(Flow::Value(()));
                     }
                 }
                 if let ExprKind::FieldAccess { receiver, field } = &lhs.kind {
                     if let ExprKind::Path(p) = &receiver.kind {
                         if let Some(owner_name) = p.last() {
-                            let owner_val = env.get(owner_name).ok_or_else(|| {
-                                RuntimeError(format!("Undefined variable: {}", owner_name))
-                            })?;
-                            self.ensure_live(&owner_val)?;
+                            let owner_val =
+                                self.read_binding(env, owner_name)?.ok_or_else(|| {
+                                    RuntimeError(format!("Undefined variable: {}", owner_name))
+                                })?;
                             if let Value::Struct {
                                 path,
                                 fields,
@@ -270,8 +383,11 @@ impl Interpreter {
                             {
                                 let mut new_fields = fields.clone();
                                 let new_val = flow_value!(self.eval_expr(rhs, env));
+                                let new_val =
+                                    self.stack.borrow_mut().copy_value_to(owner, new_val)?;
                                 new_fields.insert(field.clone(), new_val);
-                                env.assign(
+                                self.assign_binding(
+                                    env,
                                     owner_name,
                                     Value::Struct {
                                         path,
@@ -325,8 +441,7 @@ impl Interpreter {
             ExprKind::Path(path) => {
                 // Variable lookup for simple paths
                 if let Some(name) = path.last() {
-                    if let Some(val) = env.get(name) {
-                        self.ensure_live(&val)?;
+                    if let Some(val) = self.read_binding(env, name)? {
                         return Ok(Flow::Value(val));
                     }
                     if let Some(function) = self.resolved_function(expr, name) {
@@ -365,7 +480,7 @@ impl Interpreter {
                 if let ExprKind::Path(p) = &fun.kind {
                     if let Some(name) = p.last() {
                         // Variable binding holding a function value shadows top-level functions.
-                        if let Some(Value::Function(func_val)) = env.get(name) {
+                        if let Some(Value::Function(func_val)) = self.read_binding(env, name)? {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
                                 evaled.push(flow_value!(self.eval_expr(a, env)));
@@ -484,7 +599,8 @@ impl Interpreter {
                         let mut arm_env = env.clone();
                         arm_env.push_scope();
                         for (name, value) in bindings {
-                            arm_env.define(name, value, false);
+                            let destination = value.owner();
+                            arm_env.define(name, value, false, destination);
                         }
                         let result = self.eval_expr(arm_expr, &mut arm_env);
                         arm_env.pop_scope();
@@ -524,11 +640,12 @@ impl Interpreter {
                 result
             }
             ExprKind::FnLiteral(f) => {
+                let captures = Self::fn_literal_captures(f);
                 let func_val = FunctionValue {
                     owner: None,
                     params: f.params.clone(),
                     body: f.body.clone(),
-                    captured: env.scopes.clone(),
+                    captured: env.capture(&captures),
                 };
                 self.alloc(Value::Function(func_val)).map(Flow::Value)
             }
@@ -592,7 +709,7 @@ impl Interpreter {
                 let Some(name) = path.last() else {
                     return Err(RuntimeError("Empty handler path".to_string()));
                 };
-                if let Some(Value::Handler(value)) = env.get(name) {
+                if let Some(Value::Handler(value)) = self.read_binding(env, name)? {
                     return Ok(Value::Handler(value));
                 }
                 let Some(handler) = self.index.handler(name) else {
@@ -690,6 +807,192 @@ impl Interpreter {
             return None;
         };
         self.index.resolved_function(defined_in, name)
+    }
+
+    fn fn_literal_captures(function: &hir::HirFnLiteral) -> HashSet<String> {
+        let mut declared = function
+            .params
+            .iter()
+            .map(|param| param.name.clone())
+            .collect::<HashSet<_>>();
+        let mut captures = HashSet::new();
+        Self::collect_block_captures(&function.body, &mut declared, &mut captures);
+        captures
+    }
+
+    fn collect_block_captures(
+        block: &HirBlock,
+        outer_declared: &mut HashSet<String>,
+        captures: &mut HashSet<String>,
+    ) {
+        let mut declared = outer_declared.clone();
+        for stmt in &block.stmts {
+            match stmt {
+                Stmt::Memory { name, .. } => {
+                    declared.insert(name.clone());
+                }
+                Stmt::Let {
+                    name,
+                    value,
+                    memory,
+                    ..
+                } => {
+                    if let Some(memory) = memory {
+                        Self::collect_expr_captures(memory, &declared, captures);
+                    }
+                    if let Some(value) = value {
+                        Self::collect_expr_captures(value, &declared, captures);
+                    }
+                    declared.insert(name.clone());
+                }
+                Stmt::Reset { region, .. } => {
+                    Self::collect_expr_captures(region, &declared, captures)
+                }
+                Stmt::Return { value, .. } => {
+                    if let Some(value) = value {
+                        Self::collect_expr_captures(value, &declared, captures);
+                    }
+                }
+                Stmt::Assign { lhs, rhs, .. } => {
+                    Self::collect_expr_captures(lhs, &declared, captures);
+                    Self::collect_expr_captures(rhs, &declared, captures);
+                }
+                Stmt::Expr { expr, .. } => Self::collect_expr_captures(expr, &declared, captures),
+                Stmt::Error { .. } => {}
+            }
+        }
+        if let Some(last) = &block.last_expr {
+            Self::collect_expr_captures(last, &declared, captures);
+        }
+    }
+
+    fn collect_expr_captures(
+        expr: &Expr,
+        declared: &HashSet<String>,
+        captures: &mut HashSet<String>,
+    ) {
+        match &expr.kind {
+            ExprKind::Literal(_, _) | ExprKind::Error => {}
+            ExprKind::Array(items) => {
+                for item in items {
+                    Self::collect_expr_captures(item, declared, captures);
+                }
+            }
+            ExprKind::Map(entries) => {
+                for (key, value) in entries {
+                    Self::collect_expr_captures(key, declared, captures);
+                    Self::collect_expr_captures(value, declared, captures);
+                }
+            }
+            ExprKind::Path(path) => {
+                if !matches!(expr.resolution, Some(hir::Resolution::Function { .. }))
+                    && let Some(name) = path.last()
+                    && !declared.contains(name)
+                {
+                    captures.insert(name.clone());
+                }
+            }
+            ExprKind::FieldAccess { receiver, .. }
+            | ExprKind::Unary { rhs: receiver, .. }
+            | ExprKind::Cast { expr: receiver } => {
+                Self::collect_expr_captures(receiver, declared, captures)
+            }
+            ExprKind::Binary { lhs, rhs, .. } => {
+                Self::collect_expr_captures(lhs, declared, captures);
+                Self::collect_expr_captures(rhs, declared, captures);
+            }
+            ExprKind::Call { fun, args } => {
+                Self::collect_expr_captures(fun, declared, captures);
+                for arg in args {
+                    Self::collect_expr_captures(arg, declared, captures);
+                }
+            }
+            ExprKind::StructInit { fields, .. } => {
+                for (_, value) in fields {
+                    Self::collect_expr_captures(value, declared, captures);
+                }
+            }
+            ExprKind::Block(block) => {
+                Self::collect_block_captures(block, &mut declared.clone(), captures)
+            }
+            ExprKind::If {
+                cond,
+                then_block,
+                else_block,
+            } => {
+                Self::collect_expr_captures(cond, declared, captures);
+                Self::collect_block_captures(then_block, &mut declared.clone(), captures);
+                if let Some(else_block) = else_block {
+                    Self::collect_expr_captures(else_block, declared, captures);
+                }
+            }
+            ExprKind::Match { scrutinee, arms } => {
+                Self::collect_expr_captures(scrutinee, declared, captures);
+                for (pattern, arm) in arms {
+                    let mut arm_declared = declared.clone();
+                    Self::collect_pattern_bindings(pattern, &mut arm_declared);
+                    Self::collect_expr_captures(arm, &arm_declared, captures);
+                }
+            }
+            ExprKind::While { cond, body } => {
+                Self::collect_expr_captures(cond, declared, captures);
+                Self::collect_block_captures(body, &mut declared.clone(), captures);
+            }
+            ExprKind::Perform { args, .. } => {
+                for arg in args {
+                    Self::collect_expr_captures(arg, declared, captures);
+                }
+            }
+            ExprKind::Handler(handler) => {
+                Self::collect_handler_captures(handler, declared, captures)
+            }
+            ExprKind::Handle { body, handler } => {
+                Self::collect_block_captures(body, &mut declared.clone(), captures);
+                Self::collect_expr_captures(handler, declared, captures);
+            }
+            ExprKind::FnLiteral(function) => {
+                let mut nested_declared = declared.clone();
+                nested_declared.extend(function.params.iter().map(|param| param.name.clone()));
+                Self::collect_block_captures(&function.body, &mut nested_declared, captures);
+            }
+        }
+    }
+
+    fn collect_handler_captures(
+        handler: &HirHandlerBody,
+        declared: &HashSet<String>,
+        captures: &mut HashSet<String>,
+    ) {
+        match handler {
+            HirHandlerBody::Path(path) => {
+                if let Some(name) = path.last()
+                    && !declared.contains(name)
+                {
+                    captures.insert(name.clone());
+                }
+            }
+            HirHandlerBody::Composed { base, handlers } => {
+                Self::collect_handler_captures(base, declared, captures);
+                for handler in handlers {
+                    Self::collect_handler_captures(handler, declared, captures);
+                }
+            }
+            HirHandlerBody::Inline(_) => {}
+        }
+    }
+
+    fn collect_pattern_bindings(pattern: &hir::HirPattern, declared: &mut HashSet<String>) {
+        match &pattern.kind {
+            hir::HirPatternKind::Identifier(name) => {
+                declared.insert(name.clone());
+            }
+            hir::HirPatternKind::Path { args, .. } => {
+                for pattern in args {
+                    Self::collect_pattern_bindings(pattern, declared);
+                }
+            }
+            hir::HirPatternKind::Literal(_, _) | hir::HirPatternKind::Wildcard => {}
+        }
     }
 
     fn function_value(function: &HirFunction) -> Value {
@@ -818,6 +1121,33 @@ impl Interpreter {
 
     fn ensure_live(&self, value: &Value) -> Result<()> {
         self.stack.borrow().validate_value(value)
+    }
+
+    fn read_binding(&self, env: &Env, name: &str) -> Result<Option<Value>> {
+        let Some(binding) = env.binding(name) else {
+            return Ok(None);
+        };
+        let value = binding.value();
+        self.ensure_live(&value)?;
+        Ok(Some(value))
+    }
+
+    fn assign_binding(&self, env: &mut Env, name: &str, value: Value) -> Result<()> {
+        let binding = env
+            .binding(name)
+            .ok_or_else(|| RuntimeError(format!("Undefined variable: {}", name)))?;
+        if !binding.is_mutable() {
+            return Err(RuntimeError(format!(
+                "Cannot assign to immutable variable: {}",
+                name
+            )));
+        }
+        let value = self
+            .stack
+            .borrow_mut()
+            .copy_value_to(binding.destination(), value)?;
+        binding.replace(value);
+        Ok(())
     }
 
     fn cast_value(&self, value: Value, target_ty: &hir::Ty) -> Result<Value> {
@@ -1068,6 +1398,7 @@ fn is_truthy(v: &Value) -> bool {
         Value::U64(i) => *i != 0,
         Value::F32(f) => *f != 0.0,
         Value::F64(f) => *f != 0.0,
+        Value::Region(_) => true,
         Value::Str(s) => !s.is_empty(),
         Value::Array(a) => !a.is_empty(),
         Value::Map(m) => !m.is_empty(),

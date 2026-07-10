@@ -1,17 +1,5 @@
 [
   {
-    "Memory": {
-      "name": "Result",
-      "byte_limit": 128,
-      "object_limit": 4,
-      "defined_in": "tests/52-named-return-context.bst",
-      "span": {
-        "start": 0,
-        "end": 9
-      }
-    }
-  },
-  {
     "Fn": {
       "signature": {
         "name": "make_message",
@@ -34,8 +22,8 @@
             "Primitive": "Str"
           },
           "span": {
-            "start": 16,
-            "end": 17
+            "start": 7,
+            "end": 8
           },
           "resolution": null
         },
@@ -46,8 +34,8 @@
       "is_public": false,
       "defined_in": "tests/52-named-return-context.bst",
       "span": {
-        "start": 15,
-        "end": 18
+        "start": 6,
+        "end": 9
       },
       "context_id": 0
     }
@@ -64,6 +52,17 @@
       },
       "body": {
         "stmts": [
+          {
+            "Memory": {
+              "name": "Result",
+              "byte_limit": 128,
+              "object_limit": 4,
+              "span": {
+                "start": 16,
+                "end": 25
+              }
+            }
+          },
           {
             "Let": {
               "name": "message",
@@ -93,8 +92,8 @@
                         "Function": {
                           "defined_in": "tests/52-named-return-context.bst",
                           "span": {
-                            "start": 9,
-                            "end": 18
+                            "start": 0,
+                            "end": 9
                           }
                         }
                       }
@@ -113,8 +112,8 @@
                   "Function": {
                     "defined_in": "tests/52-named-return-context.bst",
                     "span": {
-                      "start": 9,
-                      "end": 18
+                      "start": 0,
+                      "end": 9
                     }
                   }
                 }
@@ -123,7 +122,27 @@
                 "Primitive": "Str"
               },
               "is_mut": false,
-              "memory": "Result",
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Result"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 25,
+                  "end": 33
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Result",
+                    "decl_span": {
+                      "start": 16,
+                      "end": 25
+                    }
+                  }
+                }
+              },
               "span": {
                 "start": 25,
                 "end": 33
@@ -203,7 +222,7 @@
       "is_public": false,
       "defined_in": "tests/52-named-return-context.bst",
       "span": {
-        "start": 24,
+        "start": 15,
         "end": 39
       },
       "context_id": 1

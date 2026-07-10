@@ -1,0 +1,250 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "scratch",
+              "byte_limit": 64,
+              "object_limit": 4,
+              "span": {
+                "start": 7,
+                "end": 16
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "allocate",
+              "value": {
+                "kind": {
+                  "FnLiteral": {
+                    "params": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": [],
+                    "body": {
+                      "stmts": [
+                        {
+                          "Let": {
+                            "name": "value",
+                            "value": {
+                              "kind": {
+                                "Literal": [
+                                  "Str",
+                                  "local"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "Str"
+                              },
+                              "span": {
+                                "start": 30,
+                                "end": 31
+                              },
+                              "resolution": null
+                            },
+                            "ty": {
+                              "Primitive": "Str"
+                            },
+                            "is_mut": false,
+                            "memory": {
+                              "kind": {
+                                "Path": [
+                                  "scratch"
+                                ]
+                              },
+                              "ty": "Region",
+                              "span": {
+                                "start": 25,
+                                "end": 31
+                              },
+                              "resolution": {
+                                "Local": {
+                                  "name": "scratch",
+                                  "decl_span": {
+                                    "start": 7,
+                                    "end": 16
+                                  }
+                                }
+                              }
+                            },
+                            "span": {
+                              "start": 25,
+                              "end": 31
+                            },
+                            "name_span": null
+                          }
+                        }
+                      ],
+                      "last_expr": {
+                        "kind": {
+                          "Call": {
+                            "fun": {
+                              "kind": {
+                                "Path": [
+                                  "len"
+                                ]
+                              },
+                              "ty": {
+                                "Function": {
+                                  "param_types": [
+                                    {
+                                      "Primitive": "Str"
+                                    }
+                                  ],
+                                  "ret_type": {
+                                    "Primitive": "I32"
+                                  },
+                                  "effects": []
+                                }
+                              },
+                              "span": {
+                                "start": 31,
+                                "end": 36
+                              },
+                              "resolution": null
+                            },
+                            "args": [
+                              {
+                                "kind": {
+                                  "Path": [
+                                    "value"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "Str"
+                                },
+                                "span": {
+                                  "start": 31,
+                                  "end": 32
+                                },
+                                "resolution": {
+                                  "Local": {
+                                    "name": "value",
+                                    "decl_span": {
+                                      "start": 25,
+                                      "end": 31
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 31,
+                          "end": 36
+                        },
+                        "resolution": null
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 19,
+                  "end": 37
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Function": {
+                  "param_types": [],
+                  "ret_type": {
+                    "Primitive": "I32"
+                  },
+                  "effects": []
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 16,
+                "end": 37
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "allocate"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 37,
+                  "end": 38
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "allocate",
+                    "decl_span": {
+                      "start": 16,
+                      "end": 37
+                    }
+                  }
+                }
+              },
+              "args": []
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 37,
+            "end": 40
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/74-local-region-closure.bst",
+      "span": {
+        "start": 6,
+        "end": 41
+      },
+      "context_id": 0
+    }
+  }
+]

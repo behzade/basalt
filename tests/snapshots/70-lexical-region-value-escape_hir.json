@@ -1,0 +1,210 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "copied",
+              "value": {
+                "kind": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "Memory": {
+                          "name": "scratch",
+                          "byte_limit": 64,
+                          "object_limit": 4,
+                          "span": {
+                            "start": 11,
+                            "end": 20
+                          }
+                        }
+                      },
+                      {
+                        "Let": {
+                          "name": "local",
+                          "value": {
+                            "kind": {
+                              "Literal": [
+                                "Str",
+                                "copied"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "Str"
+                            },
+                            "span": {
+                              "start": 25,
+                              "end": 26
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "is_mut": false,
+                          "memory": {
+                            "kind": {
+                              "Path": [
+                                "scratch"
+                              ]
+                            },
+                            "ty": "Region",
+                            "span": {
+                              "start": 20,
+                              "end": 26
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "scratch",
+                                "decl_span": {
+                                  "start": 11,
+                                  "end": 20
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 20,
+                            "end": 26
+                          },
+                          "name_span": null
+                        }
+                      }
+                    ],
+                    "last_expr": {
+                      "kind": {
+                        "Path": [
+                          "local"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "Str"
+                      },
+                      "span": {
+                        "start": 26,
+                        "end": 27
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "local",
+                          "decl_span": {
+                            "start": 20,
+                            "end": 26
+                          }
+                        }
+                      }
+                    },
+                    "ty": {
+                      "Primitive": "Str"
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 10,
+                  "end": 28
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 7,
+                "end": 28
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 28,
+                  "end": 33
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "copied"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 28,
+                    "end": 29
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "copied",
+                      "decl_span": {
+                        "start": 7,
+                        "end": 28
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 28,
+            "end": 33
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/70-lexical-region-value-escape.bst",
+      "span": {
+        "start": 6,
+        "end": 34
+      },
+      "context_id": 0
+    }
+  }
+]

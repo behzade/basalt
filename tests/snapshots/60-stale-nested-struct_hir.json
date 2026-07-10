@@ -1,0 +1,269 @@
+[
+  {
+    "Struct": {
+      "name": "Message",
+      "fields": [
+        {
+          "name": "text",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/60-stale-nested-struct.bst",
+      "span": {
+        "start": 0,
+        "end": 8
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "Scratch",
+              "byte_limit": 128,
+              "object_limit": 8,
+              "span": {
+                "start": 15,
+                "end": 24
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "Message"
+                    ],
+                    "fields": [
+                      [
+                        "text",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "stale"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 33,
+                            "end": 34
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Message"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 29,
+                  "end": 35
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Message"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 24,
+                  "end": 35
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 15,
+                      "end": 24
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 24,
+                "end": 35
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Reset": {
+              "region": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 35,
+                  "end": 37
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 15,
+                      "end": 24
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 35,
+                "end": 37
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 37,
+                  "end": 44
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "FieldAccess": {
+                      "receiver": {
+                        "kind": {
+                          "Path": [
+                            "message"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Message"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 37,
+                          "end": 38
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "message",
+                            "decl_span": {
+                              "start": 24,
+                              "end": 35
+                            }
+                          }
+                        }
+                      },
+                      "field": "text"
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 37,
+                    "end": 40
+                  },
+                  "resolution": {
+                    "Field": {
+                      "owner": [
+                        "Message"
+                      ],
+                      "field": "text"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 37,
+            "end": 44
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/60-stale-nested-struct.bst",
+      "span": {
+        "start": 14,
+        "end": 45
+      },
+      "context_id": 1
+    }
+  }
+]

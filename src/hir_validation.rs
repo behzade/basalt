@@ -45,7 +45,6 @@ impl Validator {
     fn validate_item(&mut self, item: &hir::Item) {
         match item {
             hir::Item::Fn(f) => self.validate_function(f),
-            hir::Item::Memory(_) => {}
             hir::Item::Struct(s) => {
                 for field in &s.fields {
                     self.validate_ty(&field.ty, &s.defined_in, s.span);
@@ -102,7 +101,7 @@ impl Validator {
                     true
                 }
             },
-            hir::Ty::Special(_) | hir::Ty::Primitive(_) => actual == expected,
+            hir::Ty::Special(_) | hir::Ty::Primitive(_) | hir::Ty::Region => actual == expected,
             hir::Ty::Adt(expected_adt) => match (actual, expected_adt) {
                 (
                     hir::Ty::Adt(hir::AdtTy::Struct {
@@ -346,9 +345,34 @@ impl Validator {
 
     fn validate_stmt(&mut self, stmt: &hir::Stmt, path: &PathBuf, expected_return_ty: &hir::Ty) {
         match stmt {
-            hir::Stmt::Let {
-                value, ty, span, ..
+            hir::Stmt::Memory {
+                byte_limit, span, ..
             } => {
+                if *byte_limit == 0 {
+                    self.error(
+                        path,
+                        *span,
+                        "HIR memory region has zero capacity".to_string(),
+                    );
+                }
+            }
+            hir::Stmt::Let {
+                value,
+                ty,
+                memory,
+                span,
+                ..
+            } => {
+                if let Some(memory) = memory {
+                    self.validate_expr(memory, path);
+                    if !crate::typechecker::checker::Typechecker::is_region_ty(&memory.ty) {
+                        self.error(
+                            path,
+                            *span,
+                            "HIR placement target is not Region".to_string(),
+                        );
+                    }
+                }
                 self.validate_ty(ty, path, *span);
                 if let Some(value) = value {
                     self.validate_expr(value, path);
@@ -364,7 +388,12 @@ impl Validator {
                     }
                 }
             }
-            hir::Stmt::Reset { .. } => {}
+            hir::Stmt::Reset { region, span } => {
+                self.validate_expr(region, path);
+                if !crate::typechecker::checker::Typechecker::is_region_ty(&region.ty) {
+                    self.error(path, *span, "HIR reset target is not Region".to_string());
+                }
+            }
             hir::Stmt::Return { value, span } => {
                 let actual = value
                     .as_ref()
@@ -1438,7 +1467,7 @@ impl Validator {
 
     fn validate_ty(&mut self, ty: &hir::Ty, path: &PathBuf, span: SimpleSpan) {
         match ty {
-            hir::Ty::Special(_) | hir::Ty::Primitive(_) => {}
+            hir::Ty::Special(_) | hir::Ty::Primitive(_) | hir::Ty::Region => {}
             hir::Ty::Adt(hir::AdtTy::Struct { name, generics }) => {
                 if !self.index.contains_struct(name) {
                     self.error(

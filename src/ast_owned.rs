@@ -169,6 +169,7 @@ pub enum OwnedExpr {
 /// Owned version of Stmt for symbol signatures
 #[derive(Debug, Clone, Serialize)]
 pub enum OwnedStmt {
+    Memory(OwnedMemoryDef),
     Let {
         is_mut: bool,
         name: String,
@@ -224,7 +225,6 @@ pub enum OwnedHandlerBody {
 pub enum OwnedItem {
     Stmt(SpannedStmt), // UPDATED
     ImportBlock { imports: Vec<OwnedImportPath> },
-    Memory(OwnedMemoryDef),
     Fn(OwnedFunction),
     Struct(OwnedStructDef),
     Enum(OwnedEnumDef),
@@ -464,11 +464,6 @@ impl<'src> From<&Item<'src>> for OwnedItem {
             ItemNode::ImportBlock { imports } => OwnedItem::ImportBlock {
                 imports: imports.iter().map(|i| i.into()).collect(),
             },
-            ItemNode::Memory(m) => OwnedItem::Memory(OwnedMemoryDef {
-                name: m.name.to_string(),
-                byte_limit: m.byte_limit,
-                object_limit: m.object_limit,
-            }),
             ItemNode::Fn(f) => OwnedItem::Fn(f.into()),
             ItemNode::Struct(s) => OwnedItem::Struct(s.into()),
             ItemNode::Enum(e) => OwnedItem::Enum(e.into()),
@@ -644,6 +639,11 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
 impl<'src> From<&Stmt<'src>> for SpannedStmt {
     fn from(spanned_stmt: &Stmt<'src>) -> Self {
         let owned_node = match &spanned_stmt.node {
+            StmtNode::Memory(memory) => OwnedStmt::Memory(OwnedMemoryDef {
+                name: memory.name.to_string(),
+                byte_limit: memory.byte_limit,
+                object_limit: memory.object_limit,
+            }),
             StmtNode::Let {
                 is_mut,
                 name,

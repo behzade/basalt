@@ -8,12 +8,126 @@ use crate::typechecker::resolver::{ResolveError, ResolvedValue};
 use crate::typechecker::symbols::Symbol;
 
 impl Typechecker {
+    fn lower_mutable_region(
+        &mut self,
+        name: &str,
+        span: crate::token::SimpleSpan,
+        context: &ItemContext,
+    ) -> Result<hir::Expr, ()> {
+        let Some(Symbol::Variable {
+            ty,
+            is_mut,
+            decl_span,
+            ..
+        }) = self.lookup_symbol(name).cloned()
+        else {
+            self.errors.push(TypeError {
+                message: format!("Unknown region symbol '{}'", name),
+                context: ItemContext {
+                    span,
+                    path: context.path.clone(),
+                },
+            });
+            return Err(());
+        };
+        if !Self::is_region_ty(&ty) {
+            self.errors.push(TypeError {
+                message: format!("Placement target '{}' must have type Region", name),
+                context: ItemContext {
+                    span,
+                    path: context.path.clone(),
+                },
+            });
+            return Err(());
+        }
+        if !is_mut {
+            self.errors.push(TypeError {
+                message: format!("Region '{}' requires mutable authority", name),
+                context: ItemContext {
+                    span,
+                    path: context.path.clone(),
+                },
+            });
+            return Err(());
+        }
+        Ok(hir::Expr {
+            kind: hir::ExprKind::Path(vec![name.to_string()]),
+            ty,
+            span,
+            resolution: Some(hir::Resolution::Local {
+                name: name.to_string(),
+                decl_span,
+            }),
+        })
+    }
+
     pub(crate) fn lower_stmt(
         &mut self,
         stmt: SpannedStmt,
         context: ItemContext,
     ) -> Result<hir::Stmt, ()> {
         match stmt.item {
+            OwnedStmt::Memory(memory) => {
+                if memory.byte_limit == 0 {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Memory region '{}' must have a non-zero byte limit",
+                            memory.name
+                        ),
+                        context: ItemContext {
+                            span: stmt.span,
+                            path: context.path.clone(),
+                        },
+                    });
+                    return Err(());
+                }
+                if self
+                    .scopes
+                    .last()
+                    .is_some_and(|scope| scope.contains_key(&memory.name))
+                {
+                    self.errors.push(TypeError {
+                        message: format!(
+                            "Variable '{}' already defined in this scope",
+                            memory.name
+                        ),
+                        context: ItemContext {
+                            span: stmt.span,
+                            path: context.path.clone(),
+                        },
+                    });
+                    return Err(());
+                }
+                let region_ty = Self::region_ty();
+                self.add_symbol_to_current_scope(
+                    memory.name.clone(),
+                    Symbol::Variable {
+                        ty: region_ty.clone(),
+                        is_mut: true,
+                        initialized: true,
+                        decl_span: Some(stmt.span),
+                    },
+                );
+                if let Some(cid) = self.current_context() {
+                    self.add_symbol_to_context(
+                        cid,
+                        HirSymbolDecl {
+                            name: memory.name.clone(),
+                            kind: HirSymbolKind::Variable,
+                            ty: Some(region_ty),
+                            is_mut: Some(true),
+                            span: stmt.span,
+                            name_span: None,
+                        },
+                    );
+                }
+                Ok(hir::Stmt::Memory {
+                    name: memory.name,
+                    byte_limit: memory.byte_limit,
+                    object_limit: memory.object_limit,
+                    span: stmt.span,
+                })
+            }
             OwnedStmt::Let {
                 is_mut,
                 name,
@@ -21,16 +135,7 @@ impl Typechecker {
                 ty,
                 value,
             } => {
-                if let Some(region) = &memory {
-                    if !self.memory_regions.contains(region) {
-                        self.errors.push(TypeError {
-                            message: format!("Unknown memory region '{}'", region),
-                            context: ItemContext {
-                                span: stmt.span,
-                                path: context.path.clone(),
-                            },
-                        });
-                    }
+                let hir_memory = if let Some(region) = &memory {
                     if value.is_none() {
                         self.errors.push(TypeError {
                             message: format!(
@@ -43,7 +148,10 @@ impl Typechecker {
                             },
                         });
                     }
-                }
+                    Some(self.lower_mutable_region(region, stmt.span, &context)?)
+                } else {
+                    None
+                };
 
                 let (hir_value_opt, var_ty) = if let Some(annotated_ty) = ty.clone() {
                     let resolved_ty = self.resolve_type(&annotated_ty, context.clone())?;
@@ -145,21 +253,13 @@ impl Typechecker {
                     value: hir_value_opt,
                     ty: var_ty,
                     is_mut,
-                    memory,
+                    memory: hir_memory,
                     span: stmt.span,
                     name_span: None,
                 })
             }
             OwnedStmt::Reset(region) => {
-                if !self.memory_regions.contains(&region) {
-                    self.errors.push(TypeError {
-                        message: format!("Unknown memory region '{}'", region),
-                        context: ItemContext {
-                            span: stmt.span,
-                            path: context.path,
-                        },
-                    });
-                }
+                let region = self.lower_mutable_region(&region, stmt.span, &context)?;
                 Ok(hir::Stmt::Reset {
                     region,
                     span: stmt.span,
@@ -287,6 +387,20 @@ impl Typechecker {
                 {
                     self.errors.push(TypeError {
                         message: "MemoryAddress cannot escape through a function return"
+                            .to_string(),
+                        context: ItemContext {
+                            span: stmt.span,
+                            path: context.path.clone(),
+                        },
+                    });
+                    return Err(());
+                }
+                if expr_hir_opt
+                    .as_ref()
+                    .is_some_and(|expr| Typechecker::contains_region_ty(&expr.ty))
+                {
+                    self.errors.push(TypeError {
+                        message: "Region capabilities cannot escape through a function return"
                             .to_string(),
                         context: ItemContext {
                             span: stmt.span,

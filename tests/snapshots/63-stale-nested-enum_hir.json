@@ -1,0 +1,450 @@
+[
+  {
+    "Struct": {
+      "name": "Payload",
+      "fields": [
+        {
+          "name": "text",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/63-stale-nested-enum.bst",
+      "span": {
+        "start": 0,
+        "end": 8
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Enum": {
+      "name": "Message",
+      "variants": [
+        {
+          "name": "Some",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Payload"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        },
+        {
+          "name": "None",
+          "payload": [
+            {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Payload"
+                  ],
+                  "generics": []
+                }
+              }
+            }
+          ],
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/63-stale-nested-enum.bst",
+      "span": {
+        "start": 8,
+        "end": 18
+      },
+      "context_id": null
+    }
+  },
+  {
+    "TypeAlias": {
+      "name": "Message",
+      "aliased": {
+        "Adt": {
+          "Enum": {
+            "name": [
+              "Message"
+            ],
+            "generics": []
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "tests/63-stale-nested-enum.bst",
+      "span": {
+        "start": 8,
+        "end": 18
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "Scratch",
+              "byte_limit": 128,
+              "object_limit": 8,
+              "span": {
+                "start": 25,
+                "end": 34
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "Message",
+                      "Some"
+                    ],
+                    "fields": [
+                      [
+                        "text",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "stale"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 48,
+                            "end": 49
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Message"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 34,
+                  "end": 50
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Enum": {
+                    "name": [
+                      "Message"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 34,
+                  "end": 50
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 25,
+                      "end": 34
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 34,
+                "end": 50
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Reset": {
+              "region": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 50,
+                  "end": 52
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 25,
+                      "end": 34
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 50,
+                "end": 52
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Match": {
+              "scrutinee": {
+                "kind": {
+                  "Path": [
+                    "message"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Enum": {
+                      "name": [
+                        "Message"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 53,
+                  "end": 54
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "message",
+                    "decl_span": {
+                      "start": 34,
+                      "end": 50
+                    }
+                  }
+                }
+              },
+              "arms": [
+                [
+                  {
+                    "kind": {
+                      "Path": {
+                        "path": [
+                          "Message",
+                          "Some"
+                        ],
+                        "args": [
+                          {
+                            "kind": {
+                              "Identifier": "payload"
+                            },
+                            "ty": {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Payload"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Message"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Call": {
+                        "fun": {
+                          "kind": {
+                            "Path": [
+                              "len"
+                            ]
+                          },
+                          "ty": {
+                            "Function": {
+                              "param_types": [
+                                {
+                                  "Primitive": "Str"
+                                }
+                              ],
+                              "ret_type": {
+                                "Primitive": "I32"
+                              },
+                              "effects": []
+                            }
+                          },
+                          "span": {
+                            "start": 59,
+                            "end": 66
+                          },
+                          "resolution": null
+                        },
+                        "args": [
+                          {
+                            "kind": {
+                              "FieldAccess": {
+                                "receiver": {
+                                  "kind": {
+                                    "Path": [
+                                      "payload"
+                                    ]
+                                  },
+                                  "ty": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "Payload"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 59,
+                                    "end": 60
+                                  },
+                                  "resolution": {
+                                    "Local": {
+                                      "name": "payload",
+                                      "decl_span": null
+                                    }
+                                  }
+                                },
+                                "field": "text"
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "Str"
+                            },
+                            "span": {
+                              "start": 59,
+                              "end": 62
+                            },
+                            "resolution": {
+                              "Field": {
+                                "owner": [
+                                  "Payload"
+                                ],
+                                "field": "text"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 59,
+                      "end": 66
+                    },
+                    "resolution": null
+                  }
+                ],
+                [
+                  {
+                    "kind": "Wildcard",
+                    "ty": {
+                      "Adt": {
+                        "Enum": {
+                          "name": [
+                            "Message"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": {
+                      "Literal": [
+                        "I32",
+                        "0"
+                      ]
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    },
+                    "span": {
+                      "start": 69,
+                      "end": 70
+                    },
+                    "resolution": null
+                  }
+                ]
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 52,
+            "end": 70
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/63-stale-nested-enum.bst",
+      "span": {
+        "start": 24,
+        "end": 71
+      },
+      "context_id": 1
+    }
+  }
+]

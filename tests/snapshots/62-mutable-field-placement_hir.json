@@ -1,0 +1,426 @@
+[
+  {
+    "Struct": {
+      "name": "Message",
+      "fields": [
+        {
+          "name": "text",
+          "ty": {
+            "Primitive": "Str"
+          },
+          "name_span": null
+        }
+      ],
+      "is_public": false,
+      "defined_in": "tests/62-mutable-field-placement.bst",
+      "span": {
+        "start": 0,
+        "end": 8
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "overwrite",
+        "params": [
+          {
+            "name": "message",
+            "ty": {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Message"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "is_mut": true,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "message"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Message"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 17,
+                        "end": 18
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "message",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "text"
+                  }
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 17,
+                  "end": 18
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "Message"
+                    ],
+                    "field": "text"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "temporary"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 21,
+                  "end": 22
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 17,
+                "end": 22
+              }
+            }
+          }
+        ],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/62-mutable-field-placement.bst",
+      "span": {
+        "start": 16,
+        "end": 23
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "Message"
+                    ],
+                    "fields": [
+                      [
+                        "text",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Str",
+                              "caller"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 38,
+                            "end": 39
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Message"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 34,
+                  "end": 40
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Message"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 30,
+                "end": 40
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "overwrite"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Message"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 40,
+                        "end": 41
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/62-mutable-field-placement.bst",
+                          "span": {
+                            "start": 8,
+                            "end": 23
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "message"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Message"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 42,
+                          "end": 43
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "message",
+                            "decl_span": {
+                              "start": 30,
+                              "end": 40
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 40,
+                  "end": 44
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/62-mutable-field-placement.bst",
+                    "span": {
+                      "start": 8,
+                      "end": 23
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 40,
+                "end": 44
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 44,
+                  "end": 51
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "FieldAccess": {
+                      "receiver": {
+                        "kind": {
+                          "Path": [
+                            "message"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Message"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 44,
+                          "end": 45
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "message",
+                            "decl_span": {
+                              "start": 30,
+                              "end": 40
+                            }
+                          }
+                        }
+                      },
+                      "field": "text"
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 44,
+                    "end": 47
+                  },
+                  "resolution": {
+                    "Field": {
+                      "owner": [
+                        "Message"
+                      ],
+                      "field": "text"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 44,
+            "end": 51
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/62-mutable-field-placement.bst",
+      "span": {
+        "start": 29,
+        "end": 52
+      },
+      "context_id": 2
+    }
+  }
+]

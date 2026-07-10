@@ -1,0 +1,297 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "fill",
+        "params": [
+          {
+            "name": "region",
+            "ty": "Region",
+            "is_mut": true,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "Str"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "passed"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 16,
+                  "end": 17
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "region"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 11,
+                  "end": 17
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "region",
+                    "decl_span": null
+                  }
+                }
+              },
+              "span": {
+                "start": 11,
+                "end": 17
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "message"
+            ]
+          },
+          "ty": {
+            "Primitive": "Str"
+          },
+          "span": {
+            "start": 17,
+            "end": 18
+          },
+          "resolution": {
+            "Local": {
+              "name": "message",
+              "decl_span": {
+                "start": 11,
+                "end": 17
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "Str"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/64-passed-region-capability.bst",
+      "span": {
+        "start": 10,
+        "end": 19
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "scratch",
+              "byte_limit": 64,
+              "object_limit": 4,
+              "span": {
+                "start": 26,
+                "end": 35
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "fill"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            "Region"
+                          ],
+                          "ret_type": {
+                            "Primitive": "Str"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 38,
+                        "end": 39
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/64-passed-region-capability.bst",
+                          "span": {
+                            "start": 0,
+                            "end": 19
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "scratch"
+                          ]
+                        },
+                        "ty": "Region",
+                        "span": {
+                          "start": 40,
+                          "end": 41
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "scratch",
+                            "decl_span": {
+                              "start": 26,
+                              "end": 35
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 38,
+                  "end": 42
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/64-passed-region-capability.bst",
+                    "span": {
+                      "start": 0,
+                      "end": 19
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 35,
+                "end": 42
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 42,
+                  "end": 47
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "message"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 42,
+                    "end": 43
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "message",
+                      "decl_span": {
+                        "start": 35,
+                        "end": 42
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 42,
+            "end": 47
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/64-passed-region-capability.bst",
+      "span": {
+        "start": 25,
+        "end": 48
+      },
+      "context_id": 1
+    }
+  }
+]

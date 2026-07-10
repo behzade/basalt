@@ -57,9 +57,6 @@ pub struct Typechecker {
     /// handler value can discharge after any static handler composition.
     pub(crate) handler_values: HashMap<String, Vec<hir::Ty>>,
 
-    /// Top-level named memory regions available for explicit allocation placement.
-    pub(crate) memory_regions: HashSet<String>,
-
     /// Simple top-level handler aliases of the form `let X = Base with {A, B}`.
     pub(crate) handler_aliases: HashMap<String, (String, Vec<String>)>,
 
@@ -77,6 +74,31 @@ pub struct Typechecker {
 // ItemContext is re-exported from errors.rs
 
 impl Typechecker {
+    pub(crate) fn region_ty() -> hir::Ty {
+        hir::Ty::Region
+    }
+
+    pub(crate) fn is_region_ty(ty: &hir::Ty) -> bool {
+        matches!(ty, hir::Ty::Region)
+    }
+
+    pub(crate) fn contains_region_ty(ty: &hir::Ty) -> bool {
+        if Self::is_region_ty(ty) {
+            return true;
+        }
+        match ty {
+            hir::Ty::Array(item) => Self::contains_region_ty(item),
+            hir::Ty::Map { value, .. } => Self::contains_region_ty(value),
+            hir::Ty::Adt(hir::AdtTy::Struct { generics, .. })
+            | hir::Ty::Adt(hir::AdtTy::Enum { generics, .. })
+            | hir::Ty::Adt(hir::AdtTy::Effect { generics, .. }) => {
+                generics.iter().any(Self::contains_region_ty)
+            }
+            hir::Ty::Function { .. } | hir::Ty::Handler { .. } => false,
+            _ => false,
+        }
+    }
+
     pub(crate) fn with_module_capabilities(
         module_capabilities: HashMap<PathBuf, HashSet<ModuleCapability>>,
     ) -> Self {
@@ -339,28 +361,6 @@ impl Typechecker {
                     },
                 )
                 .map(|item| vec![hir::Item::Fn(item)]),
-            OwnedItem::Memory(memory) => {
-                if memory.byte_limit == 0 {
-                    self.errors.push(TypeError {
-                        message: format!(
-                            "Memory region '{}' must have a non-zero byte limit",
-                            memory.name
-                        ),
-                        context: ItemContext {
-                            span: item.span,
-                            path: path.clone(),
-                        },
-                    });
-                    return Err(());
-                }
-                Ok(vec![hir::Item::Memory(hir::HirMemoryDef {
-                    name: memory.name,
-                    byte_limit: memory.byte_limit,
-                    object_limit: memory.object_limit,
-                    defined_in: path,
-                    span: item.span,
-                })])
-            }
             OwnedItem::Struct(s) => self
                 .lower_struct(
                     s,
@@ -413,6 +413,16 @@ impl Typechecker {
                     },
                 )
                 .map(|item| vec![hir::Item::Handler(item)]),
+            OwnedItem::Stmt(stmt) if matches!(stmt.item, OwnedStmt::Memory(_)) => {
+                self.errors.push(TypeError {
+                    message: "Memory regions must be declared inside a lexical block".to_string(),
+                    context: ItemContext {
+                        span: item.span,
+                        path,
+                    },
+                });
+                Err(())
+            }
             _ => Err(()),
         }
     }
@@ -454,6 +464,13 @@ impl Typechecker {
         {
             self.errors.push(TypeError {
                 message: "MemoryAddress cannot appear in user function signatures".to_string(),
+                context: context.clone(),
+            });
+            return Err(());
+        }
+        if Self::contains_region_ty(&ret_type) {
+            self.errors.push(TypeError {
+                message: "Region capabilities cannot be returned".to_string(),
                 context: context.clone(),
             });
             return Err(());
@@ -651,6 +668,16 @@ impl Typechecker {
             });
             return Err(());
         }
+        if fields
+            .iter()
+            .any(|field| Self::contains_region_ty(&field.ty))
+        {
+            self.errors.push(TypeError {
+                message: "Region capabilities cannot be stored in structs".to_string(),
+                context: context.clone(),
+            });
+            return Err(());
+        }
 
         let ctx_id = self.new_context(HirContextKind::Struct, &context.path, context.span);
         // Record fields as symbols in the struct context
@@ -696,6 +723,18 @@ impl Typechecker {
                 payload: lowered_payload,
                 name_span: None,
             });
+        }
+        if variants.iter().any(|variant| {
+            variant
+                .payload
+                .as_ref()
+                .is_some_and(|payload| payload.iter().any(Self::contains_region_ty))
+        }) {
+            self.errors.push(TypeError {
+                message: "Region capabilities cannot be stored in enums".to_string(),
+                context: context.clone(),
+            });
+            return Err(());
         }
         let ctx_id = self.new_context(HirContextKind::Enum, &context.path, context.span);
         for v in &variants {
@@ -763,6 +802,19 @@ impl Typechecker {
                         payload: payload_tys,
                         name_span: None,
                     });
+                }
+                if lowered.iter().any(|variant| {
+                    variant
+                        .payload
+                        .as_ref()
+                        .is_some_and(|payload| payload.iter().any(Self::contains_region_ty))
+                }) {
+                    self.generic_type_scopes.pop();
+                    self.errors.push(TypeError {
+                        message: "Region capabilities cannot be stored in unions".to_string(),
+                        context,
+                    });
+                    return Err(());
                 }
                 self.generic_type_scopes.pop();
                 let def = hir::HirEnumDef {
@@ -990,6 +1042,7 @@ impl Typechecker {
         // 4. Handle fully-qualified paths.
         let type_name = owned_ty.path.join("::");
         match type_name.as_str() {
+            "Region" => Ok(Self::region_ty()),
             "byte" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::Byte)),
             "i8" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::I8)),
             "i16" => Ok(hir::Ty::Primitive(hir::PrimitiveTy::I16)),

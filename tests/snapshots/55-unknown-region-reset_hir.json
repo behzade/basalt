@@ -1,1 +1,1 @@
-ERROR-CONTAINS: Unknown memory region 'Missing'
+ERROR-CONTAINS: Unknown region symbol 'Missing'

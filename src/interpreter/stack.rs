@@ -92,8 +92,8 @@ enum ContextKind {
 #[derive(Debug)]
 pub(crate) struct StackAllocator {
     frames: Vec<StackFrame>,
-    regions: HashMap<String, MemoryRegion>,
-    active_region: Option<String>,
+    regions: HashMap<u64, MemoryRegion>,
+    active_region: Option<AllocationOwner>,
     next_context_id: u64,
     contexts: HashMap<u64, ContextState>,
     global: GlobalContext,
@@ -173,19 +173,25 @@ impl StackAllocator {
         name: impl Into<String>,
         byte_limit: usize,
         object_limit: Option<usize>,
-    ) -> Result<()> {
+    ) -> Result<AllocationOwner> {
         let name = name.into();
+        let parent = self.frames.last().map(|frame| frame.owner).ok_or_else(|| {
+            RuntimeError(format!(
+                "Memory region '{}' requires an active lexical context",
+                name
+            ))
+        })?;
         let backing_ptr = runtime::alloc_bytes(byte_limit)?;
         let owner = self.create_context(
             format!("region {}", name),
-            self.global.owner.id,
+            parent.id,
             ContextKind::NamedRegion,
         );
         self.regions.insert(
-            name.clone(),
+            owner.id,
             MemoryRegion::new(name, byte_limit, object_limit, backing_ptr, owner),
         );
-        Ok(())
+        Ok(owner)
     }
 
     pub(crate) fn push_frame(&mut self, name: impl Into<String>) {
@@ -209,8 +215,8 @@ impl StackAllocator {
     }
 
     pub(crate) fn current_target(&self) -> Option<AllocationOwner> {
-        if let Some(region) = &self.active_region {
-            return self.regions.get(region).map(|region| region.owner);
+        if let Some(region) = self.active_region {
+            return Some(region);
         }
         self.frames.last().map(|frame| frame.owner)
     }
@@ -220,14 +226,22 @@ impl StackAllocator {
         self.alloc_value_in(target, value)
     }
 
-    pub(crate) fn reset_region(&mut self, name: &str) -> Result<()> {
-        let Some(region) = self.regions.get_mut(name) else {
-            return Err(RuntimeError(format!("Unknown memory region '{}'", name)));
+    pub(crate) fn reset_region(&mut self, owner: AllocationOwner) -> Result<AllocationOwner> {
+        let Some(region) = self.regions.get_mut(&owner.id) else {
+            return Err(RuntimeError(
+                "Unknown or destroyed memory region".to_string(),
+            ));
         };
+        if region.owner != owner {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' handle has a stale generation",
+                region.name
+            )));
+        }
         let Some(context) = self.contexts.get_mut(&region.owner.id) else {
             return Err(RuntimeError(format!(
                 "Memory region '{}' has no allocation context",
-                name
+                region.name
             )));
         };
         context.generation = context.generation.saturating_add(1);
@@ -235,17 +249,34 @@ impl StackAllocator {
         region.owner.generation = context.generation;
         region.used_bytes = 0;
         region.object_count = 0;
+        Ok(region.owner)
+    }
+
+    pub(crate) fn destroy_region(&mut self, owner: AllocationOwner) -> Result<()> {
+        let Some(region) = self.regions.remove(&owner.id) else {
+            return Err(RuntimeError(
+                "Unknown or already destroyed memory region".to_string(),
+            ));
+        };
+        runtime::free_bytes(region.backing_ptr, region.byte_limit);
+        if let Some(context) = self.contexts.get_mut(&owner.id) {
+            context.live = false;
+            context.generation = context.generation.saturating_add(1);
+        }
         Ok(())
     }
 
     pub(crate) fn copy_value_to(
         &mut self,
         target: Option<AllocationOwner>,
-        value: Value,
+        mut value: Value,
     ) -> Result<Value> {
         self.validate_value(&value)?;
         if value.stack_size_bytes() == 0 || value.owner() == target {
             return Ok(value);
+        }
+        if let Some(target) = target {
+            value.detach_views_for_copy(target);
         }
         self.alloc_value_in(target, value)
     }
@@ -285,12 +316,12 @@ impl StackAllocator {
                 value.allocation_kind()
             )));
         }
-        if let Some(region_name) = self
+        if self
             .regions
-            .iter()
-            .find_map(|(name, region)| (region.owner == target).then(|| name.clone()))
+            .get(&target.id)
+            .is_some_and(|region| region.owner == target)
         {
-            value = self.alloc_region_value(region_name, value, size)?;
+            value = self.alloc_region_value(target, value, size)?;
             value.assign_owner_recursive(target);
             return Ok(value);
         }
@@ -397,17 +428,22 @@ impl StackAllocator {
 
     fn alloc_region_value(
         &mut self,
-        region_name: String,
+        owner: AllocationOwner,
         value: Value,
         size: usize,
     ) -> Result<Value> {
-        let Some(region) = self.regions.get_mut(&region_name) else {
+        let Some(region) = self.regions.get_mut(&owner.id) else {
             return Err(RuntimeError(format!(
-                "Unknown memory region '{}' for {} allocation",
-                region_name,
+                "Unknown memory region for {} allocation",
                 value.allocation_kind()
             )));
         };
+        if region.owner != owner {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' has a stale allocation generation",
+                region.name
+            )));
+        }
         if region.object_count + 1 > region.object_limit {
             return Err(RuntimeError(format!(
                 "Memory region '{}' exhausted object limit: {}/{} objects before allocating {}",
@@ -432,7 +468,10 @@ impl StackAllocator {
         Ok(value)
     }
 
-    pub(crate) fn set_active_region(&mut self, region: Option<String>) -> Option<String> {
+    pub(crate) fn set_active_region(
+        &mut self,
+        region: Option<AllocationOwner>,
+    ) -> Option<AllocationOwner> {
         std::mem::replace(&mut self.active_region, region)
     }
 }
@@ -461,13 +500,13 @@ impl<'a> StackFrameGuard<'a> {
 
 pub(crate) struct AllocationRegionGuard<'a> {
     stack: &'a std::cell::RefCell<StackAllocator>,
-    previous_region: Option<String>,
+    previous_region: Option<AllocationOwner>,
 }
 
 impl<'a> AllocationRegionGuard<'a> {
     pub(crate) fn enter(
         stack: &'a std::cell::RefCell<StackAllocator>,
-        region: Option<String>,
+        region: Option<AllocationOwner>,
     ) -> Self {
         let previous_region = stack.borrow_mut().set_active_region(region);
         Self {
@@ -513,18 +552,16 @@ mod tests {
             ContextKind::RuntimeRoot
         );
 
-        stack.define_region("Data", 64, Some(4)).unwrap();
-        let region = stack.regions.get("Data").unwrap().owner;
-        assert_eq!(
-            stack.contexts.get(&region.id).unwrap().parent,
-            Some(global.id)
-        );
-
         stack.push_frame("main");
         let main = stack.frames.last().unwrap().owner;
         assert_eq!(
             stack.contexts.get(&main.id).unwrap().parent,
             Some(global.id)
+        );
+        let region = stack.define_region("Data", 64, Some(4)).unwrap();
+        assert_eq!(
+            stack.contexts.get(&region.id).unwrap().parent,
+            Some(main.id)
         );
         stack.push_frame("callee");
         let callee = stack.frames.last().unwrap().owner;

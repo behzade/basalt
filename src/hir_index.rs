@@ -50,7 +50,6 @@ impl HirIndex {
                         .functions
                         .insert(function.signature.name.clone(), function.clone());
                 }
-                hir::Item::Memory(_) => {}
                 hir::Item::Struct(struct_def) => {
                     index.structs.insert(
                         Self::item_path(&struct_def.defined_in, &struct_def.name),

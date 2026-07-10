@@ -1,0 +1,87 @@
+{
+  "tests/68-region-struct-storage.bst": [
+    {
+      "item": {
+        "Struct": {
+          "name": "Holder",
+          "generics": [],
+          "fields": [
+            [
+              "region",
+              {
+                "path": [
+                  "Region"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 8
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 15,
+                          "end": 16
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 15,
+                      "end": 16
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 14,
+              "end": 17
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 8,
+        "end": 17
+      }
+    }
+  ]
+}

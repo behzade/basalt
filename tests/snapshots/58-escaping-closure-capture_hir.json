@@ -1,0 +1,319 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "make_reader",
+        "params": [],
+        "ret_type": {
+          "Function": {
+            "param_types": [],
+            "ret_type": {
+              "Primitive": "I32"
+            },
+            "effects": []
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "captured"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 13,
+                  "end": 14
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 10,
+                "end": 14
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "FnLiteral": {
+              "params": [],
+              "ret_type": {
+                "Primitive": "I32"
+              },
+              "effects": [],
+              "body": {
+                "stmts": [],
+                "last_expr": {
+                  "kind": {
+                    "Call": {
+                      "fun": {
+                        "kind": {
+                          "Path": [
+                            "len"
+                          ]
+                        },
+                        "ty": {
+                          "Function": {
+                            "param_types": [
+                              {
+                                "Primitive": "Str"
+                              }
+                            ],
+                            "ret_type": {
+                              "Primitive": "I32"
+                            },
+                            "effects": []
+                          }
+                        },
+                        "span": {
+                          "start": 20,
+                          "end": 25
+                        },
+                        "resolution": null
+                      },
+                      "args": [
+                        {
+                          "kind": {
+                            "Path": [
+                              "message"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Str"
+                          },
+                          "span": {
+                            "start": 20,
+                            "end": 21
+                          },
+                          "resolution": {
+                            "Local": {
+                              "name": "message",
+                              "decl_span": {
+                                "start": 10,
+                                "end": 14
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 20,
+                    "end": 25
+                  },
+                  "resolution": null
+                },
+                "ty": {
+                  "Primitive": "I32"
+                }
+              }
+            }
+          },
+          "ty": {
+            "Function": {
+              "param_types": [],
+              "ret_type": {
+                "Primitive": "I32"
+              },
+              "effects": []
+            }
+          },
+          "span": {
+            "start": 14,
+            "end": 26
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Function": {
+            "param_types": [],
+            "ret_type": {
+              "Primitive": "I32"
+            },
+            "effects": []
+          }
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/58-escaping-closure-capture.bst",
+      "span": {
+        "start": 9,
+        "end": 27
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "reader",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "make_reader"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [],
+                          "ret_type": {
+                            "Function": {
+                              "param_types": [],
+                              "ret_type": {
+                                "Primitive": "I32"
+                              },
+                              "effects": []
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 37,
+                        "end": 38
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/58-escaping-closure-capture.bst",
+                          "span": {
+                            "start": 0,
+                            "end": 27
+                          }
+                        }
+                      }
+                    },
+                    "args": []
+                  }
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 37,
+                  "end": 40
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/58-escaping-closure-capture.bst",
+                    "span": {
+                      "start": 0,
+                      "end": 27
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Function": {
+                  "param_types": [],
+                  "ret_type": {
+                    "Primitive": "I32"
+                  },
+                  "effects": []
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 34,
+                "end": 40
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "reader"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 40,
+                  "end": 41
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "reader",
+                    "decl_span": {
+                      "start": 34,
+                      "end": 40
+                    }
+                  }
+                }
+              },
+              "args": []
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 40,
+            "end": 43
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/58-escaping-closure-capture.bst",
+      "span": {
+        "start": 33,
+        "end": 44
+      },
+      "context_id": 1
+    }
+  }
+]

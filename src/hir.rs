@@ -22,6 +22,7 @@ pub type OwnedPath = Vec<String>;
 pub enum Ty {
     Special(SpecialTy),
     Primitive(PrimitiveTy),
+    Region,
     Adt(AdtTy),
     Array(Box<Ty>),
     Map {
@@ -79,22 +80,11 @@ pub enum AdtTy {
 #[derive(Debug, Clone, Serialize)]
 pub enum Item {
     Fn(HirFunction),
-    Memory(HirMemoryDef),
     Struct(HirStructDef),
     Enum(HirEnumDef),
     TypeAlias(HirTypeAlias),
     Effect(HirEffectDef),
     Handler(HirHandlerDef),
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct HirMemoryDef {
-    pub name: String,
-    pub byte_limit: usize,
-    pub object_limit: Option<usize>,
-    pub defined_in: PathBuf,
-    #[serde(serialize_with = "crate::token::serialize_simple_span")]
-    pub span: crate::token::SimpleSpan,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -214,13 +204,20 @@ pub struct HirHandlerDef {
 /// A statement in a block.
 #[derive(Debug, Clone, Serialize)]
 pub enum Stmt {
+    Memory {
+        name: String,
+        byte_limit: usize,
+        object_limit: Option<usize>,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    },
     Let {
         name: String,
         value: Option<Expr>,
         ty: Ty, // Type is resolved and non-optional
         is_mut: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
-        memory: Option<String>,
+        memory: Option<Expr>,
         #[serde(serialize_with = "crate::token::serialize_simple_span")]
         span: crate::token::SimpleSpan,
         /// Span of the variable identifier token
@@ -228,7 +225,7 @@ pub enum Stmt {
         name_span: Option<crate::token::SimpleSpan>,
     },
     Reset {
-        region: String,
+        region: Expr,
         #[serde(serialize_with = "crate::token::serialize_simple_span")]
         span: crate::token::SimpleSpan,
     },
