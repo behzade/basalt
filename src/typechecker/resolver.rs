@@ -432,7 +432,9 @@ impl Typechecker {
         if self.type_definitions.contains_key(path) {
             candidates.push(path.clone());
         }
-        if let Some((first, rest)) = path.split_first() {
+        if let Some((first, rest)) = path.split_first()
+            && !rest.is_empty()
+        {
             if let Some(module) = self
                 .import_alias_map
                 .get(&context.path)
@@ -446,21 +448,11 @@ impl Typechecker {
             }
         }
         if path.len() == 1 {
-            let local_module =
+            let mut local =
                 crate::typechecker::checker::Typechecker::canonical_module_path(&context.path);
-            for candidate in self.type_definitions.keys() {
-                if candidate.last() != path.last() {
-                    continue;
-                }
-                let module = &candidate[..candidate.len().saturating_sub(1)];
-                let imported = self
-                    .import_alias_map
-                    .get(&context.path)
-                    .map(|aliases| aliases.values().any(|imported| imported == module))
-                    .unwrap_or(false);
-                if module == local_module.as_slice() || imported {
-                    candidates.push(candidate.clone());
-                }
+            local.extend(path.iter().cloned());
+            if self.type_definitions.contains_key(&local) {
+                candidates.push(local);
             }
         }
         candidates.sort();
