@@ -25,6 +25,7 @@
                       "Let": {
                         "is_mut": true,
                         "name": "result",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i32"

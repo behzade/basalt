@@ -1,1 +1,1 @@
-ERROR-CONTAINS: Raw runtime intrinsic `alloc` requires an unsafe block
+ERROR-CONTAINS: Raw runtime intrinsic `alloc` cannot be used as a function value

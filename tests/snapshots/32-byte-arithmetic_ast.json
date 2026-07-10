@@ -25,6 +25,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "left",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "byte"
@@ -57,6 +58,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "right",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "byte"

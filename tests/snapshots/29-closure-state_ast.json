@@ -33,6 +33,7 @@
                       "Let": {
                         "is_mut": true,
                         "name": "count",
+                        "memory": null,
                         "ty": {
                           "path": [
                             "i32"
@@ -217,6 +218,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "counter",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {

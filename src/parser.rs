@@ -346,6 +346,13 @@ fn expression_bundle<'src>() -> (
             acc
         });
 
+    let unsafe_block = just(Token::Unsafe)
+        .ignore_then(block.clone())
+        .map_with(|body, e| Spanned {
+            node: ExprNode::Unsafe(Box::new(body)),
+            span: e.span(),
+        });
+
     // Struct/union init fields: '{' name: expr, ... '}'
     let make_struct_fields = {
         let expr = expr.clone();
@@ -431,6 +438,7 @@ fn expression_bundle<'src>() -> (
         unit,
         lit,
         perform,
+        unsafe_block,
         with_block,
         fn_lit_expr,
         block.clone(),

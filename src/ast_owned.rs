@@ -149,6 +149,7 @@ pub enum OwnedExpr {
         body: Box<SpannedExpr>, // UPDATED
         handler: OwnedHandlerBody,
     },
+    Unsafe(Box<SpannedExpr>),
     /// Anonymous function literal: fn(params) -> ret effects { effects } { body }
     FnLiteral {
         params: Vec<(bool, Option<String>, OwnedType)>,
@@ -587,6 +588,7 @@ impl<'src> From<&Expr<'src>> for SpannedExpr {
                 body: Box::new(body.as_ref().into()),
                 handler: handler.into(), // Assumes HandlerBody has a From impl
             },
+            ExprNode::Unsafe(body) => OwnedExpr::Unsafe(Box::new(body.as_ref().into())),
             ExprNode::FnLiteral {
                 params,
                 ret_type,

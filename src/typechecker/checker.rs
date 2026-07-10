@@ -62,6 +62,7 @@ pub struct Typechecker {
     pub(crate) current_context_stack: Vec<ContextId>,
     /// Stack of currently allowed effects during lowering (top is current function)
     pub(crate) current_effects_stack: Vec<Vec<hir::Ty>>,
+    pub(crate) unsafe_depth: usize,
 }
 
 // ItemContext is re-exported from errors.rs

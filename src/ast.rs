@@ -133,6 +133,7 @@ pub enum ExprNode<'src> {
         body: Box<Expr<'src>>,
         handler: HandlerBody<'src>,
     },
+    Unsafe(Box<Expr<'src>>),
     /// Anonymous function literal: fn(params) -> ret effects { effects } { body }
     FnLiteral {
         params: Vec<(bool, Option<&'src str>, Type<'src>)>,

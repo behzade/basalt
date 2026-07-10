@@ -128,6 +128,7 @@ pub fn lexer<'src>()
         "type" => Token::Type,
         "struct" => Token::Struct,
         "extern" => Token::Extern,
+        "unsafe" => Token::Unsafe,
         "fn" => Token::Fn,
         "import" => Token::Import,
         "as" => Token::As,

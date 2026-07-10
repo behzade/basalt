@@ -1,0 +1,211 @@
+{
+  "tests/31-unsafe-runtime-memory.bst": [
+    {
+      "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "runtime"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Unsafe": {
+                            "item": {
+                              "Block": {
+                                "stmts": [
+                                  {
+                                    "item": {
+                                      "Let": {
+                                        "is_mut": false,
+                                        "name": "ptr",
+                                        "memory": null,
+                                        "ty": null,
+                                        "value": {
+                                          "item": {
+                                            "Call": {
+                                              "fun": {
+                                                "item": {
+                                                  "Path": [
+                                                    "runtime",
+                                                    "alloc"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 20,
+                                                  "end": 24
+                                                }
+                                              },
+                                              "args": [
+                                                {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "U64": 64
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 25,
+                                                    "end": 26
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 20,
+                                            "end": 27
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 17,
+                                      "end": 27
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "Expr": {
+                                        "item": {
+                                          "Call": {
+                                            "fun": {
+                                              "item": {
+                                                "Path": [
+                                                  "runtime",
+                                                  "free"
+                                                ]
+                                              },
+                                              "span": {
+                                                "start": 27,
+                                                "end": 31
+                                              }
+                                            },
+                                            "args": [
+                                              {
+                                                "item": {
+                                                  "Path": [
+                                                    "ptr"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 32,
+                                                  "end": 33
+                                                }
+                                              },
+                                              {
+                                                "item": {
+                                                  "Literal": {
+                                                    "U64": 64
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 34,
+                                                  "end": 35
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 27,
+                                          "end": 36
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 27,
+                                      "end": 36
+                                    }
+                                  }
+                                ],
+                                "last_expr": null
+                              }
+                            },
+                            "span": {
+                              "start": 16,
+                              "end": 37
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 15,
+                          "end": 37
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 15,
+                      "end": 37
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 37,
+                          "end": 38
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 37,
+                      "end": 38
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 14,
+              "end": 39
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 8,
+        "end": 39
+      }
+    }
+  ]
+}

@@ -352,7 +352,7 @@ impl Typechecker {
                         })
                     }
                     Ok(Some(ResolvedValue::Function(function))) => {
-                        if self.reject_raw_runtime_intrinsic(&function, &context) {
+                        if self.reject_raw_runtime_value(&function, &context) {
                             return Err(());
                         }
                         let signature = function.signature;
@@ -725,7 +725,7 @@ impl Typechecker {
                         let adjusted_args = resolved_call.adjusted_args;
 
                         if let Some(function) = resolved_call.function {
-                            if self.reject_raw_runtime_intrinsic(&function, &context) {
+                            if self.reject_raw_runtime_call(&function, &context) {
                                 return Err(());
                             }
                             let signature = function.signature;
@@ -1036,6 +1036,12 @@ impl Typechecker {
                     span: expr.span,
                     resolution: None,
                 })
+            }
+            OwnedExpr::Unsafe(body) => {
+                self.unsafe_depth += 1;
+                let result = self.lower_expr(*body, context);
+                self.unsafe_depth -= 1;
+                result
             }
             OwnedExpr::Block { stmts, last_expr } => {
                 self.enter_scope();
@@ -1565,13 +1571,35 @@ impl Typechecker {
         }
     }
 
-    fn reject_raw_runtime_intrinsic(
+    fn reject_raw_runtime_value(
         &mut self,
         function: &crate::typechecker::resolver::ResolvedFunction,
         context: &ItemContext,
     ) -> bool {
         if self.is_raw_runtime_intrinsic(&function.defined_in, &function.signature.name)
             && !self.is_runtime_file(&context.path)
+        {
+            self.errors.push(TypeError {
+                message: format!(
+                    "Raw runtime intrinsic `{}` cannot be used as a function value",
+                    function.signature.name
+                ),
+                context: context.clone(),
+            });
+            true
+        } else {
+            false
+        }
+    }
+
+    fn reject_raw_runtime_call(
+        &mut self,
+        function: &crate::typechecker::resolver::ResolvedFunction,
+        context: &ItemContext,
+    ) -> bool {
+        if self.is_raw_runtime_intrinsic(&function.defined_in, &function.signature.name)
+            && !self.is_runtime_file(&context.path)
+            && self.unsafe_depth == 0
         {
             self.errors.push(TypeError {
                 message: format!(

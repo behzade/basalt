@@ -15,6 +15,7 @@ pub enum Token<'src> {
     Type,
     Struct,
     Extern,
+    Unsafe,
     Fn,
 
     Import,
@@ -79,6 +80,7 @@ impl<'src> fmt::Display for Token<'src> {
             Token::Struct => write!(f, "struct"),
             Token::Type => write!(f, "type"),
             Token::Extern => write!(f, "extern"),
+            Token::Unsafe => write!(f, "unsafe"),
             Token::Fn => write!(f, "fn"),
 
             Token::Import => write!(f, "import"),
@@ -141,6 +143,7 @@ pub enum OwnedToken {
     Type,
     Struct,
     Extern,
+    Unsafe,
     Fn,
 
     Import,
@@ -205,6 +208,7 @@ impl From<Token<'_>> for OwnedToken {
             Token::Struct => OwnedToken::Struct,
             Token::Type => OwnedToken::Type,
             Token::Extern => OwnedToken::Extern,
+            Token::Unsafe => OwnedToken::Unsafe,
             Token::Fn => OwnedToken::Fn,
 
             Token::Import => OwnedToken::Import,

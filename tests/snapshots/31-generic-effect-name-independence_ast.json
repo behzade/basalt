@@ -59,6 +59,7 @@
               "generics": [],
               "params": [
                 [
+                  false,
                   "task",
                   {
                     "path": [
@@ -168,6 +169,7 @@
                       "Let": {
                         "is_mut": false,
                         "name": "task",
+                        "memory": null,
                         "ty": null,
                         "value": {
                           "item": {

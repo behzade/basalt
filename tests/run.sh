@@ -34,19 +34,21 @@ DEFAULT_TEST_TYPE="ast"
 echo -e "${BLUE}=== Basalt Unified Test Suite ===${NC}"
 echo
 
-DEVBOX_BUILD_LOG=$(mktemp)
-if ! devbox run -- cargo build 2>"$DEVBOX_BUILD_LOG"; then
-    if grep -Eq "cache\\.nixos\\.org|operation not permitted|lookup .* failed|Could not resolve|network|missing DEVELOPER_DIR path" "$DEVBOX_BUILD_LOG"; then
-        cat "$DEVBOX_BUILD_LOG"
-        echo -e "${YELLOW}Devbox build failed due to sandbox/network access; falling back to local cargo build.${NC}"
-        cargo build || exit 1
-    else
-        cat "$DEVBOX_BUILD_LOG"
-        rm -f "$DEVBOX_BUILD_LOG"
-        exit 1
+if [ "${BASALT_SKIP_BUILD:-false}" != "true" ]; then
+    DEVBOX_BUILD_LOG=$(mktemp)
+    if ! devbox run -- cargo build 2>"$DEVBOX_BUILD_LOG"; then
+        if grep -Eq "cache\\.nixos\\.org|operation not permitted|lookup .* failed|Could not resolve|network|missing DEVELOPER_DIR path" "$DEVBOX_BUILD_LOG"; then
+            cat "$DEVBOX_BUILD_LOG"
+            echo -e "${YELLOW}Devbox build failed due to sandbox/network access; falling back to local cargo build.${NC}"
+            cargo build || exit 1
+        else
+            cat "$DEVBOX_BUILD_LOG"
+            rm -f "$DEVBOX_BUILD_LOG"
+            exit 1
+        fi
     fi
+    rm -f "$DEVBOX_BUILD_LOG"
 fi
-rm -f "$DEVBOX_BUILD_LOG"
 
 # Function to create directories if they don't exist
 setup_directories() {
