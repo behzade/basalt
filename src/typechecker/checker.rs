@@ -11,6 +11,12 @@ use crate::hir::{ContextId, HirContext, HirContextKind, HirSymbolDecl, HirSymbol
 use crate::typechecker::resolver::{ResolvedNominalKind, TypeResolveError};
 use crate::typechecker::symbols::Symbol;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum ModuleCapability {
+    MemoryInternals,
+    RuntimeInternals,
+}
+
 #[derive(Default)]
 pub struct Typechecker {
     /// A stack of scopes. The last element is the current, innermost scope.
@@ -64,11 +70,21 @@ pub struct Typechecker {
     pub(crate) current_effects_stack: Vec<Vec<hir::Ty>>,
     pub(crate) unsafe_depth: usize,
     pub(crate) generic_type_scopes: Vec<HashSet<String>>,
+    pub(crate) module_capabilities: HashMap<PathBuf, HashSet<ModuleCapability>>,
 }
 
 // ItemContext is re-exported from errors.rs
 
 impl Typechecker {
+    pub(crate) fn with_module_capabilities(
+        module_capabilities: HashMap<PathBuf, HashSet<ModuleCapability>>,
+    ) -> Self {
+        Self {
+            module_capabilities,
+            ..Self::default()
+        }
+    }
+
     pub(crate) fn canonical_module_path(path: &std::path::Path) -> hir::OwnedPath {
         let parts = path
             .components()
@@ -122,21 +138,26 @@ impl Typechecker {
         self.current_context_stack.last().copied()
     }
 
-    pub(crate) fn is_runtime_file(&self, path: &PathBuf) -> bool {
-        let s = path.to_string_lossy();
-        s.contains("/modules/std/runtime/") || s.contains("\\modules\\std\\runtime\\")
+    pub(crate) fn has_module_capability(
+        &self,
+        path: &PathBuf,
+        capability: ModuleCapability,
+    ) -> bool {
+        self.module_capabilities
+            .get(path)
+            .is_some_and(|capabilities| capabilities.contains(&capability))
     }
 
-    pub(crate) fn is_trusted_memory_file(&self, path: &PathBuf) -> bool {
-        let s = path.to_string_lossy();
-        self.is_runtime_file(path)
-            || s.contains("/modules/std/buffer/")
-            || s.contains("\\modules\\std\\buffer\\")
+    pub(crate) fn has_memory_internals(&self, path: &PathBuf) -> bool {
+        self.has_module_capability(path, ModuleCapability::MemoryInternals)
+    }
+
+    pub(crate) fn has_runtime_internals(&self, path: &PathBuf) -> bool {
+        self.has_module_capability(path, ModuleCapability::RuntimeInternals)
     }
 
     pub(crate) fn is_raw_runtime_intrinsic(&self, path: &PathBuf, name: &str) -> bool {
-        path.file_name()
-            .is_some_and(|file_name| file_name == "raw_memory.bst")
+        self.has_runtime_internals(path)
             && matches!(
                 name,
                 "libc_alloc"
@@ -424,7 +445,7 @@ impl Typechecker {
         };
         self.generic_type_scopes.pop();
 
-        if !self.is_trusted_memory_file(&context.path)
+        if !self.has_memory_internals(&context.path)
             && (Self::contains_memory_address_ty(&ret_type)
                 || params
                     .iter()
@@ -475,7 +496,7 @@ impl Typechecker {
         }
 
         let extern_kind = if func.is_extern {
-            Some(if self.is_runtime_file(&context.path) {
+            Some(if self.has_runtime_internals(&context.path) {
                 hir::HirExternKind::RuntimeIntrinsic
             } else {
                 hir::HirExternKind::Foreign
@@ -618,7 +639,7 @@ impl Typechecker {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        if !self.is_trusted_memory_file(&context.path)
+        if !self.has_memory_internals(&context.path)
             && fields
                 .iter()
                 .any(|field| Self::contains_memory_address_ty(&field.ty))
@@ -953,7 +974,7 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::Ty, ()> {
         if owned_ty.path.last().map(String::as_str) == Some("MemoryAddress")
-            && !self.is_trusted_memory_file(&context.path)
+            && !self.has_memory_internals(&context.path)
         {
             self.errors.push(TypeError {
                 message: "MemoryAddress is an inferred unsafe capability and cannot be named in user type declarations".to_string(),
@@ -1110,5 +1131,20 @@ fn expr_always_returns(expr: &hir::Expr) -> bool {
             !arms.is_empty() && arms.iter().all(|(_, arm)| expr_always_returns(arm))
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod capability_tests {
+    use super::Typechecker;
+    use std::path::PathBuf;
+
+    #[test]
+    fn module_paths_do_not_grant_memory_authority() {
+        let checker = Typechecker::default();
+        let lookalike = PathBuf::from("/tmp/modules/std/buffer/forged.bst");
+
+        assert!(!checker.has_memory_internals(&lookalike));
+        assert!(!checker.has_runtime_internals(&lookalike));
     }
 }

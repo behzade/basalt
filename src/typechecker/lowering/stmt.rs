@@ -92,7 +92,7 @@ impl Typechecker {
 
                 if Typechecker::contains_memory_address_ty(&var_ty)
                     && self.unsafe_depth == 0
-                    && !self.is_runtime_file(&context.path)
+                    && !self.has_memory_internals(&context.path)
                 {
                     self.errors.push(TypeError {
                         message: "MemoryAddress values must remain inside an unsafe block"
@@ -268,7 +268,7 @@ impl Typechecker {
                 if expr_hir_opt
                     .as_ref()
                     .is_some_and(|expr| Typechecker::contains_memory_address_ty(&expr.ty))
-                    && !self.is_runtime_file(&context.path)
+                    && !self.has_memory_internals(&context.path)
                 {
                     self.errors.push(TypeError {
                         message: "MemoryAddress cannot escape through a function return"

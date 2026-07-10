@@ -13,6 +13,7 @@ use crate::{
     lexer::lexer,
     parser::file_parser,
     token::{OwnedTokenWithSpan, SimpleSpan, Token},
+    typechecker::checker::ModuleCapability,
     typechecker::{TypeError, Typechecker},
 };
 
@@ -43,6 +44,7 @@ pub struct Workspace {
     pub ast: HashMap<PathBuf, Vec<Spanned<OwnedItem>>>,
     pub hir: Vec<hir::Item>,
     resolved_modules: HashSet<PathBuf>, // Add this field
+    module_capabilities: HashMap<PathBuf, HashSet<ModuleCapability>>,
     pub last_run_result: Option<crate::interpreter::Value>,
 }
 
@@ -287,6 +289,18 @@ impl Compiler {
                                     continue; // Already in the set, so skip.
                                 }
 
+                                let capabilities = self
+                                    .workspace
+                                    .module_capabilities
+                                    .entry(path.clone())
+                                    .or_default();
+                                if import.path == ["std", "runtime"] {
+                                    capabilities.insert(ModuleCapability::MemoryInternals);
+                                    capabilities.insert(ModuleCapability::RuntimeInternals);
+                                } else if import.path == ["std", "buffer"] {
+                                    capabilities.insert(ModuleCapability::MemoryInternals);
+                                }
+
                                 // Parse the new file
                                 if let Some(path_str) = path.to_str() {
                                     self.run_parse(Some(path_str.to_string()))?;
@@ -309,7 +323,8 @@ impl Compiler {
     }
 
     fn run_hir_gen(&mut self) -> io::Result<()> {
-        let mut typechecker = Typechecker::default();
+        let mut typechecker =
+            Typechecker::with_module_capabilities(self.workspace.module_capabilities.clone());
         match typechecker.check_program(self.workspace.ast.clone()) {
             Ok(hir_items) => {
                 self.workspace.hir = hir_items;

@@ -561,7 +561,7 @@ impl Typechecker {
 
                 if Typechecker::contains_memory_address_ty(&hir_lhs.ty)
                     && self.unsafe_depth == 0
-                    && !self.is_runtime_file(&context.path)
+                    && !self.has_memory_internals(&context.path)
                 {
                     self.errors.push(TypeError {
                         message: "MemoryAddress operations require an unsafe block".to_string(),
@@ -1032,7 +1032,7 @@ impl Typechecker {
                 effects,
                 body,
             } => {
-                if self.unsafe_depth > 0 && !self.is_runtime_file(&context.path) {
+                if self.unsafe_depth > 0 && !self.has_runtime_internals(&context.path) {
                     self.errors.push(TypeError {
                         message: "Function literals cannot capture an unsafe scope".to_string(),
                         context: context.clone(),
@@ -1120,7 +1120,7 @@ impl Typechecker {
                 match result {
                     Ok(expr)
                         if Typechecker::contains_memory_address_ty(&expr.ty)
-                            && !self.is_trusted_memory_file(&unsafe_context.path) =>
+                            && !self.has_memory_internals(&unsafe_context.path) =>
                     {
                         self.errors.push(TypeError {
                             message: "MemoryAddress cannot escape an unsafe block".to_string(),
@@ -1513,7 +1513,7 @@ impl Typechecker {
             }
             OwnedExpr::StructInit { path, fields, .. } => {
                 if path.last().map(String::as_str) == Some("MemoryAddress")
-                    && !self.is_trusted_memory_file(&context.path)
+                    && !self.has_memory_internals(&context.path)
                 {
                     self.errors.push(TypeError {
                         message: "MemoryAddress values can only be constructed by std::runtime"
@@ -1688,7 +1688,7 @@ impl Typechecker {
         context: &ItemContext,
     ) -> bool {
         if self.is_raw_runtime_intrinsic(&function.defined_in, &function.signature.name)
-            && !self.is_runtime_file(&context.path)
+            && !self.has_runtime_internals(&context.path)
         {
             self.errors.push(TypeError {
                 message: format!(
@@ -1709,7 +1709,7 @@ impl Typechecker {
         context: &ItemContext,
     ) -> bool {
         if self.is_raw_runtime_intrinsic(&function.defined_in, &function.signature.name)
-            && !self.is_runtime_file(&context.path)
+            && !self.has_runtime_internals(&context.path)
             && self.unsafe_depth == 0
         {
             self.errors.push(TypeError {
