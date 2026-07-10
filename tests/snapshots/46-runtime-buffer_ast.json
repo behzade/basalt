@@ -7,7 +7,7 @@
             {
               "path": [
                 "std",
-                "runtime"
+                "buffer"
               ],
               "alias": null
             }
@@ -52,7 +52,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer"
                                   ]
                                 },
@@ -96,7 +96,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_push"
                                 ]
                               },
@@ -150,7 +150,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_push"
                                 ]
                               },
@@ -204,7 +204,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_set"
                                 ]
                               },
@@ -274,7 +274,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer"
                                   ]
                                 },
@@ -318,7 +318,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_push"
                                 ]
                               },
@@ -372,7 +372,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_push"
                                 ]
                               },
@@ -431,7 +431,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer"
                                   ]
                                 },
@@ -480,7 +480,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer_extend"
                                   ]
                                 },
@@ -540,7 +540,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer_extend"
                                   ]
                                 },
@@ -600,7 +600,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer_equal"
                                   ]
                                 },
@@ -660,7 +660,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer_get"
                                   ]
                                 },
@@ -720,7 +720,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer_get"
                                   ]
                                 },
@@ -775,7 +775,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_clear"
                                 ]
                               },
@@ -823,7 +823,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer_len"
                                   ]
                                 },
@@ -867,7 +867,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_release"
                                 ]
                               },
@@ -910,7 +910,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_release"
                                 ]
                               },
@@ -953,7 +953,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_release"
                                 ]
                               },

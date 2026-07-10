@@ -1120,7 +1120,7 @@ impl Typechecker {
                 match result {
                     Ok(expr)
                         if Typechecker::contains_memory_address_ty(&expr.ty)
-                            && !self.is_runtime_file(&unsafe_context.path) =>
+                            && !self.is_trusted_memory_file(&unsafe_context.path) =>
                     {
                         self.errors.push(TypeError {
                             message: "MemoryAddress cannot escape an unsafe block".to_string(),
@@ -1513,7 +1513,7 @@ impl Typechecker {
             }
             OwnedExpr::StructInit { path, fields, .. } => {
                 if path.last().map(String::as_str) == Some("MemoryAddress")
-                    && !self.is_runtime_file(&context.path)
+                    && !self.is_trusted_memory_file(&context.path)
                 {
                     self.errors.push(TypeError {
                         message: "MemoryAddress values can only be constructed by std::runtime"
@@ -1606,7 +1606,17 @@ impl Typechecker {
                     }
                 }
 
-                let Some(struct_init) = self.resolve_struct_init(&path) else {
+                let struct_init = match self.resolve_struct_init(&path, &context) {
+                    Ok(struct_init) => struct_init,
+                    Err(crate::typechecker::resolver::TypeResolveError::PrivateType { name }) => {
+                        self.errors.push(TypeError {
+                            message: format!("Type `{}` is private", name),
+                            context: context.clone(),
+                        });
+                        return Err(());
+                    }
+                };
+                let Some(struct_init) = struct_init else {
                     self.errors.push(TypeError {
                         message: format!("Unknown struct `{}`", path.join("::")),
                         context: context.clone(),
@@ -1656,7 +1666,7 @@ impl Typechecker {
                 Ok(hir::Expr {
                     ty: adt_ty.clone(),
                     kind: hir::ExprKind::StructInit {
-                        path,
+                        path: struct_init.path,
                         fields: lowered_fields,
                     },
                     span: expr.span,

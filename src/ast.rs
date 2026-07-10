@@ -229,6 +229,7 @@ pub struct EnumDef<'src> {
 #[derive(Debug, PartialEq, Clone)]
 pub struct EffectDef<'src> {
     pub name: &'src str,
+    pub generics: Vec<&'src str>,
     pub operations: Vec<EffectOp<'src>>,
     pub is_public: bool,
 }

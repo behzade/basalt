@@ -21,6 +21,20 @@ pub struct HirIndex {
 }
 
 impl HirIndex {
+    fn item_path(defined_in: &PathBuf, name: &str) -> hir::OwnedPath {
+        let components = defined_in
+            .components()
+            .map(|component| component.as_os_str().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        let mut path = components
+            .iter()
+            .position(|component| component == "modules")
+            .map(|modules| components[modules + 1..components.len().saturating_sub(1)].to_vec())
+            .unwrap_or_default();
+        path.push(name.to_string());
+        path
+    }
+
     pub fn from_items(items: &[hir::Item]) -> Self {
         let mut index = Self::default();
 
@@ -38,12 +52,13 @@ impl HirIndex {
                 }
                 hir::Item::Memory(_) => {}
                 hir::Item::Struct(struct_def) => {
-                    index
-                        .structs
-                        .insert(vec![struct_def.name.clone()], struct_def.clone());
+                    index.structs.insert(
+                        Self::item_path(&struct_def.defined_in, &struct_def.name),
+                        struct_def.clone(),
+                    );
                 }
                 hir::Item::Enum(enum_def) => {
-                    let enum_path = vec![enum_def.name.clone()];
+                    let enum_path = Self::item_path(&enum_def.defined_in, &enum_def.name);
                     index.enums.insert(enum_path.clone(), enum_def.clone());
                     for variant in &enum_def.variants {
                         let mut variant_path = enum_path.clone();
@@ -58,9 +73,10 @@ impl HirIndex {
                     }
                 }
                 hir::Item::Effect(effect) => {
-                    index
-                        .effects
-                        .insert(vec![effect.name.clone()], effect.clone());
+                    index.effects.insert(
+                        Self::item_path(&effect.defined_in, &effect.name),
+                        effect.clone(),
+                    );
                 }
                 hir::Item::Handler(handler) => {
                     index.handlers.insert(handler.name.clone(), handler.clone());

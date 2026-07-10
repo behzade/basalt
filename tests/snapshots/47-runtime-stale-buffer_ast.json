@@ -7,7 +7,7 @@
             {
               "path": [
                 "std",
-                "runtime"
+                "buffer"
               ],
               "alias": null
             }
@@ -52,7 +52,7 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "buffer",
                                     "buffer"
                                   ]
                                 },
@@ -96,7 +96,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_push"
                                 ]
                               },
@@ -175,7 +175,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_release"
                                 ]
                               },
@@ -218,7 +218,7 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "buffer",
                                   "buffer_get"
                                 ]
                               },

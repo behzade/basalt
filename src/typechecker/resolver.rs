@@ -73,7 +73,12 @@ pub(crate) struct ResolvedHandlerValue {
     pub effects: Vec<hir::Ty>,
 }
 
-pub(crate) enum ResolvedNominalType {
+pub(crate) struct ResolvedNominalType {
+    pub kind: ResolvedNominalKind,
+    pub canonical_path: hir::OwnedPath,
+}
+
+pub(crate) enum ResolvedNominalKind {
     Struct,
     Enum,
     Effect,
@@ -263,13 +268,20 @@ impl Typechecker {
         }))
     }
 
-    pub(crate) fn resolve_struct_init(&self, path: &[String]) -> Option<ResolvedStructInit> {
-        match self.type_definitions.get(path) {
-            Some(hir::Item::Struct(struct_def)) => Some(ResolvedStructInit {
-                path: path.to_vec(),
+    pub(crate) fn resolve_struct_init(
+        &self,
+        path: &[String],
+        context: &ItemContext,
+    ) -> Result<Option<ResolvedStructInit>, TypeResolveError> {
+        let Some(resolved) = self.resolve_nominal_type_path(&path.to_vec(), context)? else {
+            return Ok(None);
+        };
+        match self.type_definitions.get(&resolved.canonical_path) {
+            Some(hir::Item::Struct(struct_def)) => Ok(Some(ResolvedStructInit {
+                path: resolved.canonical_path,
                 field_defs: struct_def.fields.clone(),
-            }),
-            _ => None,
+            })),
+            _ => Ok(None),
         }
     }
 
@@ -416,21 +428,62 @@ impl Typechecker {
         path: &hir::OwnedPath,
         context: &ItemContext,
     ) -> Result<Option<ResolvedNominalType>, TypeResolveError> {
-        let Some(item) = self.type_definitions.get(path) else {
+        let mut candidates = Vec::new();
+        if self.type_definitions.contains_key(path) {
+            candidates.push(path.clone());
+        }
+        if let Some((first, rest)) = path.split_first() {
+            if let Some(module) = self
+                .import_alias_map
+                .get(&context.path)
+                .and_then(|aliases| aliases.get(first))
+            {
+                let mut expanded = module.clone();
+                expanded.extend_from_slice(rest);
+                if self.type_definitions.contains_key(&expanded) {
+                    candidates.push(expanded);
+                }
+            }
+        }
+        if path.len() == 1 {
+            let local_module =
+                crate::typechecker::checker::Typechecker::canonical_module_path(&context.path);
+            for candidate in self.type_definitions.keys() {
+                if candidate.last() != path.last() {
+                    continue;
+                }
+                let module = &candidate[..candidate.len().saturating_sub(1)];
+                let imported = self
+                    .import_alias_map
+                    .get(&context.path)
+                    .map(|aliases| aliases.values().any(|imported| imported == module))
+                    .unwrap_or(false);
+                if module == local_module.as_slice() || imported {
+                    candidates.push(candidate.clone());
+                }
+            }
+        }
+        candidates.sort();
+        candidates.dedup();
+        let Some(canonical_path) = candidates.into_iter().next() else {
             return Ok(None);
         };
-        if let Some((defined_in, is_public)) = self.type_definition_meta.get(path) {
+        let item = &self.type_definitions[&canonical_path];
+        if let Some((defined_in, is_public)) = self.type_definition_meta.get(&canonical_path) {
             if !*is_public && defined_in != &context.path {
                 return Err(TypeResolveError::PrivateType {
                     name: path.join("::"),
                 });
             }
         }
-        Ok(Some(match item {
-            hir::Item::Struct(_) => ResolvedNominalType::Struct,
-            hir::Item::Enum(_) => ResolvedNominalType::Enum,
-            hir::Item::Effect(_) => ResolvedNominalType::Effect,
-            _ => ResolvedNominalType::Unsupported,
+        Ok(Some(ResolvedNominalType {
+            kind: match item {
+                hir::Item::Struct(_) => ResolvedNominalKind::Struct,
+                hir::Item::Enum(_) => ResolvedNominalKind::Enum,
+                hir::Item::Effect(_) => ResolvedNominalKind::Effect,
+                _ => ResolvedNominalKind::Unsupported,
+            },
+            canonical_path,
         }))
     }
 

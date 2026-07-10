@@ -4,6 +4,9 @@
       "item": {
         "Effect": {
           "name": "Deferred",
+          "generics": [
+            "T"
+          ],
           "operations": [
             {
               "name": "wait",
@@ -50,6 +53,9 @@
       "item": {
         "Handler": {
           "name": "Runner",
+          "generics": [
+            "T"
+          ],
           "effects": [
             "Deferred"
           ],

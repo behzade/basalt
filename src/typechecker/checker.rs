@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use crate::hir::{ContextId, HirContext, HirContextKind, HirSymbolDecl, HirSymbolKind};
-use crate::typechecker::resolver::{ResolvedNominalType, TypeResolveError};
+use crate::typechecker::resolver::{ResolvedNominalKind, TypeResolveError};
 use crate::typechecker::symbols::Symbol;
 
 #[derive(Default)]
@@ -63,11 +63,28 @@ pub struct Typechecker {
     /// Stack of currently allowed effects during lowering (top is current function)
     pub(crate) current_effects_stack: Vec<Vec<hir::Ty>>,
     pub(crate) unsafe_depth: usize,
+    pub(crate) generic_type_scopes: Vec<HashSet<String>>,
 }
 
 // ItemContext is re-exported from errors.rs
 
 impl Typechecker {
+    pub(crate) fn canonical_module_path(path: &std::path::Path) -> hir::OwnedPath {
+        let parts = path
+            .components()
+            .filter_map(|part| part.as_os_str().to_str().map(str::to_string))
+            .collect::<Vec<_>>();
+        let Some(modules) = parts.iter().position(|part| part == "modules") else {
+            return vec![];
+        };
+        parts[modules + 1..parts.len().saturating_sub(1)].to_vec()
+    }
+
+    pub(crate) fn canonical_type_path(path: &std::path::Path, name: &str) -> hir::OwnedPath {
+        let mut canonical = Self::canonical_module_path(path);
+        canonical.push(name.to_string());
+        canonical
+    }
     // format_ty moved to errors.rs (impl on Typechecker)
     fn new_context(
         &mut self,
@@ -108,6 +125,13 @@ impl Typechecker {
     pub(crate) fn is_runtime_file(&self, path: &PathBuf) -> bool {
         let s = path.to_string_lossy();
         s.contains("/modules/std/runtime/") || s.contains("\\modules\\std\\runtime\\")
+    }
+
+    pub(crate) fn is_trusted_memory_file(&self, path: &PathBuf) -> bool {
+        let s = path.to_string_lossy();
+        self.is_runtime_file(path)
+            || s.contains("/modules/std/buffer/")
+            || s.contains("\\modules\\std\\buffer\\")
     }
 
     pub(crate) fn is_raw_runtime_intrinsic(&self, path: &PathBuf, name: &str) -> bool {
@@ -188,7 +212,14 @@ impl Typechecker {
         self.imports_by_file = imports_map;
         self.import_alias_map = alias_map;
 
-        // --- PASS 1: Register all top-level definitions ---
+        // --- PASS 1: Predeclare every nominal type under its canonical module path. ---
+        for (path, items) in &file_entries {
+            for item in items {
+                self.predeclare_nominal_type(item, path);
+            }
+        }
+
+        // --- PASS 2: Resolve and register complete top-level definitions. ---
         for (path, items) in &file_entries {
             for item in items {
                 self.register_top_level_item_with_file(item, path);
@@ -224,6 +255,50 @@ impl Typechecker {
         } else {
             Err(self.errors.clone())
         }
+    }
+
+    fn predeclare_nominal_type(&mut self, item: &OwnedItemWithSpan, file: &PathBuf) {
+        let (name, kind, is_public) = match &item.item {
+            OwnedItem::Struct(def) => (def.name.clone(), "struct", def.is_public),
+            OwnedItem::Enum(def) => {
+                let Some(name) = def.name.clone() else { return };
+                (name, "enum", def.is_public)
+            }
+            OwnedItem::Effect(def) => (def.name.clone(), "effect", def.is_public),
+            OwnedItem::TypeAlias(def) if matches!(def.aliased, OwnedTypeAliasBody::Union(_)) => {
+                (def.name.clone(), "enum", def.is_public)
+            }
+            _ => return,
+        };
+        let path = Self::canonical_type_path(file, &name);
+        let placeholder = match kind {
+            "struct" => hir::Item::Struct(hir::HirStructDef {
+                name: name.clone(),
+                fields: vec![],
+                is_public,
+                defined_in: file.clone(),
+                span: item.span,
+                context_id: None,
+            }),
+            "enum" => hir::Item::Enum(hir::HirEnumDef {
+                name: name.clone(),
+                variants: vec![],
+                is_public,
+                defined_in: file.clone(),
+                span: item.span,
+                context_id: None,
+            }),
+            _ => hir::Item::Effect(hir::HirEffectDef {
+                name: name.clone(),
+                operations: vec![],
+                is_public,
+                defined_in: file.clone(),
+                span: item.span,
+            }),
+        };
+        self.type_definitions.insert(path.clone(), placeholder);
+        self.type_definition_meta
+            .insert(path, (file.clone(), is_public));
     }
 
     //================================================================================//
@@ -327,6 +402,8 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::HirFunction, ()> {
         // 1. Resolve types for the function signature.
+        self.generic_type_scopes
+            .push(func.generics.iter().cloned().collect());
         let params: Vec<hir::HirParam> = func
             .params
             .iter()
@@ -345,8 +422,9 @@ impl Typechecker {
             Some(rt) => self.resolve_type(rt, context.clone())?,
             None => hir::Ty::Special(hir::SpecialTy::Unit), // Default return type is unit
         };
+        self.generic_type_scopes.pop();
 
-        if !self.is_runtime_file(&context.path)
+        if !self.is_trusted_memory_file(&context.path)
             && (Self::contains_memory_address_ty(&ret_type)
                 || params
                     .iter()
@@ -540,7 +618,7 @@ impl Typechecker {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        if !self.is_runtime_file(&context.path)
+        if !self.is_trusted_memory_file(&context.path)
             && fields
                 .iter()
                 .any(|field| Self::contains_memory_address_ty(&field.ty))
@@ -628,9 +706,13 @@ impl Typechecker {
     ) -> Result<(Option<hir::HirEnumDef>, hir::HirTypeAlias), ()> {
         use crate::ast_owned::OwnedTypeAliasBody as Body;
         let name = ta.name.clone();
+        self.generic_type_scopes
+            .push(ta.generics.iter().cloned().collect());
         match ta.aliased {
             Body::Type(t) => {
-                let aliased = self.resolve_type(&t, context.clone())?;
+                let aliased = self.resolve_type(&t, context.clone());
+                self.generic_type_scopes.pop();
+                let aliased = aliased?;
                 Ok((
                     None,
                     hir::HirTypeAlias {
@@ -646,13 +728,21 @@ impl Typechecker {
                 // Lower to enum def and alias to that nominal enum
                 let mut lowered: Vec<hir::HirEnumVariant> = Vec::new();
                 for (vname, payload_ty) in variants {
-                    let payload_tys = Some(vec![self.resolve_type(&payload_ty, context.clone())?]);
+                    let payload_ty = self.resolve_type(&payload_ty, context.clone());
+                    let payload_tys = Some(vec![match payload_ty {
+                        Ok(ty) => ty,
+                        Err(()) => {
+                            self.generic_type_scopes.pop();
+                            return Err(());
+                        }
+                    }]);
                     lowered.push(hir::HirEnumVariant {
                         name: vname,
                         payload: payload_tys,
                         name_span: None,
                     });
                 }
+                self.generic_type_scopes.pop();
                 let def = hir::HirEnumDef {
                     name: ta.name.clone(),
                     variants: lowered.clone(),
@@ -661,7 +751,7 @@ impl Typechecker {
                     span: context.span,
                     context_id: None,
                 };
-                let path = vec![ta.name.clone()];
+                let path = Self::canonical_type_path(&context.path, &ta.name);
                 self.type_alias_generics
                     .insert(path.clone(), ta.generics.clone());
                 self.type_definitions
@@ -695,18 +785,32 @@ impl Typechecker {
         eff: OwnedEffectDef,
         context: ItemContext,
     ) -> Result<hir::HirEffectDef, ()> {
+        self.generic_type_scopes
+            .push(eff.generics.iter().cloned().collect());
         let mut operations: Vec<hir::HirFunctionSignature> = Vec::new();
         for op in &eff.operations {
             let mut params: Vec<hir::HirParam> = Vec::new();
             for p in &op.params {
                 params.push(hir::HirParam {
                     name: "_".to_string(),
-                    ty: self.resolve_type(p, context.clone())?,
+                    ty: match self.resolve_type(p, context.clone()) {
+                        Ok(ty) => ty,
+                        Err(()) => {
+                            self.generic_type_scopes.pop();
+                            return Err(());
+                        }
+                    },
                     is_mut: false,
                     span: None,
                 });
             }
-            let ret_type = self.resolve_type(&op.ret_type, context.clone())?;
+            let ret_type = match self.resolve_type(&op.ret_type, context.clone()) {
+                Ok(ty) => ty,
+                Err(()) => {
+                    self.generic_type_scopes.pop();
+                    return Err(());
+                }
+            };
             operations.push(hir::HirFunctionSignature {
                 name: op.name.clone(),
                 params,
@@ -714,6 +818,7 @@ impl Typechecker {
                 effects: vec![],
             });
         }
+        self.generic_type_scopes.pop();
         Ok(hir::HirEffectDef {
             name: eff.name,
             operations,
@@ -728,6 +833,8 @@ impl Typechecker {
         h: OwnedHandlerDef,
         context: ItemContext,
     ) -> Result<hir::HirHandlerDef, ()> {
+        self.generic_type_scopes
+            .push(h.generics.iter().cloned().collect());
         // Convert effect names to canonical types when possible; unknowns become Generic placeholders
         let mut effects: Vec<hir::Ty> = Vec::new();
         for eff_name in &h.effects {
@@ -823,14 +930,16 @@ impl Typechecker {
             }
         }
 
-        Ok(hir::HirHandlerDef {
+        let result = hir::HirHandlerDef {
             name: h.name,
             effects,
             functions,
             is_public: h.is_public,
             defined_in: context.path.clone(),
             span: context.span,
-        })
+        };
+        self.generic_type_scopes.pop();
+        Ok(result)
     }
 
     //================================================================================//
@@ -844,7 +953,7 @@ impl Typechecker {
         context: ItemContext,
     ) -> Result<hir::Ty, ()> {
         if owned_ty.path.last().map(String::as_str) == Some("MemoryAddress")
-            && !self.is_runtime_file(&context.path)
+            && !self.is_trusted_memory_file(&context.path)
         {
             self.errors.push(TypeError {
                 message: "MemoryAddress is an inferred unsafe capability and cannot be named in user type declarations".to_string(),
@@ -906,48 +1015,57 @@ impl Typechecker {
                 // Try to resolve against registered type definitions
                 let path_vec = owned_ty.path.clone();
                 match self.resolve_nominal_type_path(&path_vec, &context) {
-                    Ok(Some(ResolvedNominalType::Struct)) => {
+                    Ok(Some(resolved)) if matches!(resolved.kind, ResolvedNominalKind::Struct) => {
                         let generics = owned_ty
                             .generics
                             .iter()
                             .map(|g| self.resolve_type(g, context.clone()))
                             .collect::<Result<Vec<_>, _>>()?;
                         Ok(hir::Ty::Adt(hir::AdtTy::Struct {
-                            name: path_vec,
+                            name: resolved.canonical_path,
                             generics,
                         }))
                     }
-                    Ok(Some(ResolvedNominalType::Enum)) => {
+                    Ok(Some(resolved)) if matches!(resolved.kind, ResolvedNominalKind::Enum) => {
                         let generics = owned_ty
                             .generics
                             .iter()
                             .map(|g| self.resolve_type(g, context.clone()))
                             .collect::<Result<Vec<_>, _>>()?;
                         Ok(hir::Ty::Adt(hir::AdtTy::Enum {
-                            name: path_vec,
+                            name: resolved.canonical_path,
                             generics,
                         }))
                     }
-                    Ok(Some(ResolvedNominalType::Effect)) => {
+                    Ok(Some(resolved)) if matches!(resolved.kind, ResolvedNominalKind::Effect) => {
                         let generics = owned_ty
                             .generics
                             .iter()
                             .map(|g| self.resolve_type(g, context.clone()))
                             .collect::<Result<Vec<_>, _>>()?;
                         Ok(hir::Ty::Adt(hir::AdtTy::Effect {
-                            name: path_vec,
+                            name: resolved.canonical_path,
                             generics,
                         }))
                     }
-                    Ok(Some(ResolvedNominalType::Unsupported)) => {
+                    Ok(Some(resolved))
+                        if matches!(resolved.kind, ResolvedNominalKind::Unsupported) =>
+                    {
                         self.errors.push(TypeError {
                             message: format!("Unsupported type item for {}", type_name),
                             context: context.clone(),
                         });
                         Err(())
                     }
-                    Ok(None) if owned_ty.path.len() == 1 => {
-                        // Treat single-segment unknown types as generics, e.g., T
+                    Ok(Some(_)) => unreachable!("all nominal type kinds are handled"),
+                    Ok(None)
+                        if owned_ty.path.len() == 1
+                            && self
+                                .generic_type_scopes
+                                .iter()
+                                .rev()
+                                .any(|scope| scope.contains(&owned_ty.path[0])) =>
+                    {
                         Ok(hir::Ty::Generic(owned_ty.path[0].clone()))
                     }
                     Ok(None) => {

@@ -64,6 +64,7 @@ pub struct OwnedEnumDef {
 #[derive(Debug, Clone, Serialize)]
 pub struct OwnedEffectDef {
     pub name: String,
+    pub generics: Vec<String>,
     pub operations: Vec<OwnedEffectOp>,
     pub is_public: bool,
 }
@@ -81,6 +82,7 @@ pub struct OwnedEffectOp {
 #[derive(Debug, Clone, Serialize)]
 pub struct OwnedHandlerDef {
     pub name: String,
+    pub generics: Vec<String>,
     pub effects: Vec<String>,
     pub functions: Vec<OwnedFunction>,
     pub is_public: bool,
@@ -333,6 +335,11 @@ impl<'src> From<&EffectDef<'src>> for OwnedEffectDef {
     fn from(effect_def: &EffectDef<'src>) -> Self {
         Self {
             name: effect_def.name.to_string(),
+            generics: effect_def
+                .generics
+                .iter()
+                .map(|name| name.to_string())
+                .collect(),
             operations: effect_def.operations.iter().map(|op| op.into()).collect(),
             is_public: effect_def.is_public,
         }
@@ -354,6 +361,22 @@ impl<'src> From<&HandlerDef<'src>> for OwnedHandlerDef {
     fn from(handler_def: &HandlerDef<'src>) -> Self {
         Self {
             name: handler_def.name.to_string(),
+            generics: handler_def
+                .effects
+                .iter()
+                .flat_map(|effect| match &effect.node {
+                    TypeNode::Path { generics, .. } => generics
+                        .iter()
+                        .filter_map(|generic| match &generic.node {
+                            TypeNode::Path { path, generics } if generics.is_empty() => {
+                                path.last().map(|name| name.to_string())
+                            }
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>(),
+                    _ => vec![],
+                })
+                .collect(),
             effects: handler_def
                 .effects
                 .iter()

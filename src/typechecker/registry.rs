@@ -123,6 +123,8 @@ impl Typechecker {
     pub(crate) fn register_top_level_item(&mut self, item: &OwnedItemWithSpan) {
         match &item.item {
             OwnedItem::Fn(func) => {
+                self.generic_type_scopes
+                    .push(func.generics.iter().cloned().collect());
                 let ctx = ItemContext {
                     span: item.span,
                     path: PathBuf::from("<global>"),
@@ -148,8 +150,10 @@ impl Typechecker {
                     None => hir::Ty::Special(hir::SpecialTy::Unit),
                 };
                 let Some(effects) = self.resolve_effect_names(&func.effects, ctx.clone()) else {
+                    self.generic_type_scopes.pop();
                     return;
                 };
+                self.generic_type_scopes.pop();
                 if !has_error {
                     let signature = hir::HirFunctionSignature {
                         name: func.name.clone(),
@@ -189,6 +193,8 @@ impl Typechecker {
                         span: item.span,
                         path: PathBuf::from("<global>"),
                     };
+                    self.generic_type_scopes
+                        .push(ta.generics.iter().cloned().collect());
                     let mut lowered_variants: Vec<hir::HirEnumVariant> = Vec::new();
                     for (vname, payload_ty) in variants {
                         let lowered_payload = match self.resolve_type(payload_ty, ctx.clone()) {
@@ -201,6 +207,7 @@ impl Typechecker {
                             name_span: None,
                         });
                     }
+                    self.generic_type_scopes.pop();
                     let def = hir::HirEnumDef {
                         name: ta.name.clone(),
                         variants: lowered_variants.clone(),
@@ -209,7 +216,7 @@ impl Typechecker {
                         span: item.span,
                         context_id: None,
                     };
-                    let path = vec![ta.name.clone()];
+                    let path = Self::canonical_type_path(&ctx.path, &ta.name);
                     self.type_alias_generics
                         .insert(path.clone(), ta.generics.clone());
                     self.type_definitions
@@ -247,7 +254,7 @@ impl Typechecker {
                     span: item.span,
                     context_id: None,
                 };
-                let path = vec![s.name.clone()];
+                let path = Self::canonical_type_path(&ctx.path, &s.name);
                 self.type_definitions
                     .insert(path.clone(), hir::Item::Struct(def));
                 self.type_definition_meta
@@ -288,7 +295,7 @@ impl Typechecker {
                     defined_in: ctx.path.clone(),
                     span: item.span,
                 };
-                let path = vec![eff.name.clone()];
+                let path = Self::canonical_type_path(&ctx.path, &eff.name);
                 self.type_definitions
                     .insert(path.clone(), hir::Item::Effect(def));
                 self.type_definition_meta
@@ -336,6 +343,8 @@ impl Typechecker {
                         return;
                     }
                 }
+                self.generic_type_scopes
+                    .push(func.generics.iter().cloned().collect());
                 let mut params: Vec<hir::HirParam> = Vec::new();
                 let mut has_error = false;
                 for (is_mut, name_opt, ty) in &func.params {
@@ -356,8 +365,10 @@ impl Typechecker {
                     None => hir::Ty::Special(hir::SpecialTy::Unit),
                 };
                 let Some(effects) = self.resolve_effect_names(&func.effects, ctx.clone()) else {
+                    self.generic_type_scopes.pop();
                     return;
                 };
+                self.generic_type_scopes.pop();
                 if !has_error {
                     let signature = hir::HirFunctionSignature {
                         name: func.name.clone(),
@@ -386,6 +397,8 @@ impl Typechecker {
                         span: item.span,
                         path: file.clone(),
                     };
+                    self.generic_type_scopes
+                        .push(ta.generics.iter().cloned().collect());
                     let mut lowered_variants: Vec<hir::HirEnumVariant> = Vec::new();
                     for (vname, payload_ty) in variants {
                         let lowered_payload = match self.resolve_type(payload_ty, ctx2.clone()) {
@@ -398,6 +411,7 @@ impl Typechecker {
                             name_span: None,
                         });
                     }
+                    self.generic_type_scopes.pop();
                     let def = hir::HirEnumDef {
                         name: ta.name.clone(),
                         variants: lowered_variants.clone(),
@@ -406,7 +420,7 @@ impl Typechecker {
                         span: item.span,
                         context_id: None,
                     };
-                    let path = vec![ta.name.clone()];
+                    let path = Self::canonical_type_path(&ctx2.path, &ta.name);
                     self.type_alias_generics
                         .insert(path.clone(), ta.generics.clone());
                     self.type_definitions
@@ -444,7 +458,7 @@ impl Typechecker {
                     span: item.span,
                     context_id: None,
                 };
-                let path = vec![s.name.clone()];
+                let path = Self::canonical_type_path(&ctx2.path, &s.name);
                 self.type_definitions
                     .insert(path.clone(), hir::Item::Struct(def));
                 self.type_definition_meta
@@ -455,6 +469,8 @@ impl Typechecker {
                     span: item.span,
                     path: file.clone(),
                 };
+                self.generic_type_scopes
+                    .push(eff.generics.iter().cloned().collect());
                 let mut ops: Vec<hir::HirFunctionSignature> = Vec::new();
                 for op in &eff.operations {
                     let mut params: Vec<hir::HirParam> = Vec::new();
@@ -478,6 +494,7 @@ impl Typechecker {
                         effects: vec![],
                     });
                 }
+                self.generic_type_scopes.pop();
                 let def = hir::HirEffectDef {
                     name: eff.name.clone(),
                     operations: ops,
@@ -485,7 +502,7 @@ impl Typechecker {
                     defined_in: ctx2.path.clone(),
                     span: item.span,
                 };
-                let path = vec![eff.name.clone()];
+                let path = Self::canonical_type_path(&ctx2.path, &eff.name);
                 self.type_definitions
                     .insert(path.clone(), hir::Item::Effect(def));
                 self.type_definition_meta

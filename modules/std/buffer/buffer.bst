@@ -1,6 +1,10 @@
+import {
+    std::runtime
+}
+
 // Owning initialized byte storage. Capacity may exceed length, but safe reads stop at length.
 pub struct Buffer {
-    address: MemoryAddress,
+    address: runtime::MemoryAddress,
     length: u64,
     capacity: u64,
 }
@@ -8,14 +12,14 @@ pub struct Buffer {
 pub fn buffer(capacity: u64) -> Buffer {
     if capacity == 0u64 {
         Buffer {
-            address: unsafe { address_null() },
+            address: unsafe { runtime::address_null() },
             length: 0u64,
             capacity: capacity,
         }
     } else {
         unsafe {
             Buffer {
-                address: libc_alloc(capacity),
+                address: runtime::libc_alloc(capacity),
                 length: 0u64,
                 capacity: capacity,
             }
@@ -31,8 +35,8 @@ pub fn buffer_push(mut buffer: Buffer, value: u8) -> bool {
         false
     } else {
         unsafe {
-            let destination = address_add(buffer.address, buffer.length)
-            libc_memset(destination, value, 1u64)
+            let destination = runtime::address_add(buffer.address, buffer.length)
+            runtime::libc_memset(destination, value, 1u64)
         }
         buffer.length = buffer.length + 1u64
         true
@@ -41,7 +45,7 @@ pub fn buffer_push(mut buffer: Buffer, value: u8) -> bool {
 
 pub fn buffer_get(buffer: Buffer, index: u64) -> u8 {
     if index < buffer.length {
-        unsafe { address_load_u8(address_add(buffer.address, index)) }
+        unsafe { runtime::address_load_u8(runtime::address_add(buffer.address, index)) }
     } else {
         0u8
     }
@@ -49,7 +53,7 @@ pub fn buffer_get(buffer: Buffer, index: u64) -> u8 {
 
 pub fn buffer_set(buffer: Buffer, index: u64, value: u8) -> bool {
     if index < buffer.length {
-        unsafe { libc_memset(address_add(buffer.address, index), value, 1u64) }
+        unsafe { runtime::libc_memset(runtime::address_add(buffer.address, index), value, 1u64) }
         true
     } else {
         false
@@ -62,8 +66,8 @@ pub fn buffer_extend(mut destination: Buffer, source: Buffer) -> bool {
     } else {
         if source.length > 0u64 {
             unsafe {
-                let write_at = address_add(destination.address, destination.length)
-                libc_memcpy(write_at, source.address, source.length)
+                let write_at = runtime::address_add(destination.address, destination.length)
+                runtime::libc_memcpy(write_at, source.address, source.length)
             }
         }
         destination.length = destination.length + source.length
@@ -76,7 +80,7 @@ pub fn buffer_equal(left: Buffer, right: Buffer) -> bool {
         false
     } else {
         if left.length == 0u64 { true }
-        else { unsafe { libc_memcmp(left.address, right.address, left.length) == 0 } }
+        else { unsafe { runtime::libc_memcmp(left.address, right.address, left.length) == 0 } }
     }
 }
 
@@ -84,8 +88,8 @@ pub fn buffer_clear(mut buffer: Buffer) { buffer.length = 0u64 }
 
 pub fn buffer_release(mut buffer: Buffer) {
     unsafe {
-        libc_free(buffer.address, buffer.capacity)
-        buffer.address = address_null()
+        runtime::libc_free(buffer.address, buffer.capacity)
+        buffer.address = runtime::address_null()
     }
     buffer.length = 0u64
     buffer.capacity = 0u64

@@ -4,6 +4,7 @@
       "item": {
         "Effect": {
           "name": "Http",
+          "generics": [],
           "operations": [
             {
               "name": "get",
@@ -42,6 +43,9 @@
       "item": {
         "Effect": {
           "name": "Async",
+          "generics": [
+            "T"
+          ],
           "operations": [
             {
               "name": "await",
@@ -88,6 +92,9 @@
       "item": {
         "Handler": {
           "name": "Scheduler",
+          "generics": [
+            "T"
+          ],
           "effects": [
             "Async"
           ],
@@ -211,6 +218,9 @@
       "item": {
         "Handler": {
           "name": "HttpHandler",
+          "generics": [
+            "str"
+          ],
           "effects": [
             "Http",
             "Async"

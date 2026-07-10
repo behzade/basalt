@@ -1062,10 +1062,9 @@ fn effect_parser<'src>()
                                 .collect::<Vec<_>>(),
                         )
                         .then_ignore(select! { Token::Op(op) if op == ">" => () })
-                        .or_not()
-                        .ignored(),
+                        .or_not(),
                 )
-                .map(|(name, _)| name),
+                .map(|(name, generics)| (name, generics.unwrap_or_default())),
         )
         .then(
             op.clone()
@@ -1073,8 +1072,9 @@ fn effect_parser<'src>()
                 .collect::<Vec<_>>()
                 .delimited_by(just(Token::LBrace), just(Token::RBrace)),
         )
-        .map(|((is_public, name), operations)| EffectDef {
+        .map(|((is_public, (name, generics)), operations)| EffectDef {
             name,
+            generics,
             operations,
             is_public,
         })
