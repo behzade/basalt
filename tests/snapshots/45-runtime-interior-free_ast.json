@@ -1,0 +1,271 @@
+{
+  "tests/45-runtime-interior-free.bst": [
+    {
+      "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "runtime"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Unsafe": {
+                            "item": {
+                              "Block": {
+                                "stmts": [
+                                  {
+                                    "item": {
+                                      "Let": {
+                                        "is_mut": false,
+                                        "name": "address",
+                                        "memory": null,
+                                        "ty": null,
+                                        "value": {
+                                          "item": {
+                                            "Call": {
+                                              "fun": {
+                                                "item": {
+                                                  "Path": [
+                                                    "runtime",
+                                                    "libc_alloc"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 19,
+                                                  "end": 23
+                                                }
+                                              },
+                                              "args": [
+                                                {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "U64": 8
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 24,
+                                                    "end": 25
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 19,
+                                            "end": 26
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 16,
+                                      "end": 26
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "Let": {
+                                        "is_mut": false,
+                                        "name": "interior",
+                                        "memory": null,
+                                        "ty": null,
+                                        "value": {
+                                          "item": {
+                                            "Call": {
+                                              "fun": {
+                                                "item": {
+                                                  "Path": [
+                                                    "runtime",
+                                                    "address_add"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 29,
+                                                  "end": 33
+                                                }
+                                              },
+                                              "args": [
+                                                {
+                                                  "item": {
+                                                    "Path": [
+                                                      "address"
+                                                    ]
+                                                  },
+                                                  "span": {
+                                                    "start": 34,
+                                                    "end": 35
+                                                  }
+                                                },
+                                                {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "U64": 1
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 36,
+                                                    "end": 37
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 29,
+                                            "end": 38
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 26,
+                                      "end": 38
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "Expr": {
+                                        "item": {
+                                          "Call": {
+                                            "fun": {
+                                              "item": {
+                                                "Path": [
+                                                  "runtime",
+                                                  "libc_free"
+                                                ]
+                                              },
+                                              "span": {
+                                                "start": 38,
+                                                "end": 42
+                                              }
+                                            },
+                                            "args": [
+                                              {
+                                                "item": {
+                                                  "Path": [
+                                                    "interior"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 43,
+                                                  "end": 44
+                                                }
+                                              },
+                                              {
+                                                "item": {
+                                                  "Literal": {
+                                                    "U64": 8
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 45,
+                                                  "end": 46
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 38,
+                                          "end": 47
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 38,
+                                      "end": 47
+                                    }
+                                  },
+                                  {
+                                    "item": {
+                                      "Expr": {
+                                        "item": {
+                                          "Literal": {
+                                            "I32": 0
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 47,
+                                          "end": 48
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 47,
+                                      "end": 48
+                                    }
+                                  }
+                                ],
+                                "last_expr": null
+                              }
+                            },
+                            "span": {
+                              "start": 15,
+                              "end": 49
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 14,
+                          "end": 49
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 14,
+                      "end": 49
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 13,
+              "end": 50
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 7,
+        "end": 50
+      }
+    }
+  ]
+}

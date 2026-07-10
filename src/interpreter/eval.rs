@@ -36,6 +36,7 @@ pub struct Interpreter {
     index: HirIndex,
     active_handlers: RefCell<Vec<HandlerValue>>,
     stack: RefCell<StackAllocator>,
+    runtime_memory: RefCell<runtime::RuntimeMemory>,
 }
 
 impl Interpreter {
@@ -81,6 +82,7 @@ impl Interpreter {
             index: HirIndex::from_items(items),
             active_handlers: RefCell::new(vec![]),
             stack: RefCell::new(stack),
+            runtime_memory: RefCell::new(runtime::RuntimeMemory::default()),
         })
     }
 
@@ -115,7 +117,11 @@ impl Interpreter {
                         CallArgument::MutableBinding(binding) => binding.value(),
                     })
                     .collect();
-                return runtime::call_runtime_intrinsic(function, values);
+                return runtime::call_runtime_intrinsic(
+                    &mut self.runtime_memory.borrow_mut(),
+                    function,
+                    values,
+                );
             }
             Some(hir::HirExternKind::Foreign) => {
                 return Err(RuntimeError(format!(

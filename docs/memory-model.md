@@ -172,6 +172,9 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
 - Process addresses have the nominal `MemoryAddress` type. Their machine-number representation is
   host-private; user functions cannot return them, store them in user structs, or bind them outside
   the lexical `unsafe` scope where they are used.
+- Interpreter addresses carry allocation identity, generation, and byte offset. Every offset,
+  memory operation, and free validates liveness and bounds; use-after-free, double-free, interior
+  free, and out-of-bounds ranges are runtime errors before libc is invoked.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.
