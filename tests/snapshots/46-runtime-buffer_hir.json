@@ -7883,392 +7883,6 @@
     }
   },
   {
-    "Effect": {
-      "name": "Panic",
-      "operations": [
-        {
-          "name": "panic",
-          "params": [
-            {
-              "name": "_",
-              "ty": {
-                "Primitive": "Str"
-              },
-              "is_mut": false,
-              "span": null
-            }
-          ],
-          "ret_type": {
-            "Special": "Never"
-          },
-          "effects": []
-        }
-      ],
-      "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
-      "span": {
-        "start": 7,
-        "end": 19
-      }
-    }
-  },
-  {
-    "Handler": {
-      "name": "OsExitPanic",
-      "effects": [
-        {
-          "Adt": {
-            "Effect": {
-              "name": [
-                "Panic"
-              ],
-              "generics": []
-            }
-          }
-        }
-      ],
-      "functions": [
-        {
-          "signature": {
-            "name": "panic",
-            "params": [
-              {
-                "name": "msg",
-                "ty": {
-                  "Primitive": "Str"
-                },
-                "is_mut": false,
-                "span": null
-              }
-            ],
-            "ret_type": {
-              "Special": "Never"
-            },
-            "effects": []
-          },
-          "body": {
-            "stmts": [],
-            "last_expr": {
-              "kind": {
-                "Call": {
-                  "fun": {
-                    "kind": {
-                      "Path": [
-                        "runtime",
-                        "exit"
-                      ]
-                    },
-                    "ty": {
-                      "Function": {
-                        "param_types": [
-                          {
-                            "Primitive": "I32"
-                          }
-                        ],
-                        "ret_type": {
-                          "Special": "Never"
-                        },
-                        "effects": []
-                      }
-                    },
-                    "span": {
-                      "start": 34,
-                      "end": 38
-                    },
-                    "resolution": {
-                      "Function": {
-                        "defined_in": "./modules/std/runtime/exit.bst",
-                        "span": {
-                          "start": 0,
-                          "end": 11
-                        }
-                      }
-                    }
-                  },
-                  "args": [
-                    {
-                      "kind": {
-                        "Literal": [
-                          "I32",
-                          "1"
-                        ]
-                      },
-                      "ty": {
-                        "Primitive": "I32"
-                      },
-                      "span": {
-                        "start": 39,
-                        "end": 40
-                      },
-                      "resolution": null
-                    }
-                  ]
-                }
-              },
-              "ty": {
-                "Special": "Never"
-              },
-              "span": {
-                "start": 34,
-                "end": 41
-              },
-              "resolution": {
-                "Function": {
-                  "defined_in": "./modules/std/runtime/exit.bst",
-                  "span": {
-                    "start": 0,
-                    "end": 11
-                  }
-                }
-              }
-            },
-            "ty": {
-              "Special": "Never"
-            }
-          },
-          "is_public": false,
-          "defined_in": "tests/03-effects-and-handlers-panic.bst",
-          "span": {
-            "start": 33,
-            "end": 43
-          },
-          "context_id": 27
-        }
-      ],
-      "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
-      "span": {
-        "start": 19,
-        "end": 44
-      }
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "division",
-        "params": [
-          {
-            "name": "a",
-            "ty": {
-              "Primitive": "I32"
-            },
-            "is_mut": false,
-            "span": null
-          },
-          {
-            "name": "b",
-            "ty": {
-              "Primitive": "I32"
-            },
-            "is_mut": false,
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Primitive": "I32"
-        },
-        "effects": [
-          {
-            "Adt": {
-              "Effect": {
-                "name": [
-                  "Panic"
-                ],
-                "generics": []
-              }
-            }
-          }
-        ]
-      },
-      "body": {
-        "stmts": [
-          {
-            "Expr": {
-              "expr": {
-                "kind": {
-                  "If": {
-                    "cond": {
-                      "kind": {
-                        "Binary": {
-                          "op": "Eq",
-                          "lhs": {
-                            "kind": {
-                              "Path": [
-                                "b"
-                              ]
-                            },
-                            "ty": {
-                              "Primitive": "I32"
-                            },
-                            "span": {
-                              "start": 63,
-                              "end": 64
-                            },
-                            "resolution": {
-                              "Local": {
-                                "name": "b",
-                                "decl_span": null
-                              }
-                            }
-                          },
-                          "rhs": {
-                            "kind": {
-                              "Literal": [
-                                "I32",
-                                "0"
-                              ]
-                            },
-                            "ty": {
-                              "Primitive": "I32"
-                            },
-                            "span": {
-                              "start": 65,
-                              "end": 66
-                            },
-                            "resolution": null
-                          }
-                        }
-                      },
-                      "ty": {
-                        "Primitive": "Bool"
-                      },
-                      "span": {
-                        "start": 63,
-                        "end": 66
-                      },
-                      "resolution": null
-                    },
-                    "then_block": {
-                      "stmts": [],
-                      "last_expr": {
-                        "kind": {
-                          "Perform": {
-                            "path": [
-                              "Panic",
-                              "panic"
-                            ],
-                            "args": [
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "Str",
-                                    "division by zero"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "Str"
-                                },
-                                "span": {
-                                  "start": 72,
-                                  "end": 73
-                                },
-                                "resolution": null
-                              }
-                            ]
-                          }
-                        },
-                        "ty": {
-                          "Special": "Never"
-                        },
-                        "span": {
-                          "start": 67,
-                          "end": 74
-                        },
-                        "resolution": null
-                      },
-                      "ty": {
-                        "Special": "Never"
-                      }
-                    },
-                    "else_block": null
-                  }
-                },
-                "ty": {
-                  "Special": "Unit"
-                },
-                "span": {
-                  "start": 62,
-                  "end": 75
-                },
-                "resolution": null
-              },
-              "span": {
-                "start": 62,
-                "end": 75
-              }
-            }
-          }
-        ],
-        "last_expr": {
-          "kind": {
-            "Binary": {
-              "op": "Div",
-              "lhs": {
-                "kind": {
-                  "Path": [
-                    "a"
-                  ]
-                },
-                "ty": {
-                  "Primitive": "I32"
-                },
-                "span": {
-                  "start": 75,
-                  "end": 76
-                },
-                "resolution": {
-                  "Local": {
-                    "name": "a",
-                    "decl_span": null
-                  }
-                }
-              },
-              "rhs": {
-                "kind": {
-                  "Path": [
-                    "b"
-                  ]
-                },
-                "ty": {
-                  "Primitive": "I32"
-                },
-                "span": {
-                  "start": 77,
-                  "end": 78
-                },
-                "resolution": {
-                  "Local": {
-                    "name": "b",
-                    "decl_span": null
-                  }
-                }
-              }
-            }
-          },
-          "ty": {
-            "Primitive": "I32"
-          },
-          "span": {
-            "start": 75,
-            "end": 78
-          },
-          "resolution": null
-        },
-        "ty": {
-          "Primitive": "I32"
-        }
-      },
-      "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
-      "span": {
-        "start": 61,
-        "end": 79
-      },
-      "context_id": 28
-    }
-  },
-  {
     "Fn": {
       "signature": {
         "name": "main",
@@ -8282,148 +7896,2733 @@
         "stmts": [
           {
             "Let": {
-              "name": "_",
+              "name": "left",
               "value": {
                 "kind": {
-                  "Handle": {
-                    "body": {
-                      "stmts": [],
-                      "last_expr": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Struct": {
+                                "name": [
+                                  "Buffer"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 18,
+                        "end": 22
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 18,
+                            "end": 80
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
                         "kind": {
-                          "Call": {
-                            "fun": {
-                              "kind": {
-                                "Path": [
-                                  "division"
-                                ]
-                              },
-                              "ty": {
-                                "Function": {
-                                  "param_types": [
-                                    {
-                                      "Primitive": "I32"
-                                    },
-                                    {
-                                      "Primitive": "I32"
-                                    }
+                          "Literal": [
+                            "U64",
+                            "8"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 23,
+                          "end": 24
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Buffer"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 18,
+                  "end": 25
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 18,
+                      "end": 80
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Buffer"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 14,
+                "end": 25
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_push"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
                                   ],
-                                  "ret_type": {
-                                    "Primitive": "I32"
-                                  },
-                                  "effects": [
-                                    {
-                                      "Adt": {
-                                        "Effect": {
-                                          "name": [
-                                            "Panic"
-                                          ],
-                                          "generics": []
-                                        }
-                                      }
-                                    }
-                                  ]
-                                }
-                              },
-                              "span": {
-                                "start": 89,
-                                "end": 90
-                              },
-                              "resolution": {
-                                "Function": {
-                                  "defined_in": "tests/03-effects-and-handlers-panic.bst",
-                                  "span": {
-                                    "start": 44,
-                                    "end": 79
-                                  }
+                                  "generics": []
                                 }
                               }
                             },
-                            "args": [
-                              {
+                            {
+                              "Primitive": "U8"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 25,
+                        "end": 29
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 110,
+                            "end": 175
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 30,
+                          "end": 31
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "left",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U8",
+                            "41"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U8"
+                        },
+                        "span": {
+                          "start": 32,
+                          "end": 33
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 25,
+                  "end": 34
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 110,
+                      "end": 175
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 25,
+                "end": 34
+              }
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_push"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U8"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 34,
+                        "end": 38
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 110,
+                            "end": 175
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 39,
+                          "end": 40
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "left",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U8",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U8"
+                        },
+                        "span": {
+                          "start": 41,
+                          "end": 42
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 34,
+                  "end": 43
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 110,
+                      "end": 175
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 34,
+                "end": 43
+              }
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_set"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U8"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 43,
+                        "end": 47
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 217,
+                            "end": 268
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 48,
+                          "end": 49
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "left",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 50,
+                          "end": 51
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U8",
+                            "2"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U8"
+                        },
+                        "span": {
+                          "start": 52,
+                          "end": 53
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 43,
+                  "end": 54
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 217,
+                      "end": 268
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 43,
+                "end": 54
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "right",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Struct": {
+                                "name": [
+                                  "Buffer"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 58,
+                        "end": 62
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 18,
+                            "end": 80
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "8"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 63,
+                          "end": 64
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Buffer"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 58,
+                  "end": 65
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 18,
+                      "end": 80
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Buffer"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 54,
+                "end": 65
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_push"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U8"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 65,
+                        "end": 69
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 110,
+                            "end": 175
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "right"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 70,
+                          "end": 71
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "right",
+                            "decl_span": {
+                              "start": 54,
+                              "end": 65
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U8",
+                            "41"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U8"
+                        },
+                        "span": {
+                          "start": 72,
+                          "end": 73
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 65,
+                  "end": 74
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 110,
+                      "end": 175
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 65,
+                "end": 74
+              }
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_push"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U8"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 74,
+                        "end": 78
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 110,
+                            "end": 175
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "right"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 79,
+                          "end": 80
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "right",
+                            "decl_span": {
+                              "start": 54,
+                              "end": 65
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U8",
+                            "2"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U8"
+                        },
+                        "span": {
+                          "start": 81,
+                          "end": 82
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 74,
+                  "end": 83
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 110,
+                      "end": 175
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 74,
+                "end": 83
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "combined",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Struct": {
+                                "name": [
+                                  "Buffer"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 87,
+                        "end": 91
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 18,
+                            "end": 80
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "8"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 92,
+                          "end": 93
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Buffer"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 87,
+                  "end": 94
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 18,
+                      "end": 80
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Buffer"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 83,
+                "end": 94
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "first_copy",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_extend"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 97,
+                        "end": 101
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 268,
+                            "end": 351
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 102,
+                          "end": 103
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 104,
+                          "end": 105
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "left",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 97,
+                  "end": 106
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 268,
+                      "end": 351
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "Bool"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 94,
+                "end": 106
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "second_copy",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_extend"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 109,
+                        "end": 113
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 268,
+                            "end": 351
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 114,
+                          "end": 115
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Path": [
+                            "right"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 116,
+                          "end": 117
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "right",
+                            "decl_span": {
+                              "start": 54,
+                              "end": 65
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 109,
+                  "end": 118
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 268,
+                      "end": 351
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "Bool"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 106,
+                "end": 118
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "equal",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_equal"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 121,
+                        "end": 125
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 351,
+                            "end": 412
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 126,
+                          "end": 127
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "left",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Path": [
+                            "right"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 128,
+                          "end": 129
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "right",
+                            "decl_span": {
+                              "start": 54,
+                              "end": 65
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 121,
+                  "end": 130
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 351,
+                      "end": 412
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "Bool"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 118,
+                "end": 130
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "initialized",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_get"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U8"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 133,
+                        "end": 137
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 175,
+                            "end": 217
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 138,
+                          "end": 139
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "3"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 140,
+                          "end": 141
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U8"
+                },
+                "span": {
+                  "start": 133,
+                  "end": 142
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 175,
+                      "end": 217
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U8"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 130,
+                "end": 142
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "uninitialized",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_get"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U8"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 145,
+                        "end": 149
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 175,
+                            "end": 217
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 150,
+                          "end": 151
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "4"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 152,
+                          "end": 153
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U8"
+                },
+                "span": {
+                  "start": 145,
+                  "end": 154
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 175,
+                      "end": 217
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U8"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 142,
+                "end": 154
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_clear"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 154,
+                        "end": 158
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 412,
+                            "end": 428
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 159,
+                          "end": 160
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 154,
+                  "end": 161
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 412,
+                      "end": 428
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 154,
+                "end": 161
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "cleared",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_len"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 164,
+                        "end": 168
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 80,
+                            "end": 95
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 169,
+                          "end": 170
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 164,
+                  "end": 171
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 80,
+                      "end": 95
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 161,
+                "end": 171
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_release"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 171,
+                        "end": 175
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 428,
+                            "end": 469
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "combined"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 176,
+                          "end": 177
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "combined",
+                            "decl_span": {
+                              "start": 83,
+                              "end": 94
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 171,
+                  "end": 178
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 428,
+                      "end": 469
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 171,
+                "end": 178
+              }
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_release"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 178,
+                        "end": 182
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 428,
+                            "end": 469
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "right"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 183,
+                          "end": 184
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "right",
+                            "decl_span": {
+                              "start": 54,
+                              "end": 65
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 178,
+                  "end": 185
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 428,
+                      "end": 469
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 178,
+                "end": 185
+              }
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_release"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 185,
+                        "end": 189
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 428,
+                            "end": 469
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "left"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 190,
+                          "end": 191
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "left",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 185,
+                  "end": 192
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 428,
+                      "end": 469
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 185,
+                "end": 192
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "If": {
+              "cond": {
+                "kind": {
+                  "Path": [
+                    "first_copy"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 193,
+                  "end": 194
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "first_copy",
+                    "decl_span": {
+                      "start": 94,
+                      "end": 106
+                    }
+                  }
+                }
+              },
+              "then_block": {
+                "stmts": [],
+                "last_expr": {
+                  "kind": {
+                    "If": {
+                      "cond": {
+                        "kind": {
+                          "Path": [
+                            "second_copy"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "Bool"
+                        },
+                        "span": {
+                          "start": 196,
+                          "end": 197
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "second_copy",
+                            "decl_span": {
+                              "start": 106,
+                              "end": 118
+                            }
+                          }
+                        }
+                      },
+                      "then_block": {
+                        "stmts": [],
+                        "last_expr": {
+                          "kind": {
+                            "If": {
+                              "cond": {
                                 "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "10"
+                                  "Path": [
+                                    "equal"
                                   ]
                                 },
                                 "ty": {
-                                  "Primitive": "I32"
+                                  "Primitive": "Bool"
                                 },
                                 "span": {
-                                  "start": 91,
-                                  "end": 92
+                                  "start": 199,
+                                  "end": 200
                                 },
-                                "resolution": null
+                                "resolution": {
+                                  "Local": {
+                                    "name": "equal",
+                                    "decl_span": {
+                                      "start": 118,
+                                      "end": 130
+                                    }
+                                  }
+                                }
                               },
-                              {
+                              "then_block": {
+                                "stmts": [],
+                                "last_expr": {
+                                  "kind": {
+                                    "If": {
+                                      "cond": {
+                                        "kind": {
+                                          "Binary": {
+                                            "op": "Eq",
+                                            "lhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "initialized"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U8"
+                                              },
+                                              "span": {
+                                                "start": 202,
+                                                "end": 203
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "initialized",
+                                                  "decl_span": {
+                                                    "start": 130,
+                                                    "end": 142
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "rhs": {
+                                              "kind": {
+                                                "Literal": [
+                                                  "U8",
+                                                  "2"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U8"
+                                              },
+                                              "span": {
+                                                "start": 204,
+                                                "end": 205
+                                              },
+                                              "resolution": null
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "Bool"
+                                        },
+                                        "span": {
+                                          "start": 202,
+                                          "end": 205
+                                        },
+                                        "resolution": null
+                                      },
+                                      "then_block": {
+                                        "stmts": [],
+                                        "last_expr": {
+                                          "kind": {
+                                            "If": {
+                                              "cond": {
+                                                "kind": {
+                                                  "Binary": {
+                                                    "op": "Eq",
+                                                    "lhs": {
+                                                      "kind": {
+                                                        "Path": [
+                                                          "uninitialized"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Primitive": "U8"
+                                                      },
+                                                      "span": {
+                                                        "start": 207,
+                                                        "end": 208
+                                                      },
+                                                      "resolution": {
+                                                        "Local": {
+                                                          "name": "uninitialized",
+                                                          "decl_span": {
+                                                            "start": 142,
+                                                            "end": 154
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "rhs": {
+                                                      "kind": {
+                                                        "Literal": [
+                                                          "U8",
+                                                          "0"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Primitive": "U8"
+                                                      },
+                                                      "span": {
+                                                        "start": 209,
+                                                        "end": 210
+                                                      },
+                                                      "resolution": null
+                                                    }
+                                                  }
+                                                },
+                                                "ty": {
+                                                  "Primitive": "Bool"
+                                                },
+                                                "span": {
+                                                  "start": 207,
+                                                  "end": 210
+                                                },
+                                                "resolution": null
+                                              },
+                                              "then_block": {
+                                                "stmts": [],
+                                                "last_expr": {
+                                                  "kind": {
+                                                    "If": {
+                                                      "cond": {
+                                                        "kind": {
+                                                          "Binary": {
+                                                            "op": "Eq",
+                                                            "lhs": {
+                                                              "kind": {
+                                                                "Path": [
+                                                                  "cleared"
+                                                                ]
+                                                              },
+                                                              "ty": {
+                                                                "Primitive": "U64"
+                                                              },
+                                                              "span": {
+                                                                "start": 212,
+                                                                "end": 213
+                                                              },
+                                                              "resolution": {
+                                                                "Local": {
+                                                                  "name": "cleared",
+                                                                  "decl_span": {
+                                                                    "start": 161,
+                                                                    "end": 171
+                                                                  }
+                                                                }
+                                                              }
+                                                            },
+                                                            "rhs": {
+                                                              "kind": {
+                                                                "Literal": [
+                                                                  "U64",
+                                                                  "0"
+                                                                ]
+                                                              },
+                                                              "ty": {
+                                                                "Primitive": "U64"
+                                                              },
+                                                              "span": {
+                                                                "start": 214,
+                                                                "end": 215
+                                                              },
+                                                              "resolution": null
+                                                            }
+                                                          }
+                                                        },
+                                                        "ty": {
+                                                          "Primitive": "Bool"
+                                                        },
+                                                        "span": {
+                                                          "start": 212,
+                                                          "end": 215
+                                                        },
+                                                        "resolution": null
+                                                      },
+                                                      "then_block": {
+                                                        "stmts": [],
+                                                        "last_expr": {
+                                                          "kind": {
+                                                            "Literal": [
+                                                              "I32",
+                                                              "43"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "I32"
+                                                          },
+                                                          "span": {
+                                                            "start": 216,
+                                                            "end": 217
+                                                          },
+                                                          "resolution": null
+                                                        },
+                                                        "ty": {
+                                                          "Primitive": "I32"
+                                                        }
+                                                      },
+                                                      "else_block": {
+                                                        "kind": {
+                                                          "Block": {
+                                                            "stmts": [],
+                                                            "last_expr": {
+                                                              "kind": {
+                                                                "Literal": [
+                                                                  "I32",
+                                                                  "1"
+                                                                ]
+                                                              },
+                                                              "ty": {
+                                                                "Primitive": "I32"
+                                                              },
+                                                              "span": {
+                                                                "start": 220,
+                                                                "end": 221
+                                                              },
+                                                              "resolution": null
+                                                            },
+                                                            "ty": {
+                                                              "Primitive": "I32"
+                                                            }
+                                                          }
+                                                        },
+                                                        "ty": {
+                                                          "Primitive": "I32"
+                                                        },
+                                                        "span": {
+                                                          "start": 219,
+                                                          "end": 222
+                                                        },
+                                                        "resolution": null
+                                                      }
+                                                    }
+                                                  },
+                                                  "ty": {
+                                                    "Primitive": "I32"
+                                                  },
+                                                  "span": {
+                                                    "start": 211,
+                                                    "end": 222
+                                                  },
+                                                  "resolution": null
+                                                },
+                                                "ty": {
+                                                  "Primitive": "I32"
+                                                }
+                                              },
+                                              "else_block": {
+                                                "kind": {
+                                                  "Block": {
+                                                    "stmts": [],
+                                                    "last_expr": {
+                                                      "kind": {
+                                                        "Literal": [
+                                                          "I32",
+                                                          "1"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Primitive": "I32"
+                                                      },
+                                                      "span": {
+                                                        "start": 225,
+                                                        "end": 226
+                                                      },
+                                                      "resolution": null
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "I32"
+                                                    }
+                                                  }
+                                                },
+                                                "ty": {
+                                                  "Primitive": "I32"
+                                                },
+                                                "span": {
+                                                  "start": 224,
+                                                  "end": 227
+                                                },
+                                                "resolution": null
+                                              }
+                                            }
+                                          },
+                                          "ty": {
+                                            "Primitive": "I32"
+                                          },
+                                          "span": {
+                                            "start": 206,
+                                            "end": 227
+                                          },
+                                          "resolution": null
+                                        },
+                                        "ty": {
+                                          "Primitive": "I32"
+                                        }
+                                      },
+                                      "else_block": {
+                                        "kind": {
+                                          "Block": {
+                                            "stmts": [],
+                                            "last_expr": {
+                                              "kind": {
+                                                "Literal": [
+                                                  "I32",
+                                                  "1"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "I32"
+                                              },
+                                              "span": {
+                                                "start": 230,
+                                                "end": 231
+                                              },
+                                              "resolution": null
+                                            },
+                                            "ty": {
+                                              "Primitive": "I32"
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "I32"
+                                        },
+                                        "span": {
+                                          "start": 229,
+                                          "end": 232
+                                        },
+                                        "resolution": null
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "I32"
+                                  },
+                                  "span": {
+                                    "start": 201,
+                                    "end": 232
+                                  },
+                                  "resolution": null
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                }
+                              },
+                              "else_block": {
                                 "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "2"
-                                  ]
+                                  "Block": {
+                                    "stmts": [],
+                                    "last_expr": {
+                                      "kind": {
+                                        "Literal": [
+                                          "I32",
+                                          "1"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Primitive": "I32"
+                                      },
+                                      "span": {
+                                        "start": 235,
+                                        "end": 236
+                                      },
+                                      "resolution": null
+                                    },
+                                    "ty": {
+                                      "Primitive": "I32"
+                                    }
+                                  }
                                 },
                                 "ty": {
                                   "Primitive": "I32"
                                 },
                                 "span": {
-                                  "start": 93,
-                                  "end": 94
+                                  "start": 234,
+                                  "end": 237
                                 },
                                 "resolution": null
                               }
-                            ]
+                            }
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 198,
+                            "end": 237
+                          },
+                          "resolution": null
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        }
+                      },
+                      "else_block": {
+                        "kind": {
+                          "Block": {
+                            "stmts": [],
+                            "last_expr": {
+                              "kind": {
+                                "Literal": [
+                                  "I32",
+                                  "1"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 240,
+                                "end": 241
+                              },
+                              "resolution": null
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
                           }
                         },
                         "ty": {
                           "Primitive": "I32"
                         },
                         "span": {
-                          "start": 89,
-                          "end": 95
+                          "start": 239,
+                          "end": 242
                         },
-                        "resolution": {
-                          "Function": {
-                            "defined_in": "tests/03-effects-and-handlers-panic.bst",
-                            "span": {
-                              "start": 44,
-                              "end": 79
-                            }
-                          }
-                        }
+                        "resolution": null
+                      }
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 195,
+                    "end": 242
+                  },
+                  "resolution": null
+                },
+                "ty": {
+                  "Primitive": "I32"
+                }
+              },
+              "else_block": {
+                "kind": {
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "Literal": [
+                          "I32",
+                          "1"
+                        ]
                       },
                       "ty": {
                         "Primitive": "I32"
-                      }
-                    },
-                    "handler": {
-                      "kind": {
-                        "Handler": {
-                          "Path": [
-                            "OsExitPanic"
-                          ]
-                        }
-                      },
-                      "ty": {
-                        "Handler": {
-                          "effects": [
-                            {
-                              "Adt": {
-                                "Effect": {
-                                  "name": [
-                                    "Panic"
-                                  ],
-                                  "generics": []
-                                }
-                              }
-                            }
-                          ]
-                        }
                       },
                       "span": {
-                        "start": 89,
-                        "end": 95
+                        "start": 245,
+                        "end": 246
                       },
                       "resolution": null
+                    },
+                    "ty": {
+                      "Primitive": "I32"
                     }
                   }
                 },
@@ -8431,36 +10630,19 @@
                   "Primitive": "I32"
                 },
                 "span": {
-                  "start": 89,
-                  "end": 95
+                  "start": 244,
+                  "end": 247
                 },
                 "resolution": null
-              },
-              "ty": {
-                "Primitive": "I32"
-              },
-              "is_mut": false,
-              "span": {
-                "start": 86,
-                "end": 99
-              },
-              "name_span": null
+              }
             }
-          }
-        ],
-        "last_expr": {
-          "kind": {
-            "Literal": [
-              "I32",
-              "0"
-            ]
           },
           "ty": {
             "Primitive": "I32"
           },
           "span": {
-            "start": 99,
-            "end": 100
+            "start": 192,
+            "end": 247
           },
           "resolution": null
         },
@@ -8469,12 +10651,12 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
+      "defined_in": "tests/46-runtime-buffer.bst",
       "span": {
-        "start": 85,
-        "end": 101
+        "start": 13,
+        "end": 248
       },
-      "context_id": 29
+      "context_id": 27
     }
   }
 ]

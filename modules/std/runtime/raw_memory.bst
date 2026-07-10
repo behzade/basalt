@@ -6,3 +6,4 @@ pub extern fn libc_memcpy(destination: MemoryAddress, source: MemoryAddress, byt
 pub extern fn libc_memcmp(left: MemoryAddress, right: MemoryAddress, bytes: u64) -> i32
 pub extern fn address_null() -> MemoryAddress
 pub extern fn address_add(address: MemoryAddress, bytes: u64) -> MemoryAddress
+pub extern fn address_load_u8(address: MemoryAddress) -> u8

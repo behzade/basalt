@@ -175,6 +175,10 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
 - Interpreter addresses carry allocation identity, generation, and byte offset. Every offset,
   memory operation, and free validates liveness and bounds; use-after-free, double-free, interior
   free, and out-of-bounds ranges are runtime errors before libc is invoked.
+- `std::runtime::Buffer` is the first address-backed owning value. Its allocation and byte access
+  use checked addresses, while Basalt code owns capacity and initialized-length policy. Safe reads
+  never access bytes at or beyond the initialized length, and stale copied handles fail provenance
+  checks after the owning buffer is released.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.

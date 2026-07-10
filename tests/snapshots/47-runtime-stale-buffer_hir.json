@@ -7883,392 +7883,6 @@
     }
   },
   {
-    "Effect": {
-      "name": "Panic",
-      "operations": [
-        {
-          "name": "panic",
-          "params": [
-            {
-              "name": "_",
-              "ty": {
-                "Primitive": "Str"
-              },
-              "is_mut": false,
-              "span": null
-            }
-          ],
-          "ret_type": {
-            "Special": "Never"
-          },
-          "effects": []
-        }
-      ],
-      "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
-      "span": {
-        "start": 7,
-        "end": 19
-      }
-    }
-  },
-  {
-    "Handler": {
-      "name": "OsExitPanic",
-      "effects": [
-        {
-          "Adt": {
-            "Effect": {
-              "name": [
-                "Panic"
-              ],
-              "generics": []
-            }
-          }
-        }
-      ],
-      "functions": [
-        {
-          "signature": {
-            "name": "panic",
-            "params": [
-              {
-                "name": "msg",
-                "ty": {
-                  "Primitive": "Str"
-                },
-                "is_mut": false,
-                "span": null
-              }
-            ],
-            "ret_type": {
-              "Special": "Never"
-            },
-            "effects": []
-          },
-          "body": {
-            "stmts": [],
-            "last_expr": {
-              "kind": {
-                "Call": {
-                  "fun": {
-                    "kind": {
-                      "Path": [
-                        "runtime",
-                        "exit"
-                      ]
-                    },
-                    "ty": {
-                      "Function": {
-                        "param_types": [
-                          {
-                            "Primitive": "I32"
-                          }
-                        ],
-                        "ret_type": {
-                          "Special": "Never"
-                        },
-                        "effects": []
-                      }
-                    },
-                    "span": {
-                      "start": 34,
-                      "end": 38
-                    },
-                    "resolution": {
-                      "Function": {
-                        "defined_in": "./modules/std/runtime/exit.bst",
-                        "span": {
-                          "start": 0,
-                          "end": 11
-                        }
-                      }
-                    }
-                  },
-                  "args": [
-                    {
-                      "kind": {
-                        "Literal": [
-                          "I32",
-                          "1"
-                        ]
-                      },
-                      "ty": {
-                        "Primitive": "I32"
-                      },
-                      "span": {
-                        "start": 39,
-                        "end": 40
-                      },
-                      "resolution": null
-                    }
-                  ]
-                }
-              },
-              "ty": {
-                "Special": "Never"
-              },
-              "span": {
-                "start": 34,
-                "end": 41
-              },
-              "resolution": {
-                "Function": {
-                  "defined_in": "./modules/std/runtime/exit.bst",
-                  "span": {
-                    "start": 0,
-                    "end": 11
-                  }
-                }
-              }
-            },
-            "ty": {
-              "Special": "Never"
-            }
-          },
-          "is_public": false,
-          "defined_in": "tests/03-effects-and-handlers-panic.bst",
-          "span": {
-            "start": 33,
-            "end": 43
-          },
-          "context_id": 27
-        }
-      ],
-      "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
-      "span": {
-        "start": 19,
-        "end": 44
-      }
-    }
-  },
-  {
-    "Fn": {
-      "signature": {
-        "name": "division",
-        "params": [
-          {
-            "name": "a",
-            "ty": {
-              "Primitive": "I32"
-            },
-            "is_mut": false,
-            "span": null
-          },
-          {
-            "name": "b",
-            "ty": {
-              "Primitive": "I32"
-            },
-            "is_mut": false,
-            "span": null
-          }
-        ],
-        "ret_type": {
-          "Primitive": "I32"
-        },
-        "effects": [
-          {
-            "Adt": {
-              "Effect": {
-                "name": [
-                  "Panic"
-                ],
-                "generics": []
-              }
-            }
-          }
-        ]
-      },
-      "body": {
-        "stmts": [
-          {
-            "Expr": {
-              "expr": {
-                "kind": {
-                  "If": {
-                    "cond": {
-                      "kind": {
-                        "Binary": {
-                          "op": "Eq",
-                          "lhs": {
-                            "kind": {
-                              "Path": [
-                                "b"
-                              ]
-                            },
-                            "ty": {
-                              "Primitive": "I32"
-                            },
-                            "span": {
-                              "start": 63,
-                              "end": 64
-                            },
-                            "resolution": {
-                              "Local": {
-                                "name": "b",
-                                "decl_span": null
-                              }
-                            }
-                          },
-                          "rhs": {
-                            "kind": {
-                              "Literal": [
-                                "I32",
-                                "0"
-                              ]
-                            },
-                            "ty": {
-                              "Primitive": "I32"
-                            },
-                            "span": {
-                              "start": 65,
-                              "end": 66
-                            },
-                            "resolution": null
-                          }
-                        }
-                      },
-                      "ty": {
-                        "Primitive": "Bool"
-                      },
-                      "span": {
-                        "start": 63,
-                        "end": 66
-                      },
-                      "resolution": null
-                    },
-                    "then_block": {
-                      "stmts": [],
-                      "last_expr": {
-                        "kind": {
-                          "Perform": {
-                            "path": [
-                              "Panic",
-                              "panic"
-                            ],
-                            "args": [
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "Str",
-                                    "division by zero"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "Str"
-                                },
-                                "span": {
-                                  "start": 72,
-                                  "end": 73
-                                },
-                                "resolution": null
-                              }
-                            ]
-                          }
-                        },
-                        "ty": {
-                          "Special": "Never"
-                        },
-                        "span": {
-                          "start": 67,
-                          "end": 74
-                        },
-                        "resolution": null
-                      },
-                      "ty": {
-                        "Special": "Never"
-                      }
-                    },
-                    "else_block": null
-                  }
-                },
-                "ty": {
-                  "Special": "Unit"
-                },
-                "span": {
-                  "start": 62,
-                  "end": 75
-                },
-                "resolution": null
-              },
-              "span": {
-                "start": 62,
-                "end": 75
-              }
-            }
-          }
-        ],
-        "last_expr": {
-          "kind": {
-            "Binary": {
-              "op": "Div",
-              "lhs": {
-                "kind": {
-                  "Path": [
-                    "a"
-                  ]
-                },
-                "ty": {
-                  "Primitive": "I32"
-                },
-                "span": {
-                  "start": 75,
-                  "end": 76
-                },
-                "resolution": {
-                  "Local": {
-                    "name": "a",
-                    "decl_span": null
-                  }
-                }
-              },
-              "rhs": {
-                "kind": {
-                  "Path": [
-                    "b"
-                  ]
-                },
-                "ty": {
-                  "Primitive": "I32"
-                },
-                "span": {
-                  "start": 77,
-                  "end": 78
-                },
-                "resolution": {
-                  "Local": {
-                    "name": "b",
-                    "decl_span": null
-                  }
-                }
-              }
-            }
-          },
-          "ty": {
-            "Primitive": "I32"
-          },
-          "span": {
-            "start": 75,
-            "end": 78
-          },
-          "resolution": null
-        },
-        "ty": {
-          "Primitive": "I32"
-        }
-      },
-      "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
-      "span": {
-        "start": 61,
-        "end": 79
-      },
-      "context_id": 28
-    }
-  },
-  {
     "Fn": {
       "signature": {
         "name": "main",
@@ -8282,169 +7896,509 @@
         "stmts": [
           {
             "Let": {
-              "name": "_",
+              "name": "owner",
               "value": {
                 "kind": {
-                  "Handle": {
-                    "body": {
-                      "stmts": [],
-                      "last_expr": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Adt": {
+                              "Struct": {
+                                "name": [
+                                  "Buffer"
+                                ],
+                                "generics": []
+                              }
+                            }
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 18,
+                        "end": 22
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 18,
+                            "end": 80
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
                         "kind": {
-                          "Call": {
-                            "fun": {
-                              "kind": {
-                                "Path": [
-                                  "division"
-                                ]
-                              },
-                              "ty": {
-                                "Function": {
-                                  "param_types": [
-                                    {
-                                      "Primitive": "I32"
-                                    },
-                                    {
-                                      "Primitive": "I32"
-                                    }
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 23,
+                          "end": 24
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Buffer"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 18,
+                  "end": 25
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 18,
+                      "end": 80
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Buffer"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 14,
+                "end": 25
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_push"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
                                   ],
-                                  "ret_type": {
-                                    "Primitive": "I32"
-                                  },
-                                  "effects": [
-                                    {
-                                      "Adt": {
-                                        "Effect": {
-                                          "name": [
-                                            "Panic"
-                                          ],
-                                          "generics": []
-                                        }
-                                      }
-                                    }
-                                  ]
-                                }
-                              },
-                              "span": {
-                                "start": 89,
-                                "end": 90
-                              },
-                              "resolution": {
-                                "Function": {
-                                  "defined_in": "tests/03-effects-and-handlers-panic.bst",
-                                  "span": {
-                                    "start": 44,
-                                    "end": 79
-                                  }
+                                  "generics": []
                                 }
                               }
                             },
-                            "args": [
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "10"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "I32"
-                                },
-                                "span": {
-                                  "start": 91,
-                                  "end": 92
-                                },
-                                "resolution": null
-                              },
-                              {
-                                "kind": {
-                                  "Literal": [
-                                    "I32",
-                                    "2"
-                                  ]
-                                },
-                                "ty": {
-                                  "Primitive": "I32"
-                                },
-                                "span": {
-                                  "start": 93,
-                                  "end": 94
-                                },
-                                "resolution": null
-                              }
-                            ]
+                            {
+                              "Primitive": "U8"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "Bool"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 25,
+                        "end": 29
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 110,
+                            "end": 175
                           }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "owner"
+                          ]
                         },
                         "ty": {
-                          "Primitive": "I32"
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
                         },
                         "span": {
-                          "start": 89,
-                          "end": 95
+                          "start": 30,
+                          "end": 31
                         },
                         "resolution": {
-                          "Function": {
-                            "defined_in": "tests/03-effects-and-handlers-panic.bst",
-                            "span": {
-                              "start": 44,
-                              "end": 79
+                          "Local": {
+                            "name": "owner",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
                             }
                           }
                         }
                       },
-                      "ty": {
-                        "Primitive": "I32"
-                      }
-                    },
-                    "handler": {
-                      "kind": {
-                        "Handler": {
-                          "Path": [
-                            "OsExitPanic"
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U8",
+                            "42"
                           ]
-                        }
+                        },
+                        "ty": {
+                          "Primitive": "U8"
+                        },
+                        "span": {
+                          "start": 32,
+                          "end": 33
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 25,
+                  "end": 34
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 110,
+                      "end": 175
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 25,
+                "end": 34
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "stale",
+              "value": {
+                "kind": {
+                  "Path": [
+                    "owner"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Buffer"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 37,
+                  "end": 38
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "owner",
+                    "decl_span": {
+                      "start": 14,
+                      "end": 25
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Buffer"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": false,
+              "span": {
+                "start": 34,
+                "end": 38
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_release"
+                        ]
                       },
                       "ty": {
-                        "Handler": {
-                          "effects": [
+                        "Function": {
+                          "param_types": [
                             {
                               "Adt": {
-                                "Effect": {
+                                "Struct": {
                                   "name": [
-                                    "Panic"
+                                    "Buffer"
                                   ],
                                   "generics": []
                                 }
                               }
                             }
-                          ]
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
                         }
                       },
                       "span": {
-                        "start": 89,
-                        "end": 95
+                        "start": 38,
+                        "end": 42
                       },
-                      "resolution": null
-                    }
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 428,
+                            "end": 469
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "owner"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 43,
+                          "end": 44
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "owner",
+                            "decl_span": {
+                              "start": 14,
+                              "end": 25
+                            }
+                          }
+                        }
+                      }
+                    ]
                   }
                 },
                 "ty": {
-                  "Primitive": "I32"
+                  "Special": "Unit"
                 },
                 "span": {
-                  "start": 89,
-                  "end": 95
+                  "start": 38,
+                  "end": 45
                 },
-                "resolution": null
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 428,
+                      "end": 469
+                    }
+                  }
+                }
               },
-              "ty": {
-                "Primitive": "I32"
-              },
-              "is_mut": false,
               "span": {
-                "start": 86,
-                "end": 99
+                "start": 38,
+                "end": 45
+              }
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "buffer_get"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Buffer"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U8"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 45,
+                        "end": 49
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                          "span": {
+                            "start": 175,
+                            "end": 217
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "stale"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Buffer"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 50,
+                          "end": 51
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "stale",
+                            "decl_span": {
+                              "start": 34,
+                              "end": 38
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "0"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 52,
+                          "end": 53
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U8"
+                },
+                "span": {
+                  "start": 45,
+                  "end": 54
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory_buffer.bst",
+                    "span": {
+                      "start": 175,
+                      "end": 217
+                    }
+                  }
+                }
               },
-              "name_span": null
+              "span": {
+                "start": 45,
+                "end": 54
+              }
             }
           }
         ],
@@ -8459,8 +8413,8 @@
             "Primitive": "I32"
           },
           "span": {
-            "start": 99,
-            "end": 100
+            "start": 54,
+            "end": 55
           },
           "resolution": null
         },
@@ -8469,12 +8423,12 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/03-effects-and-handlers-panic.bst",
+      "defined_in": "tests/47-runtime-stale-buffer.bst",
       "span": {
-        "start": 85,
-        "end": 101
+        "start": 13,
+        "end": 56
       },
-      "context_id": 29
+      "context_id": 27
     }
   }
 ]

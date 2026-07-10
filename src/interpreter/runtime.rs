@@ -276,6 +276,17 @@ pub(crate) fn call_runtime_intrinsic(
             let bytes = value_to_usize(bytes, "runtime::address_add bytes")?;
             Ok(memory_address(memory.add(address, bytes)?))
         }
+        "address_load_u8" => {
+            let [address] = args.as_slice() else {
+                return Err(RuntimeError(
+                    "runtime::address_load_u8 expects 1 argument".into(),
+                ));
+            };
+            let address = value_to_address(address, "runtime::address_load_u8 address")?;
+            let ptr = memory.validate_range(address, 1, "runtime::address_load_u8")?;
+            let value = unsafe { *(ptr as *const u8) };
+            Ok(Value::U8(value))
+        }
         other => Err(RuntimeError(format!(
             "Unknown runtime intrinsic: std::runtime::{}",
             other

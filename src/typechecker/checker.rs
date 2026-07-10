@@ -122,6 +122,7 @@ impl Typechecker {
                     | "libc_memcmp"
                     | "address_null"
                     | "address_add"
+                    | "address_load_u8"
             )
     }
 
