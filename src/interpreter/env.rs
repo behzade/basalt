@@ -26,6 +26,10 @@ impl Binding {
     pub(crate) fn stack_size_bytes(&self) -> usize {
         self.value.borrow().stack_size_bytes()
     }
+
+    pub(crate) fn value(&self) -> Value {
+        self.value.borrow().clone()
+    }
 }
 
 impl Env {
@@ -53,6 +57,19 @@ impl Env {
                 },
             );
         }
+    }
+
+    pub(crate) fn define_alias(&mut self, name: String, binding: Binding) {
+        if let Some(current) = self.scopes.last_mut() {
+            current.insert(name, binding);
+        }
+    }
+
+    pub(crate) fn binding(&self, name: &str) -> Option<Binding> {
+        self.scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(name).cloned())
     }
 
     pub fn assign(&mut self, name: &str, value: Value) -> Result<()> {

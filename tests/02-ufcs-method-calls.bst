@@ -21,5 +21,5 @@ fn main() -> i32 {
     let mut p: Person = Person { name: "behzad", age: 10 }
     let age = p.get_age()
     let inc = p.up_age_by(2)
-    inc
+    p.age
 }

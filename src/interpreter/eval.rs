@@ -6,7 +6,7 @@ use crate::hir::{
 };
 use crate::hir_index::HirIndex;
 
-use super::env::{Env, Result, RuntimeError};
+use super::env::{Binding, Env, Result, RuntimeError};
 use super::primitive_ops;
 use super::runtime;
 use super::stack::{AllocationRegionGuard, StackAllocator, StackFrameGuard};
@@ -15,6 +15,11 @@ use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 enum Flow<T> {
     Value(T),
     Return(Value),
+}
+
+enum CallArgument {
+    Value(Value),
+    MutableBinding(Binding),
 }
 
 macro_rules! flow_value {
@@ -34,6 +39,37 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
+    fn eval_call_arguments(
+        &self,
+        params: &[hir::HirParam],
+        args: &[Expr],
+        env: &mut Env,
+    ) -> Result<Flow<Vec<CallArgument>>> {
+        let mut evaluated = Vec::with_capacity(args.len());
+        for (index, arg) in args.iter().enumerate() {
+            if params.get(index).is_some_and(|param| param.is_mut) {
+                let ExprKind::Path(path) = &arg.kind else {
+                    return Err(RuntimeError(
+                        "Mutable arguments must be mutable local variables".to_string(),
+                    ));
+                };
+                let name = path.last().ok_or_else(|| {
+                    RuntimeError("Mutable argument has an empty path".to_string())
+                })?;
+                let binding = env
+                    .binding(name)
+                    .ok_or_else(|| RuntimeError(format!("Undefined mutable argument: {}", name)))?;
+                evaluated.push(CallArgument::MutableBinding(binding));
+            } else {
+                match self.eval_expr(arg, env)? {
+                    Flow::Value(value) => evaluated.push(CallArgument::Value(value)),
+                    Flow::Return(value) => return Ok(Flow::Return(value)),
+                }
+            }
+        }
+        Ok(Flow::Value(evaluated))
+    }
+
     pub fn new(items: &[hir::Item]) -> Result<Self> {
         let mut stack = StackAllocator::default();
         for item in items {
@@ -59,9 +95,27 @@ impl Interpreter {
     }
 
     pub(crate) fn call_function(&self, function: &HirFunction, args: Vec<Value>) -> Result<Value> {
+        self.call_function_with_args(
+            function,
+            args.into_iter().map(CallArgument::Value).collect(),
+        )
+    }
+
+    fn call_function_with_args(
+        &self,
+        function: &HirFunction,
+        args: Vec<CallArgument>,
+    ) -> Result<Value> {
         match function.extern_kind {
             Some(hir::HirExternKind::RuntimeIntrinsic) => {
-                return runtime::call_runtime_intrinsic(function, args);
+                let values = args
+                    .into_iter()
+                    .map(|arg| match arg {
+                        CallArgument::Value(value) => value,
+                        CallArgument::MutableBinding(binding) => binding.value(),
+                    })
+                    .collect();
+                return runtime::call_runtime_intrinsic(function, values);
             }
             Some(hir::HirExternKind::Foreign) => {
                 return Err(RuntimeError(format!(
@@ -84,9 +138,15 @@ impl Interpreter {
         let _frame = StackFrameGuard::push(&self.stack, function.signature.name.clone());
         let mut env = Env::new();
         // bind params
-        for (idx, param) in function.signature.params.iter().enumerate() {
-            if let Some(arg_val) = args.get(idx).cloned() {
-                env.define(param.name.clone(), arg_val, false);
+        for (param, argument) in function.signature.params.iter().zip(args) {
+            match argument {
+                CallArgument::MutableBinding(binding) if param.is_mut => {
+                    env.define_alias(param.name.clone(), binding)
+                }
+                CallArgument::MutableBinding(binding) => {
+                    env.define(param.name.clone(), binding.value(), false)
+                }
+                CallArgument::Value(value) => env.define(param.name.clone(), value, param.is_mut),
             }
         }
 
@@ -114,7 +174,7 @@ impl Interpreter {
         };
         env.push_scope();
         for (idx, param) in function.params.iter().enumerate() {
-            env.define(param.name.clone(), args[idx].clone(), false);
+            env.define(param.name.clone(), args[idx].clone(), param.is_mut);
         }
         match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => Ok(value),
@@ -284,18 +344,20 @@ impl Interpreter {
                             return self.call_function_value(&func_val, evaled).map(Flow::Value);
                         }
                         if let Some(f) = self.resolved_function(fun, name) {
-                            let mut evaled = Vec::with_capacity(args.len());
-                            for a in args {
-                                evaled.push(flow_value!(self.eval_expr(a, env)));
-                            }
-                            return self.call_function(f, evaled).map(Flow::Value);
+                            let evaled = flow_value!(self.eval_call_arguments(
+                                &f.signature.params,
+                                args,
+                                env
+                            ));
+                            return self.call_function_with_args(f, evaled).map(Flow::Value);
                         }
                         if let Some(f) = self.index.function(name) {
-                            let mut evaled = Vec::with_capacity(args.len());
-                            for a in args {
-                                evaled.push(flow_value!(self.eval_expr(a, env)));
-                            }
-                            return self.call_function(f, evaled).map(Flow::Value);
+                            let evaled = flow_value!(self.eval_call_arguments(
+                                &f.signature.params,
+                                args,
+                                env
+                            ));
+                            return self.call_function_with_args(f, evaled).map(Flow::Value);
                         }
                         // Builtins: minimal host I/O, only after user-visible bindings.
                         if primitive_ops::contains(name) {

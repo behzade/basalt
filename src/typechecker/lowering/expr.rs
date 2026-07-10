@@ -8,6 +8,53 @@ use crate::typechecker::resolver::{
 };
 
 impl Typechecker {
+    fn require_mutable_argument(
+        &mut self,
+        argument: &SpannedExpr,
+        parameter: &hir::HirParam,
+        context: &ItemContext,
+    ) -> Result<(), ()> {
+        if !parameter.is_mut {
+            return Ok(());
+        }
+        let OwnedExpr::Path(path) = &argument.item else {
+            self.errors.push(TypeError {
+                message: format!(
+                    "Mutable parameter '{}' requires a mutable local variable",
+                    parameter.name
+                ),
+                context: ItemContext {
+                    span: argument.span,
+                    path: context.path.clone(),
+                },
+            });
+            return Err(());
+        };
+        let mutable = path
+            .last()
+            .and_then(|name| self.lookup_symbol(name))
+            .is_some_and(|symbol| {
+                matches!(
+                    symbol,
+                    crate::typechecker::symbols::Symbol::Variable { is_mut: true, .. }
+                )
+            });
+        if !mutable {
+            self.errors.push(TypeError {
+                message: format!(
+                    "Mutable parameter '{}' requires a mutable local variable",
+                    parameter.name
+                ),
+                context: ItemContext {
+                    span: argument.span,
+                    path: context.path.clone(),
+                },
+            });
+            return Err(());
+        }
+        Ok(())
+    }
+
     fn lower_enum_constructor_call(
         &mut self,
         enum_path: hir::OwnedPath,
@@ -634,6 +681,7 @@ impl Typechecker {
                 method,
                 args,
             } => {
+                let receiver_argument = receiver.as_ref().clone();
                 let recv_hir = self.lower_expr(*receiver, context.clone())?;
                 let candidates = match self.resolve_method_function_candidates(
                     &method,
@@ -657,9 +705,14 @@ impl Typechecker {
                             continue;
                         }
                         let mut lowered_args: Vec<hir::Expr> = Vec::with_capacity(1 + args.len());
+                        self.require_mutable_argument(&receiver_argument, first_param, &context)?;
                         lowered_args.push(recv_hir.clone());
                         for (idx, arg) in args.into_iter().enumerate() {
-                            let exp = signature.params.get(idx + 1).map(|p| p.ty.clone());
+                            let parameter = signature.params.get(idx + 1);
+                            if let Some(parameter) = parameter {
+                                self.require_mutable_argument(&arg, parameter, &context)?;
+                            }
+                            let exp = parameter.map(|p| p.ty.clone());
                             let lowered = if let Some(expected) = exp {
                                 self.lower_expr_with_expected(arg, expected, context.clone())?
                             } else {
@@ -759,6 +812,7 @@ impl Typechecker {
                             let mut lowered_args = Vec::new();
                             for (idx, arg) in adjusted_args.into_iter().enumerate() {
                                 let arg_expr = if let Some(p) = signature.params.get(idx) {
+                                    self.require_mutable_argument(&arg, p, &context)?;
                                     self.lower_expr_with_expected(
                                         arg,
                                         p.ty.clone(),

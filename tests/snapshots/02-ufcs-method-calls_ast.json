@@ -485,19 +485,30 @@
                     "item": {
                       "Expr": {
                         "item": {
-                          "Path": [
-                            "inc"
-                          ]
+                          "FieldAccess": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "p"
+                                ]
+                              },
+                              "span": {
+                                "start": 101,
+                                "end": 102
+                              }
+                            },
+                            "field": "age"
+                          }
                         },
                         "span": {
                           "start": 101,
-                          "end": 102
+                          "end": 104
                         }
                       }
                     },
                     "span": {
                       "start": 101,
-                      "end": 102
+                      "end": 104
                     }
                   }
                 ],
@@ -506,7 +517,7 @@
             },
             "span": {
               "start": 67,
-              "end": 103
+              "end": 105
             }
           },
           "is_public": false
@@ -514,7 +525,7 @@
       },
       "span": {
         "start": 61,
-        "end": 103
+        "end": 105
       }
     }
   ]

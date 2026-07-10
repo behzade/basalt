@@ -1123,24 +1123,53 @@
         ],
         "last_expr": {
           "kind": {
-            "Path": [
-              "inc"
-            ]
+            "FieldAccess": {
+              "receiver": {
+                "kind": {
+                  "Path": [
+                    "p"
+                  ]
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Person"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 101,
+                  "end": 102
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "p",
+                    "decl_span": {
+                      "start": 68,
+                      "end": 84
+                    }
+                  }
+                }
+              },
+              "field": "age"
+            }
           },
           "ty": {
             "Primitive": "I32"
           },
           "span": {
             "start": 101,
-            "end": 102
+            "end": 104
           },
           "resolution": {
-            "Local": {
-              "name": "inc",
-              "decl_span": {
-                "start": 92,
-                "end": 101
-              }
+            "Field": {
+              "owner": [
+                "Person"
+              ],
+              "field": "age"
             }
           }
         },
@@ -1152,7 +1181,7 @@
       "defined_in": "tests/02-ufcs-method-calls.bst",
       "span": {
         "start": 67,
-        "end": 103
+        "end": 105
       },
       "context_id": 11
     }
