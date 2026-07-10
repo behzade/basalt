@@ -36,9 +36,2060 @@
     }
   },
   {
+    "Struct": {
+      "name": "Arena",
+      "fields": [
+        {
+          "name": "base",
+          "ty": {
+            "Primitive": "U64"
+          },
+          "name_span": null
+        },
+        {
+          "name": "capacity",
+          "ty": {
+            "Primitive": "U64"
+          },
+          "name_span": null
+        },
+        {
+          "name": "cursor",
+          "ty": {
+            "Primitive": "U64"
+          },
+          "name_span": null
+        }
+      ],
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 1,
+        "end": 18
+      },
+      "context_id": 1
+    }
+  },
+  {
     "Fn": {
       "signature": {
-        "name": "alloc",
+        "name": "arena",
+        "params": [
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "Arena"
+              ],
+              "generics": []
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Block": {
+              "stmts": [],
+              "last_expr": {
+                "kind": {
+                  "StructInit": {
+                    "path": [
+                      "Arena"
+                    ],
+                    "fields": [
+                      [
+                        "base",
+                        {
+                          "kind": {
+                            "Call": {
+                              "fun": {
+                                "kind": {
+                                  "Path": [
+                                    "raw_alloc"
+                                  ]
+                                },
+                                "ty": {
+                                  "Function": {
+                                    "param_types": [
+                                      {
+                                        "Primitive": "U64"
+                                      }
+                                    ],
+                                    "ret_type": {
+                                      "Primitive": "U64"
+                                    },
+                                    "effects": []
+                                  }
+                                },
+                                "span": {
+                                  "start": 35,
+                                  "end": 36
+                                },
+                                "resolution": {
+                                  "Function": {
+                                    "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                    "span": {
+                                      "start": 1,
+                                      "end": 12
+                                    }
+                                  }
+                                }
+                              },
+                              "args": [
+                                {
+                                  "kind": {
+                                    "Path": [
+                                      "bytes"
+                                    ]
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 37,
+                                    "end": 38
+                                  },
+                                  "resolution": {
+                                    "Local": {
+                                      "name": "bytes",
+                                      "decl_span": null
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "span": {
+                            "start": 35,
+                            "end": 39
+                          },
+                          "resolution": {
+                            "Function": {
+                              "defined_in": "./modules/std/runtime/raw_memory.bst",
+                              "span": {
+                                "start": 1,
+                                "end": 12
+                              }
+                            }
+                          }
+                        }
+                      ],
+                      [
+                        "capacity",
+                        {
+                          "kind": {
+                            "Path": [
+                              "bytes"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "span": {
+                            "start": 42,
+                            "end": 43
+                          },
+                          "resolution": {
+                            "Local": {
+                              "name": "bytes",
+                              "decl_span": null
+                            }
+                          }
+                        }
+                      ],
+                      [
+                        "cursor",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "U64",
+                              "0"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "span": {
+                            "start": 46,
+                            "end": 47
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Arena"
+                      ],
+                      "generics": []
+                    }
+                  }
+                },
+                "span": {
+                  "start": 31,
+                  "end": 49
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Arena"
+                    ],
+                    "generics": []
+                  }
+                }
+              }
+            }
+          },
+          "ty": {
+            "Adt": {
+              "Struct": {
+                "name": [
+                  "Arena"
+                ],
+                "generics": []
+              }
+            }
+          },
+          "span": {
+            "start": 30,
+            "end": 50
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "Arena"
+              ],
+              "generics": []
+            }
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 28,
+        "end": 51
+      },
+      "context_id": 2
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "arena_alloc",
+        "params": [
+          {
+            "name": "arena",
+            "ty": {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Arena"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "is_mut": true,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "alignment",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "U64"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "If": {
+              "cond": {
+                "kind": {
+                  "Binary": {
+                    "op": "Eq",
+                    "lhs": {
+                      "kind": {
+                        "Path": [
+                          "alignment"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "U64"
+                      },
+                      "span": {
+                        "start": 72,
+                        "end": 73
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "alignment",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "rhs": {
+                      "kind": {
+                        "Literal": [
+                          "U64",
+                          "0"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "U64"
+                      },
+                      "span": {
+                        "start": 74,
+                        "end": 75
+                      },
+                      "resolution": null
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 72,
+                  "end": 75
+                },
+                "resolution": null
+              },
+              "then_block": {
+                "stmts": [],
+                "last_expr": {
+                  "kind": {
+                    "Literal": [
+                      "U64",
+                      "0"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "U64"
+                  },
+                  "span": {
+                    "start": 76,
+                    "end": 77
+                  },
+                  "resolution": null
+                },
+                "ty": {
+                  "Primitive": "U64"
+                }
+              },
+              "else_block": {
+                "kind": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "Let": {
+                          "name": "remainder",
+                          "value": {
+                            "kind": {
+                              "Binary": {
+                                "op": "Sub",
+                                "lhs": {
+                                  "kind": {
+                                    "FieldAccess": {
+                                      "receiver": {
+                                        "kind": {
+                                          "Path": [
+                                            "arena"
+                                          ]
+                                        },
+                                        "ty": {
+                                          "Adt": {
+                                            "Struct": {
+                                              "name": [
+                                                "Arena"
+                                              ],
+                                              "generics": []
+                                            }
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 83,
+                                          "end": 84
+                                        },
+                                        "resolution": {
+                                          "Local": {
+                                            "name": "arena",
+                                            "decl_span": null
+                                          }
+                                        }
+                                      },
+                                      "field": "cursor"
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 83,
+                                    "end": 86
+                                  },
+                                  "resolution": {
+                                    "Field": {
+                                      "owner": [
+                                        "Arena"
+                                      ],
+                                      "field": "cursor"
+                                    }
+                                  }
+                                },
+                                "rhs": {
+                                  "kind": {
+                                    "Binary": {
+                                      "op": "Mul",
+                                      "lhs": {
+                                        "kind": {
+                                          "Binary": {
+                                            "op": "Div",
+                                            "lhs": {
+                                              "kind": {
+                                                "FieldAccess": {
+                                                  "receiver": {
+                                                    "kind": {
+                                                      "Path": [
+                                                        "arena"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Adt": {
+                                                        "Struct": {
+                                                          "name": [
+                                                            "Arena"
+                                                          ],
+                                                          "generics": []
+                                                        }
+                                                      }
+                                                    },
+                                                    "span": {
+                                                      "start": 88,
+                                                      "end": 89
+                                                    },
+                                                    "resolution": {
+                                                      "Local": {
+                                                        "name": "arena",
+                                                        "decl_span": null
+                                                      }
+                                                    }
+                                                  },
+                                                  "field": "cursor"
+                                                }
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 88,
+                                                "end": 91
+                                              },
+                                              "resolution": {
+                                                "Field": {
+                                                  "owner": [
+                                                    "Arena"
+                                                  ],
+                                                  "field": "cursor"
+                                                }
+                                              }
+                                            },
+                                            "rhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "alignment"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 92,
+                                                "end": 93
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "alignment",
+                                                  "decl_span": null
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 88,
+                                          "end": 93
+                                        },
+                                        "resolution": null
+                                      },
+                                      "rhs": {
+                                        "kind": {
+                                          "Path": [
+                                            "alignment"
+                                          ]
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 95,
+                                          "end": 96
+                                        },
+                                        "resolution": {
+                                          "Local": {
+                                            "name": "alignment",
+                                            "decl_span": null
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 88,
+                                    "end": 96
+                                  },
+                                  "resolution": null
+                                }
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "U64"
+                            },
+                            "span": {
+                              "start": 83,
+                              "end": 96
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "is_mut": false,
+                          "span": {
+                            "start": 80,
+                            "end": 96
+                          },
+                          "name_span": null
+                        }
+                      },
+                      {
+                        "Let": {
+                          "name": "padding",
+                          "value": {
+                            "kind": {
+                              "If": {
+                                "cond": {
+                                  "kind": {
+                                    "Binary": {
+                                      "op": "Eq",
+                                      "lhs": {
+                                        "kind": {
+                                          "Path": [
+                                            "remainder"
+                                          ]
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 100,
+                                          "end": 101
+                                        },
+                                        "resolution": {
+                                          "Local": {
+                                            "name": "remainder",
+                                            "decl_span": {
+                                              "start": 80,
+                                              "end": 96
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "rhs": {
+                                        "kind": {
+                                          "Literal": [
+                                            "U64",
+                                            "0"
+                                          ]
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 102,
+                                          "end": 103
+                                        },
+                                        "resolution": null
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "Bool"
+                                  },
+                                  "span": {
+                                    "start": 100,
+                                    "end": 103
+                                  },
+                                  "resolution": null
+                                },
+                                "then_block": {
+                                  "stmts": [],
+                                  "last_expr": {
+                                    "kind": {
+                                      "Literal": [
+                                        "U64",
+                                        "0"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Primitive": "U64"
+                                    },
+                                    "span": {
+                                      "start": 104,
+                                      "end": 105
+                                    },
+                                    "resolution": null
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  }
+                                },
+                                "else_block": {
+                                  "kind": {
+                                    "Block": {
+                                      "stmts": [],
+                                      "last_expr": {
+                                        "kind": {
+                                          "Binary": {
+                                            "op": "Sub",
+                                            "lhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "alignment"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 108,
+                                                "end": 109
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "alignment",
+                                                  "decl_span": null
+                                                }
+                                              }
+                                            },
+                                            "rhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "remainder"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 110,
+                                                "end": 111
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "remainder",
+                                                  "decl_span": {
+                                                    "start": 80,
+                                                    "end": 96
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 108,
+                                          "end": 111
+                                        },
+                                        "resolution": null
+                                      },
+                                      "ty": {
+                                        "Primitive": "U64"
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 107,
+                                    "end": 112
+                                  },
+                                  "resolution": null
+                                }
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "U64"
+                            },
+                            "span": {
+                              "start": 99,
+                              "end": 112
+                            },
+                            "resolution": null
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "is_mut": false,
+                          "span": {
+                            "start": 96,
+                            "end": 112
+                          },
+                          "name_span": null
+                        }
+                      }
+                    ],
+                    "last_expr": {
+                      "kind": {
+                        "If": {
+                          "cond": {
+                            "kind": {
+                              "Binary": {
+                                "op": "Gt",
+                                "lhs": {
+                                  "kind": {
+                                    "Path": [
+                                      "padding"
+                                    ]
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 113,
+                                    "end": 114
+                                  },
+                                  "resolution": {
+                                    "Local": {
+                                      "name": "padding",
+                                      "decl_span": {
+                                        "start": 96,
+                                        "end": 112
+                                      }
+                                    }
+                                  }
+                                },
+                                "rhs": {
+                                  "kind": {
+                                    "Binary": {
+                                      "op": "Sub",
+                                      "lhs": {
+                                        "kind": {
+                                          "FieldAccess": {
+                                            "receiver": {
+                                              "kind": {
+                                                "Path": [
+                                                  "arena"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Adt": {
+                                                  "Struct": {
+                                                    "name": [
+                                                      "Arena"
+                                                    ],
+                                                    "generics": []
+                                                  }
+                                                }
+                                              },
+                                              "span": {
+                                                "start": 115,
+                                                "end": 116
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "arena",
+                                                  "decl_span": null
+                                                }
+                                              }
+                                            },
+                                            "field": "capacity"
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 115,
+                                          "end": 118
+                                        },
+                                        "resolution": {
+                                          "Field": {
+                                            "owner": [
+                                              "Arena"
+                                            ],
+                                            "field": "capacity"
+                                          }
+                                        }
+                                      },
+                                      "rhs": {
+                                        "kind": {
+                                          "FieldAccess": {
+                                            "receiver": {
+                                              "kind": {
+                                                "Path": [
+                                                  "arena"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Adt": {
+                                                  "Struct": {
+                                                    "name": [
+                                                      "Arena"
+                                                    ],
+                                                    "generics": []
+                                                  }
+                                                }
+                                              },
+                                              "span": {
+                                                "start": 119,
+                                                "end": 120
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "arena",
+                                                  "decl_span": null
+                                                }
+                                              }
+                                            },
+                                            "field": "cursor"
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 119,
+                                          "end": 122
+                                        },
+                                        "resolution": {
+                                          "Field": {
+                                            "owner": [
+                                              "Arena"
+                                            ],
+                                            "field": "cursor"
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 115,
+                                    "end": 122
+                                  },
+                                  "resolution": null
+                                }
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "Bool"
+                            },
+                            "span": {
+                              "start": 113,
+                              "end": 122
+                            },
+                            "resolution": null
+                          },
+                          "then_block": {
+                            "stmts": [],
+                            "last_expr": {
+                              "kind": {
+                                "Literal": [
+                                  "U64",
+                                  "0"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "U64"
+                              },
+                              "span": {
+                                "start": 123,
+                                "end": 124
+                              },
+                              "resolution": null
+                            },
+                            "ty": {
+                              "Primitive": "U64"
+                            }
+                          },
+                          "else_block": {
+                            "kind": {
+                              "Block": {
+                                "stmts": [
+                                  {
+                                    "Let": {
+                                      "name": "aligned",
+                                      "value": {
+                                        "kind": {
+                                          "Binary": {
+                                            "op": "Add",
+                                            "lhs": {
+                                              "kind": {
+                                                "FieldAccess": {
+                                                  "receiver": {
+                                                    "kind": {
+                                                      "Path": [
+                                                        "arena"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Adt": {
+                                                        "Struct": {
+                                                          "name": [
+                                                            "Arena"
+                                                          ],
+                                                          "generics": []
+                                                        }
+                                                      }
+                                                    },
+                                                    "span": {
+                                                      "start": 130,
+                                                      "end": 131
+                                                    },
+                                                    "resolution": {
+                                                      "Local": {
+                                                        "name": "arena",
+                                                        "decl_span": null
+                                                      }
+                                                    }
+                                                  },
+                                                  "field": "cursor"
+                                                }
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 130,
+                                                "end": 133
+                                              },
+                                              "resolution": {
+                                                "Field": {
+                                                  "owner": [
+                                                    "Arena"
+                                                  ],
+                                                  "field": "cursor"
+                                                }
+                                              }
+                                            },
+                                            "rhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "padding"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 134,
+                                                "end": 135
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "padding",
+                                                  "decl_span": {
+                                                    "start": 96,
+                                                    "end": 112
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 130,
+                                          "end": 135
+                                        },
+                                        "resolution": null
+                                      },
+                                      "ty": {
+                                        "Primitive": "U64"
+                                      },
+                                      "is_mut": false,
+                                      "span": {
+                                        "start": 127,
+                                        "end": 135
+                                      },
+                                      "name_span": null
+                                    }
+                                  }
+                                ],
+                                "last_expr": {
+                                  "kind": {
+                                    "If": {
+                                      "cond": {
+                                        "kind": {
+                                          "Binary": {
+                                            "op": "Gt",
+                                            "lhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "bytes"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 136,
+                                                "end": 137
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "bytes",
+                                                  "decl_span": null
+                                                }
+                                              }
+                                            },
+                                            "rhs": {
+                                              "kind": {
+                                                "Binary": {
+                                                  "op": "Sub",
+                                                  "lhs": {
+                                                    "kind": {
+                                                      "FieldAccess": {
+                                                        "receiver": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "arena"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
+                                                                  "Arena"
+                                                                ],
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          },
+                                                          "span": {
+                                                            "start": 138,
+                                                            "end": 139
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "arena",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        },
+                                                        "field": "capacity"
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 138,
+                                                      "end": 141
+                                                    },
+                                                    "resolution": {
+                                                      "Field": {
+                                                        "owner": [
+                                                          "Arena"
+                                                        ],
+                                                        "field": "capacity"
+                                                      }
+                                                    }
+                                                  },
+                                                  "rhs": {
+                                                    "kind": {
+                                                      "Path": [
+                                                        "aligned"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 142,
+                                                      "end": 143
+                                                    },
+                                                    "resolution": {
+                                                      "Local": {
+                                                        "name": "aligned",
+                                                        "decl_span": {
+                                                          "start": 127,
+                                                          "end": 135
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 138,
+                                                "end": 143
+                                              },
+                                              "resolution": null
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "Bool"
+                                        },
+                                        "span": {
+                                          "start": 136,
+                                          "end": 143
+                                        },
+                                        "resolution": null
+                                      },
+                                      "then_block": {
+                                        "stmts": [],
+                                        "last_expr": {
+                                          "kind": {
+                                            "Literal": [
+                                              "U64",
+                                              "0"
+                                            ]
+                                          },
+                                          "ty": {
+                                            "Primitive": "U64"
+                                          },
+                                          "span": {
+                                            "start": 144,
+                                            "end": 145
+                                          },
+                                          "resolution": null
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        }
+                                      },
+                                      "else_block": {
+                                        "kind": {
+                                          "Block": {
+                                            "stmts": [
+                                              {
+                                                "Assign": {
+                                                  "lhs": {
+                                                    "kind": {
+                                                      "FieldAccess": {
+                                                        "receiver": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "arena"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
+                                                                  "Arena"
+                                                                ],
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          },
+                                                          "span": {
+                                                            "start": 148,
+                                                            "end": 149
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "arena",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        },
+                                                        "field": "cursor"
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 148,
+                                                      "end": 149
+                                                    },
+                                                    "resolution": {
+                                                      "Field": {
+                                                        "owner": [
+                                                          "Arena"
+                                                        ],
+                                                        "field": "cursor"
+                                                      }
+                                                    }
+                                                  },
+                                                  "rhs": {
+                                                    "kind": {
+                                                      "Binary": {
+                                                        "op": "Add",
+                                                        "lhs": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "aligned"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 152,
+                                                            "end": 153
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "aligned",
+                                                              "decl_span": {
+                                                                "start": 127,
+                                                                "end": 135
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "rhs": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "bytes"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 154,
+                                                            "end": 155
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "bytes",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 152,
+                                                      "end": 155
+                                                    },
+                                                    "resolution": null
+                                                  },
+                                                  "span": {
+                                                    "start": 148,
+                                                    "end": 155
+                                                  }
+                                                }
+                                              }
+                                            ],
+                                            "last_expr": {
+                                              "kind": {
+                                                "Binary": {
+                                                  "op": "Add",
+                                                  "lhs": {
+                                                    "kind": {
+                                                      "FieldAccess": {
+                                                        "receiver": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "arena"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
+                                                                  "Arena"
+                                                                ],
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          },
+                                                          "span": {
+                                                            "start": 155,
+                                                            "end": 156
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "arena",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        },
+                                                        "field": "base"
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 155,
+                                                      "end": 158
+                                                    },
+                                                    "resolution": {
+                                                      "Field": {
+                                                        "owner": [
+                                                          "Arena"
+                                                        ],
+                                                        "field": "base"
+                                                      }
+                                                    }
+                                                  },
+                                                  "rhs": {
+                                                    "kind": {
+                                                      "Path": [
+                                                        "aligned"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 159,
+                                                      "end": 160
+                                                    },
+                                                    "resolution": {
+                                                      "Local": {
+                                                        "name": "aligned",
+                                                        "decl_span": {
+                                                          "start": 127,
+                                                          "end": 135
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 155,
+                                                "end": 160
+                                              },
+                                              "resolution": null
+                                            },
+                                            "ty": {
+                                              "Primitive": "U64"
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 147,
+                                          "end": 161
+                                        },
+                                        "resolution": null
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "U64"
+                                  },
+                                  "span": {
+                                    "start": 135,
+                                    "end": 161
+                                  },
+                                  "resolution": null
+                                },
+                                "ty": {
+                                  "Primitive": "U64"
+                                }
+                              }
+                            },
+                            "ty": {
+                              "Primitive": "U64"
+                            },
+                            "span": {
+                              "start": 126,
+                              "end": 162
+                            },
+                            "resolution": null
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "U64"
+                      },
+                      "span": {
+                        "start": 112,
+                        "end": 162
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Primitive": "U64"
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 79,
+                  "end": 163
+                },
+                "resolution": null
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "U64"
+          },
+          "span": {
+            "start": 71,
+            "end": 163
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "U64"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 70,
+        "end": 164
+      },
+      "context_id": 3
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "arena_reset",
+        "params": [
+          {
+            "name": "arena",
+            "ty": {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Arena"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "is_mut": true,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 174,
+                        "end": 175
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "cursor"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 174,
+                  "end": 175
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "Arena"
+                    ],
+                    "field": "cursor"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 178,
+                  "end": 179
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 174,
+                "end": 179
+              }
+            }
+          }
+        ],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 173,
+        "end": 180
+      },
+      "context_id": 4
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "arena_release",
+        "params": [
+          {
+            "name": "arena",
+            "ty": {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "Arena"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "is_mut": true,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "Call": {
+                          "fun": {
+                            "kind": {
+                              "Path": [
+                                "raw_free"
+                              ]
+                            },
+                            "ty": {
+                              "Function": {
+                                "param_types": [
+                                  {
+                                    "Primitive": "U64"
+                                  },
+                                  {
+                                    "Primitive": "U64"
+                                  }
+                                ],
+                                "ret_type": {
+                                  "Special": "Unit"
+                                },
+                                "effects": []
+                              }
+                            },
+                            "span": {
+                              "start": 192,
+                              "end": 193
+                            },
+                            "resolution": {
+                              "Function": {
+                                "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                "span": {
+                                  "start": 12,
+                                  "end": 25
+                                }
+                              }
+                            }
+                          },
+                          "args": [
+                            {
+                              "kind": {
+                                "FieldAccess": {
+                                  "receiver": {
+                                    "kind": {
+                                      "Path": [
+                                        "arena"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Adt": {
+                                        "Struct": {
+                                          "name": [
+                                            "Arena"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 194,
+                                      "end": 195
+                                    },
+                                    "resolution": {
+                                      "Local": {
+                                        "name": "arena",
+                                        "decl_span": null
+                                      }
+                                    }
+                                  },
+                                  "field": "base"
+                                }
+                              },
+                              "ty": {
+                                "Primitive": "U64"
+                              },
+                              "span": {
+                                "start": 194,
+                                "end": 197
+                              },
+                              "resolution": {
+                                "Field": {
+                                  "owner": [
+                                    "Arena"
+                                  ],
+                                  "field": "base"
+                                }
+                              }
+                            },
+                            {
+                              "kind": {
+                                "FieldAccess": {
+                                  "receiver": {
+                                    "kind": {
+                                      "Path": [
+                                        "arena"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Adt": {
+                                        "Struct": {
+                                          "name": [
+                                            "Arena"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 198,
+                                      "end": 199
+                                    },
+                                    "resolution": {
+                                      "Local": {
+                                        "name": "arena",
+                                        "decl_span": null
+                                      }
+                                    }
+                                  },
+                                  "field": "capacity"
+                                }
+                              },
+                              "ty": {
+                                "Primitive": "U64"
+                              },
+                              "span": {
+                                "start": 198,
+                                "end": 201
+                              },
+                              "resolution": {
+                                "Field": {
+                                  "owner": [
+                                    "Arena"
+                                  ],
+                                  "field": "capacity"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "ty": {
+                        "Special": "Unit"
+                      },
+                      "span": {
+                        "start": 192,
+                        "end": 202
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/raw_memory.bst",
+                          "span": {
+                            "start": 12,
+                            "end": 25
+                          }
+                        }
+                      }
+                    },
+                    "ty": {
+                      "Special": "Unit"
+                    }
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 191,
+                  "end": 203
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 190,
+                "end": 203
+              }
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 203,
+                        "end": 204
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "base"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 203,
+                  "end": 204
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "Arena"
+                    ],
+                    "field": "base"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 207,
+                  "end": 208
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 203,
+                "end": 208
+              }
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 208,
+                        "end": 209
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "capacity"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 208,
+                  "end": 209
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "Arena"
+                    ],
+                    "field": "capacity"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 212,
+                  "end": 213
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 208,
+                "end": 213
+              }
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 213,
+                        "end": 214
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "cursor"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 213,
+                  "end": 214
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "Arena"
+                    ],
+                    "field": "cursor"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 217,
+                  "end": 218
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 213,
+                "end": 218
+              }
+            }
+          }
+        ],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 189,
+        "end": 219
+      },
+      "context_id": 5
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "raw_alloc",
         "params": [
           {
             "name": "bytes",
@@ -63,18 +2114,18 @@
       },
       "is_public": true,
       "extern_kind": "RuntimeIntrinsic",
-      "defined_in": "./modules/std/runtime/memory.bst",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
       "span": {
-        "start": 0,
-        "end": 11
+        "start": 1,
+        "end": 12
       },
-      "context_id": 1
+      "context_id": 6
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "free",
+        "name": "raw_free",
         "params": [
           {
             "name": "ptr",
@@ -107,18 +2158,18 @@
       },
       "is_public": true,
       "extern_kind": "RuntimeIntrinsic",
-      "defined_in": "./modules/std/runtime/memory.bst",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
       "span": {
-        "start": 11,
-        "end": 24
+        "start": 12,
+        "end": 25
       },
-      "context_id": 2
+      "context_id": 7
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "memset",
+        "name": "raw_memset",
         "params": [
           {
             "name": "ptr",
@@ -159,18 +2210,18 @@
       },
       "is_public": true,
       "extern_kind": "RuntimeIntrinsic",
-      "defined_in": "./modules/std/runtime/memory.bst",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
       "span": {
-        "start": 24,
-        "end": 41
+        "start": 25,
+        "end": 42
       },
-      "context_id": 3
+      "context_id": 8
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "memcpy",
+        "name": "raw_memcpy",
         "params": [
           {
             "name": "destination",
@@ -211,18 +2262,18 @@
       },
       "is_public": true,
       "extern_kind": "RuntimeIntrinsic",
-      "defined_in": "./modules/std/runtime/memory.bst",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
       "span": {
-        "start": 41,
-        "end": 58
+        "start": 42,
+        "end": 59
       },
-      "context_id": 4
+      "context_id": 9
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "memcmp",
+        "name": "raw_memcmp",
         "params": [
           {
             "name": "left",
@@ -263,12 +2314,12 @@
       },
       "is_public": true,
       "extern_kind": "RuntimeIntrinsic",
-      "defined_in": "./modules/std/runtime/memory.bst",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
       "span": {
-        "start": 58,
-        "end": 77
+        "start": 59,
+        "end": 78
       },
-      "context_id": 5
+      "context_id": 10
     }
   },
   {
@@ -312,7 +2363,7 @@
         "start": 0,
         "end": 13
       },
-      "context_id": 6
+      "context_id": 11
     }
   },
   {
@@ -513,7 +2564,7 @@
         "start": 13,
         "end": 31
       },
-      "context_id": 7
+      "context_id": 12
     }
   }
 ]

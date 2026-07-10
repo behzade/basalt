@@ -111,8 +111,12 @@ impl Typechecker {
     }
 
     pub(crate) fn is_raw_runtime_intrinsic(&self, path: &PathBuf, name: &str) -> bool {
-        self.is_runtime_file(path)
-            && matches!(name, "alloc" | "free" | "memset" | "memcpy" | "memcmp")
+        path.file_name()
+            .is_some_and(|file_name| file_name == "raw_memory.bst")
+            && matches!(
+                name,
+                "raw_alloc" | "raw_free" | "raw_memset" | "raw_memcpy" | "raw_memcmp"
+            )
     }
     pub fn check_program(
         &mut self,
@@ -355,7 +359,12 @@ impl Typechecker {
             None
         };
 
-        if !func.is_extern && self.is_runtime_file(&context.path) {
+        if !func.is_extern
+            && context
+                .path
+                .file_name()
+                .is_some_and(|name| name == "raw_memory.bst")
+        {
             self.errors.push(TypeError {
                 message: "Functions in std::runtime must be extern declarations".to_string(),
                 context: context.clone(),

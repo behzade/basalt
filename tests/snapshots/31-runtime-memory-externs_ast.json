@@ -50,7 +50,7 @@
                           "item": {
                             "Path": [
                               "runtime",
-                              "alloc"
+                              "raw_alloc"
                             ]
                           },
                           "span": {
@@ -76,7 +76,7 @@
                           "item": {
                             "Path": [
                               "runtime",
-                              "free"
+                              "raw_free"
                             ]
                           },
                           "span": {

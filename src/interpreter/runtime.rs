@@ -42,42 +42,46 @@ pub(crate) fn call_runtime_intrinsic(
             write_all(fd, data.as_bytes())?;
             Ok(Value::Unit)
         }
-        "alloc" => {
+        "raw_alloc" => {
             let [bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::alloc expects 1 argument".into()));
+                return Err(RuntimeError("runtime::raw_alloc expects 1 argument".into()));
             };
-            let bytes = value_to_usize(bytes, "runtime::alloc bytes")?;
+            let bytes = value_to_usize(bytes, "runtime::raw_alloc bytes")?;
             let ptr = alloc_bytes(bytes)?;
             Ok(Value::U64(ptr))
         }
-        "free" => {
+        "raw_free" => {
             let [ptr, bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::free expects 2 arguments".into()));
+                return Err(RuntimeError("runtime::raw_free expects 2 arguments".into()));
             };
-            let ptr = value_to_u64(ptr, "runtime::free ptr")?;
-            let bytes = value_to_usize(bytes, "runtime::free bytes")?;
+            let ptr = value_to_u64(ptr, "runtime::raw_free ptr")?;
+            let bytes = value_to_usize(bytes, "runtime::raw_free bytes")?;
             free_bytes(ptr, bytes);
             Ok(Value::Unit)
         }
-        "memset" => {
+        "raw_memset" => {
             let [ptr, value, bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::memset expects 3 arguments".into()));
+                return Err(RuntimeError(
+                    "runtime::raw_memset expects 3 arguments".into(),
+                ));
             };
-            let ptr = value_to_u64(ptr, "runtime::memset ptr")?;
-            let value = value_to_u8(value, "runtime::memset value")?;
-            let bytes = value_to_usize(bytes, "runtime::memset bytes")?;
+            let ptr = value_to_u64(ptr, "runtime::raw_memset ptr")?;
+            let value = value_to_u8(value, "runtime::raw_memset value")?;
+            let bytes = value_to_usize(bytes, "runtime::raw_memset bytes")?;
             unsafe {
                 libc::memset(ptr as *mut libc::c_void, value.into(), bytes);
             }
             Ok(Value::Unit)
         }
-        "memcpy" => {
+        "raw_memcpy" => {
             let [destination, source, bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::memcpy expects 3 arguments".into()));
+                return Err(RuntimeError(
+                    "runtime::raw_memcpy expects 3 arguments".into(),
+                ));
             };
-            let destination = value_to_u64(destination, "runtime::memcpy destination")?;
-            let source = value_to_u64(source, "runtime::memcpy source")?;
-            let bytes = value_to_usize(bytes, "runtime::memcpy bytes")?;
+            let destination = value_to_u64(destination, "runtime::raw_memcpy destination")?;
+            let source = value_to_u64(source, "runtime::raw_memcpy source")?;
+            let bytes = value_to_usize(bytes, "runtime::raw_memcpy bytes")?;
             unsafe {
                 libc::memcpy(
                     destination as *mut libc::c_void,
@@ -87,13 +91,15 @@ pub(crate) fn call_runtime_intrinsic(
             }
             Ok(Value::Unit)
         }
-        "memcmp" => {
+        "raw_memcmp" => {
             let [left, right, bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::memcmp expects 3 arguments".into()));
+                return Err(RuntimeError(
+                    "runtime::raw_memcmp expects 3 arguments".into(),
+                ));
             };
-            let left = value_to_u64(left, "runtime::memcmp left")?;
-            let right = value_to_u64(right, "runtime::memcmp right")?;
-            let bytes = value_to_usize(bytes, "runtime::memcmp bytes")?;
+            let left = value_to_u64(left, "runtime::raw_memcmp left")?;
+            let right = value_to_u64(right, "runtime::raw_memcmp right")?;
+            let bytes = value_to_usize(bytes, "runtime::raw_memcmp bytes")?;
             let ordering = unsafe {
                 libc::memcmp(
                     left as *const libc::c_void,

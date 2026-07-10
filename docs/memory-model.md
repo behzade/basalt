@@ -165,10 +165,18 @@ Initial constraints:
 The interpreter currently implements accounting plus runtime-backed chunk reservation, not physical placement of every value into that chunk.
 
 - Heap-shaped values are charged to the active function frame.
-- Named chunk declarations reserve their backing byte budget through `std::runtime::alloc`.
+- Named chunk declarations reserve their backing byte budget through an internal host allocation.
+- `std::runtime::Arena` is a real bump allocator whose cursor, alignment, exhaustion, reset, and
+  release policy is implemented in Basalt. Its `raw_*` process-memory boundary remains a small
+  interpreter intrinsic surface guarded by lexical `unsafe`.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.
+
+The arena returns real process addresses, but ordinary strings, structs, arrays, and other
+compound interpreter `Value`s are not stored at those addresses yet. Moving those values to
+address-backed representations is the next integration step; until then, the arena is usable by
+unsafe/runtime code rather than being the storage engine for all language values.
 
 Example runnable boundary:
 

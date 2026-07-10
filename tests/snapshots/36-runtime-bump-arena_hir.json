@@ -2379,40 +2379,48 @@
       "body": {
         "stmts": [
           {
-            "Expr": {
-              "expr": {
+            "Let": {
+              "name": "storage",
+              "value": {
                 "kind": {
                   "Call": {
                     "fun": {
                       "kind": {
                         "Path": [
                           "runtime",
-                          "exit"
+                          "arena"
                         ]
                       },
                       "ty": {
                         "Function": {
                           "param_types": [
                             {
-                              "Primitive": "I32"
+                              "Primitive": "U64"
                             }
                           ],
                           "ret_type": {
-                            "Special": "Never"
+                            "Adt": {
+                              "Struct": {
+                                "name": [
+                                  "Arena"
+                                ],
+                                "generics": []
+                              }
+                            }
                           },
                           "effects": []
                         }
                       },
                       "span": {
-                        "start": 15,
-                        "end": 19
+                        "start": 19,
+                        "end": 23
                       },
                       "resolution": {
                         "Function": {
-                          "defined_in": "./modules/std/runtime/exit.bst",
+                          "defined_in": "./modules/std/runtime/memory.bst",
                           "span": {
-                            "start": 0,
-                            "end": 11
+                            "start": 18,
+                            "end": 51
                           }
                         }
                       }
@@ -2421,16 +2429,16 @@
                       {
                         "kind": {
                           "Literal": [
-                            "I32",
-                            "37"
+                            "U64",
+                            "32"
                           ]
                         },
                         "ty": {
-                          "Primitive": "I32"
+                          "Primitive": "U64"
                         },
                         "span": {
-                          "start": 20,
-                          "end": 21
+                          "start": 24,
+                          "end": 25
                         },
                         "resolution": null
                       }
@@ -2438,42 +2446,1734 @@
                   }
                 },
                 "ty": {
-                  "Special": "Never"
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "Arena"
+                      ],
+                      "generics": []
+                    }
+                  }
                 },
                 "span": {
-                  "start": 15,
-                  "end": 22
+                  "start": 19,
+                  "end": 26
                 },
                 "resolution": {
                   "Function": {
-                    "defined_in": "./modules/std/runtime/exit.bst",
+                    "defined_in": "./modules/std/runtime/memory.bst",
                     "span": {
-                      "start": 0,
-                      "end": 11
+                      "start": 18,
+                      "end": 51
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Adt": {
+                  "Struct": {
+                    "name": [
+                      "Arena"
+                    ],
+                    "generics": []
+                  }
+                }
+              },
+              "is_mut": true,
+              "span": {
+                "start": 15,
+                "end": 26
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "first",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_alloc"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 29,
+                        "end": 33
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 51,
+                            "end": 164
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 34,
+                          "end": 35
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "3"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 36,
+                          "end": 37
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 38,
+                          "end": 39
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 29,
+                  "end": 40
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 51,
+                      "end": 164
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 26,
+                "end": 40
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "aligned",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_alloc"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 43,
+                        "end": 47
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 51,
+                            "end": 164
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 48,
+                          "end": 49
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "4"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 50,
+                          "end": 51
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "8"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 52,
+                          "end": 53
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 43,
+                  "end": 54
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 51,
+                      "end": 164
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 40,
+                "end": 54
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "exhausted",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_alloc"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 57,
+                        "end": 61
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 51,
+                            "end": 164
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 62,
+                          "end": 63
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "25"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 64,
+                          "end": 65
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 66,
+                          "end": 67
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 57,
+                  "end": 68
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 51,
+                      "end": 164
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 54,
+                "end": 68
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "invalid_alignment",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_alloc"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 71,
+                        "end": 75
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 51,
+                            "end": 164
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 76,
+                          "end": 77
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 78,
+                          "end": 79
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "0"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 80,
+                          "end": 81
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 71,
+                  "end": 82
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 51,
+                      "end": 164
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 68,
+                "end": 82
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_reset"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 82,
+                        "end": 86
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 164,
+                            "end": 180
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 87,
+                          "end": 88
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 82,
+                  "end": 89
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 164,
+                      "end": 180
                     }
                   }
                 }
               },
               "span": {
-                "start": 15,
-                "end": 22
+                "start": 82,
+                "end": 89
               }
+            }
+          },
+          {
+            "Let": {
+              "name": "reused",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_alloc"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 92,
+                        "end": 96
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 51,
+                            "end": 164
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 97,
+                          "end": 98
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "32"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 99,
+                          "end": 100
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 101,
+                          "end": 102
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 92,
+                  "end": 103
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 51,
+                      "end": 164
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 89,
+                "end": 103
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_release"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Unit"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 103,
+                        "end": 107
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 180,
+                            "end": 219
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 108,
+                          "end": 109
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 103,
+                  "end": 110
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 180,
+                      "end": 219
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 103,
+                "end": 110
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "after_release",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "arena_alloc"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            {
+                              "Primitive": "U64"
+                            },
+                            {
+                              "Primitive": "U64"
+                            }
+                          ],
+                          "ret_type": {
+                            "Primitive": "U64"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 113,
+                        "end": 117
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/memory.bst",
+                          "span": {
+                            "start": 51,
+                            "end": 164
+                          }
+                        }
+                      }
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Path": [
+                            "storage"
+                          ]
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "Arena"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 118,
+                          "end": 119
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "storage",
+                            "decl_span": {
+                              "start": 15,
+                              "end": 26
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 120,
+                          "end": 121
+                        },
+                        "resolution": null
+                      },
+                      {
+                        "kind": {
+                          "Literal": [
+                            "U64",
+                            "1"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "U64"
+                        },
+                        "span": {
+                          "start": 122,
+                          "end": 123
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 113,
+                  "end": 124
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/memory.bst",
+                    "span": {
+                      "start": 51,
+                      "end": 164
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "U64"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 110,
+                "end": 124
+              },
+              "name_span": null
             }
           }
         ],
         "last_expr": {
           "kind": {
-            "Literal": [
-              "I32",
-              "0"
-            ]
+            "If": {
+              "cond": {
+                "kind": {
+                  "Binary": {
+                    "op": "Eq",
+                    "lhs": {
+                      "kind": {
+                        "Binary": {
+                          "op": "Sub",
+                          "lhs": {
+                            "kind": {
+                              "Path": [
+                                "aligned"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "U64"
+                            },
+                            "span": {
+                              "start": 125,
+                              "end": 126
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "aligned",
+                                "decl_span": {
+                                  "start": 40,
+                                  "end": 54
+                                }
+                              }
+                            }
+                          },
+                          "rhs": {
+                            "kind": {
+                              "Path": [
+                                "first"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "U64"
+                            },
+                            "span": {
+                              "start": 127,
+                              "end": 128
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "first",
+                                "decl_span": {
+                                  "start": 26,
+                                  "end": 40
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "U64"
+                      },
+                      "span": {
+                        "start": 125,
+                        "end": 128
+                      },
+                      "resolution": null
+                    },
+                    "rhs": {
+                      "kind": {
+                        "Literal": [
+                          "U64",
+                          "8"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "U64"
+                      },
+                      "span": {
+                        "start": 129,
+                        "end": 130
+                      },
+                      "resolution": null
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "Bool"
+                },
+                "span": {
+                  "start": 125,
+                  "end": 130
+                },
+                "resolution": null
+              },
+              "then_block": {
+                "stmts": [],
+                "last_expr": {
+                  "kind": {
+                    "If": {
+                      "cond": {
+                        "kind": {
+                          "Binary": {
+                            "op": "Eq",
+                            "lhs": {
+                              "kind": {
+                                "Path": [
+                                  "exhausted"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "U64"
+                              },
+                              "span": {
+                                "start": 132,
+                                "end": 133
+                              },
+                              "resolution": {
+                                "Local": {
+                                  "name": "exhausted",
+                                  "decl_span": {
+                                    "start": 54,
+                                    "end": 68
+                                  }
+                                }
+                              }
+                            },
+                            "rhs": {
+                              "kind": {
+                                "Literal": [
+                                  "U64",
+                                  "0"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "U64"
+                              },
+                              "span": {
+                                "start": 134,
+                                "end": 135
+                              },
+                              "resolution": null
+                            }
+                          }
+                        },
+                        "ty": {
+                          "Primitive": "Bool"
+                        },
+                        "span": {
+                          "start": 132,
+                          "end": 135
+                        },
+                        "resolution": null
+                      },
+                      "then_block": {
+                        "stmts": [],
+                        "last_expr": {
+                          "kind": {
+                            "If": {
+                              "cond": {
+                                "kind": {
+                                  "Binary": {
+                                    "op": "Eq",
+                                    "lhs": {
+                                      "kind": {
+                                        "Path": [
+                                          "invalid_alignment"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Primitive": "U64"
+                                      },
+                                      "span": {
+                                        "start": 137,
+                                        "end": 138
+                                      },
+                                      "resolution": {
+                                        "Local": {
+                                          "name": "invalid_alignment",
+                                          "decl_span": {
+                                            "start": 68,
+                                            "end": 82
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "rhs": {
+                                      "kind": {
+                                        "Literal": [
+                                          "U64",
+                                          "0"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Primitive": "U64"
+                                      },
+                                      "span": {
+                                        "start": 139,
+                                        "end": 140
+                                      },
+                                      "resolution": null
+                                    }
+                                  }
+                                },
+                                "ty": {
+                                  "Primitive": "Bool"
+                                },
+                                "span": {
+                                  "start": 137,
+                                  "end": 140
+                                },
+                                "resolution": null
+                              },
+                              "then_block": {
+                                "stmts": [],
+                                "last_expr": {
+                                  "kind": {
+                                    "If": {
+                                      "cond": {
+                                        "kind": {
+                                          "Binary": {
+                                            "op": "Eq",
+                                            "lhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "reused"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 142,
+                                                "end": 143
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "reused",
+                                                  "decl_span": {
+                                                    "start": 89,
+                                                    "end": 103
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "rhs": {
+                                              "kind": {
+                                                "Path": [
+                                                  "first"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 144,
+                                                "end": 145
+                                              },
+                                              "resolution": {
+                                                "Local": {
+                                                  "name": "first",
+                                                  "decl_span": {
+                                                    "start": 26,
+                                                    "end": 40
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "Bool"
+                                        },
+                                        "span": {
+                                          "start": 142,
+                                          "end": 145
+                                        },
+                                        "resolution": null
+                                      },
+                                      "then_block": {
+                                        "stmts": [],
+                                        "last_expr": {
+                                          "kind": {
+                                            "If": {
+                                              "cond": {
+                                                "kind": {
+                                                  "Binary": {
+                                                    "op": "Eq",
+                                                    "lhs": {
+                                                      "kind": {
+                                                        "Path": [
+                                                          "after_release"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Primitive": "U64"
+                                                      },
+                                                      "span": {
+                                                        "start": 147,
+                                                        "end": 148
+                                                      },
+                                                      "resolution": {
+                                                        "Local": {
+                                                          "name": "after_release",
+                                                          "decl_span": {
+                                                            "start": 110,
+                                                            "end": 124
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "rhs": {
+                                                      "kind": {
+                                                        "Literal": [
+                                                          "U64",
+                                                          "0"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Primitive": "U64"
+                                                      },
+                                                      "span": {
+                                                        "start": 149,
+                                                        "end": 150
+                                                      },
+                                                      "resolution": null
+                                                    }
+                                                  }
+                                                },
+                                                "ty": {
+                                                  "Primitive": "Bool"
+                                                },
+                                                "span": {
+                                                  "start": 147,
+                                                  "end": 150
+                                                },
+                                                "resolution": null
+                                              },
+                                              "then_block": {
+                                                "stmts": [],
+                                                "last_expr": {
+                                                  "kind": {
+                                                    "Literal": [
+                                                      "I32",
+                                                      "43"
+                                                    ]
+                                                  },
+                                                  "ty": {
+                                                    "Primitive": "I32"
+                                                  },
+                                                  "span": {
+                                                    "start": 151,
+                                                    "end": 152
+                                                  },
+                                                  "resolution": null
+                                                },
+                                                "ty": {
+                                                  "Primitive": "I32"
+                                                }
+                                              },
+                                              "else_block": {
+                                                "kind": {
+                                                  "Block": {
+                                                    "stmts": [],
+                                                    "last_expr": {
+                                                      "kind": {
+                                                        "Literal": [
+                                                          "I32",
+                                                          "1"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Primitive": "I32"
+                                                      },
+                                                      "span": {
+                                                        "start": 155,
+                                                        "end": 156
+                                                      },
+                                                      "resolution": null
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "I32"
+                                                    }
+                                                  }
+                                                },
+                                                "ty": {
+                                                  "Primitive": "I32"
+                                                },
+                                                "span": {
+                                                  "start": 154,
+                                                  "end": 157
+                                                },
+                                                "resolution": null
+                                              }
+                                            }
+                                          },
+                                          "ty": {
+                                            "Primitive": "I32"
+                                          },
+                                          "span": {
+                                            "start": 146,
+                                            "end": 157
+                                          },
+                                          "resolution": null
+                                        },
+                                        "ty": {
+                                          "Primitive": "I32"
+                                        }
+                                      },
+                                      "else_block": {
+                                        "kind": {
+                                          "Block": {
+                                            "stmts": [],
+                                            "last_expr": {
+                                              "kind": {
+                                                "Literal": [
+                                                  "I32",
+                                                  "1"
+                                                ]
+                                              },
+                                              "ty": {
+                                                "Primitive": "I32"
+                                              },
+                                              "span": {
+                                                "start": 160,
+                                                "end": 161
+                                              },
+                                              "resolution": null
+                                            },
+                                            "ty": {
+                                              "Primitive": "I32"
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "I32"
+                                        },
+                                        "span": {
+                                          "start": 159,
+                                          "end": 162
+                                        },
+                                        "resolution": null
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Primitive": "I32"
+                                  },
+                                  "span": {
+                                    "start": 141,
+                                    "end": 162
+                                  },
+                                  "resolution": null
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                }
+                              },
+                              "else_block": {
+                                "kind": {
+                                  "Block": {
+                                    "stmts": [],
+                                    "last_expr": {
+                                      "kind": {
+                                        "Literal": [
+                                          "I32",
+                                          "1"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Primitive": "I32"
+                                      },
+                                      "span": {
+                                        "start": 165,
+                                        "end": 166
+                                      },
+                                      "resolution": null
+                                    },
+                                    "ty": {
+                                      "Primitive": "I32"
+                                    }
+                                  }
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 164,
+                                  "end": 167
+                                },
+                                "resolution": null
+                              }
+                            }
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 136,
+                            "end": 167
+                          },
+                          "resolution": null
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        }
+                      },
+                      "else_block": {
+                        "kind": {
+                          "Block": {
+                            "stmts": [],
+                            "last_expr": {
+                              "kind": {
+                                "Literal": [
+                                  "I32",
+                                  "1"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 170,
+                                "end": 171
+                              },
+                              "resolution": null
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            }
+                          }
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 169,
+                          "end": 172
+                        },
+                        "resolution": null
+                      }
+                    }
+                  },
+                  "ty": {
+                    "Primitive": "I32"
+                  },
+                  "span": {
+                    "start": 131,
+                    "end": 172
+                  },
+                  "resolution": null
+                },
+                "ty": {
+                  "Primitive": "I32"
+                }
+              },
+              "else_block": {
+                "kind": {
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "Literal": [
+                          "I32",
+                          "1"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      },
+                      "span": {
+                        "start": 175,
+                        "end": 176
+                      },
+                      "resolution": null
+                    },
+                    "ty": {
+                      "Primitive": "I32"
+                    }
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 174,
+                  "end": 177
+                },
+                "resolution": null
+              }
+            }
           },
           "ty": {
             "Primitive": "I32"
           },
           "span": {
-            "start": 22,
-            "end": 23
+            "start": 124,
+            "end": 177
           },
           "resolution": null
         },
@@ -2482,10 +4182,10 @@
         }
       },
       "is_public": false,
-      "defined_in": "tests/21-runtime-exit.bst",
+      "defined_in": "tests/36-runtime-bump-arena.bst",
       "span": {
         "start": 14,
-        "end": 24
+        "end": 178
       },
       "context_id": 12
     }
