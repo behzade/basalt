@@ -374,8 +374,13 @@ impl Typechecker {
             )?;
             let body_span = body_expr.span;
             let body_block = match body_expr.kind {
-                hir::ExprKind::Block(block) => {
-                    if !TypeUnifier::is_assignable(&block.ty, &signature.ret_type) {
+                hir::ExprKind::Block(mut block) => {
+                    if block_always_returns(&block) {
+                        block.ty = hir::Ty::Special(hir::SpecialTy::Never);
+                    }
+                    if !block_always_returns(&block)
+                        && !TypeUnifier::is_assignable(&block.ty, &signature.ret_type)
+                    {
                         self.errors.push(TypeError {
                             message: format!(
                                 "Mismatched return type for function '{}': expected {} but found {}",
@@ -879,5 +884,30 @@ impl Typechecker {
                 }
             }
         }
+    }
+}
+
+fn block_always_returns(block: &hir::HirBlock) -> bool {
+    block.stmts.iter().any(|stmt| match stmt {
+        hir::Stmt::Return { .. } => true,
+        hir::Stmt::Expr { expr, .. } => expr_always_returns(expr),
+        _ => false,
+    }) || block.last_expr.as_deref().is_some_and(expr_always_returns)
+}
+
+fn expr_always_returns(expr: &hir::Expr) -> bool {
+    match &expr.kind {
+        hir::ExprKind::Block(block) | hir::ExprKind::Handle { body: block, .. } => {
+            block_always_returns(block)
+        }
+        hir::ExprKind::If {
+            then_block,
+            else_block: Some(else_expr),
+            ..
+        } => block_always_returns(then_block) && expr_always_returns(else_expr),
+        hir::ExprKind::Match { arms, .. } => {
+            !arms.is_empty() && arms.iter().all(|(_, arm)| expr_always_returns(arm))
+        }
+        _ => false,
     }
 }

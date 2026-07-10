@@ -1,23 +1,17 @@
-use crate::hir::Expr;
-
-use super::env::{Env, Result, RuntimeError};
+use super::env::{Result, RuntimeError};
 use super::value::Value;
 
-pub(crate) fn try_primitive_call<F>(
-    name: &str,
-    args: &[Expr],
-    env: &mut Env,
-    mut eval_expr: F,
-) -> Result<Option<Value>>
-where
-    F: FnMut(&Expr, &mut Env) -> Result<Value>,
-{
+pub(crate) fn contains(name: &str) -> bool {
+    name == "len"
+}
+
+pub(crate) fn try_primitive_call(name: &str, args: &[Value]) -> Result<Option<Value>> {
     match name {
         "len" => {
             if args.len() != 1 {
                 return Err(RuntimeError("len expects 1 argument".into()));
             }
-            let value = eval_expr(&args[0], env)?;
+            let value = args[0].clone();
             match value {
                 Value::Str(s) => Ok(Some(Value::I32(s.chars().count() as i32))),
                 Value::Array(items) => Ok(Some(Value::I32(items.len() as i32))),

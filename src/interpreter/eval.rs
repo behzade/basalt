@@ -12,6 +12,20 @@ use super::runtime;
 use super::stack::{AllocationRegionGuard, StackAllocator, StackFrameGuard};
 use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
 
+enum Flow<T> {
+    Value(T),
+    Return(Value),
+}
+
+macro_rules! flow_value {
+    ($expr:expr) => {
+        match $expr? {
+            Flow::Value(value) => value,
+            Flow::Return(value) => return Ok(Flow::Return(value)),
+        }
+    };
+}
+
 /// A very small tree-walking interpreter over the HIR.
 pub struct Interpreter {
     index: HirIndex,
@@ -76,8 +90,9 @@ impl Interpreter {
             }
         }
 
-        self.eval_block(&function.body, &mut env)
-            .map(|v| v.unwrap_or(Value::Unit))
+        match self.eval_block(&function.body, &mut env)? {
+            Flow::Value(value) | Flow::Return(value) => Ok(value),
+        }
     }
 
     pub(crate) fn call_function_value(
@@ -101,32 +116,33 @@ impl Interpreter {
         for (idx, param) in function.params.iter().enumerate() {
             env.define(param.name.clone(), args[idx].clone());
         }
-        self.eval_block(&function.body, &mut env)
-            .map(|v| v.unwrap_or(Value::Unit))
+        match self.eval_block(&function.body, &mut env)? {
+            Flow::Value(value) | Flow::Return(value) => Ok(value),
+        }
     }
 
     /// Evaluate a block, returning the last expression value or an explicit return value.
-    fn eval_block(&self, block: &HirBlock, env: &mut Env) -> Result<Option<Value>> {
+    fn eval_block(&self, block: &HirBlock, env: &mut Env) -> Result<Flow<Value>> {
         env.push_scope();
         for stmt in &block.stmts {
             match self.eval_stmt(stmt, env)? {
-                ControlFlow::Next => {}
-                ControlFlow::Return(v) => {
+                Flow::Value(()) => {}
+                Flow::Return(value) => {
                     env.pop_scope();
-                    return Ok(Some(v));
+                    return Ok(Flow::Return(value));
                 }
             }
         }
-        let result = if let Some(last) = &block.last_expr {
-            Some(self.eval_expr(last, env)?)
+        let result = if let Some(last_expr) = &block.last_expr {
+            self.eval_expr(last_expr, env)?
         } else {
-            None
+            Flow::Value(Value::Unit)
         };
         env.pop_scope();
         Ok(result)
     }
 
-    fn eval_stmt(&self, stmt: &Stmt, env: &mut Env) -> Result<ControlFlow> {
+    fn eval_stmt(&self, stmt: &Stmt, env: &mut Env) -> Result<Flow<()>> {
         match stmt {
             Stmt::Let {
                 name,
@@ -136,27 +152,27 @@ impl Interpreter {
             } => {
                 let v = if let Some(expr) = value {
                     let _region_guard = AllocationRegionGuard::enter(&self.stack, memory.clone());
-                    self.eval_expr(expr, env)?
+                    flow_value!(self.eval_expr(expr, env))
                 } else {
                     Value::Unit
                 };
                 env.define(name.clone(), v);
-                Ok(ControlFlow::Next)
+                Ok(Flow::Value(()))
             }
             Stmt::Return { value, .. } => {
                 let ret = if let Some(expr) = value {
-                    self.eval_expr(expr, env)?
+                    flow_value!(self.eval_expr(expr, env))
                 } else {
                     Value::Unit
                 };
-                Ok(ControlFlow::Return(ret))
+                Ok(Flow::Return(ret))
             }
             Stmt::Assign { lhs, rhs, .. } => {
                 if let ExprKind::Path(path) = &lhs.kind {
                     if let Some(var_name) = path.last() {
-                        let new_val = self.eval_expr(rhs, env)?;
+                        let new_val = flow_value!(self.eval_expr(rhs, env));
                         env.assign(var_name, new_val)?;
-                        return Ok(ControlFlow::Next);
+                        return Ok(Flow::Value(()));
                     }
                 }
                 if let ExprKind::FieldAccess { receiver, field } = &lhs.kind {
@@ -167,7 +183,7 @@ impl Interpreter {
                             })?;
                             if let Value::Struct { path, fields } = owner_val {
                                 let mut new_fields = fields.clone();
-                                let new_val = self.eval_expr(rhs, env)?;
+                                let new_val = flow_value!(self.eval_expr(rhs, env));
                                 new_fields.insert(field.clone(), new_val);
                                 env.assign(
                                     owner_name,
@@ -176,7 +192,7 @@ impl Interpreter {
                                         fields: new_fields,
                                     },
                                 )?;
-                                return Ok(ControlFlow::Next);
+                                return Ok(Flow::Value(()));
                             } else {
                                 return Err(RuntimeError(
                                     "Field assignment on non-struct value".to_string(),
@@ -188,8 +204,8 @@ impl Interpreter {
                 Err(RuntimeError("Unsupported assignment target".to_string()))
             }
             Stmt::Expr { expr, .. } => {
-                let _ = self.eval_expr(expr, env)?;
-                Ok(ControlFlow::Next)
+                flow_value!(self.eval_expr(expr, env));
+                Ok(Flow::Value(()))
             }
             Stmt::Error { .. } => Err(RuntimeError(
                 "Encountered error statement in HIR".to_string(),
@@ -197,44 +213,47 @@ impl Interpreter {
         }
     }
 
-    fn eval_expr(&self, expr: &Expr, env: &mut Env) -> Result<Value> {
+    fn eval_expr(&self, expr: &Expr, env: &mut Env) -> Result<Flow<Value>> {
         match &expr.kind {
-            ExprKind::Literal(pty, text) => self.eval_literal(pty, text),
+            ExprKind::Literal(pty, text) => self.eval_literal(pty, text).map(Flow::Value),
             ExprKind::Array(items) => {
                 let mut values = Vec::with_capacity(items.len());
                 for item in items {
-                    values.push(self.eval_expr(item, env)?);
+                    values.push(flow_value!(self.eval_expr(item, env)));
                 }
-                self.alloc(Value::Array(values))
+                self.alloc(Value::Array(values)).map(Flow::Value)
             }
             ExprKind::Map(entries) => {
                 let mut values = Vec::with_capacity(entries.len());
                 for (key, value) in entries {
-                    values.push((self.eval_expr(key, env)?, self.eval_expr(value, env)?));
+                    values.push((
+                        flow_value!(self.eval_expr(key, env)),
+                        flow_value!(self.eval_expr(value, env)),
+                    ));
                 }
-                self.alloc(Value::Map(values))
+                self.alloc(Value::Map(values)).map(Flow::Value)
             }
             ExprKind::Path(path) => {
                 // Variable lookup for simple paths
                 if let Some(name) = path.last() {
                     if let Some(val) = env.get(name) {
-                        return Ok(val);
+                        return Ok(Flow::Value(val));
                     }
                     if let Some(function) = self.resolved_function(expr, name) {
-                        return Ok(Self::function_value(function));
+                        return Ok(Flow::Value(Self::function_value(function)));
                     }
                     if let Some(function) = self.index.function(name) {
-                        return Ok(Self::function_value(function));
+                        return Ok(Flow::Value(Self::function_value(function)));
                     }
                 }
                 Err(RuntimeError(format!("Unknown path: {:?}", path)))
             }
             ExprKind::FieldAccess { receiver, field } => {
-                let rv = self.eval_expr(receiver, env)?;
+                let rv = flow_value!(self.eval_expr(receiver, env));
                 match rv {
                     Value::Struct { fields, .. } => {
                         if let Some(v) = fields.get(field) {
-                            Ok(v.clone())
+                            Ok(Flow::Value(v.clone()))
                         } else {
                             Err(RuntimeError(format!("Unknown field '{}'", field)))
                         }
@@ -243,13 +262,13 @@ impl Interpreter {
                 }
             }
             ExprKind::Unary { op, rhs } => {
-                let v = self.eval_expr(rhs, env)?;
-                self.apply_unary(*op, v)
+                let value = flow_value!(self.eval_expr(rhs, env));
+                self.apply_unary(*op, value).map(Flow::Value)
             }
             ExprKind::Binary { op, lhs, rhs } => {
-                let lv = self.eval_expr(lhs, env)?;
-                let rv = self.eval_expr(rhs, env)?;
-                self.apply_binary(*op, lv, rv)
+                let lhs = flow_value!(self.eval_expr(lhs, env));
+                let rhs = flow_value!(self.eval_expr(rhs, env));
+                self.apply_binary(*op, lhs, rhs).map(Flow::Value)
             }
             ExprKind::Call { fun, args } => {
                 // Evaluate callee; support calling top-level and function values
@@ -259,31 +278,35 @@ impl Interpreter {
                         if let Some(Value::Function(func_val)) = env.get(name) {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
-                                evaled.push(self.eval_expr(a, env)?);
+                                evaled.push(flow_value!(self.eval_expr(a, env)));
                             }
-                            return self.call_function_value(&func_val, evaled);
+                            return self.call_function_value(&func_val, evaled).map(Flow::Value);
                         }
                         if let Some(f) = self.resolved_function(fun, name) {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
-                                evaled.push(self.eval_expr(a, env)?);
+                                evaled.push(flow_value!(self.eval_expr(a, env)));
                             }
-                            return self.call_function(f, evaled);
+                            return self.call_function(f, evaled).map(Flow::Value);
                         }
                         if let Some(f) = self.index.function(name) {
                             let mut evaled = Vec::with_capacity(args.len());
                             for a in args {
-                                evaled.push(self.eval_expr(a, env)?);
+                                evaled.push(flow_value!(self.eval_expr(a, env)));
                             }
-                            return self.call_function(f, evaled);
+                            return self.call_function(f, evaled).map(Flow::Value);
                         }
                         // Builtins: minimal host I/O, only after user-visible bindings.
-                        if let Some(primitive) =
-                            primitive_ops::try_primitive_call(name, args, env, |expr, env| {
-                                self.eval_expr(expr, env)
-                            })?
-                        {
-                            return Ok(primitive);
+                        if primitive_ops::contains(name) {
+                            let mut evaluated_args = Vec::with_capacity(args.len());
+                            for arg in args {
+                                evaluated_args.push(flow_value!(self.eval_expr(arg, env)));
+                            }
+                            if let Some(primitive) =
+                                primitive_ops::try_primitive_call(name, &evaluated_args)?
+                            {
+                                return Ok(Flow::Value(primitive));
+                            }
                         }
                         if let hir::Ty::Function { ret_type, .. } = &fun.ty {
                             if let hir::Ty::Adt(hir::AdtTy::Enum {
@@ -293,23 +316,28 @@ impl Interpreter {
                                 if !self.index.contains_function(name) {
                                     let mut fields = HashMap::new();
                                     for (idx, arg) in args.iter().enumerate() {
-                                        fields.insert(idx.to_string(), self.eval_expr(arg, env)?);
+                                        fields.insert(
+                                            idx.to_string(),
+                                            flow_value!(self.eval_expr(arg, env)),
+                                        );
                                     }
                                     let mut path = enum_name.clone();
                                     path.push(name.clone());
-                                    return self.alloc(Value::EnumVariant { path, fields });
+                                    return self
+                                        .alloc(Value::EnumVariant { path, fields })
+                                        .map(Flow::Value);
                                 }
                             }
                         }
                     }
                 }
-                let callee = self.eval_expr(fun, env)?;
+                let callee = flow_value!(self.eval_expr(fun, env));
                 if let Value::Function(func_val) = callee {
                     let mut evaled = Vec::with_capacity(args.len());
                     for a in args {
-                        evaled.push(self.eval_expr(a, env)?);
+                        evaled.push(flow_value!(self.eval_expr(a, env)));
                     }
-                    return self.call_function_value(&func_val, evaled);
+                    return self.call_function_value(&func_val, evaled).map(Flow::Value);
                 }
                 Err(RuntimeError(
                     "Attempted to call a non-function value".to_string(),
@@ -318,39 +346,41 @@ impl Interpreter {
             ExprKind::StructInit { path, fields } => {
                 let mut map = std::collections::HashMap::new();
                 for (name, expr) in fields {
-                    let v = self.eval_expr(expr, env)?;
+                    let v = flow_value!(self.eval_expr(expr, env));
                     map.insert(name.clone(), v);
                 }
                 if let hir::Ty::Adt(hir::AdtTy::Enum { .. }) = &expr.ty {
                     let map = self.canonical_enum_fields(path, map);
-                    return self.alloc(Value::EnumVariant {
-                        path: path.clone(),
-                        fields: map,
-                    });
+                    return self
+                        .alloc(Value::EnumVariant {
+                            path: path.clone(),
+                            fields: map,
+                        })
+                        .map(Flow::Value);
                 }
                 self.alloc(Value::Struct {
                     path: path.clone(),
                     fields: map,
                 })
+                .map(Flow::Value)
             }
-            ExprKind::Block(b) => self.eval_block(b, env).map(|v| v.unwrap_or(Value::Unit)),
+            ExprKind::Block(block) => self.eval_block(block, env),
             ExprKind::If {
                 cond,
                 then_block,
                 else_block,
             } => {
-                let c = self.eval_expr(cond, env)?;
-                if is_truthy(&c) {
+                let condition = flow_value!(self.eval_expr(cond, env));
+                if is_truthy(&condition) {
                     self.eval_block(then_block, env)
-                        .map(|v| v.unwrap_or(Value::Unit))
                 } else if let Some(else_expr) = else_block {
                     self.eval_expr(else_expr, env)
                 } else {
-                    Ok(Value::Unit)
+                    Ok(Flow::Value(Value::Unit))
                 }
             }
             ExprKind::Match { scrutinee, arms } => {
-                let value = self.eval_expr(scrutinee, env)?;
+                let value = flow_value!(self.eval_expr(scrutinee, env));
                 for (pattern, arm_expr) in arms {
                     if let Some(bindings) = self.match_pattern(pattern, &value)? {
                         let mut arm_env = env.clone();
@@ -366,28 +396,32 @@ impl Interpreter {
                 Err(RuntimeError("Non-exhaustive match at runtime".to_string()))
             }
             ExprKind::While { cond, body } => {
-                while is_truthy(&self.eval_expr(cond, env)?) {
-                    if let Some(v) = self.eval_block(body, env)? {
-                        return Ok(v);
+                loop {
+                    let condition = flow_value!(self.eval_expr(cond, env));
+                    if !is_truthy(&condition) {
+                        break;
+                    }
+                    if let Flow::Return(value) = self.eval_block(body, env)? {
+                        return Ok(Flow::Return(value));
                     }
                 }
-                Ok(Value::Unit)
+                Ok(Flow::Value(Value::Unit))
             }
             ExprKind::Perform { path, args } => {
                 let mut evaled = Vec::with_capacity(args.len());
                 for arg in args {
-                    evaled.push(self.eval_expr(arg, env)?);
+                    evaled.push(flow_value!(self.eval_expr(arg, env)));
                 }
-                self.perform(path, evaled)
+                self.perform(path, evaled).map(Flow::Value)
             }
-            ExprKind::Handler(handler) => self.eval_handler_body(handler, env),
+            ExprKind::Handler(handler) => self.eval_handler_body(handler, env).map(Flow::Value),
             ExprKind::Handle { body, handler } => {
-                let handler = self.eval_expr(handler, env)?;
+                let handler = flow_value!(self.eval_expr(handler, env));
                 let Value::Handler(handler) = handler else {
                     return Err(RuntimeError("handle expected handler value".to_string()));
                 };
                 self.active_handlers.borrow_mut().push(handler);
-                let result = self.eval_block(body, env).map(|v| v.unwrap_or(Value::Unit));
+                let result = self.eval_block(body, env);
                 let _ = self.active_handlers.borrow_mut().pop();
                 result
             }
@@ -397,11 +431,11 @@ impl Interpreter {
                     body: f.body.clone(),
                     captured: env.scopes.clone(),
                 };
-                self.alloc(Value::Function(func_val))
+                self.alloc(Value::Function(func_val)).map(Flow::Value)
             }
             ExprKind::Cast { expr: inner } => {
-                let value = self.eval_expr(inner, env)?;
-                self.cast_value(value, &expr.ty)
+                let value = flow_value!(self.eval_expr(inner, env));
+                self.cast_value(value, &expr.ty).map(Flow::Value)
             }
             ExprKind::Error => Err(RuntimeError(
                 "Encountered error expression in HIR".to_string(),
@@ -934,12 +968,6 @@ fn is_truthy(v: &Value) -> bool {
         Value::Function(_) => true,
         Value::Handler(_) => true,
     }
-}
-
-/// Captures a returned value from inside a block/function to unwind control flow.
-enum ControlFlow {
-    Next,
-    Return(Value),
 }
 
 #[cfg(test)]

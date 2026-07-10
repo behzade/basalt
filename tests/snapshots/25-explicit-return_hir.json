@@ -1,9 +1,53 @@
-ERROR: [31mError:[0m Type error
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/25-explicit-return.bst:1:2[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m1 │[0m [38;5;249m/[0m[31m/[0m[31m [0m[31mA[0m[31m [0m[31mr[0m[31me[0m[31mt[0m[31mu[0m[31mr[0m[31mn[0m[38;5;249m-[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ml[0m[38;5;249my[0m[38;5;249m [0m[38;5;249mb[0m[38;5;249mo[0m[38;5;249md[0m[38;5;249my[0m[38;5;249m [0m[38;5;249mh[0m[38;5;249ma[0m[38;5;249ms[0m[38;5;249m [0m[38;5;249mt[0m[38;5;249mh[0m[38;5;249me[0m[38;5;249m [0m[38;5;249mf[0m[38;5;249mu[0m[38;5;249mn[0m[38;5;249mc[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249m'[0m[38;5;249ms[0m[38;5;249m [0m[38;5;249mr[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249mu[0m[38;5;249mr[0m[38;5;249mn[0m[38;5;249m [0m[38;5;249mt[0m[38;5;249my[0m[38;5;249mp[0m[38;5;249me[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249mn[0m[38;5;249mo[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mu[0m[38;5;249mn[0m[38;5;249mi[0m[38;5;249mt[0m[38;5;249m.[0m
- [38;5;240m  │[0m  [31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m  
- [38;5;240m  │[0m       [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Mismatched return type for function 'main': expected i32 but found ()
-[38;5;246m───╯[0m
-
-❌ Compilation failed: error in typechecker
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Return": {
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I32",
+                    "7"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 9,
+                  "end": 10
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 8,
+                "end": 10
+              }
+            }
+          }
+        ],
+        "last_expr": null,
+        "ty": {
+          "Special": "Never"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/25-explicit-return.bst",
+      "span": {
+        "start": 7,
+        "end": 11
+      },
+      "context_id": 0
+    }
+  }
+]
