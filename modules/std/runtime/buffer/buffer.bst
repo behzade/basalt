@@ -2,7 +2,7 @@ import {
     std::runtime
 }
 
-// Owning initialized byte storage. Capacity may exceed length, but safe reads stop at length.
+// Internal owning initialized byte storage. Capacity may exceed length, but reads stop at length.
 pub struct Buffer {
     address: runtime::MemoryAddress,
     length: u64,

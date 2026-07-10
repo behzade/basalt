@@ -1,8 +1,8 @@
 import {
-    std::buffer
+    std::runtime
 }
 
-fn length(value: Buffer) -> u64 {
+fn capacity(value: Arena) -> u64 {
     0u64
 }
 

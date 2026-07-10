@@ -13,6 +13,7 @@ use crate::typechecker::symbols::Symbol;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum ModuleCapability {
+    StandardLibraryInternals,
     MemoryInternals,
     RuntimeInternals,
 }

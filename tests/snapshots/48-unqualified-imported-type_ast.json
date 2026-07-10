@@ -7,7 +7,7 @@
             {
               "path": [
                 "std",
-                "buffer"
+                "runtime"
               ],
               "alias": null
             }
@@ -22,7 +22,7 @@
     {
       "item": {
         "Fn": {
-          "name": "length",
+          "name": "capacity",
           "generics": [],
           "params": [
             [
@@ -30,7 +30,7 @@
               "value",
               {
                 "path": [
-                  "Buffer"
+                  "Arena"
                 ],
                 "generics": [],
                 "fn_params": null,

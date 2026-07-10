@@ -260,6 +260,36 @@ impl Compiler {
                         });
                     }
 
+                    let is_public_runtime_testing = import
+                        .path
+                        .iter()
+                        .map(String::as_str)
+                        .eq(["std", "runtime", "testing"]);
+                    let is_internal_runtime_submodule = import.path.len() > 2
+                        && import.path[0] == "std"
+                        && import.path[1] == "runtime"
+                        && !is_public_runtime_testing;
+                    let importer_is_standard_library = self
+                        .workspace
+                        .module_capabilities
+                        .get(&item_path)
+                        .is_some_and(|capabilities| {
+                            capabilities.contains(&ModuleCapability::StandardLibraryInternals)
+                        });
+                    if is_internal_runtime_submodule && !importer_is_standard_library {
+                        resolve_errors.push(TypeError {
+                            message: format!(
+                                "Module `{}` is internal to the standard library",
+                                import.path.join("::")
+                            ),
+                            context: crate::typechecker::ItemContext {
+                                span: item.span,
+                                path: item_path.clone(),
+                            },
+                        });
+                        continue;
+                    }
+
                     if let Some(dir_path) = Compiler::resolve_module_dir_path(&import.path) {
                         if !dir_path.exists() {
                             // Unresolved import path -> diagnostic at the import block span
@@ -294,11 +324,15 @@ impl Compiler {
                                     .module_capabilities
                                     .entry(path.clone())
                                     .or_default();
-                                if import.path == ["std", "runtime"] {
+                                if import.path.first().map(String::as_str) == Some("std") {
+                                    capabilities.insert(ModuleCapability::StandardLibraryInternals);
+                                }
+                                if import.path.len() >= 2
+                                    && import.path[0] == "std"
+                                    && import.path[1] == "runtime"
+                                {
                                     capabilities.insert(ModuleCapability::MemoryInternals);
                                     capabilities.insert(ModuleCapability::RuntimeInternals);
-                                } else if import.path == ["std", "buffer"] {
-                                    capabilities.insert(ModuleCapability::MemoryInternals);
                                 }
 
                                 // Parse the new file
