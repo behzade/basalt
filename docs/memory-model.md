@@ -166,27 +166,34 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
 
 - Heap-shaped values are charged to the active function frame.
 - Named chunk declarations reserve their backing byte budget through an internal host allocation.
-- `std::runtime::Arena` is a real bump allocator whose cursor, alignment, exhaustion, reset, and
-  release policy is implemented in Basalt. Its `libc_*` process-memory boundary remains a small
-  interpreter intrinsic surface guarded by lexical `unsafe`.
+- `std::runtime::allocator::Arena` is a real bump allocator whose cursor, alignment, exhaustion,
+  reset, and release policy is implemented in Basalt. The internal `std::runtime::raw` submodule
+  contains its small `libc_*` process-memory boundary and opaque address operations.
 - Process addresses have the nominal `MemoryAddress` type. Their machine-number representation is
   host-private; user functions cannot return them, store them in user structs, or bind them outside
   the lexical `unsafe` scope where they are used.
 - Interpreter addresses carry allocation identity, generation, and byte offset. Every offset,
   memory operation, and free validates liveness and bounds; use-after-free, double-free, interior
   free, and out-of-bounds ranges are runtime errors before libc is invoked.
-- `std::runtime::Buffer` is the first address-backed owning value. Its allocation and byte access
-  use checked addresses, while Basalt code owns capacity and initialized-length policy. Safe reads
-  never access bytes at or beyond the initialized length, and stale copied handles fail provenance
-  checks after the owning buffer is released.
+- `std::runtime::buffer::Buffer` is the first address-backed runtime value. Its allocation and byte
+  access use checked addresses, while Basalt code owns capacity and initialized-length policy. The
+  module is internal; ordinary programs cannot import the raw Buffer lifecycle API.
+- Interpreter allocation contexts now have stable identities and generations. Heap-shaped values
+  record their allocation context, and every read checks that the recorded generation is live.
+- Function results are copied/reconstructed into the caller's active destination before the callee
+  frame is invalidated. `let x in Region = call()` therefore makes `Region` the return destination,
+  while an ordinary call returns into the caller's temporary frame.
+- A callee that writes one of its temporary compound values through a mutable caller alias leaves a
+  stale value; interpreter/debug mode rejects the next read after the callee frame exits.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.
 
-The arena returns real process addresses, but ordinary strings, structs, arrays, and other
-compound interpreter `Value`s are not stored at those addresses yet. Moving those values to
-address-backed representations is the next integration step; until then, the arena is usable by
-unsafe/runtime code rather than being the storage engine for all language values.
+The arena returns real process addresses, but ordinary strings, structs, arrays, and other compound
+interpreter `Value`s are not stored at those addresses yet. They now obey context provenance and
+return placement in the interpreter, which separates lifetime semantics from physical layout.
+Moving their bytes to internal address-backed representations remains the next storage integration
+step.
 
 Example runnable boundary:
 

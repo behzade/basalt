@@ -3,6 +3,38 @@ use std::collections::HashMap;
 use crate::hir::{self, HirBlock};
 use crate::interpreter::env::Scope;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AllocationOwner {
+    pub id: u64,
+    pub generation: u64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Managed<T> {
+    pub value: T,
+    pub owner: Option<AllocationOwner>,
+}
+
+impl<T> Managed<T> {
+    pub(crate) fn new(value: T) -> Self {
+        Self { value, owner: None }
+    }
+}
+
+impl<T> std::ops::Deref for Managed<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.value
+    }
+}
+
+impl<T: PartialEq> PartialEq for Managed<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Value {
     Unit,
@@ -18,16 +50,18 @@ pub enum Value {
     U64(u64),
     F32(f32),
     F64(f64),
-    Str(String),
-    Array(Vec<Value>),
-    Map(Vec<(Value, Value)>),
+    Str(Managed<String>),
+    Array(Managed<Vec<Value>>),
+    Map(Managed<Vec<(Value, Value)>>),
     Struct {
         path: Vec<String>,
         fields: HashMap<String, Value>,
+        owner: Option<AllocationOwner>,
     },
     EnumVariant {
         path: Vec<String>,
         fields: HashMap<String, Value>,
+        owner: Option<AllocationOwner>,
     },
     Function(FunctionValue),
     Handler(HandlerValue),
@@ -35,6 +69,7 @@ pub enum Value {
 
 #[derive(Debug, Clone)]
 pub struct FunctionValue {
+    pub(crate) owner: Option<AllocationOwner>,
     pub params: Vec<hir::HirParam>,
     pub body: HirBlock,
     pub(crate) captured: Vec<Scope>, // shared captured lexical bindings
@@ -42,6 +77,7 @@ pub struct FunctionValue {
 
 #[derive(Debug, Clone)]
 pub struct HandlerValue {
+    pub(crate) owner: Option<AllocationOwner>,
     pub entries: Vec<HandlerEntry>,
 }
 
@@ -75,20 +111,24 @@ impl PartialEq for Value {
                 V::Struct {
                     path: p1,
                     fields: f1,
+                    ..
                 },
                 V::Struct {
                     path: p2,
                     fields: f2,
+                    ..
                 },
             ) => p1 == p2 && f1 == f2,
             (
                 V::EnumVariant {
                     path: p1,
                     fields: f1,
+                    ..
                 },
                 V::EnumVariant {
                     path: p2,
                     fields: f2,
+                    ..
                 },
             ) => p1 == p2 && f1 == f2,
             // Functions are not comparable for equality in this simple runtime
@@ -115,7 +155,7 @@ impl std::fmt::Display for Value {
             Value::U64(i) => write!(f, "{}", i),
             Value::F32(x) => write!(f, "{}", x),
             Value::F64(x) => write!(f, "{}", x),
-            Value::Str(s) => write!(f, "\"{}\"", s),
+            Value::Str(s) => write!(f, "\"{}\"", s.value),
             Value::Array(items) => {
                 write!(f, "[")?;
                 for (i, v) in items.iter().enumerate() {
@@ -136,7 +176,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::Struct { path, fields } => {
+            Value::Struct { path, fields, .. } => {
                 let name = if path.is_empty() {
                     "<anon>".to_string()
                 } else {
@@ -152,7 +192,7 @@ impl std::fmt::Display for Value {
                 }
                 write!(f, "}}")
             }
-            Value::EnumVariant { path, fields } => {
+            Value::EnumVariant { path, fields, .. } => {
                 let name = if path.is_empty() {
                     "<variant>".to_string()
                 } else {
@@ -179,6 +219,80 @@ impl std::fmt::Display for Value {
 }
 
 impl Value {
+    pub(crate) fn owner(&self) -> Option<AllocationOwner> {
+        match self {
+            Value::Str(value) => value.owner,
+            Value::Array(value) => value.owner,
+            Value::Map(value) => value.owner,
+            Value::Struct { owner, .. } | Value::EnumVariant { owner, .. } => *owner,
+            Value::Function(value) => value.owner,
+            Value::Handler(value) => value.owner,
+            _ => None,
+        }
+    }
+
+    pub(crate) fn assign_owner_recursive(&mut self, owner: AllocationOwner) {
+        match self {
+            Value::Str(value) => value.owner = Some(owner),
+            Value::Array(value) => {
+                value.owner = Some(owner);
+                for item in &mut value.value {
+                    item.assign_owner_recursive(owner);
+                }
+            }
+            Value::Map(value) => {
+                value.owner = Some(owner);
+                for (key, item) in &mut value.value {
+                    key.assign_owner_recursive(owner);
+                    item.assign_owner_recursive(owner);
+                }
+            }
+            Value::Struct {
+                fields,
+                owner: value_owner,
+                ..
+            }
+            | Value::EnumVariant {
+                fields,
+                owner: value_owner,
+                ..
+            } => {
+                *value_owner = Some(owner);
+                for item in fields.values_mut() {
+                    item.assign_owner_recursive(owner);
+                }
+            }
+            Value::Function(value) => value.owner = Some(owner),
+            Value::Handler(value) => value.owner = Some(owner),
+            _ => {}
+        }
+    }
+
+    pub(crate) fn visit_owners(&self, visit: &mut impl FnMut(AllocationOwner)) {
+        if let Some(owner) = self.owner() {
+            visit(owner);
+        }
+        match self {
+            Value::Array(items) => {
+                for item in &items.value {
+                    item.visit_owners(visit);
+                }
+            }
+            Value::Map(entries) => {
+                for (key, value) in &entries.value {
+                    key.visit_owners(visit);
+                    value.visit_owners(visit);
+                }
+            }
+            Value::Struct { fields, .. } | Value::EnumVariant { fields, .. } => {
+                for value in fields.values() {
+                    value.visit_owners(visit);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub(crate) fn allocation_kind(&self) -> &'static str {
         match self {
             Value::Unit
@@ -231,7 +345,7 @@ impl Value {
                         .map(|(key, value)| key.stack_size_bytes() + value.stack_size_bytes())
                         .sum::<usize>()
             }
-            Value::Struct { path, fields } | Value::EnumVariant { path, fields } => {
+            Value::Struct { path, fields, .. } | Value::EnumVariant { path, fields, .. } => {
                 path.iter().map(String::len).sum::<usize>()
                     + fields
                         .iter()

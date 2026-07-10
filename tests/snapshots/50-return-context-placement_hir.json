@@ -1,0 +1,199 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "make_message",
+        "params": [],
+        "ret_type": {
+          "Primitive": "Str"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "Str",
+              "returned"
+            ]
+          },
+          "ty": {
+            "Primitive": "Str"
+          },
+          "span": {
+            "start": 7,
+            "end": 8
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "Str"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/50-return-context-placement.bst",
+      "span": {
+        "start": 6,
+        "end": 9
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "message",
+              "value": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "make_message"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [],
+                          "ret_type": {
+                            "Primitive": "Str"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 19,
+                        "end": 20
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "tests/50-return-context-placement.bst",
+                          "span": {
+                            "start": 0,
+                            "end": 9
+                          }
+                        }
+                      }
+                    },
+                    "args": []
+                  }
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 19,
+                  "end": 22
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/50-return-context-placement.bst",
+                    "span": {
+                      "start": 0,
+                      "end": 9
+                    }
+                  }
+                }
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 16,
+                "end": 22
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 22,
+                  "end": 27
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "message"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 22,
+                    "end": 23
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "message",
+                      "decl_span": {
+                        "start": 16,
+                        "end": 22
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 22,
+            "end": 27
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/50-return-context-placement.bst",
+      "span": {
+        "start": 15,
+        "end": 28
+      },
+      "context_id": 1
+    }
+  }
+]

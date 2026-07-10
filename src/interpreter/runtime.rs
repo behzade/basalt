@@ -307,11 +307,12 @@ fn memory_address(address: AddressHandle) -> Value {
             "MemoryAddress".to_string(),
         ],
         fields,
+        owner: None,
     }
 }
 
 fn value_to_address(value: &Value, context: &str) -> Result<AddressHandle> {
-    let Value::Struct { path, fields } = value else {
+    let Value::Struct { path, fields, .. } = value else {
         return Err(RuntimeError(format!("{} must be MemoryAddress", context)));
     };
     if path.last().map(String::as_str) != Some("MemoryAddress") {

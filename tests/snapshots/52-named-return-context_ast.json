@@ -1,0 +1,177 @@
+{
+  "tests/52-named-return-context.bst": [
+    {
+      "item": {
+        "Memory": {
+          "name": "Result",
+          "byte_limit": 128,
+          "object_limit": 4
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "make_message",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "str"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "Str": "region"
+                          }
+                        },
+                        "span": {
+                          "start": 16,
+                          "end": 17
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 17
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 18
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 18
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "message",
+                        "memory": "Result",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "make_message"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 30,
+                                  "end": 31
+                                }
+                              },
+                              "args": []
+                            }
+                          },
+                          "span": {
+                            "start": 30,
+                            "end": 33
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 25,
+                      "end": 33
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "message"
+                                ]
+                              },
+                              "span": {
+                                "start": 33,
+                                "end": 34
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 33,
+                          "end": 38
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 33,
+                      "end": 38
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 24,
+              "end": 39
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 18,
+        "end": 39
+      }
+    }
+  ]
+}

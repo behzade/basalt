@@ -2,13 +2,14 @@ use std::collections::HashMap;
 
 use super::env::{Result, RuntimeError};
 use super::runtime;
-use super::value::Value;
+use super::value::{AllocationOwner, Value};
 
 const DEFAULT_FRAME_BYTES: usize = 4 * 1024;
 const DEFAULT_FRAME_OBJECTS: usize = 256;
 
 #[derive(Debug, Clone)]
 struct StackFrame {
+    owner: AllocationOwner,
     name: String,
     used_bytes: usize,
     object_count: usize,
@@ -17,8 +18,9 @@ struct StackFrame {
 }
 
 impl StackFrame {
-    fn new(name: String) -> Self {
+    fn new(name: String, owner: AllocationOwner) -> Self {
         Self {
+            owner,
             name,
             used_bytes: 0,
             object_count: 0,
@@ -30,6 +32,7 @@ impl StackFrame {
 
 #[derive(Debug)]
 struct MemoryRegion {
+    owner: AllocationOwner,
     name: String,
     used_bytes: usize,
     object_count: usize,
@@ -39,8 +42,15 @@ struct MemoryRegion {
 }
 
 impl MemoryRegion {
-    fn new(name: String, byte_limit: usize, object_limit: Option<usize>, backing_ptr: u64) -> Self {
+    fn new(
+        name: String,
+        byte_limit: usize,
+        object_limit: Option<usize>,
+        backing_ptr: u64,
+        owner: AllocationOwner,
+    ) -> Self {
         Self {
+            owner,
             name,
             used_bytes: 0,
             object_count: 0,
@@ -51,14 +61,67 @@ impl MemoryRegion {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone)]
+struct ContextState {
+    name: String,
+    generation: u64,
+    live: bool,
+}
+
+#[derive(Debug)]
 pub(crate) struct StackAllocator {
     frames: Vec<StackFrame>,
     regions: HashMap<String, MemoryRegion>,
     active_region: Option<String>,
+    next_context_id: u64,
+    contexts: HashMap<u64, ContextState>,
+    root_owner: AllocationOwner,
+}
+
+impl Default for StackAllocator {
+    fn default() -> Self {
+        let root_owner = AllocationOwner {
+            id: 1,
+            generation: 1,
+        };
+        let mut contexts = HashMap::new();
+        contexts.insert(
+            root_owner.id,
+            ContextState {
+                name: "program root".to_string(),
+                generation: root_owner.generation,
+                live: true,
+            },
+        );
+        Self {
+            frames: vec![],
+            regions: HashMap::new(),
+            active_region: None,
+            next_context_id: root_owner.id,
+            contexts,
+            root_owner,
+        }
+    }
 }
 
 impl StackAllocator {
+    fn create_context(&mut self, name: String) -> AllocationOwner {
+        self.next_context_id += 1;
+        let owner = AllocationOwner {
+            id: self.next_context_id,
+            generation: 1,
+        };
+        self.contexts.insert(
+            owner.id,
+            ContextState {
+                name,
+                generation: owner.generation,
+                live: true,
+            },
+        );
+        owner
+    }
+
     pub(crate) fn define_region(
         &mut self,
         name: impl Into<String>,
@@ -67,32 +130,89 @@ impl StackAllocator {
     ) -> Result<()> {
         let name = name.into();
         let backing_ptr = runtime::alloc_bytes(byte_limit)?;
+        let owner = self.create_context(format!("region {}", name));
         self.regions.insert(
             name.clone(),
-            MemoryRegion::new(name, byte_limit, object_limit, backing_ptr),
+            MemoryRegion::new(name, byte_limit, object_limit, backing_ptr, owner),
         );
         Ok(())
     }
 
     pub(crate) fn push_frame(&mut self, name: impl Into<String>) {
-        self.frames.push(StackFrame::new(name.into()));
+        let name = name.into();
+        let owner = self.create_context(format!("frame {}", name));
+        self.frames.push(StackFrame::new(name, owner));
     }
 
     pub(crate) fn pop_frame(&mut self) {
-        let _ = self.frames.pop();
+        if let Some(frame) = self.frames.pop()
+            && let Some(context) = self.contexts.get_mut(&frame.owner.id)
+        {
+            context.live = false;
+            context.generation = context.generation.saturating_add(1);
+        }
+    }
+
+    pub(crate) fn current_target(&self) -> Option<AllocationOwner> {
+        if let Some(region) = &self.active_region {
+            return self.regions.get(region).map(|region| region.owner);
+        }
+        Some(
+            self.frames
+                .last()
+                .map(|frame| frame.owner)
+                .unwrap_or(self.root_owner),
+        )
     }
 
     pub(crate) fn alloc_value(&mut self, value: Value) -> Result<Value> {
+        let target = self.current_target();
+        self.alloc_value_in(target, value)
+    }
+
+    pub(crate) fn copy_value_to(
+        &mut self,
+        target: Option<AllocationOwner>,
+        value: Value,
+    ) -> Result<Value> {
+        self.validate_value(&value)?;
+        if value.stack_size_bytes() == 0 || value.owner() == target {
+            return Ok(value);
+        }
+        self.alloc_value_in(target, value)
+    }
+
+    fn alloc_value_in(
+        &mut self,
+        target: Option<AllocationOwner>,
+        mut value: Value,
+    ) -> Result<Value> {
         let size = value.stack_size_bytes();
         if size == 0 {
             return Ok(value);
         }
-        if let Some(region_name) = self.active_region.clone() {
-            return self.alloc_region_value(region_name, value, size);
-        }
-        let Some(frame) = self.frames.last_mut() else {
+        let Some(target) = target else {
             return Err(RuntimeError(format!(
-                "No stack frame available for {} allocation",
+                "No allocation context available for {}",
+                value.allocation_kind()
+            )));
+        };
+        if let Some(region_name) = self
+            .regions
+            .iter()
+            .find_map(|(name, region)| (region.owner == target).then(|| name.clone()))
+        {
+            value = self.alloc_region_value(region_name, value, size)?;
+            value.assign_owner_recursive(target);
+            return Ok(value);
+        }
+        if target == self.root_owner {
+            value.assign_owner_recursive(target);
+            return Ok(value);
+        }
+        let Some(frame) = self.frames.iter_mut().find(|frame| frame.owner == target) else {
+            return Err(RuntimeError(format!(
+                "Allocation context is no longer live for {}",
                 value.allocation_kind()
             )));
         };
@@ -117,7 +237,36 @@ impl StackAllocator {
         }
         frame.object_count += 1;
         frame.used_bytes += size;
+        value.assign_owner_recursive(target);
         Ok(value)
+    }
+
+    pub(crate) fn validate_value(&self, value: &Value) -> Result<()> {
+        let mut error = None;
+        value.visit_owners(&mut |owner| {
+            if error.is_some() {
+                return;
+            }
+            match self.contexts.get(&owner.id) {
+                Some(context) if context.live && context.generation == owner.generation => {}
+                Some(context) => {
+                    error = Some(RuntimeError(format!(
+                        "Value outlived allocation context '{}' generation {}",
+                        context.name, owner.generation
+                    )));
+                }
+                None => {
+                    error = Some(RuntimeError(format!(
+                        "Value references unknown allocation context {}",
+                        owner.id
+                    )));
+                }
+            }
+        });
+        match error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
     fn alloc_region_value(

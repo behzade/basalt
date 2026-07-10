@@ -10,7 +10,7 @@ use super::env::{Binding, Env, Result, RuntimeError};
 use super::primitive_ops;
 use super::runtime;
 use super::stack::{AllocationRegionGuard, StackAllocator, StackFrameGuard};
-use super::value::{FunctionValue, HandlerEntry, HandlerValue, Value};
+use super::value::{FunctionValue, HandlerEntry, HandlerValue, Managed, Value};
 
 enum Flow<T> {
     Value(T),
@@ -60,6 +60,7 @@ impl Interpreter {
                 let binding = env
                     .binding(name)
                     .ok_or_else(|| RuntimeError(format!("Undefined mutable argument: {}", name)))?;
+                self.ensure_live(&binding.value())?;
                 evaluated.push(CallArgument::MutableBinding(binding));
             } else {
                 match self.eval_expr(arg, env)? {
@@ -141,6 +142,7 @@ impl Interpreter {
             )));
         }
 
+        let return_target = self.stack.borrow().current_target();
         let _frame = StackFrameGuard::push(&self.stack, function.signature.name.clone());
         let mut env = Env::new();
         // bind params
@@ -156,9 +158,10 @@ impl Interpreter {
             }
         }
 
-        match self.eval_block(&function.body, &mut env)? {
-            Flow::Value(value) | Flow::Return(value) => Ok(value),
-        }
+        let value = match self.eval_block(&function.body, &mut env)? {
+            Flow::Value(value) | Flow::Return(value) => value,
+        };
+        self.stack.borrow_mut().copy_value_to(return_target, value)
     }
 
     pub(crate) fn call_function_value(
@@ -173,6 +176,7 @@ impl Interpreter {
                 args.len()
             )));
         }
+        let return_target = self.stack.borrow().current_target();
         let _frame = StackFrameGuard::push(&self.stack, "<fn literal>");
         // Recreate environment with captured scopes and a fresh top scope for parameters
         let mut env = Env {
@@ -182,9 +186,10 @@ impl Interpreter {
         for (idx, param) in function.params.iter().enumerate() {
             env.define(param.name.clone(), args[idx].clone(), param.is_mut);
         }
-        match self.eval_block(&function.body, &mut env)? {
-            Flow::Value(value) | Flow::Return(value) => Ok(value),
-        }
+        let value = match self.eval_block(&function.body, &mut env)? {
+            Flow::Value(value) | Flow::Return(value) => value,
+        };
+        self.stack.borrow_mut().copy_value_to(return_target, value)
     }
 
     /// Evaluate a block, returning the last expression value or an explicit return value.
@@ -248,7 +253,13 @@ impl Interpreter {
                             let owner_val = env.get(owner_name).ok_or_else(|| {
                                 RuntimeError(format!("Undefined variable: {}", owner_name))
                             })?;
-                            if let Value::Struct { path, fields } = owner_val {
+                            self.ensure_live(&owner_val)?;
+                            if let Value::Struct {
+                                path,
+                                fields,
+                                owner,
+                            } = owner_val
+                            {
                                 let mut new_fields = fields.clone();
                                 let new_val = flow_value!(self.eval_expr(rhs, env));
                                 new_fields.insert(field.clone(), new_val);
@@ -257,6 +268,7 @@ impl Interpreter {
                                     Value::Struct {
                                         path,
                                         fields: new_fields,
+                                        owner,
                                     },
                                 )?;
                                 return Ok(Flow::Value(()));
@@ -288,7 +300,8 @@ impl Interpreter {
                 for item in items {
                     values.push(flow_value!(self.eval_expr(item, env)));
                 }
-                self.alloc(Value::Array(values)).map(Flow::Value)
+                self.alloc(Value::Array(Managed::new(values)))
+                    .map(Flow::Value)
             }
             ExprKind::Map(entries) => {
                 let mut values = Vec::with_capacity(entries.len());
@@ -298,12 +311,14 @@ impl Interpreter {
                         flow_value!(self.eval_expr(value, env)),
                     ));
                 }
-                self.alloc(Value::Map(values)).map(Flow::Value)
+                self.alloc(Value::Map(Managed::new(values)))
+                    .map(Flow::Value)
             }
             ExprKind::Path(path) => {
                 // Variable lookup for simple paths
                 if let Some(name) = path.last() {
                     if let Some(val) = env.get(name) {
+                        self.ensure_live(&val)?;
                         return Ok(Flow::Value(val));
                     }
                     if let Some(function) = self.resolved_function(expr, name) {
@@ -393,7 +408,11 @@ impl Interpreter {
                                     let mut path = enum_name.clone();
                                     path.push(name.clone());
                                     return self
-                                        .alloc(Value::EnumVariant { path, fields })
+                                        .alloc(Value::EnumVariant {
+                                            path,
+                                            fields,
+                                            owner: None,
+                                        })
                                         .map(Flow::Value);
                                 }
                             }
@@ -424,12 +443,14 @@ impl Interpreter {
                         .alloc(Value::EnumVariant {
                             path: path.clone(),
                             fields: map,
+                            owner: None,
                         })
                         .map(Flow::Value);
                 }
                 self.alloc(Value::Struct {
                     path: path.clone(),
                     fields: map,
+                    owner: None,
                 })
                 .map(Flow::Value)
             }
@@ -496,6 +517,7 @@ impl Interpreter {
             }
             ExprKind::FnLiteral(f) => {
                 let func_val = FunctionValue {
+                    owner: None,
                     params: f.params.clone(),
                     body: f.body.clone(),
                     captured: env.scopes.clone(),
@@ -569,6 +591,7 @@ impl Interpreter {
                     return Err(RuntimeError(format!("Unknown handler: {}", name)));
                 };
                 self.alloc(Value::Handler(HandlerValue {
+                    owner: None,
                     entries: vec![HandlerEntry {
                         effects: handler.effects.clone(),
                         functions: handler.functions.clone(),
@@ -591,6 +614,7 @@ impl Interpreter {
                 self.alloc(Value::Handler(base))
             }
             HirHandlerBody::Inline(functions) => self.alloc(Value::Handler(HandlerValue {
+                owner: None,
                 entries: vec![HandlerEntry {
                     effects: vec![],
                     functions: functions.clone(),
@@ -623,6 +647,7 @@ impl Interpreter {
                 let Value::EnumVariant {
                     path: value_path,
                     fields,
+                    ..
                 } = value
                 else {
                     return Ok(None);
@@ -661,6 +686,7 @@ impl Interpreter {
 
     fn function_value(function: &HirFunction) -> Value {
         Value::Function(FunctionValue {
+            owner: None,
             params: function.signature.params.clone(),
             body: function.body.clone(),
             captured: vec![],
@@ -695,6 +721,7 @@ impl Interpreter {
             Value::Struct {
                 path: payload_struct.clone(),
                 fields,
+                owner: None,
             },
         );
         wrapped
@@ -773,12 +800,16 @@ impl Interpreter {
                     .map_err(|_| RuntimeError("Invalid f64 literal".to_string()))?;
                 Ok(Value::F64(v))
             }
-            hir::PrimitiveTy::Str => self.alloc(Value::Str(text.to_string())),
+            hir::PrimitiveTy::Str => self.alloc(Value::Str(Managed::new(text.to_string()))),
         }
     }
 
     fn alloc(&self, value: Value) -> Result<Value> {
         self.stack.borrow_mut().alloc_value(value)
+    }
+
+    fn ensure_live(&self, value: &Value) -> Result<()> {
+        self.stack.borrow().validate_value(value)
     }
 
     fn cast_value(&self, value: Value, target_ty: &hir::Ty) -> Result<Value> {
@@ -1327,7 +1358,10 @@ mod tests {
             )),
         ];
 
-        assert_eq!(run_program(&items).unwrap(), Value::Str("acme".to_string()));
+        assert_eq!(
+            run_program(&items).unwrap(),
+            Value::Str(Managed::new("acme".to_string()))
+        );
     }
 
     #[test]

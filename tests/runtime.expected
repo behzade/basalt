@@ -35,3 +35,6 @@
 45-runtime-interior-free.bst 1
 46-runtime-buffer.bst 43
 47-runtime-stale-buffer.bst 1
+50-return-context-placement.bst 8
+51-stale-frame-value.bst 1
+52-named-return-context.bst 6
