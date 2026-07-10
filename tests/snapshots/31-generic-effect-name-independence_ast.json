@@ -1,0 +1,300 @@
+{
+  "tests/31-generic-effect-name-independence.bst": [
+    {
+      "item": {
+        "Effect": {
+          "name": "Deferred",
+          "operations": [
+            {
+              "name": "wait",
+              "params": [
+                {
+                  "path": [
+                    "fn"
+                  ],
+                  "generics": [],
+                  "fn_params": [],
+                  "fn_ret": {
+                    "path": [
+                      "T"
+                    ],
+                    "generics": [],
+                    "fn_params": null,
+                    "fn_ret": null,
+                    "fn_effects": null
+                  },
+                  "fn_effects": []
+                }
+              ],
+              "ret_type": {
+                "path": [
+                  "T"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              },
+              "is_public": false
+            }
+          ],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 19
+      }
+    },
+    {
+      "item": {
+        "Handler": {
+          "name": "Runner",
+          "effects": [
+            "Deferred"
+          ],
+          "functions": [
+            {
+              "name": "wait",
+              "generics": [],
+              "params": [
+                [
+                  "task",
+                  {
+                    "path": [
+                      "fn"
+                    ],
+                    "generics": [],
+                    "fn_params": [],
+                    "fn_ret": {
+                      "path": [
+                        "T"
+                      ],
+                      "generics": [],
+                      "fn_params": null,
+                      "fn_ret": null,
+                      "fn_effects": null
+                    },
+                    "fn_effects": []
+                  }
+                ]
+              ],
+              "ret_type": {
+                "path": [
+                  "T"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              },
+              "effects": [],
+              "body": {
+                "item": {
+                  "Block": {
+                    "stmts": [
+                      {
+                        "item": {
+                          "Expr": {
+                            "item": {
+                              "Call": {
+                                "fun": {
+                                  "item": {
+                                    "Path": [
+                                      "task"
+                                    ]
+                                  },
+                                  "span": {
+                                    "start": 40,
+                                    "end": 41
+                                  }
+                                },
+                                "args": []
+                              }
+                            },
+                            "span": {
+                              "start": 40,
+                              "end": 43
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 40,
+                          "end": 43
+                        }
+                      }
+                    ],
+                    "last_expr": null
+                  }
+                },
+                "span": {
+                  "start": 39,
+                  "end": 44
+                }
+              },
+              "is_public": false
+            }
+          ],
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 19,
+        "end": 45
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "task",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "FnLiteral": {
+                              "params": [],
+                              "ret_type": {
+                                "path": [
+                                  "i32"
+                                ],
+                                "generics": [],
+                                "fn_params": null,
+                                "fn_ret": null,
+                                "fn_effects": null
+                              },
+                              "effects": [],
+                              "body": {
+                                "item": {
+                                  "Block": {
+                                    "stmts": [
+                                      {
+                                        "item": {
+                                          "Expr": {
+                                            "item": {
+                                              "Literal": {
+                                                "I32": 41
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 61,
+                                              "end": 62
+                                            }
+                                          }
+                                        },
+                                        "span": {
+                                          "start": 61,
+                                          "end": 62
+                                        }
+                                      }
+                                    ],
+                                    "last_expr": null
+                                  }
+                                },
+                                "span": {
+                                  "start": 60,
+                                  "end": 63
+                                }
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 55,
+                            "end": 63
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 52,
+                      "end": 63
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Handle": {
+                            "body": {
+                              "item": {
+                                "Perform": {
+                                  "path": [
+                                    "Deferred",
+                                    "wait"
+                                  ],
+                                  "args": [
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "task"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 68,
+                                        "end": 69
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "span": {
+                                "start": 63,
+                                "end": 70
+                              }
+                            },
+                            "handler": {
+                              "Path": [
+                                "Runner"
+                              ]
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 63,
+                          "end": 70
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 63,
+                      "end": 74
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 51,
+              "end": 75
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 45,
+        "end": 75
+      }
+    }
+  ]
+}

@@ -1,0 +1,185 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "exit",
+        "params": [
+          {
+            "name": "code",
+            "ty": {
+              "Primitive": "I32"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Never"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Never"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/exit.bst",
+      "span": {
+        "start": 0,
+        "end": 12
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "write",
+        "params": [
+          {
+            "name": "stream",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          },
+          {
+            "name": "input",
+            "ty": {
+              "Primitive": "Str"
+            },
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/write.bst",
+      "span": {
+        "start": 0,
+        "end": 14
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "runtime",
+                          "exit"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [
+                            {
+                              "Primitive": "I32"
+                            }
+                          ],
+                          "ret_type": {
+                            "Special": "Never"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 15,
+                        "end": 19
+                      },
+                      "resolution": null
+                    },
+                    "args": [
+                      {
+                        "kind": {
+                          "Literal": [
+                            "I32",
+                            "37"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 20,
+                          "end": 21
+                        },
+                        "resolution": null
+                      }
+                    ]
+                  }
+                },
+                "ty": {
+                  "Special": "Never"
+                },
+                "span": {
+                  "start": 15,
+                  "end": 22
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 15,
+                "end": 22
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "0"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 22,
+            "end": 23
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/21-runtime-exit.bst",
+      "span": {
+        "start": 14,
+        "end": 24
+      },
+      "context_id": 2
+    }
+  }
+]

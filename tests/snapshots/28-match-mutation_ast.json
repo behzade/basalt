@@ -1,0 +1,220 @@
+{
+  "tests/28-match-mutation.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "result",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 0
+                            }
+                          },
+                          "span": {
+                            "start": 14,
+                            "end": 15
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 8,
+                      "end": 15
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Match": {
+                            "scrutinee": {
+                              "item": {
+                                "Literal": {
+                                  "Bool": true
+                                }
+                              },
+                              "span": {
+                                "start": 16,
+                                "end": 17
+                              }
+                            },
+                            "arms": [
+                              [
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "Bool": true
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 18,
+                                    "end": 19
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Block": {
+                                      "stmts": [
+                                        {
+                                          "item": {
+                                            "Assign": [
+                                              {
+                                                "item": {
+                                                  "Path": [
+                                                    "result"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 21,
+                                                  "end": 22
+                                                }
+                                              },
+                                              {
+                                                "item": {
+                                                  "Literal": {
+                                                    "I32": 41
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 23,
+                                                  "end": 24
+                                                }
+                                              }
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 21,
+                                            "end": 24
+                                          }
+                                        },
+                                        {
+                                          "item": {
+                                            "Expr": {
+                                              "item": {
+                                                "Literal": {
+                                                  "I32": 0
+                                                }
+                                              },
+                                              "span": {
+                                                "start": 24,
+                                                "end": 25
+                                              }
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 24,
+                                            "end": 25
+                                          }
+                                        }
+                                      ],
+                                      "last_expr": null
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 20,
+                                    "end": 26
+                                  }
+                                }
+                              ],
+                              [
+                                {
+                                  "item": "Wildcard",
+                                  "span": {
+                                    "start": 27,
+                                    "end": 28
+                                  }
+                                },
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "I32": 0
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 29,
+                                    "end": 30
+                                  }
+                                }
+                              ]
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 15,
+                          "end": 30
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 15,
+                      "end": 30
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "result"
+                          ]
+                        },
+                        "span": {
+                          "start": 30,
+                          "end": 31
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 30,
+                      "end": 31
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 7,
+              "end": 32
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 32
+      }
+    }
+  ]
+}

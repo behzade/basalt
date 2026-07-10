@@ -1,0 +1,269 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I32",
+                    "43"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 8,
+                  "end": 15
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": true,
+              "span": {
+                "start": 8,
+                "end": 15
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "While": {
+                    "cond": {
+                      "kind": {
+                        "Binary": {
+                          "op": "Gt",
+                          "lhs": {
+                            "kind": {
+                              "Path": [
+                                "value"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 16,
+                              "end": 17
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "value",
+                                "decl_span": {
+                                  "start": 8,
+                                  "end": 15
+                                }
+                              }
+                            }
+                          },
+                          "rhs": {
+                            "kind": {
+                              "Literal": [
+                                "I32",
+                                "40"
+                              ]
+                            },
+                            "ty": {
+                              "Primitive": "I32"
+                            },
+                            "span": {
+                              "start": 18,
+                              "end": 19
+                            },
+                            "resolution": null
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "Bool"
+                      },
+                      "span": {
+                        "start": 16,
+                        "end": 19
+                      },
+                      "resolution": null
+                    },
+                    "body": {
+                      "stmts": [
+                        {
+                          "Assign": {
+                            "lhs": {
+                              "kind": {
+                                "Path": [
+                                  "value"
+                                ]
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 20,
+                                "end": 21
+                              },
+                              "resolution": {
+                                "Local": {
+                                  "name": "value",
+                                  "decl_span": null
+                                }
+                              }
+                            },
+                            "rhs": {
+                              "kind": {
+                                "Binary": {
+                                  "op": "Sub",
+                                  "lhs": {
+                                    "kind": {
+                                      "Path": [
+                                        "value"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Primitive": "I32"
+                                    },
+                                    "span": {
+                                      "start": 22,
+                                      "end": 23
+                                    },
+                                    "resolution": {
+                                      "Local": {
+                                        "name": "value",
+                                        "decl_span": {
+                                          "start": 8,
+                                          "end": 15
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "rhs": {
+                                    "kind": {
+                                      "Literal": [
+                                        "I32",
+                                        "1"
+                                      ]
+                                    },
+                                    "ty": {
+                                      "Primitive": "I32"
+                                    },
+                                    "span": {
+                                      "start": 24,
+                                      "end": 25
+                                    },
+                                    "resolution": null
+                                  }
+                                }
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              },
+                              "span": {
+                                "start": 22,
+                                "end": 25
+                              },
+                              "resolution": null
+                            },
+                            "span": {
+                              "start": 20,
+                              "end": 25
+                            }
+                          }
+                        }
+                      ],
+                      "last_expr": {
+                        "kind": {
+                          "Path": [
+                            "value"
+                          ]
+                        },
+                        "ty": {
+                          "Primitive": "I32"
+                        },
+                        "span": {
+                          "start": 25,
+                          "end": 26
+                        },
+                        "resolution": {
+                          "Local": {
+                            "name": "value",
+                            "decl_span": {
+                              "start": 8,
+                              "end": 15
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Primitive": "I32"
+                      }
+                    }
+                  }
+                },
+                "ty": {
+                  "Special": "Unit"
+                },
+                "span": {
+                  "start": 15,
+                  "end": 27
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 15,
+                "end": 27
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "value"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 27,
+            "end": 28
+          },
+          "resolution": {
+            "Local": {
+              "name": "value",
+              "decl_span": {
+                "start": 8,
+                "end": 15
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/27-while-trailing-expression.bst",
+      "span": {
+        "start": 7,
+        "end": 29
+      },
+      "context_id": 0
+    }
+  }
+]

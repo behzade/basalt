@@ -1,0 +1,146 @@
+{
+  "tests/32-byte-arithmetic.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "byte"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "left",
+                        "ty": {
+                          "path": [
+                            "byte"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 1
+                            }
+                          },
+                          "span": {
+                            "start": 13,
+                            "end": 14
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 8,
+                      "end": 14
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "right",
+                        "ty": {
+                          "path": [
+                            "byte"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 2
+                            }
+                          },
+                          "span": {
+                            "start": 19,
+                            "end": 20
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 14,
+                      "end": 20
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Add",
+                            "lhs": {
+                              "item": {
+                                "Path": [
+                                  "left"
+                                ]
+                              },
+                              "span": {
+                                "start": 20,
+                                "end": 21
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Path": [
+                                  "right"
+                                ]
+                              },
+                              "span": {
+                                "start": 22,
+                                "end": 23
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 20,
+                          "end": 23
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 20,
+                      "end": 23
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 7,
+              "end": 24
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 24
+      }
+    }
+  ]
+}

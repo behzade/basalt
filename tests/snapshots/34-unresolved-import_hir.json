@@ -1,0 +1,50 @@
+[31mError:[0m Type error
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mtests/34-unresolved-import.bst:1:1[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m1 │[0m [31mi[0m[31mm[0m[31mp[0m[31mo[0m[31mr[0m[31mt[0m[31m [0m[38;5;249m{[0m
+ [38;5;240m  │[0m [31m─[0m[31m─[0m[31m─[0m[31m┬[0m[31m─[0m[31m─[0m[31m─[0m  
+ [38;5;240m  │[0m    [31m╰[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m[31m─[0m Unknown import: missing/module
+[38;5;246m───╯[0m
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "0"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 15,
+            "end": 16
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/34-unresolved-import.bst",
+      "span": {
+        "start": 14,
+        "end": 17
+      },
+      "context_id": 0
+    }
+  }
+]

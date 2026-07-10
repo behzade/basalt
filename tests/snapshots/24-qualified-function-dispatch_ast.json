@@ -1,0 +1,132 @@
+{
+  "tests/24-qualified-function-dispatch.bst": [
+    {
+      "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "regression",
+                "left"
+              ],
+              "alias": null
+            },
+            {
+              "path": [
+                "regression",
+                "right"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 11
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Add",
+                            "lhs": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "left",
+                                        "value"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 19,
+                                      "end": 23
+                                    }
+                                  },
+                                  "args": []
+                                }
+                              },
+                              "span": {
+                                "start": 19,
+                                "end": 25
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "right",
+                                        "value"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 26,
+                                      "end": 30
+                                    }
+                                  },
+                                  "args": []
+                                }
+                              },
+                              "span": {
+                                "start": 26,
+                                "end": 32
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 19,
+                          "end": 32
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 19,
+                      "end": 32
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 18,
+              "end": 33
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 12,
+        "end": 33
+      }
+    }
+  ]
+}

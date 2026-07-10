@@ -1,0 +1,84 @@
+{
+  "tests/23-unknown-module-call.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "nonexistent",
+                                  "len"
+                                ]
+                              },
+                              "span": {
+                                "start": 8,
+                                "end": 12
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Literal": {
+                                    "Str": "abc"
+                                  }
+                                },
+                                "span": {
+                                  "start": 13,
+                                  "end": 14
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 8,
+                          "end": 15
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 8,
+                      "end": 15
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 7,
+              "end": 16
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 16
+      }
+    }
+  ]
+}

@@ -1,0 +1,133 @@
+{
+  "tests/22-runtime-write-error.bst": [
+    {
+      "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "runtime"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "runtime",
+                                  "write"
+                                ]
+                              },
+                              "span": {
+                                "start": 15,
+                                "end": 19
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Literal": {
+                                    "Str": "/dev/null/child"
+                                  }
+                                },
+                                "span": {
+                                  "start": 20,
+                                  "end": 21
+                                }
+                              },
+                              {
+                                "item": {
+                                  "Literal": {
+                                    "Str": "data"
+                                  }
+                                },
+                                "span": {
+                                  "start": 22,
+                                  "end": 23
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 15,
+                          "end": 24
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 15,
+                      "end": 24
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 24,
+                          "end": 25
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 24,
+                      "end": 25
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 14,
+              "end": 26
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 8,
+        "end": 26
+      }
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "value",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "20"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 8,
+            "end": 9
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/regression/left/value.bst",
+      "span": {
+        "start": 7,
+        "end": 10
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "value",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "3"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 8,
+            "end": 9
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/regression/right/value.bst",
+      "span": {
+        "start": 7,
+        "end": 10
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Binary": {
+              "op": "Add",
+              "lhs": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "left",
+                          "value"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 19,
+                        "end": 23
+                      },
+                      "resolution": null
+                    },
+                    "args": []
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 19,
+                  "end": 25
+                },
+                "resolution": null
+              },
+              "rhs": {
+                "kind": {
+                  "Call": {
+                    "fun": {
+                      "kind": {
+                        "Path": [
+                          "right",
+                          "value"
+                        ]
+                      },
+                      "ty": {
+                        "Function": {
+                          "param_types": [],
+                          "ret_type": {
+                            "Primitive": "I32"
+                          },
+                          "effects": []
+                        }
+                      },
+                      "span": {
+                        "start": 26,
+                        "end": 30
+                      },
+                      "resolution": null
+                    },
+                    "args": []
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 26,
+                  "end": 32
+                },
+                "resolution": null
+              }
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 19,
+            "end": 32
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/24-qualified-function-dispatch.bst",
+      "span": {
+        "start": 18,
+        "end": 33
+      },
+      "context_id": 2
+    }
+  }
+]

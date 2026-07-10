@@ -1,0 +1,125 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I32",
+                    "1"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 8,
+                  "end": 14
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": false,
+              "span": {
+                "start": 8,
+                "end": 14
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "Path": [
+                    "value"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 14,
+                  "end": 15
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "value",
+                    "decl_span": null
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "I32",
+                    "8"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 16,
+                  "end": 17
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 14,
+                "end": 17
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "value"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 17,
+            "end": 18
+          },
+          "resolution": {
+            "Local": {
+              "name": "value",
+              "decl_span": {
+                "start": 8,
+                "end": 14
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/30-immutable-assignment.bst",
+      "span": {
+        "start": 7,
+        "end": 19
+      },
+      "context_id": 0
+    }
+  }
+]

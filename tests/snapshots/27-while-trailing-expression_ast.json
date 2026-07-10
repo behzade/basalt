@@ -1,0 +1,229 @@
+{
+  "tests/27-while-trailing-expression.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "value",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 43
+                            }
+                          },
+                          "span": {
+                            "start": 14,
+                            "end": 15
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 8,
+                      "end": 15
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "While": {
+                            "cond": {
+                              "item": {
+                                "Binary": {
+                                  "op": "Gt",
+                                  "lhs": {
+                                    "item": {
+                                      "Path": [
+                                        "value"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 16,
+                                      "end": 17
+                                    }
+                                  },
+                                  "rhs": {
+                                    "item": {
+                                      "Literal": {
+                                        "I32": 40
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 18,
+                                      "end": 19
+                                    }
+                                  }
+                                }
+                              },
+                              "span": {
+                                "start": 16,
+                                "end": 19
+                              }
+                            },
+                            "body": {
+                              "item": {
+                                "Block": {
+                                  "stmts": [
+                                    {
+                                      "item": {
+                                        "Assign": [
+                                          {
+                                            "item": {
+                                              "Path": [
+                                                "value"
+                                              ]
+                                            },
+                                            "span": {
+                                              "start": 20,
+                                              "end": 21
+                                            }
+                                          },
+                                          {
+                                            "item": {
+                                              "Binary": {
+                                                "op": "Sub",
+                                                "lhs": {
+                                                  "item": {
+                                                    "Path": [
+                                                      "value"
+                                                    ]
+                                                  },
+                                                  "span": {
+                                                    "start": 22,
+                                                    "end": 23
+                                                  }
+                                                },
+                                                "rhs": {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "I32": 1
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 24,
+                                                    "end": 25
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 22,
+                                              "end": 25
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 20,
+                                        "end": 25
+                                      }
+                                    },
+                                    {
+                                      "item": {
+                                        "Expr": {
+                                          "item": {
+                                            "Path": [
+                                              "value"
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 25,
+                                            "end": 26
+                                          }
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 25,
+                                        "end": 26
+                                      }
+                                    }
+                                  ],
+                                  "last_expr": null
+                                }
+                              },
+                              "span": {
+                                "start": 19,
+                                "end": 27
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 15,
+                          "end": 27
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 15,
+                      "end": 27
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Path": [
+                            "value"
+                          ]
+                        },
+                        "span": {
+                          "start": 27,
+                          "end": 28
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 27,
+                      "end": 28
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 7,
+              "end": 29
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 29
+      }
+    }
+  ]
+}

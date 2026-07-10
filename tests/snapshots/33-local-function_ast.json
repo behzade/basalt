@@ -1,0 +1,88 @@
+{
+  "tests/33-local-function.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": "Unit"
+                        },
+                        "span": {
+                          "start": 8,
+                          "end": 17
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 8,
+                      "end": 17
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "answer"
+                                ]
+                              },
+                              "span": {
+                                "start": 17,
+                                "end": 18
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 17,
+                          "end": 20
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 17,
+                      "end": 20
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 7,
+              "end": 21
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 21
+      }
+    }
+  ]
+}

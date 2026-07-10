@@ -1,0 +1,237 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "result",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "I32",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 8,
+                  "end": 15
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "I32"
+              },
+              "is_mut": true,
+              "span": {
+                "start": 8,
+                "end": 15
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Expr": {
+              "expr": {
+                "kind": {
+                  "Match": {
+                    "scrutinee": {
+                      "kind": {
+                        "Literal": [
+                          "Bool",
+                          "true"
+                        ]
+                      },
+                      "ty": {
+                        "Primitive": "Bool"
+                      },
+                      "span": {
+                        "start": 16,
+                        "end": 17
+                      },
+                      "resolution": null
+                    },
+                    "arms": [
+                      [
+                        {
+                          "kind": {
+                            "Literal": [
+                              "Bool",
+                              "true"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "Bool"
+                          }
+                        },
+                        {
+                          "kind": {
+                            "Block": {
+                              "stmts": [
+                                {
+                                  "Assign": {
+                                    "lhs": {
+                                      "kind": {
+                                        "Path": [
+                                          "result"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Primitive": "I32"
+                                      },
+                                      "span": {
+                                        "start": 21,
+                                        "end": 22
+                                      },
+                                      "resolution": {
+                                        "Local": {
+                                          "name": "result",
+                                          "decl_span": null
+                                        }
+                                      }
+                                    },
+                                    "rhs": {
+                                      "kind": {
+                                        "Literal": [
+                                          "I32",
+                                          "41"
+                                        ]
+                                      },
+                                      "ty": {
+                                        "Primitive": "I32"
+                                      },
+                                      "span": {
+                                        "start": 23,
+                                        "end": 24
+                                      },
+                                      "resolution": null
+                                    },
+                                    "span": {
+                                      "start": 21,
+                                      "end": 24
+                                    }
+                                  }
+                                }
+                              ],
+                              "last_expr": {
+                                "kind": {
+                                  "Literal": [
+                                    "I32",
+                                    "0"
+                                  ]
+                                },
+                                "ty": {
+                                  "Primitive": "I32"
+                                },
+                                "span": {
+                                  "start": 24,
+                                  "end": 25
+                                },
+                                "resolution": null
+                              },
+                              "ty": {
+                                "Primitive": "I32"
+                              }
+                            }
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 20,
+                            "end": 26
+                          },
+                          "resolution": null
+                        }
+                      ],
+                      [
+                        {
+                          "kind": "Wildcard",
+                          "ty": {
+                            "Primitive": "Bool"
+                          }
+                        },
+                        {
+                          "kind": {
+                            "Literal": [
+                              "I32",
+                              "0"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "I32"
+                          },
+                          "span": {
+                            "start": 29,
+                            "end": 30
+                          },
+                          "resolution": null
+                        }
+                      ]
+                    ]
+                  }
+                },
+                "ty": {
+                  "Primitive": "I32"
+                },
+                "span": {
+                  "start": 15,
+                  "end": 30
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 15,
+                "end": 30
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Path": [
+              "result"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 30,
+            "end": 31
+          },
+          "resolution": {
+            "Local": {
+              "name": "result",
+              "decl_span": {
+                "start": 8,
+                "end": 15
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/28-match-mutation.bst",
+      "span": {
+        "start": 7,
+        "end": 32
+      },
+      "context_id": 0
+    }
+  }
+]

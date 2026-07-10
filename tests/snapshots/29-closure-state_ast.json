@@ -1,0 +1,328 @@
+{
+  "tests/29-closure-state.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "make_counter",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "fn"
+            ],
+            "generics": [],
+            "fn_params": [],
+            "fn_ret": {
+              "path": [
+                "i32"
+              ],
+              "generics": [],
+              "fn_params": null,
+              "fn_ret": null,
+              "fn_effects": null
+            },
+            "fn_effects": []
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "count",
+                        "ty": {
+                          "path": [
+                            "i32"
+                          ],
+                          "generics": [],
+                          "fn_params": null,
+                          "fn_ret": null,
+                          "fn_effects": null
+                        },
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "I32": 0
+                            }
+                          },
+                          "span": {
+                            "start": 17,
+                            "end": 18
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 11,
+                      "end": 18
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "FnLiteral": {
+                            "params": [],
+                            "ret_type": {
+                              "path": [
+                                "i32"
+                              ],
+                              "generics": [],
+                              "fn_params": null,
+                              "fn_ret": null,
+                              "fn_effects": null
+                            },
+                            "effects": [],
+                            "body": {
+                              "item": {
+                                "Block": {
+                                  "stmts": [
+                                    {
+                                      "item": {
+                                        "Assign": [
+                                          {
+                                            "item": {
+                                              "Path": [
+                                                "count"
+                                              ]
+                                            },
+                                            "span": {
+                                              "start": 24,
+                                              "end": 25
+                                            }
+                                          },
+                                          {
+                                            "item": {
+                                              "Binary": {
+                                                "op": "Add",
+                                                "lhs": {
+                                                  "item": {
+                                                    "Path": [
+                                                      "count"
+                                                    ]
+                                                  },
+                                                  "span": {
+                                                    "start": 26,
+                                                    "end": 27
+                                                  }
+                                                },
+                                                "rhs": {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "I32": 1
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 28,
+                                                    "end": 29
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            "span": {
+                                              "start": 26,
+                                              "end": 29
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 24,
+                                        "end": 29
+                                      }
+                                    },
+                                    {
+                                      "item": {
+                                        "Expr": {
+                                          "item": {
+                                            "Path": [
+                                              "count"
+                                            ]
+                                          },
+                                          "span": {
+                                            "start": 29,
+                                            "end": 30
+                                          }
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 29,
+                                        "end": 30
+                                      }
+                                    }
+                                  ],
+                                  "last_expr": null
+                                }
+                              },
+                              "span": {
+                                "start": 23,
+                                "end": 31
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 18,
+                          "end": 31
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 18,
+                      "end": 31
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 10,
+              "end": 32
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 1,
+        "end": 32
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "counter",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "make_counter"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 42,
+                                  "end": 43
+                                }
+                              },
+                              "args": []
+                            }
+                          },
+                          "span": {
+                            "start": 42,
+                            "end": 45
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 39,
+                      "end": 45
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "counter"
+                                ]
+                              },
+                              "span": {
+                                "start": 45,
+                                "end": 46
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 45,
+                          "end": 48
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 45,
+                      "end": 48
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "counter"
+                                ]
+                              },
+                              "span": {
+                                "start": 48,
+                                "end": 49
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 48,
+                          "end": 51
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 48,
+                      "end": 51
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 38,
+              "end": 52
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 32,
+        "end": 52
+      }
+    }
+  ]
+}
