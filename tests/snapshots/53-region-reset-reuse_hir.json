@@ -1,0 +1,175 @@
+[
+  {
+    "Memory": {
+      "name": "Scratch",
+      "byte_limit": 24,
+      "object_limit": 1,
+      "defined_in": "tests/53-region-reset-reuse.bst",
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "first",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "11111111111111111111"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 21,
+                  "end": 22
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": "Scratch",
+              "span": {
+                "start": 16,
+                "end": 22
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Reset": {
+              "region": "Scratch",
+              "span": {
+                "start": 22,
+                "end": 24
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "second",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "22222222222222222222"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 29,
+                  "end": 30
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": "Scratch",
+              "span": {
+                "start": 24,
+                "end": 30
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 30,
+                  "end": 35
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "second"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 30,
+                    "end": 31
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "second",
+                      "decl_span": {
+                        "start": 24,
+                        "end": 30
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 30,
+            "end": 35
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/53-region-reset-reuse.bst",
+      "span": {
+        "start": 15,
+        "end": 36
+      },
+      "context_id": 0
+    }
+  }
+]

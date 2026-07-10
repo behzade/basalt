@@ -1,0 +1,144 @@
+[
+  {
+    "Memory": {
+      "name": "Scratch",
+      "byte_limit": 64,
+      "object_limit": 4,
+      "defined_in": "tests/54-stale-region-value.bst",
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Let": {
+              "name": "stale",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "old"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 21,
+                  "end": 22
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": "Scratch",
+              "span": {
+                "start": 16,
+                "end": 22
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Reset": {
+              "region": "Scratch",
+              "span": {
+                "start": 22,
+                "end": 24
+              }
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 24,
+                  "end": 29
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "stale"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 24,
+                    "end": 25
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "stale",
+                      "decl_span": {
+                        "start": 16,
+                        "end": 22
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 24,
+            "end": 29
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/54-stale-region-value.bst",
+      "span": {
+        "start": 15,
+        "end": 30
+      },
+      "context_id": 0
+    }
+  }
+]

@@ -227,6 +227,11 @@ pub enum Stmt {
         #[serde(serialize_with = "crate::token::serialize_simple_span_opt")]
         name_span: Option<crate::token::SimpleSpan>,
     },
+    Reset {
+        region: String,
+        #[serde(serialize_with = "crate::token::serialize_simple_span")]
+        span: crate::token::SimpleSpan,
+    },
     Return {
         value: Option<Expr>,
         #[serde(serialize_with = "crate::token::serialize_simple_span")]

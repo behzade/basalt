@@ -38,3 +38,7 @@
 50-return-context-placement.bst 8
 51-stale-frame-value.bst 1
 52-named-return-context.bst 6
+53-region-reset-reuse.bst 20
+54-stale-region-value.bst 1
+55-unknown-region-reset.bst 1
+56-global-return-context.bst 0

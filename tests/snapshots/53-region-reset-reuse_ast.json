@@ -1,0 +1,144 @@
+{
+  "tests/53-region-reset-reuse.bst": [
+    {
+      "item": {
+        "Memory": {
+          "name": "Scratch",
+          "byte_limit": 24,
+          "object_limit": 1
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "first",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "11111111111111111111"
+                            }
+                          },
+                          "span": {
+                            "start": 21,
+                            "end": 22
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 22
+                    }
+                  },
+                  {
+                    "item": {
+                      "Reset": "Scratch"
+                    },
+                    "span": {
+                      "start": 22,
+                      "end": 24
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "second",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "22222222222222222222"
+                            }
+                          },
+                          "span": {
+                            "start": 29,
+                            "end": 30
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 24,
+                      "end": 30
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "second"
+                                ]
+                              },
+                              "span": {
+                                "start": 30,
+                                "end": 31
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 30,
+                          "end": 35
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 30,
+                      "end": 35
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 36
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 36
+      }
+    }
+  ]
+}

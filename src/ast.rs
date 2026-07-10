@@ -64,6 +64,7 @@ pub enum StmtNode<'src> {
         ty: Option<Type<'src>>,
         value: Option<Expr<'src>>,
     },
+    Reset(&'src str),
     Return(Option<Expr<'src>>),
     Assign(Expr<'src>, Expr<'src>),
     Expr(Expr<'src>),

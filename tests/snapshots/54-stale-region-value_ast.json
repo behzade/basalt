@@ -1,0 +1,119 @@
+{
+  "tests/54-stale-region-value.bst": [
+    {
+      "item": {
+        "Memory": {
+          "name": "Scratch",
+          "byte_limit": 64,
+          "object_limit": 4
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "stale",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "old"
+                            }
+                          },
+                          "span": {
+                            "start": 21,
+                            "end": 22
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 22
+                    }
+                  },
+                  {
+                    "item": {
+                      "Reset": "Scratch"
+                    },
+                    "span": {
+                      "start": 22,
+                      "end": 24
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "MethodCall": {
+                            "receiver": {
+                              "item": {
+                                "Path": [
+                                  "stale"
+                                ]
+                              },
+                              "span": {
+                                "start": 24,
+                                "end": 25
+                              }
+                            },
+                            "method": "len",
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 24,
+                          "end": 29
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 24,
+                      "end": 29
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 30
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 30
+      }
+    }
+  ]
+}

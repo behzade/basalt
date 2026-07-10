@@ -62,6 +62,7 @@ The first allocator kinds are composable but simple.
 
 - Explicit size.
 - Current syntax is `memory Name: chunk(bytes[, objects])`.
+- `reset Name` rewinds the chunk and advances its allocation generation.
 - Bump allocation inside a named chunk.
 - Reset or destroy whole chunk.
 - No individual free initially.
@@ -77,6 +78,12 @@ There are two separate concepts:
 
 - Runtime control memory: internal metadata for context descriptors, allocator state, interpreter/bookkeeping. This is not charged as user memory.
 - Global user memory: program-visible global allocations, with a low budget.
+
+The interpreter represents these as distinct root contexts. The runtime root cannot own user
+`Value`s. Its child global-user context is budgeted to 64 KiB and 1024 objects and is used only as
+an explicit program-lifetime destination, currently for an outermost compound return. Ordinary
+allocation with no active frame or named region is an interpreter error rather than an implicit
+global allocation. User-facing global declarations are not implemented yet.
 
 This avoids recursive questions such as where memory-region descriptors are allocated.
 
@@ -180,11 +187,16 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
   module is internal; ordinary programs cannot import the raw Buffer lifecycle API.
 - Interpreter allocation contexts now have stable identities and generations. Heap-shaped values
   record their allocation context, and every read checks that the recorded generation is live.
+- Contexts record explicit parents: the user-global context belongs to the host-private runtime
+  root, named regions and the outermost frame belong to the user-global context, and nested call
+  frames belong to their caller frame. Ancestor transfer rules are not enforced yet.
 - Function results are copied/reconstructed into the caller's active destination before the callee
   frame is invalidated. `let x in Region = call()` therefore makes `Region` the return destination,
   while an ordinary call returns into the caller's temporary frame.
 - A callee that writes one of its temporary compound values through a mutable caller alias leaves a
   stale value; interpreter/debug mode rejects the next read after the callee frame exits.
+- `reset Region` clears the region's byte/object accounting and advances its generation. Existing
+  values retain the prior generation and are rejected on their next read.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.

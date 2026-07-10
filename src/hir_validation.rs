@@ -364,6 +364,7 @@ impl Validator {
                     }
                 }
             }
+            hir::Stmt::Reset { .. } => {}
             hir::Stmt::Return { value, span } => {
                 let actual = value
                     .as_ref()

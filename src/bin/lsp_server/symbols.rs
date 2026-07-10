@@ -775,6 +775,7 @@ pub fn find_hir_expr_in_stmt(stmt: &hir::Stmt, tok_idx: usize) -> Option<hir::Ex
             }
             None
         }
+        HS::Reset { .. } => None,
         HS::Assign { lhs, rhs, .. } => {
             if let Some(e) = find_hir_expr(lhs, tok_idx) {
                 return Some(e);
@@ -904,6 +905,7 @@ pub fn collect_lets_in_block(block: &hir::HirBlock, out: &mut Vec<(String, Simpl
             } => {
                 out.push((name.clone(), name_span.unwrap_or(*span)));
             }
+            HS::Reset { .. } => {}
             HS::Assign { lhs, rhs, .. } => {
                 collect_lets_in_expr(lhs, out);
                 collect_lets_in_expr(rhs, out);

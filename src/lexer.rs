@@ -125,6 +125,7 @@ pub fn lexer<'src>()
         "let" => Token::Let,
         "mut" => Token::Mut,
         "memory" => Token::Memory,
+        "reset" => Token::Reset,
         "type" => Token::Type,
         "struct" => Token::Struct,
         "extern" => Token::Extern,

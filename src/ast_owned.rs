@@ -176,6 +176,7 @@ pub enum OwnedStmt {
         ty: Option<OwnedType>,
         value: Option<SpannedExpr>, // UPDATED
     },
+    Reset(String),
     Return(Option<SpannedExpr>),      // UPDATED
     Assign(SpannedExpr, SpannedExpr), // UPDATED
     Expr(SpannedExpr),                // UPDATED
@@ -656,6 +657,7 @@ impl<'src> From<&Stmt<'src>> for SpannedStmt {
                 ty: ty.as_ref().map(|t| t.into()),
                 value: value.as_ref().map(|v| v.into()),
             },
+            StmtNode::Reset(region) => OwnedStmt::Reset(region.to_string()),
             StmtNode::Return(expr) => OwnedStmt::Return(expr.as_ref().map(|e| e.into())),
             StmtNode::Assign(lhs, rhs) => OwnedStmt::Assign(lhs.into(), rhs.into()),
             StmtNode::Expr(expr) => OwnedStmt::Expr(expr.into()),

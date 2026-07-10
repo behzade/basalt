@@ -1,0 +1,120 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "make_result",
+        "params": [],
+        "ret_type": {
+          "Primitive": "Str"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "Str",
+              "global result"
+            ]
+          },
+          "ty": {
+            "Primitive": "Str"
+          },
+          "span": {
+            "start": 7,
+            "end": 8
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "Str"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/56-global-return-context.bst",
+      "span": {
+        "start": 6,
+        "end": 9
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "Str"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "make_result"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "Str"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 16,
+                  "end": 17
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/56-global-return-context.bst",
+                    "span": {
+                      "start": 0,
+                      "end": 9
+                    }
+                  }
+                }
+              },
+              "args": []
+            }
+          },
+          "ty": {
+            "Primitive": "Str"
+          },
+          "span": {
+            "start": 16,
+            "end": 19
+          },
+          "resolution": {
+            "Function": {
+              "defined_in": "tests/56-global-return-context.bst",
+              "span": {
+                "start": 0,
+                "end": 9
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "Str"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/56-global-return-context.bst",
+      "span": {
+        "start": 15,
+        "end": 20
+      },
+      "context_id": 1
+    }
+  }
+]

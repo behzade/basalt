@@ -1,0 +1,127 @@
+{
+  "tests/56-global-return-context.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "make_result",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "str"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "Str": "global result"
+                          }
+                        },
+                        "span": {
+                          "start": 7,
+                          "end": 8
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 8
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 9
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "str"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "make_result"
+                                ]
+                              },
+                              "span": {
+                                "start": 16,
+                                "end": 17
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 16,
+                          "end": 19
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 19
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 20
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 20
+      }
+    }
+  ]
+}

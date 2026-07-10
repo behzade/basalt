@@ -249,6 +249,7 @@ impl Typechecker {
                     .as_ref()
                     .map(|expr| self.expr_effects(expr))
                     .unwrap_or_default(),
+                hir::Stmt::Reset { .. } => vec![],
                 hir::Stmt::Return { value, .. } => value
                     .as_ref()
                     .map(|expr| self.expr_effects(expr))

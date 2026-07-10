@@ -142,7 +142,7 @@ impl Interpreter {
             )));
         }
 
-        let return_target = self.stack.borrow().current_target();
+        let return_target = self.stack.borrow().return_target();
         let _frame = StackFrameGuard::push(&self.stack, function.signature.name.clone());
         let mut env = Env::new();
         // bind params
@@ -161,7 +161,9 @@ impl Interpreter {
         let value = match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => value,
         };
-        self.stack.borrow_mut().copy_value_to(return_target, value)
+        self.stack
+            .borrow_mut()
+            .copy_value_to(Some(return_target), value)
     }
 
     pub(crate) fn call_function_value(
@@ -176,7 +178,7 @@ impl Interpreter {
                 args.len()
             )));
         }
-        let return_target = self.stack.borrow().current_target();
+        let return_target = self.stack.borrow().return_target();
         let _frame = StackFrameGuard::push(&self.stack, "<fn literal>");
         // Recreate environment with captured scopes and a fresh top scope for parameters
         let mut env = Env {
@@ -189,7 +191,9 @@ impl Interpreter {
         let value = match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => value,
         };
-        self.stack.borrow_mut().copy_value_to(return_target, value)
+        self.stack
+            .borrow_mut()
+            .copy_value_to(Some(return_target), value)
     }
 
     /// Evaluate a block, returning the last expression value or an explicit return value.
@@ -229,6 +233,10 @@ impl Interpreter {
                     Value::Unit
                 };
                 env.define(name.clone(), v, *is_mut);
+                Ok(Flow::Value(()))
+            }
+            Stmt::Reset { region, .. } => {
+                self.stack.borrow_mut().reset_region(region)?;
                 Ok(Flow::Value(()))
             }
             Stmt::Return { value, .. } => {

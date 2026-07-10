@@ -922,6 +922,14 @@ fn expression_bundle<'src>() -> (
         })
         .labelled("return");
 
+    let reset_stmt = just(Token::Reset)
+        .ignore_then(ident())
+        .map_with(|region, e| Spanned {
+            node: StmtNode::Reset(region),
+            span: e.span(),
+        })
+        .labelled("memory region reset");
+
     let expr_stmt = expr.clone().map_with(|e1, e| Spanned {
         node: StmtNode::Expr(e1),
         span: e.span(),
@@ -946,6 +954,7 @@ fn expression_bundle<'src>() -> (
         let_decl,
         typed_init,
         assign,
+        reset_stmt,
         ret_stmt,
         expr_stmt,
     ))

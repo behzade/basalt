@@ -6,6 +6,17 @@ use super::value::{AllocationOwner, Value};
 
 const DEFAULT_FRAME_BYTES: usize = 4 * 1024;
 const DEFAULT_FRAME_OBJECTS: usize = 256;
+const GLOBAL_USER_BYTES: usize = 64 * 1024;
+const GLOBAL_USER_OBJECTS: usize = 1024;
+
+#[derive(Debug)]
+struct GlobalContext {
+    owner: AllocationOwner,
+    used_bytes: usize,
+    object_count: usize,
+    byte_limit: usize,
+    object_limit: usize,
+}
 
 #[derive(Debug, Clone)]
 struct StackFrame {
@@ -64,8 +75,18 @@ impl MemoryRegion {
 #[derive(Debug, Clone)]
 struct ContextState {
     name: String,
+    parent: Option<u64>,
+    kind: ContextKind,
     generation: u64,
     live: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ContextKind {
+    RuntimeRoot,
+    GlobalUser,
+    Frame,
+    NamedRegion,
 }
 
 #[derive(Debug)]
@@ -75,21 +96,34 @@ pub(crate) struct StackAllocator {
     active_region: Option<String>,
     next_context_id: u64,
     contexts: HashMap<u64, ContextState>,
-    root_owner: AllocationOwner,
+    global: GlobalContext,
 }
 
 impl Default for StackAllocator {
     fn default() -> Self {
-        let root_owner = AllocationOwner {
-            id: 1,
+        let runtime_root_id = 1;
+        let global_owner = AllocationOwner {
+            id: 2,
             generation: 1,
         };
         let mut contexts = HashMap::new();
         contexts.insert(
-            root_owner.id,
+            runtime_root_id,
             ContextState {
-                name: "program root".to_string(),
-                generation: root_owner.generation,
+                name: "runtime root".to_string(),
+                parent: None,
+                kind: ContextKind::RuntimeRoot,
+                generation: 1,
+                live: true,
+            },
+        );
+        contexts.insert(
+            global_owner.id,
+            ContextState {
+                name: "global user context".to_string(),
+                parent: Some(runtime_root_id),
+                kind: ContextKind::GlobalUser,
+                generation: global_owner.generation,
                 live: true,
             },
         );
@@ -97,15 +131,21 @@ impl Default for StackAllocator {
             frames: vec![],
             regions: HashMap::new(),
             active_region: None,
-            next_context_id: root_owner.id,
+            next_context_id: global_owner.id,
             contexts,
-            root_owner,
+            global: GlobalContext {
+                owner: global_owner,
+                used_bytes: 0,
+                object_count: 0,
+                byte_limit: GLOBAL_USER_BYTES,
+                object_limit: GLOBAL_USER_OBJECTS,
+            },
         }
     }
 }
 
 impl StackAllocator {
-    fn create_context(&mut self, name: String) -> AllocationOwner {
+    fn create_context(&mut self, name: String, parent: u64, kind: ContextKind) -> AllocationOwner {
         self.next_context_id += 1;
         let owner = AllocationOwner {
             id: self.next_context_id,
@@ -115,11 +155,17 @@ impl StackAllocator {
             owner.id,
             ContextState {
                 name,
+                parent: Some(parent),
+                kind,
                 generation: owner.generation,
                 live: true,
             },
         );
         owner
+    }
+
+    pub(crate) fn return_target(&self) -> AllocationOwner {
+        self.current_target().unwrap_or(self.global.owner)
     }
 
     pub(crate) fn define_region(
@@ -130,7 +176,11 @@ impl StackAllocator {
     ) -> Result<()> {
         let name = name.into();
         let backing_ptr = runtime::alloc_bytes(byte_limit)?;
-        let owner = self.create_context(format!("region {}", name));
+        let owner = self.create_context(
+            format!("region {}", name),
+            self.global.owner.id,
+            ContextKind::NamedRegion,
+        );
         self.regions.insert(
             name.clone(),
             MemoryRegion::new(name, byte_limit, object_limit, backing_ptr, owner),
@@ -140,7 +190,12 @@ impl StackAllocator {
 
     pub(crate) fn push_frame(&mut self, name: impl Into<String>) {
         let name = name.into();
-        let owner = self.create_context(format!("frame {}", name));
+        let parent = self
+            .frames
+            .last()
+            .map(|frame| frame.owner.id)
+            .unwrap_or(self.global.owner.id);
+        let owner = self.create_context(format!("frame {}", name), parent, ContextKind::Frame);
         self.frames.push(StackFrame::new(name, owner));
     }
 
@@ -157,17 +212,30 @@ impl StackAllocator {
         if let Some(region) = &self.active_region {
             return self.regions.get(region).map(|region| region.owner);
         }
-        Some(
-            self.frames
-                .last()
-                .map(|frame| frame.owner)
-                .unwrap_or(self.root_owner),
-        )
+        self.frames.last().map(|frame| frame.owner)
     }
 
     pub(crate) fn alloc_value(&mut self, value: Value) -> Result<Value> {
         let target = self.current_target();
         self.alloc_value_in(target, value)
+    }
+
+    pub(crate) fn reset_region(&mut self, name: &str) -> Result<()> {
+        let Some(region) = self.regions.get_mut(name) else {
+            return Err(RuntimeError(format!("Unknown memory region '{}'", name)));
+        };
+        let Some(context) = self.contexts.get_mut(&region.owner.id) else {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' has no allocation context",
+                name
+            )));
+        };
+        context.generation = context.generation.saturating_add(1);
+        context.live = true;
+        region.owner.generation = context.generation;
+        region.used_bytes = 0;
+        region.object_count = 0;
+        Ok(())
     }
 
     pub(crate) fn copy_value_to(
@@ -197,6 +265,26 @@ impl StackAllocator {
                 value.allocation_kind()
             )));
         };
+        let Some(target_context) = self.contexts.get(&target.id) else {
+            return Err(RuntimeError(format!(
+                "Unknown allocation context {} for {}",
+                target.id,
+                value.allocation_kind()
+            )));
+        };
+        if !target_context.live || target_context.generation != target.generation {
+            return Err(RuntimeError(format!(
+                "Allocation context '{}' is no longer live for {}",
+                target_context.name,
+                value.allocation_kind()
+            )));
+        }
+        if target_context.kind == ContextKind::RuntimeRoot {
+            return Err(RuntimeError(format!(
+                "Runtime root cannot store user {} values",
+                value.allocation_kind()
+            )));
+        }
         if let Some(region_name) = self
             .regions
             .iter()
@@ -206,7 +294,26 @@ impl StackAllocator {
             value.assign_owner_recursive(target);
             return Ok(value);
         }
-        if target == self.root_owner {
+        if target == self.global.owner {
+            if self.global.object_count + 1 > self.global.object_limit {
+                return Err(RuntimeError(format!(
+                    "Global user context exhausted object limit: {}/{} objects before allocating {}",
+                    self.global.object_count,
+                    self.global.object_limit,
+                    value.allocation_kind()
+                )));
+            }
+            if self.global.used_bytes + size > self.global.byte_limit {
+                return Err(RuntimeError(format!(
+                    "Global user context exhausted memory: {}/{} bytes before allocating {} bytes for {}",
+                    self.global.used_bytes,
+                    self.global.byte_limit,
+                    size,
+                    value.allocation_kind()
+                )));
+            }
+            self.global.object_count += 1;
+            self.global.used_bytes += size;
             value.assign_owner_recursive(target);
             return Ok(value);
         }
@@ -248,7 +355,26 @@ impl StackAllocator {
                 return;
             }
             match self.contexts.get(&owner.id) {
-                Some(context) if context.live && context.generation == owner.generation => {}
+                Some(context) if context.live && context.generation == owner.generation => {
+                    let mut parent = context.parent;
+                    while let Some(parent_id) = parent {
+                        let Some(parent_context) = self.contexts.get(&parent_id) else {
+                            error = Some(RuntimeError(format!(
+                                "Allocation context '{}' has unknown parent {}",
+                                context.name, parent_id
+                            )));
+                            return;
+                        };
+                        if !parent_context.live {
+                            error = Some(RuntimeError(format!(
+                                "Value's ancestor allocation context '{}' is no longer live",
+                                parent_context.name
+                            )));
+                            return;
+                        }
+                        parent = parent_context.parent;
+                    }
+                }
                 Some(context) => {
                     error = Some(RuntimeError(format!(
                         "Value outlived allocation context '{}' generation {}",
@@ -362,5 +488,109 @@ impl Drop for AllocationRegionGuard<'_> {
 impl Drop for StackFrameGuard<'_> {
     fn drop(&mut self) {
         self.stack.borrow_mut().pop_frame();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::interpreter::value::Managed;
+
+    fn string(value: &str) -> Value {
+        Value::Str(Managed::new(value.to_string()))
+    }
+
+    #[test]
+    fn contexts_have_an_explicit_runtime_and_user_global_root() {
+        let mut stack = StackAllocator::default();
+        let global = stack.global.owner;
+        let global_state = stack.contexts.get(&global.id).unwrap();
+        let runtime_root_id = global_state.parent.unwrap();
+
+        assert_eq!(global_state.kind, ContextKind::GlobalUser);
+        assert_eq!(
+            stack.contexts.get(&runtime_root_id).unwrap().kind,
+            ContextKind::RuntimeRoot
+        );
+
+        stack.define_region("Data", 64, Some(4)).unwrap();
+        let region = stack.regions.get("Data").unwrap().owner;
+        assert_eq!(
+            stack.contexts.get(&region.id).unwrap().parent,
+            Some(global.id)
+        );
+
+        stack.push_frame("main");
+        let main = stack.frames.last().unwrap().owner;
+        assert_eq!(
+            stack.contexts.get(&main.id).unwrap().parent,
+            Some(global.id)
+        );
+        stack.push_frame("callee");
+        let callee = stack.frames.last().unwrap().owner;
+        assert_eq!(
+            stack.contexts.get(&callee.id).unwrap().parent,
+            Some(main.id)
+        );
+    }
+
+    #[test]
+    fn ordinary_allocation_never_falls_back_to_global_memory() {
+        let mut stack = StackAllocator::default();
+        let error = stack.alloc_value(string("unscoped")).unwrap_err();
+        assert_eq!(
+            error.0,
+            "No allocation context available for str".to_string()
+        );
+        assert_eq!(stack.global.object_count, 0);
+    }
+
+    #[test]
+    fn outermost_return_uses_the_budgeted_user_global_context() {
+        let mut stack = StackAllocator::default();
+        let return_target = stack.return_target();
+        assert_eq!(return_target, stack.global.owner);
+
+        stack.push_frame("main");
+        let local = stack.alloc_value(string("result")).unwrap();
+        let result = stack.copy_value_to(Some(return_target), local).unwrap();
+        stack.pop_frame();
+
+        stack.validate_value(&result).unwrap();
+        assert_eq!(result.owner(), Some(stack.global.owner));
+        assert_eq!(stack.global.used_bytes, "result".len());
+        assert_eq!(stack.global.object_count, 1);
+    }
+
+    #[test]
+    fn runtime_root_cannot_store_user_values() {
+        let mut stack = StackAllocator::default();
+        let runtime_root_id = stack
+            .contexts
+            .get(&stack.global.owner.id)
+            .unwrap()
+            .parent
+            .unwrap();
+        let runtime_root = AllocationOwner {
+            id: runtime_root_id,
+            generation: 1,
+        };
+
+        stack.push_frame("main");
+        let local = stack.alloc_value(string("result")).unwrap();
+        let error = stack.copy_value_to(Some(runtime_root), local).unwrap_err();
+        assert_eq!(error.0, "Runtime root cannot store user str values");
+    }
+
+    #[test]
+    fn user_global_context_enforces_its_budget() {
+        let mut stack = StackAllocator::default();
+        stack.global.byte_limit = 3;
+        let return_target = stack.return_target();
+
+        stack.push_frame("main");
+        let local = stack.alloc_value(string("four")).unwrap();
+        let error = stack.copy_value_to(Some(return_target), local).unwrap_err();
+        assert!(error.0.contains("Global user context exhausted memory"));
     }
 }

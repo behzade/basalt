@@ -150,6 +150,21 @@ impl Typechecker {
                     name_span: None,
                 })
             }
+            OwnedStmt::Reset(region) => {
+                if !self.memory_regions.contains(&region) {
+                    self.errors.push(TypeError {
+                        message: format!("Unknown memory region '{}'", region),
+                        context: ItemContext {
+                            span: stmt.span,
+                            path: context.path,
+                        },
+                    });
+                }
+                Ok(hir::Stmt::Reset {
+                    region,
+                    span: stmt.span,
+                })
+            }
             OwnedStmt::Assign(lhs, rhs) => {
                 let lhs_hir = match &lhs.item {
                     OwnedExpr::Path(path) => {
