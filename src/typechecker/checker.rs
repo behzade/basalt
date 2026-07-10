@@ -111,7 +111,8 @@ impl Typechecker {
     }
 
     pub(crate) fn is_raw_runtime_intrinsic(&self, path: &PathBuf, name: &str) -> bool {
-        self.is_runtime_file(path) && matches!(name, "alloc" | "free")
+        self.is_runtime_file(path)
+            && matches!(name, "alloc" | "free" | "memset" | "memcpy" | "memcmp")
     }
     pub fn check_program(
         &mut self,

@@ -118,6 +118,162 @@
   {
     "Fn": {
       "signature": {
+        "name": "memset",
+        "params": [
+          {
+            "name": "ptr",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "value",
+            "ty": {
+              "Primitive": "U8"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 24,
+        "end": 41
+      },
+      "context_id": 3
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "memcpy",
+        "params": [
+          {
+            "name": "destination",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "source",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Special": "Unit"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Special": "Unit"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 41,
+        "end": 58
+      },
+      "context_id": 4
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "memcmp",
+        "params": [
+          {
+            "name": "left",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "right",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 58,
+        "end": 77
+      },
+      "context_id": 5
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
         "name": "write",
         "params": [
           {
@@ -156,7 +312,7 @@
         "start": 0,
         "end": 13
       },
-      "context_id": 3
+      "context_id": 6
     }
   },
   {
@@ -357,7 +513,7 @@
         "start": 13,
         "end": 31
       },
-      "context_id": 4
+      "context_id": 7
     }
   }
 ]

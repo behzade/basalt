@@ -59,6 +59,50 @@ pub(crate) fn call_runtime_intrinsic(
             free_bytes(ptr, bytes);
             Ok(Value::Unit)
         }
+        "memset" => {
+            let [ptr, value, bytes] = args.as_slice() else {
+                return Err(RuntimeError("runtime::memset expects 3 arguments".into()));
+            };
+            let ptr = value_to_u64(ptr, "runtime::memset ptr")?;
+            let value = value_to_u8(value, "runtime::memset value")?;
+            let bytes = value_to_usize(bytes, "runtime::memset bytes")?;
+            unsafe {
+                libc::memset(ptr as *mut libc::c_void, value.into(), bytes);
+            }
+            Ok(Value::Unit)
+        }
+        "memcpy" => {
+            let [destination, source, bytes] = args.as_slice() else {
+                return Err(RuntimeError("runtime::memcpy expects 3 arguments".into()));
+            };
+            let destination = value_to_u64(destination, "runtime::memcpy destination")?;
+            let source = value_to_u64(source, "runtime::memcpy source")?;
+            let bytes = value_to_usize(bytes, "runtime::memcpy bytes")?;
+            unsafe {
+                libc::memcpy(
+                    destination as *mut libc::c_void,
+                    source as *const libc::c_void,
+                    bytes,
+                );
+            }
+            Ok(Value::Unit)
+        }
+        "memcmp" => {
+            let [left, right, bytes] = args.as_slice() else {
+                return Err(RuntimeError("runtime::memcmp expects 3 arguments".into()));
+            };
+            let left = value_to_u64(left, "runtime::memcmp left")?;
+            let right = value_to_u64(right, "runtime::memcmp right")?;
+            let bytes = value_to_usize(bytes, "runtime::memcmp bytes")?;
+            let ordering = unsafe {
+                libc::memcmp(
+                    left as *const libc::c_void,
+                    right as *const libc::c_void,
+                    bytes,
+                )
+            };
+            Ok(Value::I32(ordering))
+        }
         other => Err(RuntimeError(format!(
             "Unknown runtime intrinsic: std::runtime::{}",
             other
@@ -94,6 +138,11 @@ pub(crate) fn free_bytes(ptr: u64, _bytes: usize) {
 fn value_to_usize(value: &Value, context: &str) -> Result<usize> {
     let n = value_to_u64(value, context)?;
     usize::try_from(n).map_err(|_| RuntimeError(format!("{} does not fit usize", context)))
+}
+
+fn value_to_u8(value: &Value, context: &str) -> Result<u8> {
+    let n = value_to_u64(value, context)?;
+    u8::try_from(n).map_err(|_| RuntimeError(format!("{} does not fit u8", context)))
 }
 
 fn value_to_u64(value: &Value, context: &str) -> Result<u64> {
