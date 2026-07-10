@@ -167,8 +167,11 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
 - Heap-shaped values are charged to the active function frame.
 - Named chunk declarations reserve their backing byte budget through an internal host allocation.
 - `std::runtime::Arena` is a real bump allocator whose cursor, alignment, exhaustion, reset, and
-  release policy is implemented in Basalt. Its `raw_*` process-memory boundary remains a small
+  release policy is implemented in Basalt. Its `libc_*` process-memory boundary remains a small
   interpreter intrinsic surface guarded by lexical `unsafe`.
+- Process addresses have the nominal `MemoryAddress` type. Their machine-number representation is
+  host-private; user functions cannot return them, store them in user structs, or bind them outside
+  the lexical `unsafe` scope where they are used.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.

@@ -37,12 +37,32 @@
   },
   {
     "Struct": {
+      "name": "MemoryAddress",
+      "fields": [],
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/memory.bst",
+      "span": {
+        "start": 2,
+        "end": 7
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Struct": {
       "name": "Arena",
       "fields": [
         {
           "name": "base",
           "ty": {
-            "Primitive": "U64"
+            "Adt": {
+              "Struct": {
+                "name": [
+                  "MemoryAddress"
+                ],
+                "generics": []
+              }
+            }
           },
           "name_span": null
         },
@@ -64,10 +84,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/memory.bst",
       "span": {
-        "start": 1,
-        "end": 18
+        "start": 7,
+        "end": 24
       },
-      "context_id": 1
+      "context_id": 2
     }
   },
   {
@@ -117,7 +137,7 @@
                               "fun": {
                                 "kind": {
                                   "Path": [
-                                    "raw_alloc"
+                                    "libc_alloc"
                                   ]
                                 },
                                 "ty": {
@@ -128,14 +148,21 @@
                                       }
                                     ],
                                     "ret_type": {
-                                      "Primitive": "U64"
+                                      "Adt": {
+                                        "Struct": {
+                                          "name": [
+                                            "MemoryAddress"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
                                     },
                                     "effects": []
                                   }
                                 },
                                 "span": {
-                                  "start": 35,
-                                  "end": 36
+                                  "start": 41,
+                                  "end": 42
                                 },
                                 "resolution": {
                                   "Function": {
@@ -158,8 +185,8 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 37,
-                                    "end": 38
+                                    "start": 43,
+                                    "end": 44
                                   },
                                   "resolution": {
                                     "Local": {
@@ -172,11 +199,18 @@
                             }
                           },
                           "ty": {
-                            "Primitive": "U64"
+                            "Adt": {
+                              "Struct": {
+                                "name": [
+                                  "MemoryAddress"
+                                ],
+                                "generics": []
+                              }
+                            }
                           },
                           "span": {
-                            "start": 35,
-                            "end": 39
+                            "start": 41,
+                            "end": 45
                           },
                           "resolution": {
                             "Function": {
@@ -201,8 +235,8 @@
                             "Primitive": "U64"
                           },
                           "span": {
-                            "start": 42,
-                            "end": 43
+                            "start": 48,
+                            "end": 49
                           },
                           "resolution": {
                             "Local": {
@@ -225,8 +259,8 @@
                             "Primitive": "U64"
                           },
                           "span": {
-                            "start": 46,
-                            "end": 47
+                            "start": 52,
+                            "end": 53
                           },
                           "resolution": null
                         }
@@ -245,8 +279,8 @@
                   }
                 },
                 "span": {
-                  "start": 31,
-                  "end": 49
+                  "start": 37,
+                  "end": 55
                 },
                 "resolution": null
               },
@@ -273,8 +307,8 @@
             }
           },
           "span": {
-            "start": 30,
-            "end": 50
+            "start": 36,
+            "end": 56
           },
           "resolution": null
         },
@@ -292,10 +326,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/memory.bst",
       "span": {
-        "start": 28,
-        "end": 51
+        "start": 34,
+        "end": 57
       },
-      "context_id": 2
+      "context_id": 3
     }
   },
   {
@@ -336,7 +370,14 @@
           }
         ],
         "ret_type": {
-          "Primitive": "U64"
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
         },
         "effects": []
       },
@@ -359,8 +400,8 @@
                         "Primitive": "U64"
                       },
                       "span": {
-                        "start": 72,
-                        "end": 73
+                        "start": 78,
+                        "end": 79
                       },
                       "resolution": {
                         "Local": {
@@ -380,8 +421,8 @@
                         "Primitive": "U64"
                       },
                       "span": {
-                        "start": 74,
-                        "end": 75
+                        "start": 80,
+                        "end": 81
                       },
                       "resolution": null
                     }
@@ -391,8 +432,8 @@
                   "Primitive": "Bool"
                 },
                 "span": {
-                  "start": 72,
-                  "end": 75
+                  "start": 78,
+                  "end": 81
                 },
                 "resolution": null
               },
@@ -400,22 +441,111 @@
                 "stmts": [],
                 "last_expr": {
                   "kind": {
-                    "Literal": [
-                      "U64",
-                      "0"
-                    ]
+                    "Block": {
+                      "stmts": [],
+                      "last_expr": {
+                        "kind": {
+                          "Call": {
+                            "fun": {
+                              "kind": {
+                                "Path": [
+                                  "address_null"
+                                ]
+                              },
+                              "ty": {
+                                "Function": {
+                                  "param_types": [],
+                                  "ret_type": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "MemoryAddress"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  },
+                                  "effects": []
+                                }
+                              },
+                              "span": {
+                                "start": 84,
+                                "end": 85
+                              },
+                              "resolution": {
+                                "Function": {
+                                  "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                  "span": {
+                                    "start": 78,
+                                    "end": 86
+                                  }
+                                }
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "ty": {
+                          "Adt": {
+                            "Struct": {
+                              "name": [
+                                "MemoryAddress"
+                              ],
+                              "generics": []
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 84,
+                          "end": 87
+                        },
+                        "resolution": {
+                          "Function": {
+                            "defined_in": "./modules/std/runtime/raw_memory.bst",
+                            "span": {
+                              "start": 78,
+                              "end": 86
+                            }
+                          }
+                        }
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "MemoryAddress"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      }
+                    }
                   },
                   "ty": {
-                    "Primitive": "U64"
+                    "Adt": {
+                      "Struct": {
+                        "name": [
+                          "MemoryAddress"
+                        ],
+                        "generics": []
+                      }
+                    }
                   },
                   "span": {
-                    "start": 76,
-                    "end": 77
+                    "start": 83,
+                    "end": 88
                   },
                   "resolution": null
                 },
                 "ty": {
-                  "Primitive": "U64"
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "MemoryAddress"
+                      ],
+                      "generics": []
+                    }
+                  }
                 }
               },
               "else_block": {
@@ -449,8 +579,8 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 83,
-                                          "end": 84
+                                          "start": 94,
+                                          "end": 95
                                         },
                                         "resolution": {
                                           "Local": {
@@ -466,8 +596,8 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 83,
-                                    "end": 86
+                                    "start": 94,
+                                    "end": 97
                                   },
                                   "resolution": {
                                     "Field": {
@@ -506,8 +636,8 @@
                                                       }
                                                     },
                                                     "span": {
-                                                      "start": 88,
-                                                      "end": 89
+                                                      "start": 99,
+                                                      "end": 100
                                                     },
                                                     "resolution": {
                                                       "Local": {
@@ -523,8 +653,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 88,
-                                                "end": 91
+                                                "start": 99,
+                                                "end": 102
                                               },
                                               "resolution": {
                                                 "Field": {
@@ -545,8 +675,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 92,
-                                                "end": 93
+                                                "start": 103,
+                                                "end": 104
                                               },
                                               "resolution": {
                                                 "Local": {
@@ -561,8 +691,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 88,
-                                          "end": 93
+                                          "start": 99,
+                                          "end": 104
                                         },
                                         "resolution": null
                                       },
@@ -576,8 +706,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 95,
-                                          "end": 96
+                                          "start": 106,
+                                          "end": 107
                                         },
                                         "resolution": {
                                           "Local": {
@@ -592,8 +722,8 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 88,
-                                    "end": 96
+                                    "start": 99,
+                                    "end": 107
                                   },
                                   "resolution": null
                                 }
@@ -603,8 +733,8 @@
                               "Primitive": "U64"
                             },
                             "span": {
-                              "start": 83,
-                              "end": 96
+                              "start": 94,
+                              "end": 107
                             },
                             "resolution": null
                           },
@@ -613,8 +743,8 @@
                           },
                           "is_mut": false,
                           "span": {
-                            "start": 80,
-                            "end": 96
+                            "start": 91,
+                            "end": 107
                           },
                           "name_span": null
                         }
@@ -639,15 +769,15 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 100,
-                                          "end": 101
+                                          "start": 111,
+                                          "end": 112
                                         },
                                         "resolution": {
                                           "Local": {
                                             "name": "remainder",
                                             "decl_span": {
-                                              "start": 80,
-                                              "end": 96
+                                              "start": 91,
+                                              "end": 107
                                             }
                                           }
                                         }
@@ -663,8 +793,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 102,
-                                          "end": 103
+                                          "start": 113,
+                                          "end": 114
                                         },
                                         "resolution": null
                                       }
@@ -674,8 +804,8 @@
                                     "Primitive": "Bool"
                                   },
                                   "span": {
-                                    "start": 100,
-                                    "end": 103
+                                    "start": 111,
+                                    "end": 114
                                   },
                                   "resolution": null
                                 },
@@ -692,8 +822,8 @@
                                       "Primitive": "U64"
                                     },
                                     "span": {
-                                      "start": 104,
-                                      "end": 105
+                                      "start": 115,
+                                      "end": 116
                                     },
                                     "resolution": null
                                   },
@@ -719,8 +849,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 108,
-                                                "end": 109
+                                                "start": 119,
+                                                "end": 120
                                               },
                                               "resolution": {
                                                 "Local": {
@@ -739,15 +869,15 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 110,
-                                                "end": 111
+                                                "start": 121,
+                                                "end": 122
                                               },
                                               "resolution": {
                                                 "Local": {
                                                   "name": "remainder",
                                                   "decl_span": {
-                                                    "start": 80,
-                                                    "end": 96
+                                                    "start": 91,
+                                                    "end": 107
                                                   }
                                                 }
                                               }
@@ -758,8 +888,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 108,
-                                          "end": 111
+                                          "start": 119,
+                                          "end": 122
                                         },
                                         "resolution": null
                                       },
@@ -772,8 +902,8 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 107,
-                                    "end": 112
+                                    "start": 118,
+                                    "end": 123
                                   },
                                   "resolution": null
                                 }
@@ -783,8 +913,8 @@
                               "Primitive": "U64"
                             },
                             "span": {
-                              "start": 99,
-                              "end": 112
+                              "start": 110,
+                              "end": 123
                             },
                             "resolution": null
                           },
@@ -793,8 +923,8 @@
                           },
                           "is_mut": false,
                           "span": {
-                            "start": 96,
-                            "end": 112
+                            "start": 107,
+                            "end": 123
                           },
                           "name_span": null
                         }
@@ -817,15 +947,15 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 113,
-                                    "end": 114
+                                    "start": 124,
+                                    "end": 125
                                   },
                                   "resolution": {
                                     "Local": {
                                       "name": "padding",
                                       "decl_span": {
-                                        "start": 96,
-                                        "end": 112
+                                        "start": 107,
+                                        "end": 123
                                       }
                                     }
                                   }
@@ -854,8 +984,8 @@
                                                 }
                                               },
                                               "span": {
-                                                "start": 115,
-                                                "end": 116
+                                                "start": 126,
+                                                "end": 127
                                               },
                                               "resolution": {
                                                 "Local": {
@@ -871,8 +1001,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 115,
-                                          "end": 118
+                                          "start": 126,
+                                          "end": 129
                                         },
                                         "resolution": {
                                           "Field": {
@@ -903,8 +1033,8 @@
                                                 }
                                               },
                                               "span": {
-                                                "start": 119,
-                                                "end": 120
+                                                "start": 130,
+                                                "end": 131
                                               },
                                               "resolution": {
                                                 "Local": {
@@ -920,8 +1050,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 119,
-                                          "end": 122
+                                          "start": 130,
+                                          "end": 133
                                         },
                                         "resolution": {
                                           "Field": {
@@ -938,8 +1068,8 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 115,
-                                    "end": 122
+                                    "start": 126,
+                                    "end": 133
                                   },
                                   "resolution": null
                                 }
@@ -949,8 +1079,8 @@
                               "Primitive": "Bool"
                             },
                             "span": {
-                              "start": 113,
-                              "end": 122
+                              "start": 124,
+                              "end": 133
                             },
                             "resolution": null
                           },
@@ -958,22 +1088,111 @@
                             "stmts": [],
                             "last_expr": {
                               "kind": {
-                                "Literal": [
-                                  "U64",
-                                  "0"
-                                ]
+                                "Block": {
+                                  "stmts": [],
+                                  "last_expr": {
+                                    "kind": {
+                                      "Call": {
+                                        "fun": {
+                                          "kind": {
+                                            "Path": [
+                                              "address_null"
+                                            ]
+                                          },
+                                          "ty": {
+                                            "Function": {
+                                              "param_types": [],
+                                              "ret_type": {
+                                                "Adt": {
+                                                  "Struct": {
+                                                    "name": [
+                                                      "MemoryAddress"
+                                                    ],
+                                                    "generics": []
+                                                  }
+                                                }
+                                              },
+                                              "effects": []
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 136,
+                                            "end": 137
+                                          },
+                                          "resolution": {
+                                            "Function": {
+                                              "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                              "span": {
+                                                "start": 78,
+                                                "end": 86
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "args": []
+                                      }
+                                    },
+                                    "ty": {
+                                      "Adt": {
+                                        "Struct": {
+                                          "name": [
+                                            "MemoryAddress"
+                                          ],
+                                          "generics": []
+                                        }
+                                      }
+                                    },
+                                    "span": {
+                                      "start": 136,
+                                      "end": 139
+                                    },
+                                    "resolution": {
+                                      "Function": {
+                                        "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                        "span": {
+                                          "start": 78,
+                                          "end": 86
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "ty": {
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "MemoryAddress"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
+                                  }
+                                }
                               },
                               "ty": {
-                                "Primitive": "U64"
+                                "Adt": {
+                                  "Struct": {
+                                    "name": [
+                                      "MemoryAddress"
+                                    ],
+                                    "generics": []
+                                  }
+                                }
                               },
                               "span": {
-                                "start": 123,
-                                "end": 124
+                                "start": 135,
+                                "end": 140
                               },
                               "resolution": null
                             },
                             "ty": {
-                              "Primitive": "U64"
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "MemoryAddress"
+                                  ],
+                                  "generics": []
+                                }
+                              }
                             }
                           },
                           "else_block": {
@@ -1007,8 +1226,8 @@
                                                       }
                                                     },
                                                     "span": {
-                                                      "start": 130,
-                                                      "end": 131
+                                                      "start": 146,
+                                                      "end": 147
                                                     },
                                                     "resolution": {
                                                       "Local": {
@@ -1024,8 +1243,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 130,
-                                                "end": 133
+                                                "start": 146,
+                                                "end": 149
                                               },
                                               "resolution": {
                                                 "Field": {
@@ -1046,15 +1265,15 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 134,
-                                                "end": 135
+                                                "start": 150,
+                                                "end": 151
                                               },
                                               "resolution": {
                                                 "Local": {
                                                   "name": "padding",
                                                   "decl_span": {
-                                                    "start": 96,
-                                                    "end": 112
+                                                    "start": 107,
+                                                    "end": 123
                                                   }
                                                 }
                                               }
@@ -1065,8 +1284,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 130,
-                                          "end": 135
+                                          "start": 146,
+                                          "end": 151
                                         },
                                         "resolution": null
                                       },
@@ -1075,8 +1294,8 @@
                                       },
                                       "is_mut": false,
                                       "span": {
-                                        "start": 127,
-                                        "end": 135
+                                        "start": 143,
+                                        "end": 151
                                       },
                                       "name_span": null
                                     }
@@ -1099,8 +1318,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 136,
-                                                "end": 137
+                                                "start": 152,
+                                                "end": 153
                                               },
                                               "resolution": {
                                                 "Local": {
@@ -1133,8 +1352,8 @@
                                                             }
                                                           },
                                                           "span": {
-                                                            "start": 138,
-                                                            "end": 139
+                                                            "start": 154,
+                                                            "end": 155
                                                           },
                                                           "resolution": {
                                                             "Local": {
@@ -1150,8 +1369,8 @@
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 138,
-                                                      "end": 141
+                                                      "start": 154,
+                                                      "end": 157
                                                     },
                                                     "resolution": {
                                                       "Field": {
@@ -1172,15 +1391,15 @@
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 142,
-                                                      "end": 143
+                                                      "start": 158,
+                                                      "end": 159
                                                     },
                                                     "resolution": {
                                                       "Local": {
                                                         "name": "aligned",
                                                         "decl_span": {
-                                                          "start": 127,
-                                                          "end": 135
+                                                          "start": 143,
+                                                          "end": 151
                                                         }
                                                       }
                                                     }
@@ -1191,8 +1410,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 138,
-                                                "end": 143
+                                                "start": 154,
+                                                "end": 159
                                               },
                                               "resolution": null
                                             }
@@ -1202,8 +1421,8 @@
                                           "Primitive": "Bool"
                                         },
                                         "span": {
-                                          "start": 136,
-                                          "end": 143
+                                          "start": 152,
+                                          "end": 159
                                         },
                                         "resolution": null
                                       },
@@ -1211,22 +1430,111 @@
                                         "stmts": [],
                                         "last_expr": {
                                           "kind": {
-                                            "Literal": [
-                                              "U64",
-                                              "0"
-                                            ]
+                                            "Block": {
+                                              "stmts": [],
+                                              "last_expr": {
+                                                "kind": {
+                                                  "Call": {
+                                                    "fun": {
+                                                      "kind": {
+                                                        "Path": [
+                                                          "address_null"
+                                                        ]
+                                                      },
+                                                      "ty": {
+                                                        "Function": {
+                                                          "param_types": [],
+                                                          "ret_type": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
+                                                                  "MemoryAddress"
+                                                                ],
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          },
+                                                          "effects": []
+                                                        }
+                                                      },
+                                                      "span": {
+                                                        "start": 162,
+                                                        "end": 163
+                                                      },
+                                                      "resolution": {
+                                                        "Function": {
+                                                          "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                                          "span": {
+                                                            "start": 78,
+                                                            "end": 86
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "args": []
+                                                  }
+                                                },
+                                                "ty": {
+                                                  "Adt": {
+                                                    "Struct": {
+                                                      "name": [
+                                                        "MemoryAddress"
+                                                      ],
+                                                      "generics": []
+                                                    }
+                                                  }
+                                                },
+                                                "span": {
+                                                  "start": 162,
+                                                  "end": 165
+                                                },
+                                                "resolution": {
+                                                  "Function": {
+                                                    "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                                    "span": {
+                                                      "start": 78,
+                                                      "end": 86
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "ty": {
+                                                "Adt": {
+                                                  "Struct": {
+                                                    "name": [
+                                                      "MemoryAddress"
+                                                    ],
+                                                    "generics": []
+                                                  }
+                                                }
+                                              }
+                                            }
                                           },
                                           "ty": {
-                                            "Primitive": "U64"
+                                            "Adt": {
+                                              "Struct": {
+                                                "name": [
+                                                  "MemoryAddress"
+                                                ],
+                                                "generics": []
+                                              }
+                                            }
                                           },
                                           "span": {
-                                            "start": 144,
-                                            "end": 145
+                                            "start": 161,
+                                            "end": 166
                                           },
                                           "resolution": null
                                         },
                                         "ty": {
-                                          "Primitive": "U64"
+                                          "Adt": {
+                                            "Struct": {
+                                              "name": [
+                                                "MemoryAddress"
+                                              ],
+                                              "generics": []
+                                            }
+                                          }
                                         }
                                       },
                                       "else_block": {
@@ -1255,8 +1563,8 @@
                                                             }
                                                           },
                                                           "span": {
-                                                            "start": 148,
-                                                            "end": 149
+                                                            "start": 169,
+                                                            "end": 170
                                                           },
                                                           "resolution": {
                                                             "Local": {
@@ -1272,8 +1580,8 @@
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 148,
-                                                      "end": 149
+                                                      "start": 169,
+                                                      "end": 170
                                                     },
                                                     "resolution": {
                                                       "Field": {
@@ -1298,15 +1606,15 @@
                                                             "Primitive": "U64"
                                                           },
                                                           "span": {
-                                                            "start": 152,
-                                                            "end": 153
+                                                            "start": 173,
+                                                            "end": 174
                                                           },
                                                           "resolution": {
                                                             "Local": {
                                                               "name": "aligned",
                                                               "decl_span": {
-                                                                "start": 127,
-                                                                "end": 135
+                                                                "start": 143,
+                                                                "end": 151
                                                               }
                                                             }
                                                           }
@@ -1321,8 +1629,8 @@
                                                             "Primitive": "U64"
                                                           },
                                                           "span": {
-                                                            "start": 154,
-                                                            "end": 155
+                                                            "start": 175,
+                                                            "end": 176
                                                           },
                                                           "resolution": {
                                                             "Local": {
@@ -1337,191 +1645,366 @@
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 152,
-                                                      "end": 155
+                                                      "start": 173,
+                                                      "end": 176
                                                     },
                                                     "resolution": null
                                                   },
                                                   "span": {
-                                                    "start": 148,
-                                                    "end": 155
+                                                    "start": 169,
+                                                    "end": 176
                                                   }
                                                 }
                                               }
                                             ],
                                             "last_expr": {
                                               "kind": {
-                                                "Binary": {
-                                                  "op": "Add",
-                                                  "lhs": {
+                                                "Block": {
+                                                  "stmts": [],
+                                                  "last_expr": {
                                                     "kind": {
-                                                      "FieldAccess": {
-                                                        "receiver": {
+                                                      "Call": {
+                                                        "fun": {
                                                           "kind": {
                                                             "Path": [
-                                                              "arena"
+                                                              "address_add"
                                                             ]
                                                           },
                                                           "ty": {
-                                                            "Adt": {
-                                                              "Struct": {
-                                                                "name": [
-                                                                  "Arena"
-                                                                ],
-                                                                "generics": []
-                                                              }
+                                                            "Function": {
+                                                              "param_types": [
+                                                                {
+                                                                  "Adt": {
+                                                                    "Struct": {
+                                                                      "name": [
+                                                                        "MemoryAddress"
+                                                                      ],
+                                                                      "generics": []
+                                                                    }
+                                                                  }
+                                                                },
+                                                                {
+                                                                  "Primitive": "U64"
+                                                                }
+                                                              ],
+                                                              "ret_type": {
+                                                                "Adt": {
+                                                                  "Struct": {
+                                                                    "name": [
+                                                                      "MemoryAddress"
+                                                                    ],
+                                                                    "generics": []
+                                                                  }
+                                                                }
+                                                              },
+                                                              "effects": []
                                                             }
                                                           },
                                                           "span": {
-                                                            "start": 155,
-                                                            "end": 156
+                                                            "start": 178,
+                                                            "end": 179
                                                           },
                                                           "resolution": {
-                                                            "Local": {
-                                                              "name": "arena",
-                                                              "decl_span": null
+                                                            "Function": {
+                                                              "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                                              "span": {
+                                                                "start": 86,
+                                                                "end": 101
+                                                              }
                                                             }
                                                           }
                                                         },
-                                                        "field": "base"
+                                                        "args": [
+                                                          {
+                                                            "kind": {
+                                                              "FieldAccess": {
+                                                                "receiver": {
+                                                                  "kind": {
+                                                                    "Path": [
+                                                                      "arena"
+                                                                    ]
+                                                                  },
+                                                                  "ty": {
+                                                                    "Adt": {
+                                                                      "Struct": {
+                                                                        "name": [
+                                                                          "Arena"
+                                                                        ],
+                                                                        "generics": []
+                                                                      }
+                                                                    }
+                                                                  },
+                                                                  "span": {
+                                                                    "start": 180,
+                                                                    "end": 181
+                                                                  },
+                                                                  "resolution": {
+                                                                    "Local": {
+                                                                      "name": "arena",
+                                                                      "decl_span": null
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "field": "base"
+                                                              }
+                                                            },
+                                                            "ty": {
+                                                              "Adt": {
+                                                                "Struct": {
+                                                                  "name": [
+                                                                    "MemoryAddress"
+                                                                  ],
+                                                                  "generics": []
+                                                                }
+                                                              }
+                                                            },
+                                                            "span": {
+                                                              "start": 180,
+                                                              "end": 183
+                                                            },
+                                                            "resolution": {
+                                                              "Field": {
+                                                                "owner": [
+                                                                  "Arena"
+                                                                ],
+                                                                "field": "base"
+                                                              }
+                                                            }
+                                                          },
+                                                          {
+                                                            "kind": {
+                                                              "Path": [
+                                                                "aligned"
+                                                              ]
+                                                            },
+                                                            "ty": {
+                                                              "Primitive": "U64"
+                                                            },
+                                                            "span": {
+                                                              "start": 184,
+                                                              "end": 185
+                                                            },
+                                                            "resolution": {
+                                                              "Local": {
+                                                                "name": "aligned",
+                                                                "decl_span": {
+                                                                  "start": 143,
+                                                                  "end": 151
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        ]
                                                       }
                                                     },
                                                     "ty": {
-                                                      "Primitive": "U64"
+                                                      "Adt": {
+                                                        "Struct": {
+                                                          "name": [
+                                                            "MemoryAddress"
+                                                          ],
+                                                          "generics": []
+                                                        }
+                                                      }
                                                     },
                                                     "span": {
-                                                      "start": 155,
-                                                      "end": 158
+                                                      "start": 178,
+                                                      "end": 186
                                                     },
                                                     "resolution": {
-                                                      "Field": {
-                                                        "owner": [
-                                                          "Arena"
-                                                        ],
-                                                        "field": "base"
+                                                      "Function": {
+                                                        "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                                        "span": {
+                                                          "start": 86,
+                                                          "end": 101
+                                                        }
                                                       }
                                                     }
                                                   },
-                                                  "rhs": {
-                                                    "kind": {
-                                                      "Path": [
-                                                        "aligned"
-                                                      ]
-                                                    },
-                                                    "ty": {
-                                                      "Primitive": "U64"
-                                                    },
-                                                    "span": {
-                                                      "start": 159,
-                                                      "end": 160
-                                                    },
-                                                    "resolution": {
-                                                      "Local": {
-                                                        "name": "aligned",
-                                                        "decl_span": {
-                                                          "start": 127,
-                                                          "end": 135
-                                                        }
+                                                  "ty": {
+                                                    "Adt": {
+                                                      "Struct": {
+                                                        "name": [
+                                                          "MemoryAddress"
+                                                        ],
+                                                        "generics": []
                                                       }
                                                     }
                                                   }
                                                 }
                                               },
                                               "ty": {
-                                                "Primitive": "U64"
+                                                "Adt": {
+                                                  "Struct": {
+                                                    "name": [
+                                                      "MemoryAddress"
+                                                    ],
+                                                    "generics": []
+                                                  }
+                                                }
                                               },
                                               "span": {
-                                                "start": 155,
-                                                "end": 160
+                                                "start": 177,
+                                                "end": 187
                                               },
                                               "resolution": null
                                             },
                                             "ty": {
-                                              "Primitive": "U64"
+                                              "Adt": {
+                                                "Struct": {
+                                                  "name": [
+                                                    "MemoryAddress"
+                                                  ],
+                                                  "generics": []
+                                                }
+                                              }
                                             }
                                           }
                                         },
                                         "ty": {
-                                          "Primitive": "U64"
+                                          "Adt": {
+                                            "Struct": {
+                                              "name": [
+                                                "MemoryAddress"
+                                              ],
+                                              "generics": []
+                                            }
+                                          }
                                         },
                                         "span": {
-                                          "start": 147,
-                                          "end": 161
+                                          "start": 168,
+                                          "end": 188
                                         },
                                         "resolution": null
                                       }
                                     }
                                   },
                                   "ty": {
-                                    "Primitive": "U64"
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "MemoryAddress"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
                                   },
                                   "span": {
-                                    "start": 135,
-                                    "end": 161
+                                    "start": 151,
+                                    "end": 188
                                   },
                                   "resolution": null
                                 },
                                 "ty": {
-                                  "Primitive": "U64"
+                                  "Adt": {
+                                    "Struct": {
+                                      "name": [
+                                        "MemoryAddress"
+                                      ],
+                                      "generics": []
+                                    }
+                                  }
                                 }
                               }
                             },
                             "ty": {
-                              "Primitive": "U64"
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "MemoryAddress"
+                                  ],
+                                  "generics": []
+                                }
+                              }
                             },
                             "span": {
-                              "start": 126,
-                              "end": 162
+                              "start": 142,
+                              "end": 189
                             },
                             "resolution": null
                           }
                         }
                       },
                       "ty": {
-                        "Primitive": "U64"
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "MemoryAddress"
+                            ],
+                            "generics": []
+                          }
+                        }
                       },
                       "span": {
-                        "start": 112,
-                        "end": 162
+                        "start": 123,
+                        "end": 189
                       },
                       "resolution": null
                     },
                     "ty": {
-                      "Primitive": "U64"
+                      "Adt": {
+                        "Struct": {
+                          "name": [
+                            "MemoryAddress"
+                          ],
+                          "generics": []
+                        }
+                      }
                     }
                   }
                 },
                 "ty": {
-                  "Primitive": "U64"
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "MemoryAddress"
+                      ],
+                      "generics": []
+                    }
+                  }
                 },
                 "span": {
-                  "start": 79,
-                  "end": 163
+                  "start": 90,
+                  "end": 190
                 },
                 "resolution": null
               }
             }
           },
           "ty": {
-            "Primitive": "U64"
+            "Adt": {
+              "Struct": {
+                "name": [
+                  "MemoryAddress"
+                ],
+                "generics": []
+              }
+            }
           },
           "span": {
-            "start": 71,
-            "end": 163
+            "start": 77,
+            "end": 190
           },
           "resolution": null
         },
         "ty": {
-          "Primitive": "U64"
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
         }
       },
       "is_public": true,
       "defined_in": "./modules/std/runtime/memory.bst",
       "span": {
-        "start": 70,
-        "end": 164
+        "start": 76,
+        "end": 191
       },
-      "context_id": 3
+      "context_id": 4
     }
   },
   {
@@ -1574,8 +2057,8 @@
                         }
                       },
                       "span": {
-                        "start": 174,
-                        "end": 175
+                        "start": 201,
+                        "end": 202
                       },
                       "resolution": {
                         "Local": {
@@ -1591,8 +2074,8 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 174,
-                  "end": 175
+                  "start": 201,
+                  "end": 202
                 },
                 "resolution": {
                   "Field": {
@@ -1614,14 +2097,14 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 178,
-                  "end": 179
+                  "start": 205,
+                  "end": 206
                 },
                 "resolution": null
               },
               "span": {
-                "start": 174,
-                "end": 179
+                "start": 201,
+                "end": 206
               }
             }
           }
@@ -1634,10 +2117,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/memory.bst",
       "span": {
-        "start": 173,
-        "end": 180
+        "start": 200,
+        "end": 207
       },
-      "context_id": 4
+      "context_id": 5
     }
   },
   {
@@ -1680,14 +2163,21 @@
                           "fun": {
                             "kind": {
                               "Path": [
-                                "raw_free"
+                                "libc_free"
                               ]
                             },
                             "ty": {
                               "Function": {
                                 "param_types": [
                                   {
-                                    "Primitive": "U64"
+                                    "Adt": {
+                                      "Struct": {
+                                        "name": [
+                                          "MemoryAddress"
+                                        ],
+                                        "generics": []
+                                      }
+                                    }
                                   },
                                   {
                                     "Primitive": "U64"
@@ -1700,8 +2190,8 @@
                               }
                             },
                             "span": {
-                              "start": 192,
-                              "end": 193
+                              "start": 219,
+                              "end": 220
                             },
                             "resolution": {
                               "Function": {
@@ -1734,8 +2224,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 194,
-                                      "end": 195
+                                      "start": 221,
+                                      "end": 222
                                     },
                                     "resolution": {
                                       "Local": {
@@ -1748,11 +2238,18 @@
                                 }
                               },
                               "ty": {
-                                "Primitive": "U64"
+                                "Adt": {
+                                  "Struct": {
+                                    "name": [
+                                      "MemoryAddress"
+                                    ],
+                                    "generics": []
+                                  }
+                                }
                               },
                               "span": {
-                                "start": 194,
-                                "end": 197
+                                "start": 221,
+                                "end": 224
                               },
                               "resolution": {
                                 "Field": {
@@ -1783,8 +2280,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 198,
-                                      "end": 199
+                                      "start": 225,
+                                      "end": 226
                                     },
                                     "resolution": {
                                       "Local": {
@@ -1800,8 +2297,8 @@
                                 "Primitive": "U64"
                               },
                               "span": {
-                                "start": 198,
-                                "end": 201
+                                "start": 225,
+                                "end": 228
                               },
                               "resolution": {
                                 "Field": {
@@ -1819,8 +2316,8 @@
                         "Special": "Unit"
                       },
                       "span": {
-                        "start": 192,
-                        "end": 202
+                        "start": 219,
+                        "end": 229
                       },
                       "resolution": {
                         "Function": {
@@ -1841,14 +2338,14 @@
                   "Special": "Unit"
                 },
                 "span": {
-                  "start": 191,
-                  "end": 203
+                  "start": 218,
+                  "end": 230
                 },
                 "resolution": null
               },
               "span": {
-                "start": 190,
-                "end": 203
+                "start": 217,
+                "end": 230
               }
             }
           },
@@ -1874,8 +2371,8 @@
                         }
                       },
                       "span": {
-                        "start": 203,
-                        "end": 204
+                        "start": 230,
+                        "end": 231
                       },
                       "resolution": {
                         "Local": {
@@ -1888,11 +2385,18 @@
                   }
                 },
                 "ty": {
-                  "Primitive": "U64"
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "MemoryAddress"
+                      ],
+                      "generics": []
+                    }
+                  }
                 },
                 "span": {
-                  "start": 203,
-                  "end": 204
+                  "start": 230,
+                  "end": 231
                 },
                 "resolution": {
                   "Field": {
@@ -1905,23 +2409,105 @@
               },
               "rhs": {
                 "kind": {
-                  "Literal": [
-                    "U64",
-                    "0"
-                  ]
+                  "Block": {
+                    "stmts": [],
+                    "last_expr": {
+                      "kind": {
+                        "Call": {
+                          "fun": {
+                            "kind": {
+                              "Path": [
+                                "address_null"
+                              ]
+                            },
+                            "ty": {
+                              "Function": {
+                                "param_types": [],
+                                "ret_type": {
+                                  "Adt": {
+                                    "Struct": {
+                                      "name": [
+                                        "MemoryAddress"
+                                      ],
+                                      "generics": []
+                                    }
+                                  }
+                                },
+                                "effects": []
+                              }
+                            },
+                            "span": {
+                              "start": 236,
+                              "end": 237
+                            },
+                            "resolution": {
+                              "Function": {
+                                "defined_in": "./modules/std/runtime/raw_memory.bst",
+                                "span": {
+                                  "start": 78,
+                                  "end": 86
+                                }
+                              }
+                            }
+                          },
+                          "args": []
+                        }
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "MemoryAddress"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 236,
+                        "end": 239
+                      },
+                      "resolution": {
+                        "Function": {
+                          "defined_in": "./modules/std/runtime/raw_memory.bst",
+                          "span": {
+                            "start": 78,
+                            "end": 86
+                          }
+                        }
+                      }
+                    },
+                    "ty": {
+                      "Adt": {
+                        "Struct": {
+                          "name": [
+                            "MemoryAddress"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    }
+                  }
                 },
                 "ty": {
-                  "Primitive": "U64"
+                  "Adt": {
+                    "Struct": {
+                      "name": [
+                        "MemoryAddress"
+                      ],
+                      "generics": []
+                    }
+                  }
                 },
                 "span": {
-                  "start": 207,
-                  "end": 208
+                  "start": 235,
+                  "end": 240
                 },
                 "resolution": null
               },
               "span": {
-                "start": 203,
-                "end": 208
+                "start": 230,
+                "end": 240
               }
             }
           },
@@ -1947,8 +2533,8 @@
                         }
                       },
                       "span": {
-                        "start": 208,
-                        "end": 209
+                        "start": 240,
+                        "end": 241
                       },
                       "resolution": {
                         "Local": {
@@ -1964,8 +2550,8 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 208,
-                  "end": 209
+                  "start": 240,
+                  "end": 241
                 },
                 "resolution": {
                   "Field": {
@@ -1987,14 +2573,14 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 212,
-                  "end": 213
+                  "start": 244,
+                  "end": 245
                 },
                 "resolution": null
               },
               "span": {
-                "start": 208,
-                "end": 213
+                "start": 240,
+                "end": 245
               }
             }
           },
@@ -2020,8 +2606,8 @@
                         }
                       },
                       "span": {
-                        "start": 213,
-                        "end": 214
+                        "start": 245,
+                        "end": 246
                       },
                       "resolution": {
                         "Local": {
@@ -2037,8 +2623,8 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 213,
-                  "end": 214
+                  "start": 245,
+                  "end": 246
                 },
                 "resolution": {
                   "Field": {
@@ -2060,14 +2646,14 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 217,
-                  "end": 218
+                  "start": 249,
+                  "end": 250
                 },
                 "resolution": null
               },
               "span": {
-                "start": 213,
-                "end": 218
+                "start": 245,
+                "end": 250
               }
             }
           }
@@ -2080,16 +2666,16 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/memory.bst",
       "span": {
-        "start": 189,
-        "end": 219
+        "start": 216,
+        "end": 251
       },
-      "context_id": 5
+      "context_id": 6
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "raw_alloc",
+        "name": "libc_alloc",
         "params": [
           {
             "name": "bytes",
@@ -2101,7 +2687,14 @@
           }
         ],
         "ret_type": {
-          "Primitive": "U64"
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
         },
         "effects": []
       },
@@ -2109,7 +2702,14 @@
         "stmts": [],
         "last_expr": null,
         "ty": {
-          "Primitive": "U64"
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
         }
       },
       "is_public": true,
@@ -2119,18 +2719,25 @@
         "start": 1,
         "end": 12
       },
-      "context_id": 6
+      "context_id": 7
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "raw_free",
+        "name": "libc_free",
         "params": [
           {
-            "name": "ptr",
+            "name": "address",
             "ty": {
-              "Primitive": "U64"
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
             },
             "is_mut": false,
             "span": null
@@ -2163,18 +2770,25 @@
         "start": 12,
         "end": 25
       },
-      "context_id": 7
+      "context_id": 8
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "raw_memset",
+        "name": "libc_memset",
         "params": [
           {
-            "name": "ptr",
+            "name": "address",
             "ty": {
-              "Primitive": "U64"
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
             },
             "is_mut": false,
             "span": null
@@ -2215,18 +2829,25 @@
         "start": 25,
         "end": 42
       },
-      "context_id": 8
+      "context_id": 9
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "raw_memcpy",
+        "name": "libc_memcpy",
         "params": [
           {
             "name": "destination",
             "ty": {
-              "Primitive": "U64"
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
             },
             "is_mut": false,
             "span": null
@@ -2234,7 +2855,14 @@
           {
             "name": "source",
             "ty": {
-              "Primitive": "U64"
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
             },
             "is_mut": false,
             "span": null
@@ -2267,18 +2895,25 @@
         "start": 42,
         "end": 59
       },
-      "context_id": 9
+      "context_id": 10
     }
   },
   {
     "Fn": {
       "signature": {
-        "name": "raw_memcmp",
+        "name": "libc_memcmp",
         "params": [
           {
             "name": "left",
             "ty": {
-              "Primitive": "U64"
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
             },
             "is_mut": false,
             "span": null
@@ -2286,7 +2921,14 @@
           {
             "name": "right",
             "ty": {
-              "Primitive": "U64"
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
             },
             "is_mut": false,
             "span": null
@@ -2319,7 +2961,113 @@
         "start": 59,
         "end": 78
       },
-      "context_id": 10
+      "context_id": 11
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "address_null",
+        "params": [],
+        "ret_type": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
+      "span": {
+        "start": 78,
+        "end": 86
+      },
+      "context_id": 12
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "address_add",
+        "params": [
+          {
+            "name": "address",
+            "ty": {
+              "Adt": {
+                "Struct": {
+                  "name": [
+                    "MemoryAddress"
+                  ],
+                  "generics": []
+                }
+              }
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": null,
+        "ty": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "MemoryAddress"
+              ],
+              "generics": []
+            }
+          }
+        }
+      },
+      "is_public": true,
+      "extern_kind": "RuntimeIntrinsic",
+      "defined_in": "./modules/std/runtime/raw_memory.bst",
+      "span": {
+        "start": 86,
+        "end": 101
+      },
+      "context_id": 13
     }
   },
   {
@@ -2363,7 +3111,7 @@
         "start": 0,
         "end": 13
       },
-      "context_id": 11
+      "context_id": 14
     }
   },
   {
@@ -2516,7 +3264,7 @@
             "start": 33,
             "end": 43
           },
-          "context_id": 12
+          "context_id": 15
         }
       ],
       "is_public": false,
@@ -2749,7 +3497,7 @@
         "start": 61,
         "end": 79
       },
-      "context_id": 13
+      "context_id": 16
     }
   },
   {
@@ -2958,7 +3706,7 @@
         "start": 85,
         "end": 101
       },
-      "context_id": 14
+      "context_id": 17
     }
   }
 ]

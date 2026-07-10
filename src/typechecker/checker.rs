@@ -115,8 +115,41 @@ impl Typechecker {
             .is_some_and(|file_name| file_name == "raw_memory.bst")
             && matches!(
                 name,
-                "raw_alloc" | "raw_free" | "raw_memset" | "raw_memcpy" | "raw_memcmp"
+                "libc_alloc"
+                    | "libc_free"
+                    | "libc_memset"
+                    | "libc_memcpy"
+                    | "libc_memcmp"
+                    | "address_null"
+                    | "address_add"
             )
+    }
+
+    pub(crate) fn is_memory_address_ty(ty: &hir::Ty) -> bool {
+        matches!(
+            ty,
+            hir::Ty::Adt(hir::AdtTy::Struct { name, .. })
+                if name.last().map(String::as_str) == Some("MemoryAddress")
+        ) || matches!(ty, hir::Ty::Generic(name) if name == "MemoryAddress")
+    }
+
+    pub(crate) fn contains_memory_address_ty(ty: &hir::Ty) -> bool {
+        if Self::is_memory_address_ty(ty) {
+            return true;
+        }
+        match ty {
+            hir::Ty::Array(item) => Self::contains_memory_address_ty(item),
+            hir::Ty::Map { value, .. } => Self::contains_memory_address_ty(value),
+            hir::Ty::Function {
+                param_types,
+                ret_type,
+                ..
+            } => {
+                param_types.iter().any(Self::contains_memory_address_ty)
+                    || Self::contains_memory_address_ty(ret_type)
+            }
+            _ => false,
+        }
     }
     pub fn check_program(
         &mut self,
@@ -312,6 +345,19 @@ impl Typechecker {
             None => hir::Ty::Special(hir::SpecialTy::Unit), // Default return type is unit
         };
 
+        if !self.is_runtime_file(&context.path)
+            && (Self::contains_memory_address_ty(&ret_type)
+                || params
+                    .iter()
+                    .any(|param| Self::contains_memory_address_ty(&param.ty)))
+        {
+            self.errors.push(TypeError {
+                message: "MemoryAddress cannot appear in user function signatures".to_string(),
+                context: context.clone(),
+            });
+            return Err(());
+        }
+
         // Resolve effect types from the function signature's effect list
         let mut effects_vec: Vec<hir::Ty> = Vec::new();
         for eff_name in &func.effects {
@@ -492,6 +538,18 @@ impl Typechecker {
                     })
             })
             .collect::<Result<Vec<_>, _>>()?;
+
+        if !self.is_runtime_file(&context.path)
+            && fields
+                .iter()
+                .any(|field| Self::contains_memory_address_ty(&field.ty))
+        {
+            self.errors.push(TypeError {
+                message: "MemoryAddress cannot be stored in user-defined structs".to_string(),
+                context: context.clone(),
+            });
+            return Err(());
+        }
 
         let ctx_id = self.new_context(HirContextKind::Struct, &context.path, context.span);
         // Record fields as symbols in the struct context
@@ -784,6 +842,15 @@ impl Typechecker {
         owned_ty: &OwnedType,
         context: ItemContext,
     ) -> Result<hir::Ty, ()> {
+        if owned_ty.path.last().map(String::as_str) == Some("MemoryAddress")
+            && !self.is_runtime_file(&context.path)
+        {
+            self.errors.push(TypeError {
+                message: "MemoryAddress is an inferred unsafe capability and cannot be named in user type declarations".to_string(),
+                context,
+            });
+            return Err(());
+        }
         // This is a placeholder for a complex process. A real implementation must:
         // 1. Handle primitive types ("i32", "bool", etc.).
         // 2. Look up custom types (structs, enums) in `type_definitions`.

@@ -50,7 +50,7 @@
                           "item": {
                             "Path": [
                               "runtime",
-                              "raw_alloc"
+                              "libc_alloc"
                             ]
                           },
                           "span": {
@@ -76,7 +76,7 @@
                           "item": {
                             "Path": [
                               "runtime",
-                              "raw_free"
+                              "libc_free"
                             ]
                           },
                           "span": {

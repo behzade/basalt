@@ -185,6 +185,11 @@ impl TypeUnifier {
         if from == to {
             return true;
         }
+        if crate::typechecker::checker::Typechecker::is_memory_address_ty(from)
+            && crate::typechecker::checker::Typechecker::is_memory_address_ty(to)
+        {
+            return true;
+        }
         if matches!(from, hir::Ty::Special(hir::SpecialTy::Never)) {
             return true;
         }
@@ -201,7 +206,11 @@ impl TypeUnifier {
                     name: b,
                     generics: b_generics,
                 }),
-            ) => a == b && Self::same_generic_args(a_generics, b_generics),
+            ) => {
+                let same_memory_address = a.last().map(String::as_str) == Some("MemoryAddress")
+                    && b.last().map(String::as_str) == Some("MemoryAddress");
+                (a == b || same_memory_address) && Self::same_generic_args(a_generics, b_generics)
+            }
             (
                 hir::Ty::Adt(hir::AdtTy::Enum {
                     name: a,

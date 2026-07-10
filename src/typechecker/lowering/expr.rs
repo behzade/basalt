@@ -559,7 +559,21 @@ impl Typechecker {
                     None
                 };
 
-                if hir_lhs.ty != hir_rhs.ty {
+                if Typechecker::contains_memory_address_ty(&hir_lhs.ty)
+                    && self.unsafe_depth == 0
+                    && !self.is_runtime_file(&context.path)
+                {
+                    self.errors.push(TypeError {
+                        message: "MemoryAddress operations require an unsafe block".to_string(),
+                        context: context.clone(),
+                    });
+                    return Err(());
+                }
+
+                if hir_lhs.ty != hir_rhs.ty
+                    && !(TypeUnifier::is_assignable(&hir_lhs.ty, &hir_rhs.ty)
+                        && TypeUnifier::is_assignable(&hir_rhs.ty, &hir_lhs.ty))
+                {
                     if common_numeric_ty.is_none() {
                         self.errors.push(TypeError { message: format!(
                             "Binary operation between mismatched types: expected {} but found {}",
@@ -1018,6 +1032,13 @@ impl Typechecker {
                 effects,
                 body,
             } => {
+                if self.unsafe_depth > 0 && !self.is_runtime_file(&context.path) {
+                    self.errors.push(TypeError {
+                        message: "Function literals cannot capture an unsafe scope".to_string(),
+                        context: context.clone(),
+                    });
+                    return Err(());
+                }
                 // Lower a function literal into an explicit HirFnLiteral
                 let mut lowered_params: Vec<hir::HirParam> = Vec::new();
                 let mut param_types: Vec<hir::Ty> = Vec::new();
@@ -1092,10 +1113,26 @@ impl Typechecker {
                 })
             }
             OwnedExpr::Unsafe(body) => {
+                let unsafe_context = context.clone();
                 self.unsafe_depth += 1;
                 let result = self.lower_expr(*body, context);
                 self.unsafe_depth -= 1;
-                result
+                match result {
+                    Ok(expr)
+                        if Typechecker::contains_memory_address_ty(&expr.ty)
+                            && !self.is_runtime_file(&unsafe_context.path) =>
+                    {
+                        self.errors.push(TypeError {
+                            message: "MemoryAddress cannot escape an unsafe block".to_string(),
+                            context: ItemContext {
+                                span: expr.span,
+                                path: unsafe_context.path,
+                            },
+                        });
+                        Err(())
+                    }
+                    other => other,
+                }
             }
             OwnedExpr::Block { stmts, last_expr } => {
                 self.enter_scope();
@@ -1475,6 +1512,16 @@ impl Typechecker {
                 })
             }
             OwnedExpr::StructInit { path, fields, .. } => {
+                if path.last().map(String::as_str) == Some("MemoryAddress")
+                    && !self.is_runtime_file(&context.path)
+                {
+                    self.errors.push(TypeError {
+                        message: "MemoryAddress values can only be constructed by std::runtime"
+                            .to_string(),
+                        context: context.clone(),
+                    });
+                    return Err(());
+                }
                 match self.resolve_variant_struct_init(&path) {
                     Ok(Some(variant_init)) => {
                         let field_defs = variant_init.field_defs;

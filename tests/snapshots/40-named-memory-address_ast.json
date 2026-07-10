@@ -1,5 +1,5 @@
 {
-  "tests/37-safe-raw-memory-call.bst": [
+  "tests/40-named-memory-address.bst": [
     {
       "item": {
         "ImportBlock": {
@@ -17,6 +17,77 @@
       "span": {
         "start": 0,
         "end": 7
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "inspect",
+          "generics": [],
+          "params": [
+            [
+              false,
+              "address",
+              {
+                "path": [
+                  "runtime",
+                  "MemoryAddress"
+                ],
+                "generics": [],
+                "fn_params": null,
+                "fn_ret": null,
+                "fn_effects": null
+              }
+            ]
+          ],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 20,
+                          "end": 21
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 20,
+                      "end": 21
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 19,
+              "end": 22
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 7,
+        "end": 22
       }
     },
     {
@@ -43,62 +114,19 @@
                     "item": {
                       "Expr": {
                         "item": {
-                          "Call": {
-                            "fun": {
-                              "item": {
-                                "Path": [
-                                  "runtime",
-                                  "libc_alloc"
-                                ]
-                              },
-                              "span": {
-                                "start": 14,
-                                "end": 18
-                              }
-                            },
-                            "args": [
-                              {
-                                "item": {
-                                  "Literal": {
-                                    "U64": 8
-                                  }
-                                },
-                                "span": {
-                                  "start": 19,
-                                  "end": 20
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        "span": {
-                          "start": 14,
-                          "end": 21
-                        }
-                      }
-                    },
-                    "span": {
-                      "start": 14,
-                      "end": 21
-                    }
-                  },
-                  {
-                    "item": {
-                      "Expr": {
-                        "item": {
                           "Literal": {
                             "I32": 0
                           }
                         },
                         "span": {
-                          "start": 21,
-                          "end": 22
+                          "start": 29,
+                          "end": 30
                         }
                       }
                     },
                     "span": {
-                      "start": 21,
-                      "end": 22
+                      "start": 29,
+                      "end": 30
                     }
                   }
                 ],
@@ -106,16 +134,16 @@
               }
             },
             "span": {
-              "start": 13,
-              "end": 23
+              "start": 28,
+              "end": 31
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 7,
-        "end": 23
+        "start": 22,
+        "end": 31
       }
     }
   ]

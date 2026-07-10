@@ -42,46 +42,50 @@ pub(crate) fn call_runtime_intrinsic(
             write_all(fd, data.as_bytes())?;
             Ok(Value::Unit)
         }
-        "raw_alloc" => {
+        "libc_alloc" => {
             let [bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::raw_alloc expects 1 argument".into()));
+                return Err(RuntimeError(
+                    "runtime::libc_alloc expects 1 argument".into(),
+                ));
             };
-            let bytes = value_to_usize(bytes, "runtime::raw_alloc bytes")?;
+            let bytes = value_to_usize(bytes, "runtime::libc_alloc bytes")?;
             let ptr = alloc_bytes(bytes)?;
-            Ok(Value::U64(ptr))
+            Ok(memory_address(ptr))
         }
-        "raw_free" => {
-            let [ptr, bytes] = args.as_slice() else {
-                return Err(RuntimeError("runtime::raw_free expects 2 arguments".into()));
+        "libc_free" => {
+            let [address, bytes] = args.as_slice() else {
+                return Err(RuntimeError(
+                    "runtime::libc_free expects 2 arguments".into(),
+                ));
             };
-            let ptr = value_to_u64(ptr, "runtime::raw_free ptr")?;
-            let bytes = value_to_usize(bytes, "runtime::raw_free bytes")?;
+            let ptr = value_to_address(address, "runtime::libc_free address")?;
+            let bytes = value_to_usize(bytes, "runtime::libc_free bytes")?;
             free_bytes(ptr, bytes);
             Ok(Value::Unit)
         }
-        "raw_memset" => {
-            let [ptr, value, bytes] = args.as_slice() else {
+        "libc_memset" => {
+            let [address, value, bytes] = args.as_slice() else {
                 return Err(RuntimeError(
-                    "runtime::raw_memset expects 3 arguments".into(),
+                    "runtime::libc_memset expects 3 arguments".into(),
                 ));
             };
-            let ptr = value_to_u64(ptr, "runtime::raw_memset ptr")?;
-            let value = value_to_u8(value, "runtime::raw_memset value")?;
-            let bytes = value_to_usize(bytes, "runtime::raw_memset bytes")?;
+            let ptr = value_to_address(address, "runtime::libc_memset address")?;
+            let value = value_to_u8(value, "runtime::libc_memset value")?;
+            let bytes = value_to_usize(bytes, "runtime::libc_memset bytes")?;
             unsafe {
                 libc::memset(ptr as *mut libc::c_void, value.into(), bytes);
             }
             Ok(Value::Unit)
         }
-        "raw_memcpy" => {
+        "libc_memcpy" => {
             let [destination, source, bytes] = args.as_slice() else {
                 return Err(RuntimeError(
-                    "runtime::raw_memcpy expects 3 arguments".into(),
+                    "runtime::libc_memcpy expects 3 arguments".into(),
                 ));
             };
-            let destination = value_to_u64(destination, "runtime::raw_memcpy destination")?;
-            let source = value_to_u64(source, "runtime::raw_memcpy source")?;
-            let bytes = value_to_usize(bytes, "runtime::raw_memcpy bytes")?;
+            let destination = value_to_address(destination, "runtime::libc_memcpy destination")?;
+            let source = value_to_address(source, "runtime::libc_memcpy source")?;
+            let bytes = value_to_usize(bytes, "runtime::libc_memcpy bytes")?;
             unsafe {
                 libc::memcpy(
                     destination as *mut libc::c_void,
@@ -91,15 +95,15 @@ pub(crate) fn call_runtime_intrinsic(
             }
             Ok(Value::Unit)
         }
-        "raw_memcmp" => {
+        "libc_memcmp" => {
             let [left, right, bytes] = args.as_slice() else {
                 return Err(RuntimeError(
-                    "runtime::raw_memcmp expects 3 arguments".into(),
+                    "runtime::libc_memcmp expects 3 arguments".into(),
                 ));
             };
-            let left = value_to_u64(left, "runtime::raw_memcmp left")?;
-            let right = value_to_u64(right, "runtime::raw_memcmp right")?;
-            let bytes = value_to_usize(bytes, "runtime::raw_memcmp bytes")?;
+            let left = value_to_address(left, "runtime::libc_memcmp left")?;
+            let right = value_to_address(right, "runtime::libc_memcmp right")?;
+            let bytes = value_to_usize(bytes, "runtime::libc_memcmp bytes")?;
             let ordering = unsafe {
                 libc::memcmp(
                     left as *const libc::c_void,
@@ -109,9 +113,55 @@ pub(crate) fn call_runtime_intrinsic(
             };
             Ok(Value::I32(ordering))
         }
+        "address_null" => {
+            let [] = args.as_slice() else {
+                return Err(RuntimeError(
+                    "runtime::address_null expects no arguments".into(),
+                ));
+            };
+            Ok(memory_address(0))
+        }
+        "address_add" => {
+            let [address, bytes] = args.as_slice() else {
+                return Err(RuntimeError(
+                    "runtime::address_add expects 2 arguments".into(),
+                ));
+            };
+            let address = value_to_address(address, "runtime::address_add address")?;
+            let bytes = value_to_u64(bytes, "runtime::address_add bytes")?;
+            let address = address.checked_add(bytes).ok_or_else(|| {
+                RuntimeError("runtime::address_add overflowed the address space".into())
+            })?;
+            Ok(memory_address(address))
+        }
         other => Err(RuntimeError(format!(
             "Unknown runtime intrinsic: std::runtime::{}",
             other
+        ))),
+    }
+}
+
+fn memory_address(address: u64) -> Value {
+    let mut fields = std::collections::HashMap::new();
+    fields.insert("__address".to_string(), Value::U64(address));
+    Value::Struct {
+        path: vec!["MemoryAddress".to_string()],
+        fields,
+    }
+}
+
+fn value_to_address(value: &Value, context: &str) -> Result<u64> {
+    let Value::Struct { path, fields } = value else {
+        return Err(RuntimeError(format!("{} must be MemoryAddress", context)));
+    };
+    if path.last().map(String::as_str) != Some("MemoryAddress") {
+        return Err(RuntimeError(format!("{} must be MemoryAddress", context)));
+    }
+    match fields.get("__address") {
+        Some(Value::U64(address)) => Ok(*address),
+        _ => Err(RuntimeError(format!(
+            "{} has no host representation",
+            context
         ))),
     }
 }

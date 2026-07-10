@@ -1,0 +1,157 @@
+{
+  "tests/38-memory-address-escape.bst": [
+    {
+      "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "runtime"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "escaped",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Unsafe": {
+                              "item": {
+                                "Block": {
+                                  "stmts": [
+                                    {
+                                      "item": {
+                                        "Expr": {
+                                          "item": {
+                                            "Call": {
+                                              "fun": {
+                                                "item": {
+                                                  "Path": [
+                                                    "runtime",
+                                                    "libc_alloc"
+                                                  ]
+                                                },
+                                                "span": {
+                                                  "start": 19,
+                                                  "end": 23
+                                                }
+                                              },
+                                              "args": [
+                                                {
+                                                  "item": {
+                                                    "Literal": {
+                                                      "U64": 8
+                                                    }
+                                                  },
+                                                  "span": {
+                                                    "start": 24,
+                                                    "end": 25
+                                                  }
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          "span": {
+                                            "start": 19,
+                                            "end": 26
+                                          }
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 19,
+                                        "end": 26
+                                      }
+                                    }
+                                  ],
+                                  "last_expr": null
+                                }
+                              },
+                              "span": {
+                                "start": 18,
+                                "end": 27
+                              }
+                            }
+                          },
+                          "span": {
+                            "start": 17,
+                            "end": 27
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 14,
+                      "end": 27
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 27,
+                          "end": 28
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 27,
+                      "end": 28
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 13,
+              "end": 29
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 7,
+        "end": 29
+      }
+    }
+  ]
+}

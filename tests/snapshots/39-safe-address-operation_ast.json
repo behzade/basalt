@@ -1,0 +1,304 @@
+{
+  "tests/39-safe-address-operation.bst": [
+    {
+      "item": {
+        "ImportBlock": {
+          "imports": [
+            {
+              "path": [
+                "std",
+                "runtime"
+              ],
+              "alias": null
+            }
+          ]
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 7
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": true,
+                        "name": "storage",
+                        "memory": null,
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Call": {
+                              "fun": {
+                                "item": {
+                                  "Path": [
+                                    "runtime",
+                                    "arena"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 18,
+                                  "end": 22
+                                }
+                              },
+                              "args": [
+                                {
+                                  "item": {
+                                    "Literal": {
+                                      "U64": 16
+                                    }
+                                  },
+                                  "span": {
+                                    "start": 23,
+                                    "end": 24
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "span": {
+                            "start": 18,
+                            "end": 25
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 14,
+                      "end": 25
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Binary": {
+                            "op": "Eq",
+                            "lhs": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "runtime",
+                                        "arena_alloc"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 25,
+                                      "end": 29
+                                    }
+                                  },
+                                  "args": [
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "storage"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 30,
+                                        "end": 31
+                                      }
+                                    },
+                                    {
+                                      "item": {
+                                        "Literal": {
+                                          "U64": 1
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 32,
+                                        "end": 33
+                                      }
+                                    },
+                                    {
+                                      "item": {
+                                        "Literal": {
+                                          "U64": 1
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 34,
+                                        "end": 35
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "span": {
+                                "start": 25,
+                                "end": 36
+                              }
+                            },
+                            "rhs": {
+                              "item": {
+                                "Call": {
+                                  "fun": {
+                                    "item": {
+                                      "Path": [
+                                        "runtime",
+                                        "arena_alloc"
+                                      ]
+                                    },
+                                    "span": {
+                                      "start": 37,
+                                      "end": 41
+                                    }
+                                  },
+                                  "args": [
+                                    {
+                                      "item": {
+                                        "Path": [
+                                          "storage"
+                                        ]
+                                      },
+                                      "span": {
+                                        "start": 42,
+                                        "end": 43
+                                      }
+                                    },
+                                    {
+                                      "item": {
+                                        "Literal": {
+                                          "U64": 1
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 44,
+                                        "end": 45
+                                      }
+                                    },
+                                    {
+                                      "item": {
+                                        "Literal": {
+                                          "U64": 1
+                                        }
+                                      },
+                                      "span": {
+                                        "start": 46,
+                                        "end": 47
+                                      }
+                                    }
+                                  ]
+                                }
+                              },
+                              "span": {
+                                "start": 37,
+                                "end": 48
+                              }
+                            }
+                          }
+                        },
+                        "span": {
+                          "start": 25,
+                          "end": 48
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 25,
+                      "end": 48
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "runtime",
+                                  "arena_release"
+                                ]
+                              },
+                              "span": {
+                                "start": 48,
+                                "end": 52
+                              }
+                            },
+                            "args": [
+                              {
+                                "item": {
+                                  "Path": [
+                                    "storage"
+                                  ]
+                                },
+                                "span": {
+                                  "start": 53,
+                                  "end": 54
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "span": {
+                          "start": 48,
+                          "end": 55
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 48,
+                      "end": 55
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 55,
+                          "end": 56
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 55,
+                      "end": 56
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 13,
+              "end": 57
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 7,
+        "end": 57
+      }
+    }
+  ]
+}

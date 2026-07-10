@@ -1,10 +1,8 @@
-// Raw process-memory primitives. Callers must hold lexical unsafe authority.
-pub extern fn raw_alloc(bytes: u64) -> u64
-
-pub extern fn raw_free(ptr: u64, bytes: u64)
-
-pub extern fn raw_memset(ptr: u64, value: u8, bytes: u64)
-
-pub extern fn raw_memcpy(destination: u64, source: u64, bytes: u64)
-
-pub extern fn raw_memcmp(left: u64, right: u64, bytes: u64) -> i32
+// libc boundary plus the minimal address operations needed by the Basalt allocator.
+pub extern fn libc_alloc(bytes: u64) -> MemoryAddress
+pub extern fn libc_free(address: MemoryAddress, bytes: u64)
+pub extern fn libc_memset(address: MemoryAddress, value: u8, bytes: u64)
+pub extern fn libc_memcpy(destination: MemoryAddress, source: MemoryAddress, bytes: u64)
+pub extern fn libc_memcmp(left: MemoryAddress, right: MemoryAddress, bytes: u64) -> i32
+pub extern fn address_null() -> MemoryAddress
+pub extern fn address_add(address: MemoryAddress, bytes: u64) -> MemoryAddress

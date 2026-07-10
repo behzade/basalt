@@ -90,6 +90,21 @@ impl Typechecker {
                     }
                 };
 
+                if Typechecker::contains_memory_address_ty(&var_ty)
+                    && self.unsafe_depth == 0
+                    && !self.is_runtime_file(&context.path)
+                {
+                    self.errors.push(TypeError {
+                        message: "MemoryAddress values must remain inside an unsafe block"
+                            .to_string(),
+                        context: ItemContext {
+                            span: stmt.span,
+                            path: context.path.clone(),
+                        },
+                    });
+                    return Err(());
+                }
+
                 // Prevent redeclaration in the same scope
                 if let Some(last) = self.scopes.last() {
                     if last.contains_key(&name) {
@@ -250,6 +265,21 @@ impl Typechecker {
                     (Some(e), None) => Some(self.lower_expr(e, context.clone())?),
                     (None, _) => None,
                 };
+                if expr_hir_opt
+                    .as_ref()
+                    .is_some_and(|expr| Typechecker::contains_memory_address_ty(&expr.ty))
+                    && !self.is_runtime_file(&context.path)
+                {
+                    self.errors.push(TypeError {
+                        message: "MemoryAddress cannot escape through a function return"
+                            .to_string(),
+                        context: ItemContext {
+                            span: stmt.span,
+                            path: context.path.clone(),
+                        },
+                    });
+                    return Err(());
+                }
                 if let Some(expected) = &expected_return_type {
                     let actual = expr_hir_opt
                         .as_ref()
