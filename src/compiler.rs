@@ -260,11 +260,10 @@ impl Compiler {
                         });
                     }
 
-                    let is_public_runtime_testing = import
-                        .path
-                        .iter()
-                        .map(String::as_str)
-                        .eq(["std", "runtime", "testing"]);
+                    let is_public_runtime_testing = import.path.len() >= 3
+                        && import.path[0] == "std"
+                        && import.path[1] == "runtime"
+                        && import.path[2] == "testing";
                     let is_internal_runtime_submodule = import.path.len() > 2
                         && import.path[0] == "std"
                         && import.path[1] == "runtime"

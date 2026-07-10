@@ -1,12 +1,8 @@
 import {
-    std::runtime
+    std::runtime::testing::memory_checks
 }
 
 fn main() -> i32 {
-    unsafe {
-        let address = runtime::libc_alloc(8u64)
-        let interior = runtime::address_add(address, 1u64)
-        runtime::libc_free(interior, 8u64)
-        0
-    }
+    memory_checks::interior_free_regression()
+    0
 }

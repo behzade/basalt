@@ -1,8 +1,8 @@
 import {
-    std::runtime
+    std::runtime::raw
 }
 
-fn inspect(address: runtime::MemoryAddress) -> i32 {
+fn inspect(address: raw::MemoryAddress) -> i32 {
     0
 }
 

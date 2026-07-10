@@ -300,7 +300,12 @@ fn memory_address(address: AddressHandle) -> Value {
     fields.insert("__generation".to_string(), Value::U64(address.generation));
     fields.insert("__offset".to_string(), Value::U64(address.offset as u64));
     Value::Struct {
-        path: vec!["MemoryAddress".to_string()],
+        path: vec![
+            "std".to_string(),
+            "runtime".to_string(),
+            "raw".to_string(),
+            "MemoryAddress".to_string(),
+        ],
         fields,
     }
 }

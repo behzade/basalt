@@ -7,7 +7,9 @@
             {
               "path": [
                 "std",
-                "runtime"
+                "runtime",
+                "testing",
+                "memory_checks"
               ],
               "alias": null
             }
@@ -16,7 +18,7 @@
       },
       "span": {
         "start": 0,
-        "end": 7
+        "end": 13
       }
     },
     {
@@ -43,211 +45,50 @@
                     "item": {
                       "Expr": {
                         "item": {
-                          "Unsafe": {
-                            "item": {
-                              "Block": {
-                                "stmts": [
-                                  {
-                                    "item": {
-                                      "Let": {
-                                        "is_mut": false,
-                                        "name": "address",
-                                        "memory": null,
-                                        "ty": null,
-                                        "value": {
-                                          "item": {
-                                            "Call": {
-                                              "fun": {
-                                                "item": {
-                                                  "Path": [
-                                                    "runtime",
-                                                    "libc_alloc"
-                                                  ]
-                                                },
-                                                "span": {
-                                                  "start": 19,
-                                                  "end": 23
-                                                }
-                                              },
-                                              "args": [
-                                                {
-                                                  "item": {
-                                                    "Literal": {
-                                                      "U64": 8
-                                                    }
-                                                  },
-                                                  "span": {
-                                                    "start": 24,
-                                                    "end": 25
-                                                  }
-                                                }
-                                              ]
-                                            }
-                                          },
-                                          "span": {
-                                            "start": 19,
-                                            "end": 26
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "span": {
-                                      "start": 16,
-                                      "end": 26
-                                    }
-                                  },
-                                  {
-                                    "item": {
-                                      "Let": {
-                                        "is_mut": false,
-                                        "name": "outside",
-                                        "memory": null,
-                                        "ty": null,
-                                        "value": {
-                                          "item": {
-                                            "Call": {
-                                              "fun": {
-                                                "item": {
-                                                  "Path": [
-                                                    "runtime",
-                                                    "address_add"
-                                                  ]
-                                                },
-                                                "span": {
-                                                  "start": 29,
-                                                  "end": 33
-                                                }
-                                              },
-                                              "args": [
-                                                {
-                                                  "item": {
-                                                    "Path": [
-                                                      "address"
-                                                    ]
-                                                  },
-                                                  "span": {
-                                                    "start": 34,
-                                                    "end": 35
-                                                  }
-                                                },
-                                                {
-                                                  "item": {
-                                                    "Literal": {
-                                                      "U64": 9
-                                                    }
-                                                  },
-                                                  "span": {
-                                                    "start": 36,
-                                                    "end": 37
-                                                  }
-                                                }
-                                              ]
-                                            }
-                                          },
-                                          "span": {
-                                            "start": 29,
-                                            "end": 38
-                                          }
-                                        }
-                                      }
-                                    },
-                                    "span": {
-                                      "start": 26,
-                                      "end": 38
-                                    }
-                                  },
-                                  {
-                                    "item": {
-                                      "Expr": {
-                                        "item": {
-                                          "Call": {
-                                            "fun": {
-                                              "item": {
-                                                "Path": [
-                                                  "runtime",
-                                                  "libc_free"
-                                                ]
-                                              },
-                                              "span": {
-                                                "start": 38,
-                                                "end": 42
-                                              }
-                                            },
-                                            "args": [
-                                              {
-                                                "item": {
-                                                  "Path": [
-                                                    "address"
-                                                  ]
-                                                },
-                                                "span": {
-                                                  "start": 43,
-                                                  "end": 44
-                                                }
-                                              },
-                                              {
-                                                "item": {
-                                                  "Literal": {
-                                                    "U64": 8
-                                                  }
-                                                },
-                                                "span": {
-                                                  "start": 45,
-                                                  "end": 46
-                                                }
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "span": {
-                                          "start": 38,
-                                          "end": 47
-                                        }
-                                      }
-                                    },
-                                    "span": {
-                                      "start": 38,
-                                      "end": 47
-                                    }
-                                  },
-                                  {
-                                    "item": {
-                                      "Expr": {
-                                        "item": {
-                                          "Literal": {
-                                            "I32": 0
-                                          }
-                                        },
-                                        "span": {
-                                          "start": 47,
-                                          "end": 48
-                                        }
-                                      }
-                                    },
-                                    "span": {
-                                      "start": 47,
-                                      "end": 48
-                                    }
-                                  }
-                                ],
-                                "last_expr": null
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "memory_checks",
+                                  "address_bounds_regression"
+                                ]
+                              },
+                              "span": {
+                                "start": 20,
+                                "end": 24
                               }
                             },
-                            "span": {
-                              "start": 15,
-                              "end": 49
-                            }
+                            "args": []
                           }
                         },
                         "span": {
-                          "start": 14,
-                          "end": 49
+                          "start": 20,
+                          "end": 26
                         }
                       }
                     },
                     "span": {
-                      "start": 14,
-                      "end": 49
+                      "start": 20,
+                      "end": 26
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 0
+                          }
+                        },
+                        "span": {
+                          "start": 26,
+                          "end": 27
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 26,
+                      "end": 27
                     }
                   }
                 ],
@@ -255,16 +96,16 @@
               }
             },
             "span": {
-              "start": 13,
-              "end": 50
+              "start": 19,
+              "end": 28
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 7,
-        "end": 50
+        "start": 13,
+        "end": 28
       }
     }
   ]

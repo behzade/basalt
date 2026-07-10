@@ -1,4 +1,7 @@
 // libc boundary plus the minimal address operations needed by the Basalt allocator.
+// Opaque to ordinary Basalt code: its machine representation exists only in the host runtime.
+pub struct MemoryAddress {}
+
 pub extern fn libc_alloc(bytes: u64) -> MemoryAddress
 pub extern fn libc_free(address: MemoryAddress, bytes: u64)
 pub extern fn libc_memset(address: MemoryAddress, value: u8, bytes: u64)

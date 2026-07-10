@@ -7,7 +7,8 @@
             {
               "path": [
                 "std",
-                "runtime"
+                "runtime",
+                "raw"
               ],
               "alias": null
             }
@@ -16,7 +17,7 @@
       },
       "span": {
         "start": 0,
-        "end": 7
+        "end": 10
       }
     },
     {
@@ -60,13 +61,13 @@
                                               "fun": {
                                                 "item": {
                                                   "Path": [
-                                                    "runtime",
+                                                    "raw",
                                                     "libc_alloc"
                                                   ]
                                                 },
                                                 "span": {
-                                                  "start": 19,
-                                                  "end": 23
+                                                  "start": 22,
+                                                  "end": 26
                                                 }
                                               },
                                               "args": [
@@ -77,22 +78,22 @@
                                                     }
                                                   },
                                                   "span": {
-                                                    "start": 24,
-                                                    "end": 25
+                                                    "start": 27,
+                                                    "end": 28
                                                   }
                                                 }
                                               ]
                                             }
                                           },
                                           "span": {
-                                            "start": 19,
-                                            "end": 26
+                                            "start": 22,
+                                            "end": 29
                                           }
                                         }
                                       },
                                       "span": {
-                                        "start": 19,
-                                        "end": 26
+                                        "start": 22,
+                                        "end": 29
                                       }
                                     }
                                   ],
@@ -100,21 +101,21 @@
                                 }
                               },
                               "span": {
-                                "start": 18,
-                                "end": 27
+                                "start": 21,
+                                "end": 30
                               }
                             }
                           },
                           "span": {
-                            "start": 17,
-                            "end": 27
+                            "start": 20,
+                            "end": 30
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 14,
-                      "end": 27
+                      "start": 17,
+                      "end": 30
                     }
                   },
                   {
@@ -126,14 +127,14 @@
                           }
                         },
                         "span": {
-                          "start": 27,
-                          "end": 28
+                          "start": 30,
+                          "end": 31
                         }
                       }
                     },
                     "span": {
-                      "start": 27,
-                      "end": 28
+                      "start": 30,
+                      "end": 31
                     }
                   }
                 ],
@@ -141,16 +142,16 @@
               }
             },
             "span": {
-              "start": 13,
-              "end": 29
+              "start": 16,
+              "end": 32
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 7,
-        "end": 29
+        "start": 10,
+        "end": 32
       }
     }
   ]

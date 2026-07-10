@@ -1,7 +1,7 @@
 import {
-    std::runtime::testing
+    std::runtime::testing::buffer_checks
 }
 
 fn main() -> i32 {
-    testing::buffer_regression()
+    buffer_checks::buffer_regression()
 }

@@ -1,1 +1,1 @@
-ERROR-CONTAINS: MemoryAddress is an inferred unsafe capability and cannot be named in user type declarations
+ERROR-CONTAINS: Module `std::runtime::raw` is internal to the standard library

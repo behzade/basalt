@@ -1516,8 +1516,9 @@ impl Typechecker {
                     && !self.has_memory_internals(&context.path)
                 {
                     self.errors.push(TypeError {
-                        message: "MemoryAddress values can only be constructed by std::runtime"
-                            .to_string(),
+                        message:
+                            "MemoryAddress values can only be constructed by std::runtime::raw"
+                                .to_string(),
                         context: context.clone(),
                     });
                     return Err(());

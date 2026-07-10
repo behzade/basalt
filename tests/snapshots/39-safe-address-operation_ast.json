@@ -7,7 +7,8 @@
             {
               "path": [
                 "std",
-                "runtime"
+                "runtime",
+                "allocator"
               ],
               "alias": null
             }
@@ -16,7 +17,7 @@
       },
       "span": {
         "start": 0,
-        "end": 7
+        "end": 10
       }
     },
     {
@@ -52,13 +53,13 @@
                               "fun": {
                                 "item": {
                                   "Path": [
-                                    "runtime",
+                                    "allocator",
                                     "arena"
                                   ]
                                 },
                                 "span": {
-                                  "start": 18,
-                                  "end": 22
+                                  "start": 21,
+                                  "end": 25
                                 }
                               },
                               "args": [
@@ -69,23 +70,23 @@
                                     }
                                   },
                                   "span": {
-                                    "start": 23,
-                                    "end": 24
+                                    "start": 26,
+                                    "end": 27
                                   }
                                 }
                               ]
                             }
                           },
                           "span": {
-                            "start": 18,
-                            "end": 25
+                            "start": 21,
+                            "end": 28
                           }
                         }
                       }
                     },
                     "span": {
-                      "start": 14,
-                      "end": 25
+                      "start": 17,
+                      "end": 28
                     }
                   },
                   {
@@ -100,13 +101,13 @@
                                   "fun": {
                                     "item": {
                                       "Path": [
-                                        "runtime",
+                                        "allocator",
                                         "arena_alloc"
                                       ]
                                     },
                                     "span": {
-                                      "start": 25,
-                                      "end": 29
+                                      "start": 28,
+                                      "end": 32
                                     }
                                   },
                                   "args": [
@@ -117,8 +118,8 @@
                                         ]
                                       },
                                       "span": {
-                                        "start": 30,
-                                        "end": 31
+                                        "start": 33,
+                                        "end": 34
                                       }
                                     },
                                     {
@@ -128,8 +129,8 @@
                                         }
                                       },
                                       "span": {
-                                        "start": 32,
-                                        "end": 33
+                                        "start": 35,
+                                        "end": 36
                                       }
                                     },
                                     {
@@ -139,16 +140,16 @@
                                         }
                                       },
                                       "span": {
-                                        "start": 34,
-                                        "end": 35
+                                        "start": 37,
+                                        "end": 38
                                       }
                                     }
                                   ]
                                 }
                               },
                               "span": {
-                                "start": 25,
-                                "end": 36
+                                "start": 28,
+                                "end": 39
                               }
                             },
                             "rhs": {
@@ -157,13 +158,13 @@
                                   "fun": {
                                     "item": {
                                       "Path": [
-                                        "runtime",
+                                        "allocator",
                                         "arena_alloc"
                                       ]
                                     },
                                     "span": {
-                                      "start": 37,
-                                      "end": 41
+                                      "start": 40,
+                                      "end": 44
                                     }
                                   },
                                   "args": [
@@ -174,8 +175,8 @@
                                         ]
                                       },
                                       "span": {
-                                        "start": 42,
-                                        "end": 43
+                                        "start": 45,
+                                        "end": 46
                                       }
                                     },
                                     {
@@ -185,8 +186,8 @@
                                         }
                                       },
                                       "span": {
-                                        "start": 44,
-                                        "end": 45
+                                        "start": 47,
+                                        "end": 48
                                       }
                                     },
                                     {
@@ -196,29 +197,29 @@
                                         }
                                       },
                                       "span": {
-                                        "start": 46,
-                                        "end": 47
+                                        "start": 49,
+                                        "end": 50
                                       }
                                     }
                                   ]
                                 }
                               },
                               "span": {
-                                "start": 37,
-                                "end": 48
+                                "start": 40,
+                                "end": 51
                               }
                             }
                           }
                         },
                         "span": {
-                          "start": 25,
-                          "end": 48
+                          "start": 28,
+                          "end": 51
                         }
                       }
                     },
                     "span": {
-                      "start": 25,
-                      "end": 48
+                      "start": 28,
+                      "end": 51
                     }
                   },
                   {
@@ -229,13 +230,13 @@
                             "fun": {
                               "item": {
                                 "Path": [
-                                  "runtime",
+                                  "allocator",
                                   "arena_release"
                                 ]
                               },
                               "span": {
-                                "start": 48,
-                                "end": 52
+                                "start": 51,
+                                "end": 55
                               }
                             },
                             "args": [
@@ -246,22 +247,22 @@
                                   ]
                                 },
                                 "span": {
-                                  "start": 53,
-                                  "end": 54
+                                  "start": 56,
+                                  "end": 57
                                 }
                               }
                             ]
                           }
                         },
                         "span": {
-                          "start": 48,
-                          "end": 55
+                          "start": 51,
+                          "end": 58
                         }
                       }
                     },
                     "span": {
-                      "start": 48,
-                      "end": 55
+                      "start": 51,
+                      "end": 58
                     }
                   },
                   {
@@ -273,14 +274,14 @@
                           }
                         },
                         "span": {
-                          "start": 55,
-                          "end": 56
+                          "start": 58,
+                          "end": 59
                         }
                       }
                     },
                     "span": {
-                      "start": 55,
-                      "end": 56
+                      "start": 58,
+                      "end": 59
                     }
                   }
                 ],
@@ -288,16 +289,16 @@
               }
             },
             "span": {
-              "start": 13,
-              "end": 57
+              "start": 16,
+              "end": 60
             }
           },
           "is_public": false
         }
       },
       "span": {
-        "start": 7,
-        "end": 57
+        "start": 10,
+        "end": 60
       }
     }
   ]

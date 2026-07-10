@@ -1,1 +1,1 @@
-ERROR-CONTAINS: Raw runtime intrinsic `libc_alloc` requires an unsafe block
+ERROR-CONTAINS: Module `std::runtime::raw` is internal to the standard library

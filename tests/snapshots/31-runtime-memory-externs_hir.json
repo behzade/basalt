@@ -1,1 +1,1 @@
-ERROR-CONTAINS: Raw runtime intrinsic `libc_alloc` cannot be used as a function value
+ERROR-CONTAINS: Module `std::runtime::raw` is internal to the standard library
