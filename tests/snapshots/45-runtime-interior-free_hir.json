@@ -33,13 +33,27 @@
             "Primitive": "U64"
           },
           "name_span": null
+        },
+        {
+          "name": "object_limit",
+          "ty": {
+            "Primitive": "U64"
+          },
+          "name_span": null
+        },
+        {
+          "name": "object_count",
+          "ty": {
+            "Primitive": "U64"
+          },
+          "name_span": null
         }
       ],
       "is_public": true,
       "defined_in": "./modules/std/runtime/allocator/arena.bst",
       "span": {
         "start": 11,
-        "end": 31
+        "end": 39
       },
       "context_id": 0
     }
@@ -51,6 +65,184 @@
         "params": [
           {
             "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          }
+        ],
+        "ret_type": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "std",
+                "runtime",
+                "allocator",
+                "Arena"
+              ],
+              "generics": []
+            }
+          }
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "arena_with_objects"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "U64"
+                      },
+                      {
+                        "Primitive": "U64"
+                      }
+                    ],
+                    "ret_type": {
+                      "Adt": {
+                        "Struct": {
+                          "name": [
+                            "std",
+                            "runtime",
+                            "allocator",
+                            "Arena"
+                          ],
+                          "generics": []
+                        }
+                      }
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 50,
+                  "end": 51
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "./modules/std/runtime/allocator/arena.bst",
+                    "span": {
+                      "start": 57,
+                      "end": 105
+                    }
+                  }
+                }
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "bytes"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "U64"
+                  },
+                  "span": {
+                    "start": 52,
+                    "end": 53
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "bytes",
+                      "decl_span": null
+                    }
+                  }
+                },
+                {
+                  "kind": {
+                    "Literal": [
+                      "U64",
+                      "18446744073709551615"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "U64"
+                  },
+                  "span": {
+                    "start": 54,
+                    "end": 55
+                  },
+                  "resolution": null
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Adt": {
+              "Struct": {
+                "name": [
+                  "std",
+                  "runtime",
+                  "allocator",
+                  "Arena"
+                ],
+                "generics": []
+              }
+            }
+          },
+          "span": {
+            "start": 50,
+            "end": 56
+          },
+          "resolution": {
+            "Function": {
+              "defined_in": "./modules/std/runtime/allocator/arena.bst",
+              "span": {
+                "start": 57,
+                "end": 105
+              }
+            }
+          }
+        },
+        "ty": {
+          "Adt": {
+            "Struct": {
+              "name": [
+                "std",
+                "runtime",
+                "allocator",
+                "Arena"
+              ],
+              "generics": []
+            }
+          }
+        }
+      },
+      "is_public": true,
+      "defined_in": "./modules/std/runtime/allocator/arena.bst",
+      "span": {
+        "start": 49,
+        "end": 57
+      },
+      "context_id": 1
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "arena_with_objects",
+        "params": [
+          {
+            "name": "bytes",
+            "ty": {
+              "Primitive": "U64"
+            },
+            "is_mut": false,
+            "span": null
+          },
+          {
+            "name": "objects",
             "ty": {
               "Primitive": "U64"
             },
@@ -125,8 +317,8 @@
                                   }
                                 },
                                 "span": {
-                                  "start": 48,
-                                  "end": 52
+                                  "start": 78,
+                                  "end": 82
                                 },
                                 "resolution": {
                                   "Function": {
@@ -149,8 +341,8 @@
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 53,
-                                    "end": 54
+                                    "start": 83,
+                                    "end": 84
                                   },
                                   "resolution": {
                                     "Local": {
@@ -176,8 +368,8 @@
                             }
                           },
                           "span": {
-                            "start": 48,
-                            "end": 55
+                            "start": 78,
+                            "end": 85
                           },
                           "resolution": {
                             "Function": {
@@ -202,8 +394,8 @@
                             "Primitive": "U64"
                           },
                           "span": {
-                            "start": 58,
-                            "end": 59
+                            "start": 88,
+                            "end": 89
                           },
                           "resolution": {
                             "Local": {
@@ -226,8 +418,50 @@
                             "Primitive": "U64"
                           },
                           "span": {
-                            "start": 62,
-                            "end": 63
+                            "start": 92,
+                            "end": 93
+                          },
+                          "resolution": null
+                        }
+                      ],
+                      [
+                        "object_limit",
+                        {
+                          "kind": {
+                            "Path": [
+                              "objects"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "span": {
+                            "start": 96,
+                            "end": 97
+                          },
+                          "resolution": {
+                            "Local": {
+                              "name": "objects",
+                              "decl_span": null
+                            }
+                          }
+                        }
+                      ],
+                      [
+                        "object_count",
+                        {
+                          "kind": {
+                            "Literal": [
+                              "U64",
+                              "0"
+                            ]
+                          },
+                          "ty": {
+                            "Primitive": "U64"
+                          },
+                          "span": {
+                            "start": 100,
+                            "end": 101
                           },
                           "resolution": null
                         }
@@ -249,8 +483,8 @@
                   }
                 },
                 "span": {
-                  "start": 44,
-                  "end": 65
+                  "start": 74,
+                  "end": 103
                 },
                 "resolution": null
               },
@@ -283,8 +517,8 @@
             }
           },
           "span": {
-            "start": 43,
-            "end": 66
+            "start": 73,
+            "end": 104
           },
           "resolution": null
         },
@@ -305,10 +539,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/allocator/arena.bst",
       "span": {
-        "start": 41,
-        "end": 67
+        "start": 71,
+        "end": 105
       },
-      "context_id": 1
+      "context_id": 2
     }
   },
   {
@@ -377,39 +611,113 @@
                     "op": "Eq",
                     "lhs": {
                       "kind": {
-                        "Path": [
-                          "alignment"
-                        ]
+                        "FieldAccess": {
+                          "receiver": {
+                            "kind": {
+                              "Path": [
+                                "arena"
+                              ]
+                            },
+                            "ty": {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "std",
+                                    "runtime",
+                                    "allocator",
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            "span": {
+                              "start": 129,
+                              "end": 130
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "arena",
+                                "decl_span": null
+                              }
+                            }
+                          },
+                          "field": "object_count"
+                        }
                       },
                       "ty": {
                         "Primitive": "U64"
                       },
                       "span": {
-                        "start": 91,
-                        "end": 92
+                        "start": 129,
+                        "end": 132
                       },
                       "resolution": {
-                        "Local": {
-                          "name": "alignment",
-                          "decl_span": null
+                        "Field": {
+                          "owner": [
+                            "std",
+                            "runtime",
+                            "allocator",
+                            "Arena"
+                          ],
+                          "field": "object_count"
                         }
                       }
                     },
                     "rhs": {
                       "kind": {
-                        "Literal": [
-                          "U64",
-                          "0"
-                        ]
+                        "FieldAccess": {
+                          "receiver": {
+                            "kind": {
+                              "Path": [
+                                "arena"
+                              ]
+                            },
+                            "ty": {
+                              "Adt": {
+                                "Struct": {
+                                  "name": [
+                                    "std",
+                                    "runtime",
+                                    "allocator",
+                                    "Arena"
+                                  ],
+                                  "generics": []
+                                }
+                              }
+                            },
+                            "span": {
+                              "start": 133,
+                              "end": 134
+                            },
+                            "resolution": {
+                              "Local": {
+                                "name": "arena",
+                                "decl_span": null
+                              }
+                            }
+                          },
+                          "field": "object_limit"
+                        }
                       },
                       "ty": {
                         "Primitive": "U64"
                       },
                       "span": {
-                        "start": 93,
-                        "end": 94
+                        "start": 133,
+                        "end": 136
                       },
-                      "resolution": null
+                      "resolution": {
+                        "Field": {
+                          "owner": [
+                            "std",
+                            "runtime",
+                            "allocator",
+                            "Arena"
+                          ],
+                          "field": "object_limit"
+                        }
+                      }
                     }
                   }
                 },
@@ -417,8 +725,8 @@
                   "Primitive": "Bool"
                 },
                 "span": {
-                  "start": 91,
-                  "end": 94
+                  "start": 129,
+                  "end": 136
                 },
                 "resolution": null
               },
@@ -458,8 +766,8 @@
                                 }
                               },
                               "span": {
-                                "start": 97,
-                                "end": 101
+                                "start": 139,
+                                "end": 143
                               },
                               "resolution": {
                                 "Function": {
@@ -488,8 +796,8 @@
                           }
                         },
                         "span": {
-                          "start": 97,
-                          "end": 103
+                          "start": 139,
+                          "end": 145
                         },
                         "resolution": {
                           "Function": {
@@ -530,8 +838,8 @@
                     }
                   },
                   "span": {
-                    "start": 96,
-                    "end": 104
+                    "start": 138,
+                    "end": 146
                   },
                   "resolution": null
                 },
@@ -552,549 +860,47 @@
               "else_block": {
                 "kind": {
                   "Block": {
-                    "stmts": [
-                      {
-                        "Let": {
-                          "name": "remainder",
-                          "value": {
-                            "kind": {
-                              "Binary": {
-                                "op": "Sub",
-                                "lhs": {
-                                  "kind": {
-                                    "FieldAccess": {
-                                      "receiver": {
-                                        "kind": {
-                                          "Path": [
-                                            "arena"
-                                          ]
-                                        },
-                                        "ty": {
-                                          "Adt": {
-                                            "Struct": {
-                                              "name": [
-                                                "std",
-                                                "runtime",
-                                                "allocator",
-                                                "Arena"
-                                              ],
-                                              "generics": []
-                                            }
-                                          }
-                                        },
-                                        "span": {
-                                          "start": 110,
-                                          "end": 111
-                                        },
-                                        "resolution": {
-                                          "Local": {
-                                            "name": "arena",
-                                            "decl_span": null
-                                          }
-                                        }
-                                      },
-                                      "field": "cursor"
-                                    }
-                                  },
-                                  "ty": {
-                                    "Primitive": "U64"
-                                  },
-                                  "span": {
-                                    "start": 110,
-                                    "end": 113
-                                  },
-                                  "resolution": {
-                                    "Field": {
-                                      "owner": [
-                                        "std",
-                                        "runtime",
-                                        "allocator",
-                                        "Arena"
-                                      ],
-                                      "field": "cursor"
-                                    }
-                                  }
-                                },
-                                "rhs": {
-                                  "kind": {
-                                    "Binary": {
-                                      "op": "Mul",
-                                      "lhs": {
-                                        "kind": {
-                                          "Binary": {
-                                            "op": "Div",
-                                            "lhs": {
-                                              "kind": {
-                                                "FieldAccess": {
-                                                  "receiver": {
-                                                    "kind": {
-                                                      "Path": [
-                                                        "arena"
-                                                      ]
-                                                    },
-                                                    "ty": {
-                                                      "Adt": {
-                                                        "Struct": {
-                                                          "name": [
-                                                            "std",
-                                                            "runtime",
-                                                            "allocator",
-                                                            "Arena"
-                                                          ],
-                                                          "generics": []
-                                                        }
-                                                      }
-                                                    },
-                                                    "span": {
-                                                      "start": 115,
-                                                      "end": 116
-                                                    },
-                                                    "resolution": {
-                                                      "Local": {
-                                                        "name": "arena",
-                                                        "decl_span": null
-                                                      }
-                                                    }
-                                                  },
-                                                  "field": "cursor"
-                                                }
-                                              },
-                                              "ty": {
-                                                "Primitive": "U64"
-                                              },
-                                              "span": {
-                                                "start": 115,
-                                                "end": 118
-                                              },
-                                              "resolution": {
-                                                "Field": {
-                                                  "owner": [
-                                                    "std",
-                                                    "runtime",
-                                                    "allocator",
-                                                    "Arena"
-                                                  ],
-                                                  "field": "cursor"
-                                                }
-                                              }
-                                            },
-                                            "rhs": {
-                                              "kind": {
-                                                "Path": [
-                                                  "alignment"
-                                                ]
-                                              },
-                                              "ty": {
-                                                "Primitive": "U64"
-                                              },
-                                              "span": {
-                                                "start": 119,
-                                                "end": 120
-                                              },
-                                              "resolution": {
-                                                "Local": {
-                                                  "name": "alignment",
-                                                  "decl_span": null
-                                                }
-                                              }
-                                            }
-                                          }
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 115,
-                                          "end": 120
-                                        },
-                                        "resolution": null
-                                      },
-                                      "rhs": {
-                                        "kind": {
-                                          "Path": [
-                                            "alignment"
-                                          ]
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 122,
-                                          "end": 123
-                                        },
-                                        "resolution": {
-                                          "Local": {
-                                            "name": "alignment",
-                                            "decl_span": null
-                                          }
-                                        }
-                                      }
-                                    }
-                                  },
-                                  "ty": {
-                                    "Primitive": "U64"
-                                  },
-                                  "span": {
-                                    "start": 115,
-                                    "end": 123
-                                  },
-                                  "resolution": null
-                                }
-                              }
-                            },
-                            "ty": {
-                              "Primitive": "U64"
-                            },
-                            "span": {
-                              "start": 110,
-                              "end": 123
-                            },
-                            "resolution": null
-                          },
-                          "ty": {
-                            "Primitive": "U64"
-                          },
-                          "is_mut": false,
-                          "span": {
-                            "start": 107,
-                            "end": 123
-                          },
-                          "name_span": null
-                        }
-                      },
-                      {
-                        "Let": {
-                          "name": "padding",
-                          "value": {
-                            "kind": {
-                              "If": {
-                                "cond": {
-                                  "kind": {
-                                    "Binary": {
-                                      "op": "Eq",
-                                      "lhs": {
-                                        "kind": {
-                                          "Path": [
-                                            "remainder"
-                                          ]
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 127,
-                                          "end": 128
-                                        },
-                                        "resolution": {
-                                          "Local": {
-                                            "name": "remainder",
-                                            "decl_span": {
-                                              "start": 107,
-                                              "end": 123
-                                            }
-                                          }
-                                        }
-                                      },
-                                      "rhs": {
-                                        "kind": {
-                                          "Literal": [
-                                            "U64",
-                                            "0"
-                                          ]
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 129,
-                                          "end": 130
-                                        },
-                                        "resolution": null
-                                      }
-                                    }
-                                  },
-                                  "ty": {
-                                    "Primitive": "Bool"
-                                  },
-                                  "span": {
-                                    "start": 127,
-                                    "end": 130
-                                  },
-                                  "resolution": null
-                                },
-                                "then_block": {
-                                  "stmts": [],
-                                  "last_expr": {
-                                    "kind": {
-                                      "Literal": [
-                                        "U64",
-                                        "0"
-                                      ]
-                                    },
-                                    "ty": {
-                                      "Primitive": "U64"
-                                    },
-                                    "span": {
-                                      "start": 131,
-                                      "end": 132
-                                    },
-                                    "resolution": null
-                                  },
-                                  "ty": {
-                                    "Primitive": "U64"
-                                  }
-                                },
-                                "else_block": {
-                                  "kind": {
-                                    "Block": {
-                                      "stmts": [],
-                                      "last_expr": {
-                                        "kind": {
-                                          "Binary": {
-                                            "op": "Sub",
-                                            "lhs": {
-                                              "kind": {
-                                                "Path": [
-                                                  "alignment"
-                                                ]
-                                              },
-                                              "ty": {
-                                                "Primitive": "U64"
-                                              },
-                                              "span": {
-                                                "start": 135,
-                                                "end": 136
-                                              },
-                                              "resolution": {
-                                                "Local": {
-                                                  "name": "alignment",
-                                                  "decl_span": null
-                                                }
-                                              }
-                                            },
-                                            "rhs": {
-                                              "kind": {
-                                                "Path": [
-                                                  "remainder"
-                                                ]
-                                              },
-                                              "ty": {
-                                                "Primitive": "U64"
-                                              },
-                                              "span": {
-                                                "start": 137,
-                                                "end": 138
-                                              },
-                                              "resolution": {
-                                                "Local": {
-                                                  "name": "remainder",
-                                                  "decl_span": {
-                                                    "start": 107,
-                                                    "end": 123
-                                                  }
-                                                }
-                                              }
-                                            }
-                                          }
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 135,
-                                          "end": 138
-                                        },
-                                        "resolution": null
-                                      },
-                                      "ty": {
-                                        "Primitive": "U64"
-                                      }
-                                    }
-                                  },
-                                  "ty": {
-                                    "Primitive": "U64"
-                                  },
-                                  "span": {
-                                    "start": 134,
-                                    "end": 139
-                                  },
-                                  "resolution": null
-                                }
-                              }
-                            },
-                            "ty": {
-                              "Primitive": "U64"
-                            },
-                            "span": {
-                              "start": 126,
-                              "end": 139
-                            },
-                            "resolution": null
-                          },
-                          "ty": {
-                            "Primitive": "U64"
-                          },
-                          "is_mut": false,
-                          "span": {
-                            "start": 123,
-                            "end": 139
-                          },
-                          "name_span": null
-                        }
-                      }
-                    ],
+                    "stmts": [],
                     "last_expr": {
                       "kind": {
                         "If": {
                           "cond": {
                             "kind": {
                               "Binary": {
-                                "op": "Gt",
+                                "op": "Eq",
                                 "lhs": {
                                   "kind": {
                                     "Path": [
-                                      "padding"
+                                      "alignment"
                                     ]
                                   },
                                   "ty": {
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 140,
-                                    "end": 141
+                                    "start": 150,
+                                    "end": 151
                                   },
                                   "resolution": {
                                     "Local": {
-                                      "name": "padding",
-                                      "decl_span": {
-                                        "start": 123,
-                                        "end": 139
-                                      }
+                                      "name": "alignment",
+                                      "decl_span": null
                                     }
                                   }
                                 },
                                 "rhs": {
                                   "kind": {
-                                    "Binary": {
-                                      "op": "Sub",
-                                      "lhs": {
-                                        "kind": {
-                                          "FieldAccess": {
-                                            "receiver": {
-                                              "kind": {
-                                                "Path": [
-                                                  "arena"
-                                                ]
-                                              },
-                                              "ty": {
-                                                "Adt": {
-                                                  "Struct": {
-                                                    "name": [
-                                                      "std",
-                                                      "runtime",
-                                                      "allocator",
-                                                      "Arena"
-                                                    ],
-                                                    "generics": []
-                                                  }
-                                                }
-                                              },
-                                              "span": {
-                                                "start": 142,
-                                                "end": 143
-                                              },
-                                              "resolution": {
-                                                "Local": {
-                                                  "name": "arena",
-                                                  "decl_span": null
-                                                }
-                                              }
-                                            },
-                                            "field": "capacity"
-                                          }
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 142,
-                                          "end": 145
-                                        },
-                                        "resolution": {
-                                          "Field": {
-                                            "owner": [
-                                              "std",
-                                              "runtime",
-                                              "allocator",
-                                              "Arena"
-                                            ],
-                                            "field": "capacity"
-                                          }
-                                        }
-                                      },
-                                      "rhs": {
-                                        "kind": {
-                                          "FieldAccess": {
-                                            "receiver": {
-                                              "kind": {
-                                                "Path": [
-                                                  "arena"
-                                                ]
-                                              },
-                                              "ty": {
-                                                "Adt": {
-                                                  "Struct": {
-                                                    "name": [
-                                                      "std",
-                                                      "runtime",
-                                                      "allocator",
-                                                      "Arena"
-                                                    ],
-                                                    "generics": []
-                                                  }
-                                                }
-                                              },
-                                              "span": {
-                                                "start": 146,
-                                                "end": 147
-                                              },
-                                              "resolution": {
-                                                "Local": {
-                                                  "name": "arena",
-                                                  "decl_span": null
-                                                }
-                                              }
-                                            },
-                                            "field": "cursor"
-                                          }
-                                        },
-                                        "ty": {
-                                          "Primitive": "U64"
-                                        },
-                                        "span": {
-                                          "start": 146,
-                                          "end": 149
-                                        },
-                                        "resolution": {
-                                          "Field": {
-                                            "owner": [
-                                              "std",
-                                              "runtime",
-                                              "allocator",
-                                              "Arena"
-                                            ],
-                                            "field": "cursor"
-                                          }
-                                        }
-                                      }
-                                    }
+                                    "Literal": [
+                                      "U64",
+                                      "0"
+                                    ]
                                   },
                                   "ty": {
                                     "Primitive": "U64"
                                   },
                                   "span": {
-                                    "start": 142,
-                                    "end": 149
+                                    "start": 152,
+                                    "end": 153
                                   },
                                   "resolution": null
                                 }
@@ -1104,8 +910,8 @@
                               "Primitive": "Bool"
                             },
                             "span": {
-                              "start": 140,
-                              "end": 149
+                              "start": 150,
+                              "end": 153
                             },
                             "resolution": null
                           },
@@ -1145,8 +951,8 @@
                                             }
                                           },
                                           "span": {
-                                            "start": 152,
-                                            "end": 156
+                                            "start": 156,
+                                            "end": 160
                                           },
                                           "resolution": {
                                             "Function": {
@@ -1175,8 +981,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 152,
-                                      "end": 158
+                                      "start": 156,
+                                      "end": 162
                                     },
                                     "resolution": {
                                       "Function": {
@@ -1217,8 +1023,8 @@
                                 }
                               },
                               "span": {
-                                "start": 151,
-                                "end": 159
+                                "start": 155,
+                                "end": 163
                               },
                               "resolution": null
                             },
@@ -1242,11 +1048,11 @@
                                 "stmts": [
                                   {
                                     "Let": {
-                                      "name": "aligned",
+                                      "name": "remainder",
                                       "value": {
                                         "kind": {
                                           "Binary": {
-                                            "op": "Add",
+                                            "op": "Sub",
                                             "lhs": {
                                               "kind": {
                                                 "FieldAccess": {
@@ -1270,8 +1076,8 @@
                                                       }
                                                     },
                                                     "span": {
-                                                      "start": 165,
-                                                      "end": 166
+                                                      "start": 169,
+                                                      "end": 170
                                                     },
                                                     "resolution": {
                                                       "Local": {
@@ -1287,8 +1093,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 165,
-                                                "end": 168
+                                                "start": 169,
+                                                "end": 172
                                               },
                                               "resolution": {
                                                 "Field": {
@@ -1304,26 +1110,128 @@
                                             },
                                             "rhs": {
                                               "kind": {
-                                                "Path": [
-                                                  "padding"
-                                                ]
+                                                "Binary": {
+                                                  "op": "Mul",
+                                                  "lhs": {
+                                                    "kind": {
+                                                      "Binary": {
+                                                        "op": "Div",
+                                                        "lhs": {
+                                                          "kind": {
+                                                            "FieldAccess": {
+                                                              "receiver": {
+                                                                "kind": {
+                                                                  "Path": [
+                                                                    "arena"
+                                                                  ]
+                                                                },
+                                                                "ty": {
+                                                                  "Adt": {
+                                                                    "Struct": {
+                                                                      "name": [
+                                                                        "std",
+                                                                        "runtime",
+                                                                        "allocator",
+                                                                        "Arena"
+                                                                      ],
+                                                                      "generics": []
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "span": {
+                                                                  "start": 174,
+                                                                  "end": 175
+                                                                },
+                                                                "resolution": {
+                                                                  "Local": {
+                                                                    "name": "arena",
+                                                                    "decl_span": null
+                                                                  }
+                                                                }
+                                                              },
+                                                              "field": "cursor"
+                                                            }
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 174,
+                                                            "end": 177
+                                                          },
+                                                          "resolution": {
+                                                            "Field": {
+                                                              "owner": [
+                                                                "std",
+                                                                "runtime",
+                                                                "allocator",
+                                                                "Arena"
+                                                              ],
+                                                              "field": "cursor"
+                                                            }
+                                                          }
+                                                        },
+                                                        "rhs": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "alignment"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 178,
+                                                            "end": 179
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "alignment",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 174,
+                                                      "end": 179
+                                                    },
+                                                    "resolution": null
+                                                  },
+                                                  "rhs": {
+                                                    "kind": {
+                                                      "Path": [
+                                                        "alignment"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 181,
+                                                      "end": 182
+                                                    },
+                                                    "resolution": {
+                                                      "Local": {
+                                                        "name": "alignment",
+                                                        "decl_span": null
+                                                      }
+                                                    }
+                                                  }
+                                                }
                                               },
                                               "ty": {
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 169,
-                                                "end": 170
+                                                "start": 174,
+                                                "end": 182
                                               },
-                                              "resolution": {
-                                                "Local": {
-                                                  "name": "padding",
-                                                  "decl_span": {
-                                                    "start": 123,
-                                                    "end": 139
-                                                  }
-                                                }
-                                              }
+                                              "resolution": null
                                             }
                                           }
                                         },
@@ -1331,8 +1239,8 @@
                                           "Primitive": "U64"
                                         },
                                         "span": {
-                                          "start": 165,
-                                          "end": 170
+                                          "start": 169,
+                                          "end": 182
                                         },
                                         "resolution": null
                                       },
@@ -1341,8 +1249,188 @@
                                       },
                                       "is_mut": false,
                                       "span": {
-                                        "start": 162,
-                                        "end": 170
+                                        "start": 166,
+                                        "end": 182
+                                      },
+                                      "name_span": null
+                                    }
+                                  },
+                                  {
+                                    "Let": {
+                                      "name": "padding",
+                                      "value": {
+                                        "kind": {
+                                          "If": {
+                                            "cond": {
+                                              "kind": {
+                                                "Binary": {
+                                                  "op": "Eq",
+                                                  "lhs": {
+                                                    "kind": {
+                                                      "Path": [
+                                                        "remainder"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 186,
+                                                      "end": 187
+                                                    },
+                                                    "resolution": {
+                                                      "Local": {
+                                                        "name": "remainder",
+                                                        "decl_span": {
+                                                          "start": 166,
+                                                          "end": 182
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "rhs": {
+                                                    "kind": {
+                                                      "Literal": [
+                                                        "U64",
+                                                        "0"
+                                                      ]
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 188,
+                                                      "end": 189
+                                                    },
+                                                    "resolution": null
+                                                  }
+                                                }
+                                              },
+                                              "ty": {
+                                                "Primitive": "Bool"
+                                              },
+                                              "span": {
+                                                "start": 186,
+                                                "end": 189
+                                              },
+                                              "resolution": null
+                                            },
+                                            "then_block": {
+                                              "stmts": [],
+                                              "last_expr": {
+                                                "kind": {
+                                                  "Literal": [
+                                                    "U64",
+                                                    "0"
+                                                  ]
+                                                },
+                                                "ty": {
+                                                  "Primitive": "U64"
+                                                },
+                                                "span": {
+                                                  "start": 190,
+                                                  "end": 191
+                                                },
+                                                "resolution": null
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              }
+                                            },
+                                            "else_block": {
+                                              "kind": {
+                                                "Block": {
+                                                  "stmts": [],
+                                                  "last_expr": {
+                                                    "kind": {
+                                                      "Binary": {
+                                                        "op": "Sub",
+                                                        "lhs": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "alignment"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 194,
+                                                            "end": 195
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "alignment",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        },
+                                                        "rhs": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "remainder"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 196,
+                                                            "end": 197
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "remainder",
+                                                              "decl_span": {
+                                                                "start": 166,
+                                                                "end": 182
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "U64"
+                                                    },
+                                                    "span": {
+                                                      "start": 194,
+                                                      "end": 197
+                                                    },
+                                                    "resolution": null
+                                                  },
+                                                  "ty": {
+                                                    "Primitive": "U64"
+                                                  }
+                                                }
+                                              },
+                                              "ty": {
+                                                "Primitive": "U64"
+                                              },
+                                              "span": {
+                                                "start": 193,
+                                                "end": 198
+                                              },
+                                              "resolution": null
+                                            }
+                                          }
+                                        },
+                                        "ty": {
+                                          "Primitive": "U64"
+                                        },
+                                        "span": {
+                                          "start": 185,
+                                          "end": 198
+                                        },
+                                        "resolution": null
+                                      },
+                                      "ty": {
+                                        "Primitive": "U64"
+                                      },
+                                      "is_mut": false,
+                                      "span": {
+                                        "start": 182,
+                                        "end": 198
                                       },
                                       "name_span": null
                                     }
@@ -1358,20 +1446,23 @@
                                             "lhs": {
                                               "kind": {
                                                 "Path": [
-                                                  "bytes"
+                                                  "padding"
                                                 ]
                                               },
                                               "ty": {
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 171,
-                                                "end": 172
+                                                "start": 199,
+                                                "end": 200
                                               },
                                               "resolution": {
                                                 "Local": {
-                                                  "name": "bytes",
-                                                  "decl_span": null
+                                                  "name": "padding",
+                                                  "decl_span": {
+                                                    "start": 182,
+                                                    "end": 198
+                                                  }
                                                 }
                                               }
                                             },
@@ -1402,8 +1493,8 @@
                                                             }
                                                           },
                                                           "span": {
-                                                            "start": 173,
-                                                            "end": 174
+                                                            "start": 201,
+                                                            "end": 202
                                                           },
                                                           "resolution": {
                                                             "Local": {
@@ -1419,8 +1510,8 @@
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 173,
-                                                      "end": 176
+                                                      "start": 201,
+                                                      "end": 204
                                                     },
                                                     "resolution": {
                                                       "Field": {
@@ -1436,24 +1527,56 @@
                                                   },
                                                   "rhs": {
                                                     "kind": {
-                                                      "Path": [
-                                                        "aligned"
-                                                      ]
+                                                      "FieldAccess": {
+                                                        "receiver": {
+                                                          "kind": {
+                                                            "Path": [
+                                                              "arena"
+                                                            ]
+                                                          },
+                                                          "ty": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
+                                                                  "std",
+                                                                  "runtime",
+                                                                  "allocator",
+                                                                  "Arena"
+                                                                ],
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          },
+                                                          "span": {
+                                                            "start": 205,
+                                                            "end": 206
+                                                          },
+                                                          "resolution": {
+                                                            "Local": {
+                                                              "name": "arena",
+                                                              "decl_span": null
+                                                            }
+                                                          }
+                                                        },
+                                                        "field": "cursor"
+                                                      }
                                                     },
                                                     "ty": {
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 177,
-                                                      "end": 178
+                                                      "start": 205,
+                                                      "end": 208
                                                     },
                                                     "resolution": {
-                                                      "Local": {
-                                                        "name": "aligned",
-                                                        "decl_span": {
-                                                          "start": 162,
-                                                          "end": 170
-                                                        }
+                                                      "Field": {
+                                                        "owner": [
+                                                          "std",
+                                                          "runtime",
+                                                          "allocator",
+                                                          "Arena"
+                                                        ],
+                                                        "field": "cursor"
                                                       }
                                                     }
                                                   }
@@ -1463,8 +1586,8 @@
                                                 "Primitive": "U64"
                                               },
                                               "span": {
-                                                "start": 173,
-                                                "end": 178
+                                                "start": 201,
+                                                "end": 208
                                               },
                                               "resolution": null
                                             }
@@ -1474,8 +1597,8 @@
                                           "Primitive": "Bool"
                                         },
                                         "span": {
-                                          "start": 171,
-                                          "end": 178
+                                          "start": 199,
+                                          "end": 208
                                         },
                                         "resolution": null
                                       },
@@ -1515,8 +1638,8 @@
                                                         }
                                                       },
                                                       "span": {
-                                                        "start": 181,
-                                                        "end": 185
+                                                        "start": 211,
+                                                        "end": 215
                                                       },
                                                       "resolution": {
                                                         "Function": {
@@ -1545,8 +1668,8 @@
                                                   }
                                                 },
                                                 "span": {
-                                                  "start": 181,
-                                                  "end": 187
+                                                  "start": 211,
+                                                  "end": 217
                                                 },
                                                 "resolution": {
                                                   "Function": {
@@ -1587,8 +1710,8 @@
                                             }
                                           },
                                           "span": {
-                                            "start": 180,
-                                            "end": 188
+                                            "start": 210,
+                                            "end": 218
                                           },
                                           "resolution": null
                                         },
@@ -1611,106 +1734,87 @@
                                           "Block": {
                                             "stmts": [
                                               {
-                                                "Assign": {
-                                                  "lhs": {
-                                                    "kind": {
-                                                      "FieldAccess": {
-                                                        "receiver": {
-                                                          "kind": {
-                                                            "Path": [
-                                                              "arena"
-                                                            ]
-                                                          },
-                                                          "ty": {
-                                                            "Adt": {
-                                                              "Struct": {
-                                                                "name": [
-                                                                  "std",
-                                                                  "runtime",
-                                                                  "allocator",
-                                                                  "Arena"
-                                                                ],
-                                                                "generics": []
-                                                              }
-                                                            }
-                                                          },
-                                                          "span": {
-                                                            "start": 191,
-                                                            "end": 192
-                                                          },
-                                                          "resolution": {
-                                                            "Local": {
-                                                              "name": "arena",
-                                                              "decl_span": null
-                                                            }
-                                                          }
-                                                        },
-                                                        "field": "cursor"
-                                                      }
-                                                    },
-                                                    "ty": {
-                                                      "Primitive": "U64"
-                                                    },
-                                                    "span": {
-                                                      "start": 191,
-                                                      "end": 192
-                                                    },
-                                                    "resolution": {
-                                                      "Field": {
-                                                        "owner": [
-                                                          "std",
-                                                          "runtime",
-                                                          "allocator",
-                                                          "Arena"
-                                                        ],
-                                                        "field": "cursor"
-                                                      }
-                                                    }
-                                                  },
-                                                  "rhs": {
+                                                "Let": {
+                                                  "name": "aligned",
+                                                  "value": {
                                                     "kind": {
                                                       "Binary": {
                                                         "op": "Add",
                                                         "lhs": {
                                                           "kind": {
-                                                            "Path": [
-                                                              "aligned"
-                                                            ]
+                                                            "FieldAccess": {
+                                                              "receiver": {
+                                                                "kind": {
+                                                                  "Path": [
+                                                                    "arena"
+                                                                  ]
+                                                                },
+                                                                "ty": {
+                                                                  "Adt": {
+                                                                    "Struct": {
+                                                                      "name": [
+                                                                        "std",
+                                                                        "runtime",
+                                                                        "allocator",
+                                                                        "Arena"
+                                                                      ],
+                                                                      "generics": []
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "span": {
+                                                                  "start": 224,
+                                                                  "end": 225
+                                                                },
+                                                                "resolution": {
+                                                                  "Local": {
+                                                                    "name": "arena",
+                                                                    "decl_span": null
+                                                                  }
+                                                                }
+                                                              },
+                                                              "field": "cursor"
+                                                            }
                                                           },
                                                           "ty": {
                                                             "Primitive": "U64"
                                                           },
                                                           "span": {
-                                                            "start": 195,
-                                                            "end": 196
+                                                            "start": 224,
+                                                            "end": 227
                                                           },
                                                           "resolution": {
-                                                            "Local": {
-                                                              "name": "aligned",
-                                                              "decl_span": {
-                                                                "start": 162,
-                                                                "end": 170
-                                                              }
+                                                            "Field": {
+                                                              "owner": [
+                                                                "std",
+                                                                "runtime",
+                                                                "allocator",
+                                                                "Arena"
+                                                              ],
+                                                              "field": "cursor"
                                                             }
                                                           }
                                                         },
                                                         "rhs": {
                                                           "kind": {
                                                             "Path": [
-                                                              "bytes"
+                                                              "padding"
                                                             ]
                                                           },
                                                           "ty": {
                                                             "Primitive": "U64"
                                                           },
                                                           "span": {
-                                                            "start": 197,
-                                                            "end": 198
+                                                            "start": 228,
+                                                            "end": 229
                                                           },
                                                           "resolution": {
                                                             "Local": {
-                                                              "name": "bytes",
-                                                              "decl_span": null
+                                                              "name": "padding",
+                                                              "decl_span": {
+                                                                "start": 182,
+                                                                "end": 198
+                                                              }
                                                             }
                                                           }
                                                         }
@@ -1720,117 +1824,204 @@
                                                       "Primitive": "U64"
                                                     },
                                                     "span": {
-                                                      "start": 195,
-                                                      "end": 198
+                                                      "start": 224,
+                                                      "end": 229
                                                     },
                                                     "resolution": null
                                                   },
+                                                  "ty": {
+                                                    "Primitive": "U64"
+                                                  },
+                                                  "is_mut": false,
                                                   "span": {
-                                                    "start": 191,
-                                                    "end": 198
-                                                  }
+                                                    "start": 221,
+                                                    "end": 229
+                                                  },
+                                                  "name_span": null
                                                 }
                                               }
                                             ],
                                             "last_expr": {
                                               "kind": {
-                                                "Block": {
-                                                  "stmts": [],
-                                                  "last_expr": {
+                                                "If": {
+                                                  "cond": {
                                                     "kind": {
-                                                      "Call": {
-                                                        "fun": {
+                                                      "Binary": {
+                                                        "op": "Gt",
+                                                        "lhs": {
                                                           "kind": {
                                                             "Path": [
-                                                              "raw",
-                                                              "address_add"
+                                                              "bytes"
                                                             ]
                                                           },
                                                           "ty": {
-                                                            "Function": {
-                                                              "param_types": [
-                                                                {
-                                                                  "Adt": {
-                                                                    "Struct": {
-                                                                      "name": [
-                                                                        "std",
-                                                                        "runtime",
-                                                                        "raw",
-                                                                        "MemoryAddress"
-                                                                      ],
-                                                                      "generics": []
-                                                                    }
-                                                                  }
-                                                                },
-                                                                {
-                                                                  "Primitive": "U64"
-                                                                }
-                                                              ],
-                                                              "ret_type": {
-                                                                "Adt": {
-                                                                  "Struct": {
-                                                                    "name": [
-                                                                      "std",
-                                                                      "runtime",
-                                                                      "raw",
-                                                                      "MemoryAddress"
-                                                                    ],
-                                                                    "generics": []
-                                                                  }
-                                                                }
-                                                              },
-                                                              "effects": []
-                                                            }
+                                                            "Primitive": "U64"
                                                           },
                                                           "span": {
-                                                            "start": 200,
-                                                            "end": 204
+                                                            "start": 230,
+                                                            "end": 231
                                                           },
                                                           "resolution": {
-                                                            "Function": {
-                                                              "defined_in": "./modules/std/runtime/raw/raw_memory.bst",
-                                                              "span": {
-                                                                "start": 92,
-                                                                "end": 107
-                                                              }
+                                                            "Local": {
+                                                              "name": "bytes",
+                                                              "decl_span": null
                                                             }
                                                           }
                                                         },
-                                                        "args": [
-                                                          {
+                                                        "rhs": {
+                                                          "kind": {
+                                                            "Binary": {
+                                                              "op": "Sub",
+                                                              "lhs": {
+                                                                "kind": {
+                                                                  "FieldAccess": {
+                                                                    "receiver": {
+                                                                      "kind": {
+                                                                        "Path": [
+                                                                          "arena"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Adt": {
+                                                                          "Struct": {
+                                                                            "name": [
+                                                                              "std",
+                                                                              "runtime",
+                                                                              "allocator",
+                                                                              "Arena"
+                                                                            ],
+                                                                            "generics": []
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 232,
+                                                                        "end": 233
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Local": {
+                                                                          "name": "arena",
+                                                                          "decl_span": null
+                                                                        }
+                                                                      }
+                                                                    },
+                                                                    "field": "capacity"
+                                                                  }
+                                                                },
+                                                                "ty": {
+                                                                  "Primitive": "U64"
+                                                                },
+                                                                "span": {
+                                                                  "start": 232,
+                                                                  "end": 235
+                                                                },
+                                                                "resolution": {
+                                                                  "Field": {
+                                                                    "owner": [
+                                                                      "std",
+                                                                      "runtime",
+                                                                      "allocator",
+                                                                      "Arena"
+                                                                    ],
+                                                                    "field": "capacity"
+                                                                  }
+                                                                }
+                                                              },
+                                                              "rhs": {
+                                                                "kind": {
+                                                                  "Path": [
+                                                                    "aligned"
+                                                                  ]
+                                                                },
+                                                                "ty": {
+                                                                  "Primitive": "U64"
+                                                                },
+                                                                "span": {
+                                                                  "start": 236,
+                                                                  "end": 237
+                                                                },
+                                                                "resolution": {
+                                                                  "Local": {
+                                                                    "name": "aligned",
+                                                                    "decl_span": {
+                                                                      "start": 221,
+                                                                      "end": 229
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "ty": {
+                                                            "Primitive": "U64"
+                                                          },
+                                                          "span": {
+                                                            "start": 232,
+                                                            "end": 237
+                                                          },
+                                                          "resolution": null
+                                                        }
+                                                      }
+                                                    },
+                                                    "ty": {
+                                                      "Primitive": "Bool"
+                                                    },
+                                                    "span": {
+                                                      "start": 230,
+                                                      "end": 237
+                                                    },
+                                                    "resolution": null
+                                                  },
+                                                  "then_block": {
+                                                    "stmts": [],
+                                                    "last_expr": {
+                                                      "kind": {
+                                                        "Block": {
+                                                          "stmts": [],
+                                                          "last_expr": {
                                                             "kind": {
-                                                              "FieldAccess": {
-                                                                "receiver": {
+                                                              "Call": {
+                                                                "fun": {
                                                                   "kind": {
                                                                     "Path": [
-                                                                      "arena"
+                                                                      "raw",
+                                                                      "address_null"
                                                                     ]
                                                                   },
                                                                   "ty": {
-                                                                    "Adt": {
-                                                                      "Struct": {
-                                                                        "name": [
-                                                                          "std",
-                                                                          "runtime",
-                                                                          "allocator",
-                                                                          "Arena"
-                                                                        ],
-                                                                        "generics": []
-                                                                      }
+                                                                    "Function": {
+                                                                      "param_types": [],
+                                                                      "ret_type": {
+                                                                        "Adt": {
+                                                                          "Struct": {
+                                                                            "name": [
+                                                                              "std",
+                                                                              "runtime",
+                                                                              "raw",
+                                                                              "MemoryAddress"
+                                                                            ],
+                                                                            "generics": []
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "effects": []
                                                                     }
                                                                   },
                                                                   "span": {
-                                                                    "start": 205,
-                                                                    "end": 206
+                                                                    "start": 240,
+                                                                    "end": 244
                                                                   },
                                                                   "resolution": {
-                                                                    "Local": {
-                                                                      "name": "arena",
-                                                                      "decl_span": null
+                                                                    "Function": {
+                                                                      "defined_in": "./modules/std/runtime/raw/raw_memory.bst",
+                                                                      "span": {
+                                                                        "start": 84,
+                                                                        "end": 92
+                                                                      }
                                                                     }
                                                                   }
                                                                 },
-                                                                "field": "base"
+                                                                "args": []
                                                               }
                                                             },
                                                             "ty": {
@@ -1847,45 +2038,572 @@
                                                               }
                                                             },
                                                             "span": {
-                                                              "start": 205,
-                                                              "end": 208
+                                                              "start": 240,
+                                                              "end": 246
                                                             },
                                                             "resolution": {
-                                                              "Field": {
-                                                                "owner": [
+                                                              "Function": {
+                                                                "defined_in": "./modules/std/runtime/raw/raw_memory.bst",
+                                                                "span": {
+                                                                  "start": 84,
+                                                                  "end": 92
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "ty": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
                                                                   "std",
                                                                   "runtime",
-                                                                  "allocator",
-                                                                  "Arena"
+                                                                  "raw",
+                                                                  "MemoryAddress"
                                                                 ],
-                                                                "field": "base"
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "ty": {
+                                                        "Adt": {
+                                                          "Struct": {
+                                                            "name": [
+                                                              "std",
+                                                              "runtime",
+                                                              "raw",
+                                                              "MemoryAddress"
+                                                            ],
+                                                            "generics": []
+                                                          }
+                                                        }
+                                                      },
+                                                      "span": {
+                                                        "start": 239,
+                                                        "end": 247
+                                                      },
+                                                      "resolution": null
+                                                    },
+                                                    "ty": {
+                                                      "Adt": {
+                                                        "Struct": {
+                                                          "name": [
+                                                            "std",
+                                                            "runtime",
+                                                            "raw",
+                                                            "MemoryAddress"
+                                                          ],
+                                                          "generics": []
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "else_block": {
+                                                    "kind": {
+                                                      "Block": {
+                                                        "stmts": [
+                                                          {
+                                                            "Assign": {
+                                                              "lhs": {
+                                                                "kind": {
+                                                                  "FieldAccess": {
+                                                                    "receiver": {
+                                                                      "kind": {
+                                                                        "Path": [
+                                                                          "arena"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Adt": {
+                                                                          "Struct": {
+                                                                            "name": [
+                                                                              "std",
+                                                                              "runtime",
+                                                                              "allocator",
+                                                                              "Arena"
+                                                                            ],
+                                                                            "generics": []
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 250,
+                                                                        "end": 251
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Local": {
+                                                                          "name": "arena",
+                                                                          "decl_span": null
+                                                                        }
+                                                                      }
+                                                                    },
+                                                                    "field": "cursor"
+                                                                  }
+                                                                },
+                                                                "ty": {
+                                                                  "Primitive": "U64"
+                                                                },
+                                                                "span": {
+                                                                  "start": 250,
+                                                                  "end": 251
+                                                                },
+                                                                "resolution": {
+                                                                  "Field": {
+                                                                    "owner": [
+                                                                      "std",
+                                                                      "runtime",
+                                                                      "allocator",
+                                                                      "Arena"
+                                                                    ],
+                                                                    "field": "cursor"
+                                                                  }
+                                                                }
+                                                              },
+                                                              "rhs": {
+                                                                "kind": {
+                                                                  "Binary": {
+                                                                    "op": "Add",
+                                                                    "lhs": {
+                                                                      "kind": {
+                                                                        "Path": [
+                                                                          "aligned"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Primitive": "U64"
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 254,
+                                                                        "end": 255
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Local": {
+                                                                          "name": "aligned",
+                                                                          "decl_span": {
+                                                                            "start": 221,
+                                                                            "end": 229
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    },
+                                                                    "rhs": {
+                                                                      "kind": {
+                                                                        "Path": [
+                                                                          "bytes"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Primitive": "U64"
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 256,
+                                                                        "end": 257
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Local": {
+                                                                          "name": "bytes",
+                                                                          "decl_span": null
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "ty": {
+                                                                  "Primitive": "U64"
+                                                                },
+                                                                "span": {
+                                                                  "start": 254,
+                                                                  "end": 257
+                                                                },
+                                                                "resolution": null
+                                                              },
+                                                              "span": {
+                                                                "start": 250,
+                                                                "end": 257
                                                               }
                                                             }
                                                           },
                                                           {
-                                                            "kind": {
-                                                              "Path": [
-                                                                "aligned"
-                                                              ]
-                                                            },
-                                                            "ty": {
-                                                              "Primitive": "U64"
-                                                            },
-                                                            "span": {
-                                                              "start": 209,
-                                                              "end": 210
-                                                            },
-                                                            "resolution": {
-                                                              "Local": {
-                                                                "name": "aligned",
-                                                                "decl_span": {
-                                                                  "start": 162,
-                                                                  "end": 170
+                                                            "Assign": {
+                                                              "lhs": {
+                                                                "kind": {
+                                                                  "FieldAccess": {
+                                                                    "receiver": {
+                                                                      "kind": {
+                                                                        "Path": [
+                                                                          "arena"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Adt": {
+                                                                          "Struct": {
+                                                                            "name": [
+                                                                              "std",
+                                                                              "runtime",
+                                                                              "allocator",
+                                                                              "Arena"
+                                                                            ],
+                                                                            "generics": []
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 257,
+                                                                        "end": 258
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Local": {
+                                                                          "name": "arena",
+                                                                          "decl_span": null
+                                                                        }
+                                                                      }
+                                                                    },
+                                                                    "field": "object_count"
+                                                                  }
+                                                                },
+                                                                "ty": {
+                                                                  "Primitive": "U64"
+                                                                },
+                                                                "span": {
+                                                                  "start": 257,
+                                                                  "end": 258
+                                                                },
+                                                                "resolution": {
+                                                                  "Field": {
+                                                                    "owner": [
+                                                                      "std",
+                                                                      "runtime",
+                                                                      "allocator",
+                                                                      "Arena"
+                                                                    ],
+                                                                    "field": "object_count"
+                                                                  }
                                                                 }
+                                                              },
+                                                              "rhs": {
+                                                                "kind": {
+                                                                  "Binary": {
+                                                                    "op": "Add",
+                                                                    "lhs": {
+                                                                      "kind": {
+                                                                        "FieldAccess": {
+                                                                          "receiver": {
+                                                                            "kind": {
+                                                                              "Path": [
+                                                                                "arena"
+                                                                              ]
+                                                                            },
+                                                                            "ty": {
+                                                                              "Adt": {
+                                                                                "Struct": {
+                                                                                  "name": [
+                                                                                    "std",
+                                                                                    "runtime",
+                                                                                    "allocator",
+                                                                                    "Arena"
+                                                                                  ],
+                                                                                  "generics": []
+                                                                                }
+                                                                              }
+                                                                            },
+                                                                            "span": {
+                                                                              "start": 261,
+                                                                              "end": 262
+                                                                            },
+                                                                            "resolution": {
+                                                                              "Local": {
+                                                                                "name": "arena",
+                                                                                "decl_span": null
+                                                                              }
+                                                                            }
+                                                                          },
+                                                                          "field": "object_count"
+                                                                        }
+                                                                      },
+                                                                      "ty": {
+                                                                        "Primitive": "U64"
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 261,
+                                                                        "end": 264
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Field": {
+                                                                          "owner": [
+                                                                            "std",
+                                                                            "runtime",
+                                                                            "allocator",
+                                                                            "Arena"
+                                                                          ],
+                                                                          "field": "object_count"
+                                                                        }
+                                                                      }
+                                                                    },
+                                                                    "rhs": {
+                                                                      "kind": {
+                                                                        "Literal": [
+                                                                          "U64",
+                                                                          "1"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Primitive": "U64"
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 265,
+                                                                        "end": 266
+                                                                      },
+                                                                      "resolution": null
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "ty": {
+                                                                  "Primitive": "U64"
+                                                                },
+                                                                "span": {
+                                                                  "start": 261,
+                                                                  "end": 266
+                                                                },
+                                                                "resolution": null
+                                                              },
+                                                              "span": {
+                                                                "start": 257,
+                                                                "end": 266
                                                               }
                                                             }
                                                           }
-                                                        ]
+                                                        ],
+                                                        "last_expr": {
+                                                          "kind": {
+                                                            "Block": {
+                                                              "stmts": [],
+                                                              "last_expr": {
+                                                                "kind": {
+                                                                  "Call": {
+                                                                    "fun": {
+                                                                      "kind": {
+                                                                        "Path": [
+                                                                          "raw",
+                                                                          "address_add"
+                                                                        ]
+                                                                      },
+                                                                      "ty": {
+                                                                        "Function": {
+                                                                          "param_types": [
+                                                                            {
+                                                                              "Adt": {
+                                                                                "Struct": {
+                                                                                  "name": [
+                                                                                    "std",
+                                                                                    "runtime",
+                                                                                    "raw",
+                                                                                    "MemoryAddress"
+                                                                                  ],
+                                                                                  "generics": []
+                                                                                }
+                                                                              }
+                                                                            },
+                                                                            {
+                                                                              "Primitive": "U64"
+                                                                            }
+                                                                          ],
+                                                                          "ret_type": {
+                                                                            "Adt": {
+                                                                              "Struct": {
+                                                                                "name": [
+                                                                                  "std",
+                                                                                  "runtime",
+                                                                                  "raw",
+                                                                                  "MemoryAddress"
+                                                                                ],
+                                                                                "generics": []
+                                                                              }
+                                                                            }
+                                                                          },
+                                                                          "effects": []
+                                                                        }
+                                                                      },
+                                                                      "span": {
+                                                                        "start": 268,
+                                                                        "end": 272
+                                                                      },
+                                                                      "resolution": {
+                                                                        "Function": {
+                                                                          "defined_in": "./modules/std/runtime/raw/raw_memory.bst",
+                                                                          "span": {
+                                                                            "start": 92,
+                                                                            "end": 107
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    },
+                                                                    "args": [
+                                                                      {
+                                                                        "kind": {
+                                                                          "FieldAccess": {
+                                                                            "receiver": {
+                                                                              "kind": {
+                                                                                "Path": [
+                                                                                  "arena"
+                                                                                ]
+                                                                              },
+                                                                              "ty": {
+                                                                                "Adt": {
+                                                                                  "Struct": {
+                                                                                    "name": [
+                                                                                      "std",
+                                                                                      "runtime",
+                                                                                      "allocator",
+                                                                                      "Arena"
+                                                                                    ],
+                                                                                    "generics": []
+                                                                                  }
+                                                                                }
+                                                                              },
+                                                                              "span": {
+                                                                                "start": 273,
+                                                                                "end": 274
+                                                                              },
+                                                                              "resolution": {
+                                                                                "Local": {
+                                                                                  "name": "arena",
+                                                                                  "decl_span": null
+                                                                                }
+                                                                              }
+                                                                            },
+                                                                            "field": "base"
+                                                                          }
+                                                                        },
+                                                                        "ty": {
+                                                                          "Adt": {
+                                                                            "Struct": {
+                                                                              "name": [
+                                                                                "std",
+                                                                                "runtime",
+                                                                                "raw",
+                                                                                "MemoryAddress"
+                                                                              ],
+                                                                              "generics": []
+                                                                            }
+                                                                          }
+                                                                        },
+                                                                        "span": {
+                                                                          "start": 273,
+                                                                          "end": 276
+                                                                        },
+                                                                        "resolution": {
+                                                                          "Field": {
+                                                                            "owner": [
+                                                                              "std",
+                                                                              "runtime",
+                                                                              "allocator",
+                                                                              "Arena"
+                                                                            ],
+                                                                            "field": "base"
+                                                                          }
+                                                                        }
+                                                                      },
+                                                                      {
+                                                                        "kind": {
+                                                                          "Path": [
+                                                                            "aligned"
+                                                                          ]
+                                                                        },
+                                                                        "ty": {
+                                                                          "Primitive": "U64"
+                                                                        },
+                                                                        "span": {
+                                                                          "start": 277,
+                                                                          "end": 278
+                                                                        },
+                                                                        "resolution": {
+                                                                          "Local": {
+                                                                            "name": "aligned",
+                                                                            "decl_span": {
+                                                                              "start": 221,
+                                                                              "end": 229
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    ]
+                                                                  }
+                                                                },
+                                                                "ty": {
+                                                                  "Adt": {
+                                                                    "Struct": {
+                                                                      "name": [
+                                                                        "std",
+                                                                        "runtime",
+                                                                        "raw",
+                                                                        "MemoryAddress"
+                                                                      ],
+                                                                      "generics": []
+                                                                    }
+                                                                  }
+                                                                },
+                                                                "span": {
+                                                                  "start": 268,
+                                                                  "end": 279
+                                                                },
+                                                                "resolution": {
+                                                                  "Function": {
+                                                                    "defined_in": "./modules/std/runtime/raw/raw_memory.bst",
+                                                                    "span": {
+                                                                      "start": 92,
+                                                                      "end": 107
+                                                                    }
+                                                                  }
+                                                                }
+                                                              },
+                                                              "ty": {
+                                                                "Adt": {
+                                                                  "Struct": {
+                                                                    "name": [
+                                                                      "std",
+                                                                      "runtime",
+                                                                      "raw",
+                                                                      "MemoryAddress"
+                                                                    ],
+                                                                    "generics": []
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "ty": {
+                                                            "Adt": {
+                                                              "Struct": {
+                                                                "name": [
+                                                                  "std",
+                                                                  "runtime",
+                                                                  "raw",
+                                                                  "MemoryAddress"
+                                                                ],
+                                                                "generics": []
+                                                              }
+                                                            }
+                                                          },
+                                                          "span": {
+                                                            "start": 267,
+                                                            "end": 280
+                                                          },
+                                                          "resolution": null
+                                                        },
+                                                        "ty": {
+                                                          "Adt": {
+                                                            "Struct": {
+                                                              "name": [
+                                                                "std",
+                                                                "runtime",
+                                                                "raw",
+                                                                "MemoryAddress"
+                                                              ],
+                                                              "generics": []
+                                                            }
+                                                          }
+                                                        }
                                                       }
                                                     },
                                                     "ty": {
@@ -1902,31 +2620,10 @@
                                                       }
                                                     },
                                                     "span": {
-                                                      "start": 200,
-                                                      "end": 211
+                                                      "start": 249,
+                                                      "end": 281
                                                     },
-                                                    "resolution": {
-                                                      "Function": {
-                                                        "defined_in": "./modules/std/runtime/raw/raw_memory.bst",
-                                                        "span": {
-                                                          "start": 92,
-                                                          "end": 107
-                                                        }
-                                                      }
-                                                    }
-                                                  },
-                                                  "ty": {
-                                                    "Adt": {
-                                                      "Struct": {
-                                                        "name": [
-                                                          "std",
-                                                          "runtime",
-                                                          "raw",
-                                                          "MemoryAddress"
-                                                        ],
-                                                        "generics": []
-                                                      }
-                                                    }
+                                                    "resolution": null
                                                   }
                                                 }
                                               },
@@ -1944,8 +2641,8 @@
                                                 }
                                               },
                                               "span": {
-                                                "start": 199,
-                                                "end": 212
+                                                "start": 229,
+                                                "end": 281
                                               },
                                               "resolution": null
                                             },
@@ -1978,8 +2675,8 @@
                                           }
                                         },
                                         "span": {
-                                          "start": 190,
-                                          "end": 213
+                                          "start": 220,
+                                          "end": 282
                                         },
                                         "resolution": null
                                       }
@@ -1999,8 +2696,8 @@
                                     }
                                   },
                                   "span": {
-                                    "start": 170,
-                                    "end": 213
+                                    "start": 198,
+                                    "end": 282
                                   },
                                   "resolution": null
                                 },
@@ -2033,8 +2730,8 @@
                               }
                             },
                             "span": {
-                              "start": 161,
-                              "end": 214
+                              "start": 165,
+                              "end": 283
                             },
                             "resolution": null
                           }
@@ -2054,8 +2751,8 @@
                         }
                       },
                       "span": {
-                        "start": 139,
-                        "end": 214
+                        "start": 149,
+                        "end": 283
                       },
                       "resolution": null
                     },
@@ -2088,8 +2785,8 @@
                   }
                 },
                 "span": {
-                  "start": 106,
-                  "end": 215
+                  "start": 148,
+                  "end": 284
                 },
                 "resolution": null
               }
@@ -2109,8 +2806,8 @@
             }
           },
           "span": {
-            "start": 90,
-            "end": 215
+            "start": 128,
+            "end": 284
           },
           "resolution": null
         },
@@ -2131,10 +2828,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/allocator/arena.bst",
       "span": {
-        "start": 89,
-        "end": 216
+        "start": 127,
+        "end": 285
       },
-      "context_id": 2
+      "context_id": 3
     }
   },
   {
@@ -2193,8 +2890,8 @@
                         }
                       },
                       "span": {
-                        "start": 226,
-                        "end": 227
+                        "start": 295,
+                        "end": 296
                       },
                       "resolution": {
                         "Local": {
@@ -2210,8 +2907,8 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 226,
-                  "end": 227
+                  "start": 295,
+                  "end": 296
                 },
                 "resolution": {
                   "Field": {
@@ -2236,14 +2933,93 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 230,
-                  "end": 231
+                  "start": 299,
+                  "end": 300
                 },
                 "resolution": null
               },
               "span": {
-                "start": 226,
-                "end": 231
+                "start": 295,
+                "end": 300
+              }
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "std",
+                              "runtime",
+                              "allocator",
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 300,
+                        "end": 301
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "object_count"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 300,
+                  "end": 301
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "std",
+                      "runtime",
+                      "allocator",
+                      "Arena"
+                    ],
+                    "field": "object_count"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 304,
+                  "end": 305
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 300,
+                "end": 305
               }
             }
           }
@@ -2256,10 +3032,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/allocator/arena.bst",
       "span": {
-        "start": 225,
-        "end": 232
+        "start": 294,
+        "end": 306
       },
-      "context_id": 3
+      "context_id": 4
     }
   },
   {
@@ -2336,8 +3112,8 @@
                               }
                             },
                             "span": {
-                              "start": 244,
-                              "end": 248
+                              "start": 318,
+                              "end": 322
                             },
                             "resolution": {
                               "Function": {
@@ -2373,8 +3149,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 249,
-                                      "end": 250
+                                      "start": 323,
+                                      "end": 324
                                     },
                                     "resolution": {
                                       "Local": {
@@ -2400,8 +3176,8 @@
                                 }
                               },
                               "span": {
-                                "start": 249,
-                                "end": 252
+                                "start": 323,
+                                "end": 326
                               },
                               "resolution": {
                                 "Field": {
@@ -2438,8 +3214,8 @@
                                       }
                                     },
                                     "span": {
-                                      "start": 253,
-                                      "end": 254
+                                      "start": 327,
+                                      "end": 328
                                     },
                                     "resolution": {
                                       "Local": {
@@ -2455,8 +3231,8 @@
                                 "Primitive": "U64"
                               },
                               "span": {
-                                "start": 253,
-                                "end": 256
+                                "start": 327,
+                                "end": 330
                               },
                               "resolution": {
                                 "Field": {
@@ -2477,8 +3253,8 @@
                         "Special": "Unit"
                       },
                       "span": {
-                        "start": 244,
-                        "end": 257
+                        "start": 318,
+                        "end": 331
                       },
                       "resolution": {
                         "Function": {
@@ -2499,14 +3275,14 @@
                   "Special": "Unit"
                 },
                 "span": {
-                  "start": 243,
-                  "end": 258
+                  "start": 317,
+                  "end": 332
                 },
                 "resolution": null
               },
               "span": {
-                "start": 242,
-                "end": 258
+                "start": 316,
+                "end": 332
               }
             }
           },
@@ -2535,8 +3311,8 @@
                         }
                       },
                       "span": {
-                        "start": 258,
-                        "end": 259
+                        "start": 332,
+                        "end": 333
                       },
                       "resolution": {
                         "Local": {
@@ -2562,8 +3338,8 @@
                   }
                 },
                 "span": {
-                  "start": 258,
-                  "end": 259
+                  "start": 332,
+                  "end": 333
                 },
                 "resolution": {
                   "Field": {
@@ -2611,8 +3387,8 @@
                               }
                             },
                             "span": {
-                              "start": 264,
-                              "end": 268
+                              "start": 338,
+                              "end": 342
                             },
                             "resolution": {
                               "Function": {
@@ -2641,8 +3417,8 @@
                         }
                       },
                       "span": {
-                        "start": 264,
-                        "end": 270
+                        "start": 338,
+                        "end": 344
                       },
                       "resolution": {
                         "Function": {
@@ -2683,14 +3459,14 @@
                   }
                 },
                 "span": {
-                  "start": 263,
-                  "end": 271
+                  "start": 337,
+                  "end": 345
                 },
                 "resolution": null
               },
               "span": {
-                "start": 258,
-                "end": 271
+                "start": 332,
+                "end": 345
               }
             }
           },
@@ -2719,8 +3495,8 @@
                         }
                       },
                       "span": {
-                        "start": 271,
-                        "end": 272
+                        "start": 345,
+                        "end": 346
                       },
                       "resolution": {
                         "Local": {
@@ -2736,8 +3512,8 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 271,
-                  "end": 272
+                  "start": 345,
+                  "end": 346
                 },
                 "resolution": {
                   "Field": {
@@ -2762,14 +3538,14 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 275,
-                  "end": 276
+                  "start": 349,
+                  "end": 350
                 },
                 "resolution": null
               },
               "span": {
-                "start": 271,
-                "end": 276
+                "start": 345,
+                "end": 350
               }
             }
           },
@@ -2798,8 +3574,8 @@
                         }
                       },
                       "span": {
-                        "start": 276,
-                        "end": 277
+                        "start": 350,
+                        "end": 351
                       },
                       "resolution": {
                         "Local": {
@@ -2815,8 +3591,8 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 276,
-                  "end": 277
+                  "start": 350,
+                  "end": 351
                 },
                 "resolution": {
                   "Field": {
@@ -2841,14 +3617,172 @@
                   "Primitive": "U64"
                 },
                 "span": {
-                  "start": 280,
-                  "end": 281
+                  "start": 354,
+                  "end": 355
                 },
                 "resolution": null
               },
               "span": {
-                "start": 276,
-                "end": 281
+                "start": 350,
+                "end": 355
+              }
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "std",
+                              "runtime",
+                              "allocator",
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 355,
+                        "end": 356
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "object_limit"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 355,
+                  "end": 356
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "std",
+                      "runtime",
+                      "allocator",
+                      "Arena"
+                    ],
+                    "field": "object_limit"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 359,
+                  "end": 360
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 355,
+                "end": 360
+              }
+            }
+          },
+          {
+            "Assign": {
+              "lhs": {
+                "kind": {
+                  "FieldAccess": {
+                    "receiver": {
+                      "kind": {
+                        "Path": [
+                          "arena"
+                        ]
+                      },
+                      "ty": {
+                        "Adt": {
+                          "Struct": {
+                            "name": [
+                              "std",
+                              "runtime",
+                              "allocator",
+                              "Arena"
+                            ],
+                            "generics": []
+                          }
+                        }
+                      },
+                      "span": {
+                        "start": 360,
+                        "end": 361
+                      },
+                      "resolution": {
+                        "Local": {
+                          "name": "arena",
+                          "decl_span": null
+                        }
+                      }
+                    },
+                    "field": "object_count"
+                  }
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 360,
+                  "end": 361
+                },
+                "resolution": {
+                  "Field": {
+                    "owner": [
+                      "std",
+                      "runtime",
+                      "allocator",
+                      "Arena"
+                    ],
+                    "field": "object_count"
+                  }
+                }
+              },
+              "rhs": {
+                "kind": {
+                  "Literal": [
+                    "U64",
+                    "0"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "U64"
+                },
+                "span": {
+                  "start": 364,
+                  "end": 365
+                },
+                "resolution": null
+              },
+              "span": {
+                "start": 360,
+                "end": 365
               }
             }
           }
@@ -2861,10 +3795,10 @@
       "is_public": true,
       "defined_in": "./modules/std/runtime/allocator/arena.bst",
       "span": {
-        "start": 241,
-        "end": 282
+        "start": 315,
+        "end": 366
       },
-      "context_id": 4
+      "context_id": 5
     }
   },
   {
@@ -2877,7 +3811,7 @@
         "start": 2,
         "end": 7
       },
-      "context_id": 5
+      "context_id": 6
     }
   },
   {
@@ -2933,7 +3867,7 @@
         "start": 7,
         "end": 18
       },
-      "context_id": 6
+      "context_id": 7
     }
   },
   {
@@ -2987,7 +3921,7 @@
         "start": 18,
         "end": 31
       },
-      "context_id": 7
+      "context_id": 8
     }
   },
   {
@@ -3049,7 +3983,7 @@
         "start": 31,
         "end": 48
       },
-      "context_id": 8
+      "context_id": 9
     }
   },
   {
@@ -3121,7 +4055,7 @@
         "start": 48,
         "end": 65
       },
-      "context_id": 9
+      "context_id": 10
     }
   },
   {
@@ -3193,7 +4127,7 @@
         "start": 65,
         "end": 84
       },
-      "context_id": 10
+      "context_id": 11
     }
   },
   {
@@ -3240,7 +4174,7 @@
         "start": 84,
         "end": 92
       },
-      "context_id": 11
+      "context_id": 12
     }
   },
   {
@@ -3314,7 +4248,7 @@
         "start": 92,
         "end": 107
       },
-      "context_id": 12
+      "context_id": 13
     }
   },
   {
@@ -3360,7 +4294,7 @@
         "start": 107,
         "end": 118
       },
-      "context_id": 13
+      "context_id": 14
     }
   },
   {
@@ -4668,7 +5602,7 @@
         "start": 24,
         "end": 125
       },
-      "context_id": 14
+      "context_id": 15
     }
   },
   {
@@ -4727,8 +5661,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 31,
-                            "end": 67
+                            "start": 39,
+                            "end": 57
                           }
                         }
                       }
@@ -4774,8 +5708,8 @@
                   "Function": {
                     "defined_in": "./modules/std/runtime/allocator/arena.bst",
                     "span": {
-                      "start": 31,
-                      "end": 67
+                      "start": 39,
+                      "end": 57
                     }
                   }
                 }
@@ -4963,8 +5897,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 67,
-                                  "end": 216
+                                  "start": 105,
+                                  "end": 285
                                 }
                               }
                             }
@@ -5059,8 +5993,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 67,
-                            "end": 216
+                            "start": 105,
+                            "end": 285
                           }
                         }
                       }
@@ -5146,8 +6080,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 67,
-                                  "end": 216
+                                  "start": 105,
+                                  "end": 285
                                 }
                               }
                             }
@@ -5242,8 +6176,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 67,
-                            "end": 216
+                            "start": 105,
+                            "end": 285
                           }
                         }
                       }
@@ -5493,8 +6427,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 67,
-                                  "end": 216
+                                  "start": 105,
+                                  "end": 285
                                 }
                               }
                             }
@@ -5589,8 +6523,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 67,
-                            "end": 216
+                            "start": 105,
+                            "end": 285
                           }
                         }
                       }
@@ -5676,8 +6610,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 67,
-                                  "end": 216
+                                  "start": 105,
+                                  "end": 285
                                 }
                               }
                             }
@@ -5772,8 +6706,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 67,
-                            "end": 216
+                            "start": 105,
+                            "end": 285
                           }
                         }
                       }
@@ -5842,8 +6776,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 216,
-                                  "end": 232
+                                  "start": 285,
+                                  "end": 306
                                 }
                               }
                             }
@@ -5896,8 +6830,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 216,
-                            "end": 232
+                            "start": 285,
+                            "end": 306
                           }
                         }
                       }
@@ -5968,8 +6902,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 67,
-                                  "end": 216
+                                  "start": 105,
+                                  "end": 285
                                 }
                               }
                             }
@@ -6064,8 +6998,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 67,
-                            "end": 216
+                            "start": 105,
+                            "end": 285
                           }
                         }
                       }
@@ -6134,8 +7068,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 232,
-                                  "end": 282
+                                  "start": 306,
+                                  "end": 366
                                 }
                               }
                             }
@@ -6188,8 +7122,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 232,
-                            "end": 282
+                            "start": 306,
+                            "end": 366
                           }
                         }
                       }
@@ -6260,8 +7194,8 @@
                               "Function": {
                                 "defined_in": "./modules/std/runtime/allocator/arena.bst",
                                 "span": {
-                                  "start": 67,
-                                  "end": 216
+                                  "start": 105,
+                                  "end": 285
                                 }
                               }
                             }
@@ -6356,8 +7290,8 @@
                         "Function": {
                           "defined_in": "./modules/std/runtime/allocator/arena.bst",
                           "span": {
-                            "start": 67,
-                            "end": 216
+                            "start": 105,
+                            "end": 285
                           }
                         }
                       }
@@ -7099,7 +8033,7 @@
         "start": 132,
         "end": 318
       },
-      "context_id": 15
+      "context_id": 16
     }
   },
   {
@@ -7528,7 +8462,7 @@
         "start": 323,
         "end": 358
       },
-      "context_id": 16
+      "context_id": 17
     }
   },
   {
@@ -7974,7 +8908,7 @@
         "start": 363,
         "end": 399
       },
-      "context_id": 17
+      "context_id": 18
     }
   },
   {
@@ -8384,7 +9318,7 @@
         "start": 404,
         "end": 437
       },
-      "context_id": 18
+      "context_id": 19
     }
   },
   {
@@ -8830,7 +9764,7 @@
         "start": 442,
         "end": 478
       },
-      "context_id": 19
+      "context_id": 20
     }
   },
   {
@@ -9276,7 +10210,7 @@
         "start": 483,
         "end": 519
       },
-      "context_id": 20
+      "context_id": 21
     }
   },
   {
@@ -9379,7 +10313,7 @@
         "start": 19,
         "end": 28
       },
-      "context_id": 21
+      "context_id": 22
     }
   }
 ]

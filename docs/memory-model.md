@@ -188,13 +188,17 @@ Initial constraints:
 
 ## Current Interpreter Experiment
 
-The interpreter currently implements accounting plus runtime-backed chunk reservation, not physical placement of every value into that chunk.
+The interpreter currently implements Basalt-owned region allocation policy plus host-side value
+provenance, not physical placement of every value into its reserved address.
 
 - Heap-shaped values are charged to the active function frame.
-- Lexical chunk declarations reserve their backing byte budget through an internal host allocation.
-- `std::runtime::allocator::Arena` is a real bump allocator whose cursor, alignment, exhaustion,
-  reset, and release policy is implemented in Basalt. The internal `std::runtime::raw` submodule
-  contains its small `libc_*` process-memory boundary and opaque address operations.
+- Every lexical chunk owns a private mutable `std::runtime::allocator::Arena`. Region creation,
+  byte/object exhaustion, allocation, reset, and release execute the Basalt functions directly;
+  the Rust interpreter retains only opaque context identity/generation and the private allocator
+  binding. Runtime allocator HIR is compiled separately and cannot become visible through user
+  imports or unqualified name lookup.
+- The internal `std::runtime::raw` submodule contains the small hosted `libc_*` process-memory
+  boundary and opaque address operations.
 - Process addresses have the nominal `MemoryAddress` type. Their machine-number representation is
   host-private; user functions cannot return them, store them in user structs, or bind them outside
   the lexical `unsafe` scope where they are used.
@@ -219,10 +223,12 @@ The interpreter currently implements accounting plus runtime-backed chunk reserv
   while an ordinary call returns into the caller's temporary frame.
 - A callee that writes a compound value through a mutable caller alias reconstructs that value in
   the caller binding's allocation destination before the callee frame exits.
-- `reset region` requires a mutable Region binding, clears byte/object accounting, and advances its generation. Existing
-  values retain the prior generation and are rejected on their next read.
+- `reset region` requires a mutable Region binding, calls Basalt `arena_reset`, and advances its
+  context generation. Existing values retain the prior generation and are rejected on their next
+  read.
 - Exiting the declaring lexical block copies an owned block result into the outer destination,
-  invalidates remaining region values, and destroys the region backing allocation.
+  calls Basalt `arena_release`, invalidates remaining region values, and destroys the private
+  allocator binding.
 - Scalars are free.
 - Strings, arrays, maps, structs, enum variants, closures, and handlers count against the frame.
 - Exceeding the frame budget is a runtime error.

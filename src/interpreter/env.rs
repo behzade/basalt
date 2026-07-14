@@ -25,6 +25,14 @@ pub(crate) struct Binding {
 }
 
 impl Binding {
+    pub(crate) fn new(value: Value, mutable: bool, destination: Option<AllocationOwner>) -> Self {
+        Self {
+            value: Rc::new(RefCell::new(value)),
+            mutable,
+            destination,
+        }
+    }
+
     pub(crate) fn stack_size_bytes(&self) -> usize {
         self.value.borrow().stack_size_bytes()
     }
@@ -98,14 +106,7 @@ impl Env {
         destination: Option<AllocationOwner>,
     ) {
         if let Some(current) = self.scopes.last_mut() {
-            current.insert(
-                name,
-                Binding {
-                    value: Rc::new(RefCell::new(value)),
-                    mutable,
-                    destination,
-                },
-            );
+            current.insert(name, Binding::new(value, mutable, destination));
         }
     }
 

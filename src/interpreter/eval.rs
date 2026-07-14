@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 
 use crate::hir::{
@@ -22,6 +22,42 @@ enum CallArgument {
     MutableBinding(Binding),
 }
 
+#[derive(Clone)]
+struct RuntimeAllocatorFunctions {
+    create: HirFunction,
+    allocate: HirFunction,
+    reset: HirFunction,
+    release: HirFunction,
+}
+
+impl RuntimeAllocatorFunctions {
+    fn from_items(items: &[hir::Item]) -> Result<Option<Self>> {
+        if items.is_empty() {
+            return Ok(None);
+        }
+        let function = |name: &str| {
+            items.iter().find_map(|item| match item {
+                hir::Item::Fn(function) if function.signature.name == name => {
+                    Some(function.clone())
+                }
+                _ => None,
+            })
+        };
+        Ok(Some(Self {
+            create: function("arena_with_objects").ok_or_else(|| {
+                RuntimeError("Basalt runtime is missing arena_with_objects".to_string())
+            })?,
+            allocate: function("arena_alloc")
+                .ok_or_else(|| RuntimeError("Basalt runtime is missing arena_alloc".to_string()))?,
+            reset: function("arena_reset")
+                .ok_or_else(|| RuntimeError("Basalt runtime is missing arena_reset".to_string()))?,
+            release: function("arena_release").ok_or_else(|| {
+                RuntimeError("Basalt runtime is missing arena_release".to_string())
+            })?,
+        }))
+    }
+}
+
 macro_rules! flow_value {
     ($expr:expr) => {
         match $expr? {
@@ -34,6 +70,8 @@ macro_rules! flow_value {
 /// A very small tree-walking interpreter over the HIR.
 pub struct Interpreter {
     index: HirIndex,
+    runtime_allocator: Option<RuntimeAllocatorFunctions>,
+    runtime_allocator_depth: Cell<usize>,
     active_handlers: RefCell<Vec<HandlerValue>>,
     stack: RefCell<StackAllocator>,
     runtime_memory: RefCell<runtime::RuntimeMemory>,
@@ -94,8 +132,14 @@ impl Interpreter {
     }
 
     pub fn new(items: &[hir::Item]) -> Result<Self> {
+        Self::with_runtime(items, &[])
+    }
+
+    pub fn with_runtime(items: &[hir::Item], runtime_items: &[hir::Item]) -> Result<Self> {
         Ok(Interpreter {
-            index: HirIndex::from_items(items),
+            index: HirIndex::from_program_and_runtime(items, runtime_items),
+            runtime_allocator: RuntimeAllocatorFunctions::from_items(runtime_items)?,
+            runtime_allocator_depth: Cell::new(0),
             active_handlers: RefCell::new(vec![]),
             stack: RefCell::new(StackAllocator::default()),
             runtime_memory: RefCell::new(runtime::RuntimeMemory::default()),
@@ -123,6 +167,15 @@ impl Interpreter {
         &self,
         function: &HirFunction,
         args: Vec<CallArgument>,
+    ) -> Result<Value> {
+        self.call_function_with_args_mode(function, args, false)
+    }
+
+    fn call_function_with_args_mode(
+        &self,
+        function: &HirFunction,
+        args: Vec<CallArgument>,
+        runtime_return: bool,
     ) -> Result<Value> {
         match function.extern_kind {
             Some(hir::HirExternKind::RuntimeIntrinsic) => {
@@ -157,7 +210,11 @@ impl Interpreter {
             )));
         }
 
-        let return_target = self.stack.borrow().return_target();
+        let return_target = if runtime_return {
+            self.stack.borrow().runtime_root_owner()
+        } else {
+            self.stack.borrow().return_target()
+        };
         let _frame = StackFrameGuard::push(&self.stack, function.signature.name.clone());
         let mut env = Env::new();
         // bind params
@@ -182,9 +239,11 @@ impl Interpreter {
         let value = match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => value,
         };
-        self.stack
-            .borrow_mut()
-            .copy_value_to(Some(return_target), value)
+        if runtime_return {
+            self.stack.borrow_mut().copy_value_to_runtime(value)
+        } else {
+            self.copy_value_to(Some(return_target), value)
+        }
     }
 
     pub(crate) fn call_function_value(
@@ -212,28 +271,154 @@ impl Interpreter {
         let value = match self.eval_block(&function.body, &mut env)? {
             Flow::Value(value) | Flow::Return(value) => value,
         };
-        self.stack
-            .borrow_mut()
-            .copy_value_to(Some(return_target), value)
+        self.copy_value_to(Some(return_target), value)
+    }
+
+    fn call_runtime_allocator(
+        &self,
+        function: &HirFunction,
+        args: Vec<CallArgument>,
+    ) -> Result<Value> {
+        let _allocation_target = AllocationRegionGuard::enter(&self.stack, None);
+        self.runtime_allocator_depth
+            .set(self.runtime_allocator_depth.get().saturating_add(1));
+        let result = self.call_function_with_args_mode(function, args, true);
+        self.runtime_allocator_depth
+            .set(self.runtime_allocator_depth.get().saturating_sub(1));
+        result
+    }
+
+    fn create_region_allocator(
+        &self,
+        byte_limit: usize,
+        object_limit: Option<usize>,
+    ) -> Result<Binding> {
+        let functions = self
+            .runtime_allocator
+            .as_ref()
+            .ok_or_else(|| RuntimeError("Basalt runtime allocator was not linked".to_string()))?;
+        let bytes = u64::try_from(byte_limit)
+            .map_err(|_| RuntimeError("Region byte limit does not fit u64".to_string()))?;
+        let objects = u64::try_from(object_limit.unwrap_or(256))
+            .map_err(|_| RuntimeError("Region object limit does not fit u64".to_string()))?;
+        let allocator = self.call_runtime_allocator(
+            &functions.create,
+            vec![
+                CallArgument::Value(Value::U64(bytes)),
+                CallArgument::Value(Value::U64(objects)),
+            ],
+        )?;
+        let destination = self.stack.borrow().runtime_root_owner();
+        Ok(Binding::new(allocator, true, Some(destination)))
+    }
+
+    fn reserve_region_value(
+        &self,
+        owner: super::value::AllocationOwner,
+        value: &Value,
+    ) -> Result<()> {
+        let size = value.stack_size_bytes();
+        if size == 0 {
+            return Ok(());
+        }
+        let allocator = self.stack.borrow().region_allocator(owner)?;
+        let region_name = self.stack.borrow().region_name(owner)?;
+        let function = self
+            .runtime_allocator
+            .as_ref()
+            .ok_or_else(|| RuntimeError("Basalt runtime allocator was not linked".to_string()))?
+            .allocate
+            .clone();
+        let bytes = u64::try_from(size)
+            .map_err(|_| RuntimeError("Allocation size does not fit u64".to_string()))?;
+        let address = self.call_runtime_allocator(
+            &function,
+            vec![
+                CallArgument::MutableBinding(allocator),
+                CallArgument::Value(Value::U64(bytes)),
+                CallArgument::Value(Value::U64(1)),
+            ],
+        )?;
+        if runtime::is_null_address(&address)? {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' exhausted its Basalt arena while allocating {} bytes for {}",
+                region_name,
+                size,
+                value.allocation_kind()
+            )));
+        }
+        Ok(())
+    }
+
+    fn reset_region(
+        &self,
+        owner: super::value::AllocationOwner,
+    ) -> Result<super::value::AllocationOwner> {
+        let allocator = self.stack.borrow().region_allocator(owner)?;
+        let function = self
+            .runtime_allocator
+            .as_ref()
+            .ok_or_else(|| RuntimeError("Basalt runtime allocator was not linked".to_string()))?
+            .reset
+            .clone();
+        self.call_runtime_allocator(&function, vec![CallArgument::MutableBinding(allocator)])?;
+        self.stack.borrow_mut().reset_region(owner)
+    }
+
+    fn destroy_region(&self, owner: super::value::AllocationOwner) -> Result<()> {
+        let allocator = self.stack.borrow().region_allocator(owner)?;
+        let function = self
+            .runtime_allocator
+            .as_ref()
+            .ok_or_else(|| RuntimeError("Basalt runtime allocator was not linked".to_string()))?
+            .release
+            .clone();
+        let released =
+            self.call_runtime_allocator(&function, vec![CallArgument::MutableBinding(allocator)]);
+        let destroyed = self.stack.borrow_mut().destroy_region(owner);
+        released.and(destroyed)
     }
 
     /// Evaluate a block, returning the last expression value or an explicit return value.
     fn eval_block(&self, block: &HirBlock, env: &mut Env) -> Result<Flow<Value>> {
         env.push_scope();
-        for stmt in &block.stmts {
-            match self.eval_stmt(stmt, env)? {
-                Flow::Value(()) => {}
-                Flow::Return(value) => {
-                    return self.finish_block_scope(Flow::Return(value), env);
+        let evaluated = (|| {
+            for stmt in &block.stmts {
+                match self.eval_stmt(stmt, env)? {
+                    Flow::Value(()) => {}
+                    Flow::Return(value) => return Ok(Flow::Return(value)),
                 }
             }
+            if let Some(last_expr) = &block.last_expr {
+                self.eval_expr(last_expr, env)
+            } else {
+                Ok(Flow::Value(Value::Unit))
+            }
+        })();
+        match evaluated {
+            Ok(flow) => self.finish_block_scope(flow, env),
+            Err(error) => {
+                let regions = env.pop_scope();
+                self.destroy_scope_regions(regions);
+                Err(error)
+            }
         }
-        let result = if let Some(last_expr) = &block.last_expr {
-            self.eval_expr(last_expr, env)?
-        } else {
-            Flow::Value(Value::Unit)
-        };
-        self.finish_block_scope(result, env)
+    }
+
+    fn destroy_scope_regions(
+        &self,
+        regions: Vec<super::value::AllocationOwner>,
+    ) -> Option<RuntimeError> {
+        let mut cleanup_error = None;
+        for region in regions.into_iter().rev() {
+            let current = self.stack.borrow().current_region_owner(region.id);
+            if let Err(error) = current.and_then(|owner| self.destroy_region(owner))
+                && cleanup_error.is_none()
+            {
+                cleanup_error = Some(error);
+            }
+        }
+        cleanup_error
     }
 
     fn finish_block_scope(&self, flow: Flow<Value>, env: &mut Env) -> Result<Flow<Value>> {
@@ -254,27 +439,12 @@ impl Interpreter {
         } else {
             let target = self.stack.borrow().current_target();
             match flow {
-                Flow::Value(value) => self
-                    .stack
-                    .borrow_mut()
-                    .copy_value_to(target, value)
-                    .map(Flow::Value),
-                Flow::Return(value) => self
-                    .stack
-                    .borrow_mut()
-                    .copy_value_to(target, value)
-                    .map(Flow::Return),
+                Flow::Value(value) => self.copy_value_to(target, value).map(Flow::Value),
+                Flow::Return(value) => self.copy_value_to(target, value).map(Flow::Return),
             }
         };
 
-        let mut cleanup_error = None;
-        for region in regions.into_iter().rev() {
-            if let Err(error) = self.stack.borrow_mut().destroy_region(region)
-                && cleanup_error.is_none()
-            {
-                cleanup_error = Some(error);
-            }
-        }
+        let cleanup_error = self.destroy_scope_regions(regions);
         match (placed, cleanup_error) {
             (Err(error), _) | (Ok(_), Some(error)) => Err(error),
             (Ok(flow), None) => Ok(flow),
@@ -289,11 +459,11 @@ impl Interpreter {
                 object_limit,
                 ..
             } => {
-                let owner = self.stack.borrow_mut().define_region(
-                    name.clone(),
-                    *byte_limit,
-                    *object_limit,
-                )?;
+                let allocator = self.create_region_allocator(*byte_limit, *object_limit)?;
+                let owner = self
+                    .stack
+                    .borrow_mut()
+                    .define_region(name.clone(), allocator)?;
                 let destination = self.stack.borrow().current_target();
                 env.define(name.clone(), Value::Region(owner), true, destination);
                 env.register_region(owner);
@@ -328,10 +498,7 @@ impl Interpreter {
                     .ok_or_else(|| {
                         RuntimeError("No active allocation context for binding".to_string())
                     })?;
-                let value = self
-                    .stack
-                    .borrow_mut()
-                    .copy_value_to(Some(destination), value)?;
+                let value = self.copy_value_to(Some(destination), value)?;
                 env.define(name.clone(), value, *is_mut, Some(destination));
                 Ok(Flow::Value(()))
             }
@@ -340,7 +507,7 @@ impl Interpreter {
                 let Value::Region(owner) = value else {
                     return Err(RuntimeError("reset target must be Region".to_string()));
                 };
-                let owner = self.stack.borrow_mut().reset_region(owner)?;
+                let owner = self.reset_region(owner)?;
                 let ExprKind::Path(path) = &region.kind else {
                     return Err(RuntimeError(
                         "reset target must be a mutable region binding".to_string(),
@@ -383,8 +550,7 @@ impl Interpreter {
                             {
                                 let mut new_fields = fields.clone();
                                 let new_val = flow_value!(self.eval_expr(rhs, env));
-                                let new_val =
-                                    self.stack.borrow_mut().copy_value_to(owner, new_val)?;
+                                let new_val = self.copy_value_to(owner, new_val)?;
                                 new_fields.insert(field.clone(), new_val);
                                 self.assign_binding(
                                     env,
@@ -1116,7 +1282,32 @@ impl Interpreter {
     }
 
     fn alloc(&self, value: Value) -> Result<Value> {
-        self.stack.borrow_mut().alloc_value(value)
+        let target = self.stack.borrow().current_target();
+        self.copy_value_to(target, value)
+    }
+
+    fn copy_value_to(
+        &self,
+        target: Option<super::value::AllocationOwner>,
+        mut value: Value,
+    ) -> Result<Value> {
+        let is_region = target.is_some_and(|owner| self.stack.borrow().is_region(owner));
+        if !is_region {
+            if target == Some(self.stack.borrow().runtime_root_owner())
+                && self.runtime_allocator_depth.get() > 0
+            {
+                return self.stack.borrow_mut().copy_value_to_runtime(value);
+            }
+            return self.stack.borrow_mut().copy_value_to(target, value);
+        }
+        self.ensure_live(&value)?;
+        if value.stack_size_bytes() == 0 || value.owner() == target {
+            return Ok(value);
+        }
+        let owner = target.expect("region target was checked above");
+        value.detach_views_for_copy(owner);
+        self.reserve_region_value(owner, &value)?;
+        self.stack.borrow_mut().place_region_value(owner, value)
     }
 
     fn ensure_live(&self, value: &Value) -> Result<()> {
@@ -1142,10 +1333,7 @@ impl Interpreter {
                 name
             )));
         }
-        let value = self
-            .stack
-            .borrow_mut()
-            .copy_value_to(binding.destination(), value)?;
+        let value = self.copy_value_to(binding.destination(), value)?;
         binding.replace(value);
         Ok(())
     }
@@ -1381,6 +1569,13 @@ impl Interpreter {
 /// Convenience function to run a HIR program end-to-end.
 pub fn run_program(items: &[hir::Item]) -> Result<Value> {
     Interpreter::new(items)?.run()
+}
+
+pub(crate) fn run_program_with_runtime(
+    items: &[hir::Item],
+    runtime_items: &[hir::Item],
+) -> Result<Value> {
+    Interpreter::with_runtime(items, runtime_items)?.run()
 }
 
 fn is_truthy(v: &Value) -> bool {

@@ -1,0 +1,165 @@
+{
+  "tests/78-hidden-allocator-namespace.bst": [
+    {
+      "item": {
+        "Fn": {
+          "name": "arena_alloc",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Literal": {
+                            "I32": 7
+                          }
+                        },
+                        "span": {
+                          "start": 7,
+                          "end": 8
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 7,
+                      "end": 8
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 6,
+              "end": 9
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 0,
+        "end": 9
+      }
+    },
+    {
+      "item": {
+        "Fn": {
+          "name": "main",
+          "generics": [],
+          "params": [],
+          "ret_type": {
+            "path": [
+              "i32"
+            ],
+            "generics": [],
+            "fn_params": null,
+            "fn_ret": null,
+            "fn_effects": null
+          },
+          "effects": [],
+          "body": {
+            "item": {
+              "Block": {
+                "stmts": [
+                  {
+                    "item": {
+                      "Memory": {
+                        "name": "Scratch",
+                        "byte_limit": 64,
+                        "object_limit": 2
+                      }
+                    },
+                    "span": {
+                      "start": 16,
+                      "end": 25
+                    }
+                  },
+                  {
+                    "item": {
+                      "Let": {
+                        "is_mut": false,
+                        "name": "value",
+                        "memory": "Scratch",
+                        "ty": null,
+                        "value": {
+                          "item": {
+                            "Literal": {
+                              "Str": "region"
+                            }
+                          },
+                          "span": {
+                            "start": 30,
+                            "end": 31
+                          }
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 25,
+                      "end": 31
+                    }
+                  },
+                  {
+                    "item": {
+                      "Expr": {
+                        "item": {
+                          "Call": {
+                            "fun": {
+                              "item": {
+                                "Path": [
+                                  "arena_alloc"
+                                ]
+                              },
+                              "span": {
+                                "start": 31,
+                                "end": 32
+                              }
+                            },
+                            "args": []
+                          }
+                        },
+                        "span": {
+                          "start": 31,
+                          "end": 34
+                        }
+                      }
+                    },
+                    "span": {
+                      "start": 31,
+                      "end": 34
+                    }
+                  }
+                ],
+                "last_expr": null
+              }
+            },
+            "span": {
+              "start": 15,
+              "end": 35
+            }
+          },
+          "is_public": false
+        }
+      },
+      "span": {
+        "start": 9,
+        "end": 35
+      }
+    }
+  ]
+}

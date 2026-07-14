@@ -43,6 +43,7 @@ pub struct Workspace {
     pub sources: HashMap<PathBuf, String>,
     pub ast: HashMap<PathBuf, Vec<Spanned<OwnedItem>>>,
     pub hir: Vec<hir::Item>,
+    runtime_hir: Vec<hir::Item>,
     resolved_modules: HashSet<PathBuf>, // Add this field
     module_capabilities: HashMap<PathBuf, HashSet<ModuleCapability>>,
     pub last_run_result: Option<crate::interpreter::Value>,
@@ -361,6 +362,11 @@ impl Compiler {
         match typechecker.check_program(self.workspace.ast.clone()) {
             Ok(hir_items) => {
                 self.workspace.hir = hir_items;
+                self.workspace.runtime_hir = if Self::requires_region_runtime(&self.workspace.hir) {
+                    Self::compile_internal_runtime()?
+                } else {
+                    vec![]
+                };
                 Ok(())
             }
             Err(errors) => {
@@ -386,10 +392,185 @@ impl Compiler {
     }
 
     pub fn run_interpreter(&mut self) -> io::Result<()> {
-        let result = crate::interpreter::run_program(&self.workspace.hir)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.0))?;
+        let result = crate::interpreter::run_program_with_runtime(
+            &self.workspace.hir,
+            &self.workspace.runtime_hir,
+        )
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.0))?;
         self.workspace.last_run_result = Some(result);
         Ok(())
+    }
+
+    fn compile_internal_runtime() -> io::Result<Vec<hir::Item>> {
+        const RAW_PATH: &str = "./modules/std/runtime/raw/raw_memory.bst";
+        const ARENA_PATH: &str = "./modules/std/runtime/allocator/arena.bst";
+        const RAW_SOURCE: &str = include_str!("../modules/std/runtime/raw/raw_memory.bst");
+        const ARENA_SOURCE: &str = include_str!("../modules/std/runtime/allocator/arena.bst");
+
+        let mut ast = HashMap::new();
+        let mut capabilities = HashMap::new();
+        for (path, source) in [(RAW_PATH, RAW_SOURCE), (ARENA_PATH, ARENA_SOURCE)] {
+            let (tokens, lex_errors) = lexer().parse(source).into_output_errors();
+            if !lex_errors.is_empty() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("internal runtime module '{}' failed to lex", path),
+                ));
+            }
+            let tokens = tokens.ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("internal runtime module '{}' produced no tokens", path),
+                )
+            })?;
+            let parser_tokens = tokens
+                .iter()
+                .map(|(token, _)| token.clone())
+                .collect::<Vec<_>>();
+            let (items, parse_errors) = file_parser().parse(&parser_tokens).into_output_errors();
+            if !parse_errors.is_empty() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("internal runtime module '{}' failed to parse", path),
+                ));
+            }
+            let items = items.ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("internal runtime module '{}' produced no AST", path),
+                )
+            })?;
+            ast.insert(
+                PathBuf::from(path),
+                items
+                    .iter()
+                    .map(|item| Spanned {
+                        item: item.into(),
+                        span: item.span,
+                    })
+                    .collect(),
+            );
+            capabilities.insert(
+                PathBuf::from(path),
+                HashSet::from([
+                    ModuleCapability::StandardLibraryInternals,
+                    ModuleCapability::MemoryInternals,
+                    ModuleCapability::RuntimeInternals,
+                ]),
+            );
+        }
+
+        Typechecker::with_module_capabilities(capabilities)
+            .check_program(ast)
+            .map_err(|errors| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!(
+                        "internal runtime failed typechecking: {}",
+                        errors
+                            .into_iter()
+                            .map(|error| error.message)
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    ),
+                )
+            })
+    }
+
+    fn requires_region_runtime(items: &[hir::Item]) -> bool {
+        items.iter().any(|item| match item {
+            hir::Item::Fn(function) => Self::block_uses_region_runtime(&function.body),
+            hir::Item::Handler(handler) => handler
+                .functions
+                .iter()
+                .any(|function| Self::block_uses_region_runtime(&function.body)),
+            _ => false,
+        })
+    }
+
+    fn block_uses_region_runtime(block: &hir::HirBlock) -> bool {
+        block.stmts.iter().any(|stmt| match stmt {
+            hir::Stmt::Memory { .. } => true,
+            hir::Stmt::Let { value, memory, .. } => value
+                .iter()
+                .chain(memory.iter())
+                .any(Self::expr_uses_region_runtime),
+            hir::Stmt::Reset { region, .. } => Self::expr_uses_region_runtime(region),
+            hir::Stmt::Return { value, .. } => {
+                value.as_ref().is_some_and(Self::expr_uses_region_runtime)
+            }
+            hir::Stmt::Assign { lhs, rhs, .. } => {
+                Self::expr_uses_region_runtime(lhs) || Self::expr_uses_region_runtime(rhs)
+            }
+            hir::Stmt::Expr { expr, .. } => Self::expr_uses_region_runtime(expr),
+            hir::Stmt::Error { .. } => false,
+        }) || block
+            .last_expr
+            .as_deref()
+            .is_some_and(Self::expr_uses_region_runtime)
+    }
+
+    fn expr_uses_region_runtime(expr: &hir::Expr) -> bool {
+        match &expr.kind {
+            hir::ExprKind::Literal(_, _) | hir::ExprKind::Path(_) | hir::ExprKind::Error => false,
+            hir::ExprKind::Array(items) => items.iter().any(Self::expr_uses_region_runtime),
+            hir::ExprKind::Map(entries) => entries.iter().any(|(key, value)| {
+                Self::expr_uses_region_runtime(key) || Self::expr_uses_region_runtime(value)
+            }),
+            hir::ExprKind::FieldAccess { receiver, .. }
+            | hir::ExprKind::Unary { rhs: receiver, .. }
+            | hir::ExprKind::Cast { expr: receiver } => Self::expr_uses_region_runtime(receiver),
+            hir::ExprKind::Binary { lhs, rhs, .. } => {
+                Self::expr_uses_region_runtime(lhs) || Self::expr_uses_region_runtime(rhs)
+            }
+            hir::ExprKind::Call { fun, args } => {
+                Self::expr_uses_region_runtime(fun)
+                    || args.iter().any(Self::expr_uses_region_runtime)
+            }
+            hir::ExprKind::StructInit { fields, .. } => fields
+                .iter()
+                .any(|(_, value)| Self::expr_uses_region_runtime(value)),
+            hir::ExprKind::Block(block) => Self::block_uses_region_runtime(block),
+            hir::ExprKind::If {
+                cond,
+                then_block,
+                else_block,
+            } => {
+                Self::expr_uses_region_runtime(cond)
+                    || Self::block_uses_region_runtime(then_block)
+                    || else_block
+                        .as_deref()
+                        .is_some_and(Self::expr_uses_region_runtime)
+            }
+            hir::ExprKind::Match { scrutinee, arms } => {
+                Self::expr_uses_region_runtime(scrutinee)
+                    || arms
+                        .iter()
+                        .any(|(_, body)| Self::expr_uses_region_runtime(body))
+            }
+            hir::ExprKind::While { cond, body } => {
+                Self::expr_uses_region_runtime(cond) || Self::block_uses_region_runtime(body)
+            }
+            hir::ExprKind::Perform { args, .. } => args.iter().any(Self::expr_uses_region_runtime),
+            hir::ExprKind::Handler(handler) => Self::handler_body_uses_region_runtime(handler),
+            hir::ExprKind::Handle { body, handler } => {
+                Self::block_uses_region_runtime(body) || Self::expr_uses_region_runtime(handler)
+            }
+            hir::ExprKind::FnLiteral(function) => Self::block_uses_region_runtime(&function.body),
+        }
+    }
+
+    fn handler_body_uses_region_runtime(handler: &hir::HirHandlerBody) -> bool {
+        match handler {
+            hir::HirHandlerBody::Path(_) => false,
+            hir::HirHandlerBody::Composed { base, handlers } => {
+                Self::handler_body_uses_region_runtime(base)
+                    || handlers.iter().any(Self::handler_body_uses_region_runtime)
+            }
+            hir::HirHandlerBody::Inline(functions) => functions
+                .iter()
+                .any(|function| Self::block_uses_region_runtime(&function.body)),
+        }
     }
 
     // --- Error Reporting ---

@@ -37,32 +37,43 @@ impl HirIndex {
 
     pub fn from_items(items: &[hir::Item]) -> Self {
         let mut index = Self::default();
+        index.insert_items(items, true);
+        index
+    }
 
+    pub fn from_program_and_runtime(items: &[hir::Item], runtime_items: &[hir::Item]) -> Self {
+        let mut index = Self::default();
+        index.insert_items(items, true);
+        index.insert_items(runtime_items, false);
+        index
+    }
+
+    fn insert_items(&mut self, items: &[hir::Item], visible_unqualified: bool) {
         for item in items {
             match item {
                 hir::Item::Fn(function) => {
-                    index
-                        .resolved_functions
+                    self.resolved_functions
                         .entry(function.defined_in.clone())
                         .or_default()
                         .insert(function.signature.name.clone(), function.clone());
-                    index
-                        .functions
-                        .insert(function.signature.name.clone(), function.clone());
+                    if visible_unqualified {
+                        self.functions
+                            .insert(function.signature.name.clone(), function.clone());
+                    }
                 }
                 hir::Item::Struct(struct_def) => {
-                    index.structs.insert(
+                    self.structs.insert(
                         Self::item_path(&struct_def.defined_in, &struct_def.name),
                         struct_def.clone(),
                     );
                 }
                 hir::Item::Enum(enum_def) => {
                     let enum_path = Self::item_path(&enum_def.defined_in, &enum_def.name);
-                    index.enums.insert(enum_path.clone(), enum_def.clone());
+                    self.enums.insert(enum_path.clone(), enum_def.clone());
                     for variant in &enum_def.variants {
                         let mut variant_path = enum_path.clone();
                         variant_path.push(variant.name.clone());
-                        index.enum_variants.insert(
+                        self.enum_variants.insert(
                             variant_path,
                             HirEnumVariantIndexEntry {
                                 enum_path: enum_path.clone(),
@@ -72,19 +83,17 @@ impl HirIndex {
                     }
                 }
                 hir::Item::Effect(effect) => {
-                    index.effects.insert(
+                    self.effects.insert(
                         Self::item_path(&effect.defined_in, &effect.name),
                         effect.clone(),
                     );
                 }
                 hir::Item::Handler(handler) => {
-                    index.handlers.insert(handler.name.clone(), handler.clone());
+                    self.handlers.insert(handler.name.clone(), handler.clone());
                 }
                 hir::Item::TypeAlias(_) => {}
             }
         }
-
-        index
     }
 
     pub fn function(&self, name: &str) -> Option<&hir::HirFunction> {

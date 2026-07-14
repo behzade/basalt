@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use super::env::{Result, RuntimeError};
-use super::runtime;
+use super::env::{Binding, Result, RuntimeError};
 use super::value::{AllocationOwner, Value};
 
 const DEFAULT_FRAME_BYTES: usize = 4 * 1024;
@@ -45,29 +44,15 @@ impl StackFrame {
 struct MemoryRegion {
     owner: AllocationOwner,
     name: String,
-    used_bytes: usize,
-    object_count: usize,
-    byte_limit: usize,
-    object_limit: usize,
-    backing_ptr: u64,
+    allocator: Binding,
 }
 
 impl MemoryRegion {
-    fn new(
-        name: String,
-        byte_limit: usize,
-        object_limit: Option<usize>,
-        backing_ptr: u64,
-        owner: AllocationOwner,
-    ) -> Self {
+    fn new(name: String, allocator: Binding, owner: AllocationOwner) -> Self {
         Self {
             owner,
             name,
-            used_bytes: 0,
-            object_count: 0,
-            byte_limit,
-            object_limit: object_limit.unwrap_or(DEFAULT_FRAME_OBJECTS),
-            backing_ptr,
+            allocator,
         }
     }
 }
@@ -171,8 +156,7 @@ impl StackAllocator {
     pub(crate) fn define_region(
         &mut self,
         name: impl Into<String>,
-        byte_limit: usize,
-        object_limit: Option<usize>,
+        allocator: Binding,
     ) -> Result<AllocationOwner> {
         let name = name.into();
         let parent = self.frames.last().map(|frame| frame.owner).ok_or_else(|| {
@@ -181,17 +165,71 @@ impl StackAllocator {
                 name
             ))
         })?;
-        let backing_ptr = runtime::alloc_bytes(byte_limit)?;
         let owner = self.create_context(
             format!("region {}", name),
             parent.id,
             ContextKind::NamedRegion,
         );
-        self.regions.insert(
-            owner.id,
-            MemoryRegion::new(name, byte_limit, object_limit, backing_ptr, owner),
-        );
+        self.regions
+            .insert(owner.id, MemoryRegion::new(name, allocator, owner));
         Ok(owner)
+    }
+
+    pub(crate) fn region_allocator(&self, owner: AllocationOwner) -> Result<Binding> {
+        let Some(region) = self.regions.get(&owner.id) else {
+            return Err(RuntimeError(
+                "Unknown or destroyed memory region".to_string(),
+            ));
+        };
+        if region.owner != owner {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' handle has a stale generation",
+                region.name
+            )));
+        }
+        Ok(region.allocator.clone())
+    }
+
+    pub(crate) fn is_region(&self, owner: AllocationOwner) -> bool {
+        self.regions
+            .get(&owner.id)
+            .is_some_and(|region| region.owner == owner)
+    }
+
+    pub(crate) fn region_name(&self, owner: AllocationOwner) -> Result<String> {
+        let Some(region) = self.regions.get(&owner.id) else {
+            return Err(RuntimeError(
+                "Unknown or destroyed memory region".to_string(),
+            ));
+        };
+        if region.owner != owner {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' handle has a stale generation",
+                region.name
+            )));
+        }
+        Ok(region.name.clone())
+    }
+
+    pub(crate) fn current_region_owner(&self, id: u64) -> Result<AllocationOwner> {
+        self.regions
+            .get(&id)
+            .map(|region| region.owner)
+            .ok_or_else(|| RuntimeError("Unknown or destroyed memory region".to_string()))
+    }
+
+    pub(crate) fn runtime_root_owner(&self) -> AllocationOwner {
+        let context = self
+            .contexts
+            .iter()
+            .find_map(|(id, context)| {
+                (context.kind == ContextKind::RuntimeRoot).then_some((*id, context.generation))
+            })
+            .expect("runtime root context must exist");
+        AllocationOwner {
+            id: context.0,
+            generation: context.1,
+        }
     }
 
     pub(crate) fn push_frame(&mut self, name: impl Into<String>) {
@@ -221,6 +259,7 @@ impl StackAllocator {
         self.frames.last().map(|frame| frame.owner)
     }
 
+    #[cfg(test)]
     pub(crate) fn alloc_value(&mut self, value: Value) -> Result<Value> {
         let target = self.current_target();
         self.alloc_value_in(target, value)
@@ -247,18 +286,22 @@ impl StackAllocator {
         context.generation = context.generation.saturating_add(1);
         context.live = true;
         region.owner.generation = context.generation;
-        region.used_bytes = 0;
-        region.object_count = 0;
         Ok(region.owner)
     }
 
     pub(crate) fn destroy_region(&mut self, owner: AllocationOwner) -> Result<()> {
-        let Some(region) = self.regions.remove(&owner.id) else {
+        let Some(region) = self.regions.get(&owner.id) else {
             return Err(RuntimeError(
                 "Unknown or already destroyed memory region".to_string(),
             ));
         };
-        runtime::free_bytes(region.backing_ptr, region.byte_limit);
+        if region.owner != owner {
+            return Err(RuntimeError(format!(
+                "Memory region '{}' handle has a stale generation",
+                region.name
+            )));
+        }
+        self.regions.remove(&owner.id);
         if let Some(context) = self.contexts.get_mut(&owner.id) {
             context.live = false;
             context.generation = context.generation.saturating_add(1);
@@ -279,6 +322,17 @@ impl StackAllocator {
             value.detach_views_for_copy(target);
         }
         self.alloc_value_in(target, value)
+    }
+
+    pub(crate) fn copy_value_to_runtime(&mut self, mut value: Value) -> Result<Value> {
+        self.validate_value(&value)?;
+        if value.stack_size_bytes() == 0 {
+            return Ok(value);
+        }
+        let runtime_root = self.runtime_root_owner();
+        value.detach_views_for_copy(runtime_root);
+        value.assign_owner_recursive(runtime_root);
+        Ok(value)
     }
 
     fn alloc_value_in(
@@ -321,9 +375,10 @@ impl StackAllocator {
             .get(&target.id)
             .is_some_and(|region| region.owner == target)
         {
-            value = self.alloc_region_value(target, value, size)?;
-            value.assign_owner_recursive(target);
-            return Ok(value);
+            return Err(RuntimeError(format!(
+                "Region allocation for {} bypassed the Basalt runtime allocator",
+                value.allocation_kind()
+            )));
         }
         if target == self.global.owner {
             if self.global.object_count + 1 > self.global.object_limit {
@@ -426,13 +481,12 @@ impl StackAllocator {
         }
     }
 
-    fn alloc_region_value(
+    pub(crate) fn place_region_value(
         &mut self,
         owner: AllocationOwner,
-        value: Value,
-        size: usize,
+        mut value: Value,
     ) -> Result<Value> {
-        let Some(region) = self.regions.get_mut(&owner.id) else {
+        let Some(region) = self.regions.get(&owner.id) else {
             return Err(RuntimeError(format!(
                 "Unknown memory region for {} allocation",
                 value.allocation_kind()
@@ -444,27 +498,7 @@ impl StackAllocator {
                 region.name
             )));
         }
-        if region.object_count + 1 > region.object_limit {
-            return Err(RuntimeError(format!(
-                "Memory region '{}' exhausted object limit: {}/{} objects before allocating {}",
-                region.name,
-                region.object_count,
-                region.object_limit,
-                value.allocation_kind()
-            )));
-        }
-        if region.used_bytes + size > region.byte_limit {
-            return Err(RuntimeError(format!(
-                "Memory region '{}' exhausted memory: {}/{} bytes before allocating {} bytes for {}",
-                region.name,
-                region.used_bytes,
-                region.byte_limit,
-                size,
-                value.allocation_kind()
-            )));
-        }
-        region.object_count += 1;
-        region.used_bytes += size;
+        value.assign_owner_recursive(owner);
         Ok(value)
     }
 
@@ -473,14 +507,6 @@ impl StackAllocator {
         region: Option<AllocationOwner>,
     ) -> Option<AllocationOwner> {
         std::mem::replace(&mut self.active_region, region)
-    }
-}
-
-impl Drop for StackAllocator {
-    fn drop(&mut self) {
-        for region in self.regions.values() {
-            runtime::free_bytes(region.backing_ptr, region.byte_limit);
-        }
     }
 }
 
@@ -558,7 +584,8 @@ mod tests {
             stack.contexts.get(&main.id).unwrap().parent,
             Some(global.id)
         );
-        let region = stack.define_region("Data", 64, Some(4)).unwrap();
+        let allocator = Binding::new(Value::Unit, true, Some(stack.runtime_root_owner()));
+        let region = stack.define_region("Data", allocator).unwrap();
         assert_eq!(
             stack.contexts.get(&region.id).unwrap().parent,
             Some(main.id)

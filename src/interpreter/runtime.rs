@@ -331,6 +331,10 @@ fn value_to_address(value: &Value, context: &str) -> Result<AddressHandle> {
     })
 }
 
+pub(crate) fn is_null_address(value: &Value) -> Result<bool> {
+    Ok(value_to_address(value, "runtime allocator result")?.allocation == 0)
+}
+
 pub(crate) fn alloc_bytes(bytes: usize) -> Result<u64> {
     if bytes == 0 {
         return Err(RuntimeError(

@@ -1,0 +1,205 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "Objects",
+              "byte_limit": 1024,
+              "object_limit": 1,
+              "span": {
+                "start": 7,
+                "end": 16
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "first",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "first"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 21,
+                  "end": 22
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Objects"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 16,
+                  "end": 22
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Objects",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 16,
+                "end": 22
+              },
+              "name_span": null
+            }
+          },
+          {
+            "Let": {
+              "name": "second",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "second"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 27,
+                  "end": 28
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Objects"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 22,
+                  "end": 28
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Objects",
+                    "decl_span": {
+                      "start": 7,
+                      "end": 16
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 22,
+                "end": 28
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "len"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [
+                      {
+                        "Primitive": "Str"
+                      }
+                    ],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 28,
+                  "end": 33
+                },
+                "resolution": null
+              },
+              "args": [
+                {
+                  "kind": {
+                    "Path": [
+                      "second"
+                    ]
+                  },
+                  "ty": {
+                    "Primitive": "Str"
+                  },
+                  "span": {
+                    "start": 28,
+                    "end": 29
+                  },
+                  "resolution": {
+                    "Local": {
+                      "name": "second",
+                      "decl_span": {
+                        "start": 22,
+                        "end": 28
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 28,
+            "end": 33
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/77-region-object-exhaustion.bst",
+      "span": {
+        "start": 6,
+        "end": 34
+      },
+      "context_id": 0
+    }
+  }
+]

@@ -1,0 +1,183 @@
+[
+  {
+    "Fn": {
+      "signature": {
+        "name": "arena_alloc",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [],
+        "last_expr": {
+          "kind": {
+            "Literal": [
+              "I32",
+              "7"
+            ]
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 7,
+            "end": 8
+          },
+          "resolution": null
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/78-hidden-allocator-namespace.bst",
+      "span": {
+        "start": 6,
+        "end": 9
+      },
+      "context_id": 0
+    }
+  },
+  {
+    "Fn": {
+      "signature": {
+        "name": "main",
+        "params": [],
+        "ret_type": {
+          "Primitive": "I32"
+        },
+        "effects": []
+      },
+      "body": {
+        "stmts": [
+          {
+            "Memory": {
+              "name": "Scratch",
+              "byte_limit": 64,
+              "object_limit": 2,
+              "span": {
+                "start": 16,
+                "end": 25
+              }
+            }
+          },
+          {
+            "Let": {
+              "name": "value",
+              "value": {
+                "kind": {
+                  "Literal": [
+                    "Str",
+                    "region"
+                  ]
+                },
+                "ty": {
+                  "Primitive": "Str"
+                },
+                "span": {
+                  "start": 30,
+                  "end": 31
+                },
+                "resolution": null
+              },
+              "ty": {
+                "Primitive": "Str"
+              },
+              "is_mut": false,
+              "memory": {
+                "kind": {
+                  "Path": [
+                    "Scratch"
+                  ]
+                },
+                "ty": "Region",
+                "span": {
+                  "start": 25,
+                  "end": 31
+                },
+                "resolution": {
+                  "Local": {
+                    "name": "Scratch",
+                    "decl_span": {
+                      "start": 16,
+                      "end": 25
+                    }
+                  }
+                }
+              },
+              "span": {
+                "start": 25,
+                "end": 31
+              },
+              "name_span": null
+            }
+          }
+        ],
+        "last_expr": {
+          "kind": {
+            "Call": {
+              "fun": {
+                "kind": {
+                  "Path": [
+                    "arena_alloc"
+                  ]
+                },
+                "ty": {
+                  "Function": {
+                    "param_types": [],
+                    "ret_type": {
+                      "Primitive": "I32"
+                    },
+                    "effects": []
+                  }
+                },
+                "span": {
+                  "start": 31,
+                  "end": 32
+                },
+                "resolution": {
+                  "Function": {
+                    "defined_in": "tests/78-hidden-allocator-namespace.bst",
+                    "span": {
+                      "start": 0,
+                      "end": 9
+                    }
+                  }
+                }
+              },
+              "args": []
+            }
+          },
+          "ty": {
+            "Primitive": "I32"
+          },
+          "span": {
+            "start": 31,
+            "end": 34
+          },
+          "resolution": {
+            "Function": {
+              "defined_in": "tests/78-hidden-allocator-namespace.bst",
+              "span": {
+                "start": 0,
+                "end": 9
+              }
+            }
+          }
+        },
+        "ty": {
+          "Primitive": "I32"
+        }
+      },
+      "is_public": false,
+      "defined_in": "tests/78-hidden-allocator-namespace.bst",
+      "span": {
+        "start": 15,
+        "end": 35
+      },
+      "context_id": 1
+    }
+  }
+]

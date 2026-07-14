@@ -19,7 +19,9 @@
 25-explicit-return.bst 7
 26-nested-return.bst 7
 27-while-trailing-expression.bst 40
+28-chunk-allocated-strings.bst 128
 28-match-mutation.bst 41
+29-chunk-exhaustion.bst 1
 29-closure-state.bst 2
 30-immutable-assignment.bst 1
 31-unsafe-runtime-memory.bst 43
@@ -62,3 +64,5 @@
 74-local-region-closure.bst 5
 75-escaping-region-closure.bst 1
 76-region-union-storage.bst 1
+77-region-object-exhaustion.bst 1
+78-hidden-allocator-namespace.bst 7
